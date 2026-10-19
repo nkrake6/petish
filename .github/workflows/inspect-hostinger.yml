@@ -1,0 +1,68 @@
+name: Inspect Petish on Hostinger
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Check connectivity first; inspect only after configuring verified SSH access.
+        type: choice
+        required: true
+        default: connection-check
+        options:
+          - connection-check
+          - inspect-wordpress
+
+permissions:
+  contents: read
+
+concurrency:
+  group: petish-hostinger-inspection
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Read-only Hostinger inspection
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - name: Check out inspection scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Check SSH connectivity without credentials
+        env:
+          OPERATION: ${{ inputs.operation }}
+        run: bash scripts/hostinger-connection-check.sh
+
+      - name: Install the SSH password helper on the GitHub runner
+        if: inputs.operation == 'inspect-wordpress'
+        run: |
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass
+          fi
+
+      - name: Inspect WordPress using verified SSH access
+        if: inputs.operation == 'inspect-wordpress'
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: bash scripts/hostinger-inspect.sh
+
+      - name: Attach the inspection report
+        if: inputs.operation == 'inspect-wordpress' && success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: petish-wordpress-inspection
+          path: ${{ runner.temp }}/petish-wordpress-inspection.txt
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Remove temporary host keys
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-host-keys"
