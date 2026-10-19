@@ -1,0 +1,62 @@
+{
+  "format": "petish-full-wordpress-backup-v1",
+  "site": "https://petish.biz/",
+  "created_utc": "2026-10-19T23:47:41.917180+00:00",
+  "scope": "complete document-root tree and site SQL database; symlinks preserved without following targets",
+  "encryption": "OpenPGP symmetric AES256 with integrity protection",
+  "encrypted_bytes": 403504349,
+  "encrypted_sha256": "392b6c261120cafbed9455060150585711b8271bd2bd42a2fa5ac81f1d0670a3",
+  "parts": [
+    {
+      "file": "site-backup.tar.gz.gpg.part-00000",
+      "bytes": 50331648,
+      "sha256": "5a0af469f60ba18134f9676e99adad12d0919802f404fbf3b431e6693a87096b"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00001",
+      "bytes": 50331648,
+      "sha256": "a3499f83815bff0d427607cbd193f2464a8a9afb73d0b9ac5f9a6d47a3b7fb84"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00002",
+      "bytes": 50331648,
+      "sha256": "313213f4ef6e1d42c7b80f14c0ce31bfa9f3ed8973a04556c7d4fd69944e2247"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00003",
+      "bytes": 50331648,
+      "sha256": "12adffbe317ab1553498ae30db06e9511155e23e1385dcae3248054080e34ac9"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00004",
+      "bytes": 50331648,
+      "sha256": "182786bc9ae3021df786708b6ba42d5dbd8c3e9b622b591af18a03795963700f"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00005",
+      "bytes": 50331648,
+      "sha256": "ecbffa23ca600ed3032e42d00e790644b9d3fecb8422f9c5f2625aa8e86b881d"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00006",
+      "bytes": 50331648,
+      "sha256": "42f43cbbab015d1f805a19f37b08a193a8fb3bd4dbdbb097d78af5ab52f8c3b5"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00007",
+      "bytes": 50331648,
+      "sha256": "f815e744649549d10edad4f966422c33a926bba5faa9aa9641b49a42d5d900fc"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00008",
+      "bytes": 851165,
+      "sha256": "3b3a513dad0b54ecd40652f349313843fa269885745ebe65b49dddc403bcc25d"
+    }
+  ],
+  "verification": {
+    "archive_verified": true,
+    "archive_entries": 45227,
+    "uncompressed_bytes": 724306454,
+    "symbolic_links_preserved": 1
+  }
+}
