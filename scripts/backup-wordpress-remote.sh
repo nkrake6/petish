@@ -42,6 +42,9 @@ fi
 if ! command -v wp >/dev/null 2>&1; then
   fail 'WP-CLI is unavailable; no backup was created.'
 fi
+if ! command -v gzip >/dev/null 2>&1; then
+  fail 'Archive diagnostic: compressor_missing. The hosting shell cannot find gzip; no backup was created.'
+fi
 if command -v mariadb-dump >/dev/null 2>&1; then
   dump_client="$(command -v mariadb-dump)"
 elif command -v mysqldump >/dev/null 2>&1; then
@@ -248,13 +251,60 @@ if [[ "$tar_help" == *'--xattrs'* ]]; then
 fi
 unset tar_help
 
+report_archive_error() {
+  # Only fixed labels and a numeric status may leave the private diagnostic file.
+  # Never print matching lines: filenames/paths can contain private information.
+  awk -v status="$1" '
+    {
+      line = tolower($0)
+      if (line ~ /file changed as we read it|file shrank by/) changed = 1
+      if (line ~ /file removed before we read it|cannot stat.*no such file/) removed = 1
+      if (line ~ /permission denied|operation not permitted|cannot open.*access denied/) permission = 1
+      if (line ~ /getxattr|setxattr|acl_get|acl_set|xattr support|acl support|extended attribute/) metadata = 1
+      if (line ~ /cannot exec|gzip.*not found|gzip.*no such file|child returned status/) compressor = 1
+      if (line ~ /unrecognized option|unknown option|invalid option|invalid transform|not supported/) compatibility = 1
+      if (line ~ /broken pipe|write error|cannot write|wrote only/) stream = 1
+      if (line ~ /cannot chdir|could not chdir/) directory = 1
+      if (line ~ /no space left on device|disk quota exceeded/) storage = 1
+    }
+    END {
+      printf "Archive diagnostic: tar_exit=%d\n", status
+      if (changed) print "Archive diagnostic: live_file_changed"
+      if (removed) print "Archive diagnostic: source_file_removed"
+      if (permission) print "Archive diagnostic: source_permission_denied"
+      if (metadata) print "Archive diagnostic: acl_or_extended_attributes"
+      if (compressor) print "Archive diagnostic: compressor_or_child_process"
+      if (compatibility) print "Archive diagnostic: unsupported_archive_option"
+      if (stream) print "Archive diagnostic: archive_stream_write_error"
+      if (directory) print "Archive diagnostic: archive_directory_unavailable"
+      if (storage) print "Archive diagnostic: storage_or_quota_limit"
+      if (!(changed || removed || permission || metadata || compressor || compatibility || stream || directory || storage))
+        print "Archive diagnostic: unclassified_archive_error"
+    }
+  ' "$2" >&2
+}
+
+# Test the archive options on private metadata before reading website files.
+# This distinguishes a tool/jail incompatibility from live-file/read failures.
+preflight_status=0
+tar --create --gzip --file=/dev/null --format=posix "${tar_metadata[@]}" \
+  --directory="$private_work" backup-metadata \
+  2> "$private_work/tar-preflight.stderr" || preflight_status=$?
+if (( preflight_status != 0 )); then
+  report_archive_error "$preflight_status" "$private_work/tar-preflight.stderr"
+  fail 'Archive diagnostic: private_metadata_preflight_failed. No complete backup was produced.'
+fi
+
 # Transform member/hardlink names, not symlink target text. The two private
 # directories do not start with './', so they retain their intended prefixes.
 # Never create a plaintext website tar on the remote disk.
-if ! tar --create --gzip --file=- --format=posix "${tar_metadata[@]}" \
+tar_status=0
+tar --create --gzip --file=- --format=posix "${tar_metadata[@]}" \
   '--transform=flags=rh;s|^\.$|site-files|;s|^\./|site-files/|' \
   --directory="$site_real" . \
   --directory="$private_work" database backup-metadata \
-  2> "$private_work/tar.stderr"; then
-  fail 'The complete file archive failed or files changed during export; discard all output and retry during a stable period.'
+  2> "$private_work/tar.stderr" || tar_status=$?
+if (( tar_status != 0 )); then
+  report_archive_error "$tar_status" "$private_work/tar.stderr"
+  fail 'The complete file archive failed. Only error categories were printed; nothing will be published.'
 fi

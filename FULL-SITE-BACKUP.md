@@ -14,6 +14,8 @@ The existing `HOSTINGER_SSH_PASSWORD` secret and `HOSTINGER_SSH_FINGERPRINT` var
 
 Open [Back up the full Petish site to Git](https://github.com/nkrake6/petish/actions/workflows/backup-full-site.yml), choose **Run workflow → main → Run workflow**.
 
+Changes to this backup workflow or its backup scripts on `main` also start a run automatically, so backup fixes can be checked without repeatedly starting manual runs. Normal website/prototype commits and pushes to backup branches do not trigger this workflow.
+
 The workflow:
 
 1. Verifies the SSH server identity and logs in through GitHub's runner.
@@ -31,6 +33,7 @@ The final run summary links to the backup branch. Share that branch name with Co
 - The database uses a single transaction where supported. The SQL dump and filesystem are not one atomic site-wide snapshot; concurrent file changes can make the backup fail rather than silently omit files. Plan a quiet period for the most consistent backup.
 - Symbolic links are preserved exactly as link objects, including external/dangling links, and never followed. Their target data outside the document root is not copied. An encrypted link inventory and restoration notes identify this dependency; review it before treating the backup as a self-contained restore. Unsupported special files still stop the workflow. Hostinger account services and external object storage are not part of the WordPress document root/database.
 - A failed SQL dump, encryption/integrity check, or archive size check prevents publication. The compressed/encrypted backup must fit the workflow's 1.5 GiB ceiling below GitHub's single-push limit. Exceeding it stops the backup; files are never silently dropped.
+- Archive failures emit only a numeric exit code and fixed diagnostic categories. A small private-metadata preflight distinguishes archive-tool problems from website-file failures. Raw paths, tar errors and SQL diagnostics are never published.
 - Repeated full backups consume Git repository storage. Older backup branches are not deleted automatically.
 - Successful validation is not a successful restore test. Restore into an isolated site/database and verify it before relying on any disaster recovery plan.
 - Because credentials and licensed software are present, keep the passphrase separate from Git even if the repository is private. Do not replace encrypted parts with a plaintext SQL/archive.

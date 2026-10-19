@@ -58,6 +58,9 @@ if ! env -u PETISH_BACKUP_PASSPHRASE sshpass -e ssh -F /dev/null -T \
       --force-mdc --compress-algo none --s2k-mode 3 --s2k-digest-algo SHA256 \
       --s2k-count 65011712 --output "$encrypted" \
       3<<< "$PETISH_BACKUP_PASSPHRASE"; then
+  if [[ -f "$encrypted" ]] && (( $(wc -c < "$encrypted") > max_bytes )); then
+    printf '%s\n' 'Archive diagnostic: git_backup_size_limit. The encrypted backup exceeded the workflow limit; no files were omitted or published.' >&2
+  fi
   printf '%s\n' 'The full backup stream did not complete. Nothing will be published.' >&2
   exit 1
 fi

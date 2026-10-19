@@ -2,6 +2,15 @@ name: Back up the full Petish site to Git
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/backup-full-site.yml
+      - scripts/backup-wordpress-remote.sh
+      - scripts/hostinger-full-backup.sh
+      - scripts/verify-full-backup.py
+      - scripts/package-encrypted-backup.py
 
 permissions:
   contents: write
