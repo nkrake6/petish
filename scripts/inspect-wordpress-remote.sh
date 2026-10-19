@@ -36,20 +36,24 @@ printf '## WordPress version\n\n'
 wp --path="$site_path" --no-color core version
 
 printf '\n## Installed themes (file headers)\n\n'
+# Use a pipe rather than process substitution: jailed hosting shells may not
+# expose /dev/fd. These loops do not need to retain variables in the parent shell.
+find "$site_path/wp-content/themes" -mindepth 2 -maxdepth 2 -type f -name style.css -print0 |
 while IFS= read -r -d '' file; do
   name="$(read_header "$file" 'Theme Name')"
   [[ -n "$name" ]] || continue
   version="$(read_header "$file" 'Version')"
   printf '%s | version: %s | directory: %s\n' "$name" "${version:-not declared}" "$(basename "$(dirname "$file")")"
-done < <(find "$site_path/wp-content/themes" -mindepth 2 -maxdepth 2 -type f -name style.css -print0)
+done
 
 printf '\n## Installed plugins (file headers)\n\n'
+find "$site_path/wp-content/plugins" -mindepth 1 -maxdepth 2 -type f -name '*.php' -print0 |
 while IFS= read -r -d '' file; do
   name="$(read_header "$file" 'Plugin Name')"
   [[ -n "$name" ]] || continue
   version="$(read_header "$file" 'Version')"
   printf '%s | version: %s\n' "$name" "${version:-not declared}"
-done < <(find "$site_path/wp-content/plugins" -mindepth 1 -maxdepth 2 -type f -name '*.php' -print0)
+done
 
 printf '\n## Active configuration (selected options only)\n\n'
 prefix="$(wp --path="$site_path" --no-color config get table_prefix --type=variable)"
