@@ -1,0 +1,91 @@
+name: Back up the full Petish site to Git
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-full-site-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Encrypted full WordPress backup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - name: Check out backup tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Check the backup passphrase is configured
+        env:
+          PETISH_BACKUP_PASSPHRASE: ${{ secrets.PETISH_BACKUP_PASSPHRASE }}
+        run: |
+          set +x
+          set -euo pipefail
+          if (( ${#PETISH_BACKUP_PASSPHRASE} < 24 )) || [[ "$PETISH_BACKUP_PASSPHRASE" == *$'\n'* || "$PETISH_BACKUP_PASSPHRASE" == *$'\r'* ]]; then
+            printf '%s\n' 'Add PETISH_BACKUP_PASSPHRASE as a repository secret: a long, single-line random passphrase (at least 24 characters). Keep a separate copy in your password manager.' >&2
+            exit 1
+          fi
+
+      - name: Check SSH connectivity without credentials
+        run: bash scripts/hostinger-connection-check.sh
+
+      - name: Prepare encryption and SSH tools on the GitHub runner
+        run: |
+          if ! command -v sshpass >/dev/null 2>&1 || ! command -v gpg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass gnupg
+          fi
+
+      - name: Stream and encrypt the complete site backup
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          PETISH_BACKUP_PASSPHRASE: ${{ secrets.PETISH_BACKUP_PASSPHRASE }}
+        run: bash scripts/hostinger-full-backup.sh
+
+      - name: Commit only encrypted backup parts to a new branch
+        env:
+          BACKUP_BRANCH: full-site-backup/${{ github.run_id }}-${{ github.run_attempt }}
+          BACKUP_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          backup_destination="site-backups/$BACKUP_ID"
+          if [[ -e "$backup_destination" || -L site-backups ]]; then
+            printf '%s\n' 'Refusing to overwrite an existing backup destination.' >&2
+            exit 1
+          fi
+          mkdir -p "$backup_destination"
+          cp -a "$RUNNER_TEMP/petish-full-backup/publish/." "$backup_destination/"
+          git switch -c "$BACKUP_BRANCH"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "$backup_destination"
+          git commit -m "Encrypted full Petish site backup $BACKUP_ID"
+          git push origin "$BACKUP_BRANCH"
+          {
+            printf '## Full site backup stored in Git\n\n'
+            printf 'Full website files and database were encrypted, decrypted for a streaming integrity check, and committed as ordered encrypted parts. The live site was not deployed or reconfigured.\n\n'
+            printf '[Open the backup branch](https://github.com/%s/tree/%s/site-backups/%s)\n\n' "$GITHUB_REPOSITORY" "$BACKUP_BRANCH" "$BACKUP_ID"
+            printf 'Branch: `%s`\n\n' "$BACKUP_BRANCH"
+            printf 'Keep your backup passphrase in your password manager. GitHub cannot show a stored secret back to you. The backup cannot be restored without it.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up private runner files and encryption agent
+        if: always()
+        run: |
+          if command -v gpgconf >/dev/null 2>&1 && [[ -d "$RUNNER_TEMP/petish-full-backup/gnupg" ]]; then
+            gpgconf --homedir "$RUNNER_TEMP/petish-full-backup/gnupg" --kill gpg-agent || true
+          fi
+          rm -rf -- "$RUNNER_TEMP/petish-full-backup"
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-backup-host-keys"
