@@ -33,7 +33,7 @@ The report includes:
 - Installed theme and plugin names/versions read from file headers.
 - Active parent/child theme, active plugins, and homepage mode/ID from a fixed database `SELECT`.
 
-It does not include database credentials, user records, orders, customer data, post bodies, or arbitrary option values. It avoids bootstrapping WordPress and running theme/plugin code. WP-CLI still reads the site's existing configuration to establish its database connection.
+It does not include database credentials, user records, orders, customer data, post bodies, or arbitrary option values. It avoids bootstrapping WordPress and running theme/plugin code. WP-CLI reads the required connection constants without logging their values. A short-lived PHP process uses `mysqli` for the fixed read-only query, so PHP's disabled `proc_open`/`proc_close` functions can remain disabled. Credentials remain on the hosting server and are not written into files or sent to GitHub. macOS `._*` metadata files are excluded from the plugin inventory.
 
 The expected WordPress root is `$HOME/domains/petish.biz/public_html`. If that differs on Hostinger, the workflow stops rather than searching other websites or changing anything.
 
