@@ -3,7 +3,6 @@
 
 import gzip
 import json
-import posixpath
 import sys
 import tarfile
 import zlib
@@ -17,7 +16,6 @@ REQUIRED = {
 }
 MAX_EXPANDED_BYTES = 20 * 1024 * 1024 * 1024
 MAX_ENTRIES = 1_000_000
-ORIGINAL_DOCUMENT_ROOT = "/home/u839205597/domains/petish.biz/public_html"
 
 
 def validate_name(name):
@@ -30,7 +28,7 @@ def validate_name(name):
 
 
 def verify(stream):
-    found, names, regular_files = set(), set(), set()
+    found, names, regular_files, symbolic_links = set(), set(), set(), set()
     hard_links = {}
     count = total_bytes = 0
     sql_has_schema = False
@@ -50,14 +48,10 @@ def verify(stream):
                 if member.issym():
                     if not name.startswith("site-files/"):
                         raise ValueError("Unexpected symbolic link")
-                    if posixpath.isabs(member.linkname):
-                        target = posixpath.normpath(member.linkname)
-                        if not target.startswith(ORIGINAL_DOCUMENT_ROOT + "/") and target != ORIGINAL_DOCUMENT_ROOT:
-                            raise ValueError("External symbolic link")
-                    else:
-                        target = posixpath.normpath(posixpath.join(posixpath.dirname(name), member.linkname))
-                        if target != "site-files" and not target.startswith("site-files/"):
-                            raise ValueError("Escaping symbolic link")
+                    # A backup stores the reference itself, never its target.
+                    # No archive is extracted here. Check all members after the
+                    # scan so symlink-ancestor traversal is rejected in any order.
+                    symbolic_links.add(name)
                     continue
                 if member.islnk():
                     target = validate_name(member.linkname)
@@ -87,6 +81,9 @@ def verify(stream):
             # Consume trailing gzip data to force CRC/end-of-stream verification.
             while compressed.read(1024 * 1024):
                 pass
+    for name in names:
+        if any(parent.as_posix() in symbolic_links for parent in PurePosixPath(name).parents):
+            raise ValueError("Archive member traverses a symbolic link")
     for name, target in hard_links.items():
         visited = {name}
         while target in hard_links:
@@ -98,7 +95,8 @@ def verify(stream):
             raise ValueError("Missing hard-link target")
     if found != REQUIRED or not sql_has_schema:
         raise ValueError("Incomplete WordPress/database backup")
-    return {"archive_verified": True, "archive_entries": count, "uncompressed_bytes": total_bytes}
+    return {"archive_verified": True, "archive_entries": count, "uncompressed_bytes": total_bytes,
+            "symbolic_links_preserved": len(symbolic_links)}
 
 
 if __name__ == "__main__":

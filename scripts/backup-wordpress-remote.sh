@@ -57,21 +57,15 @@ if ! mkdir -m 700 -- "$private_work/database" "$private_work/backup-metadata" 2>
   fail 'Unable to prepare the private temporary backup directory.'
 fi
 
-# Archive internal links as links, but do not silently omit objects stored
-# outside the document root. Links, unreadable traversal and special files stop
-# the backup before any archive is emitted. Private diagnostics are cleaned up.
-if ! find -P "$site_real" -type l -print0 2> "$private_work/find.stderr" |
-  while IFS= read -r -d '' source_link; do
-    if ! resolved_link="$(readlink -f -- "$source_link" 2>/dev/null)"; then
-      exit 1
-    fi
-    if [[ "$resolved_link" != "$site_real" && "$resolved_link" != "$site_real/"* ]]; then
-      exit 1
-    fi
-  done; then
-  fail 'The site contains an escaping/unresolvable link or could not be fully traversed; backup stopped.'
+# Preserve link objects exactly as standard tar does. Do not resolve/dereference
+# them: provider links can be external or dangling, and copying their targets
+# could read unrelated server files. Keep their inventory inside encryption.
+# find's default traversal does not follow symbolic links.
+if ! find "$site_real" -type l -print0 \
+  > "$private_work/backup-metadata/symlink-paths.nul" 2> "$private_work/find.stderr"; then
+  fail 'Unable to inventory the complete website file tree; backup stopped.'
 fi
-if ! special_entry="$(find -P "$site_real" ! \( -type f -o -type d -o -type l \) -print -quit 2> "$private_work/find.stderr")"; then
+if ! special_entry="$(find "$site_real" ! \( -type f -o -type d -o -type l \) -print -quit 2> "$private_work/find.stderr")"; then
   fail 'Unable to inspect the complete website file tree.'
 fi
 if [[ -n "$special_entry" ]]; then
@@ -217,8 +211,13 @@ enabled. Any reported dump/tar failure invalidates the backup.
 Only the configured WordPress database and document-root tree are included.
 Server-global users/grants, DNS, email, account-level cron/firewall configuration,
 remote object storage/CDNs, external databases and files outside the document root
-are not captured. Escaping/unresolvable symlinks and special files cause failure
-rather than silent omission. Independently back up remote services if used.
+are not captured. All symbolic links are preserved as links, including external
+and dangling links; their target data outside the document root is not copied.
+backup-metadata/symlink-paths.nul lists source link paths as NUL-delimited records;
+the tar entries preserve each link's literal target. Review those dependencies
+before extraction/restoration. If an external target provides essential site
+content, back it up separately before treating this as a self-contained restore.
+Unsupported special files cause failure. Independently back up remote services.
 
 Ordinary file permissions, timestamps, ownership and internal links are retained.
 ACLs and extended attributes are included when supported by the archive tool.

@@ -40,7 +40,7 @@ def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTE
         "format": "petish-full-wordpress-backup-v1",
         "site": "https://petish.biz/",
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "scope": "all document-root files plus complete site SQL database",
+        "scope": "complete document-root tree and site SQL database; symlinks preserved without following targets",
         "encryption": "OpenPGP symmetric AES256 with integrity protection",
         "encrypted_bytes": encrypted_bytes,
         "encrypted_sha256": whole_hash.hexdigest(),
@@ -64,7 +64,10 @@ def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTE
         "and `backup-metadata/README.txt`. Read that metadata before restoring.\n\n"
         "Restore the files and import SQL into an isolated database/site first. "
         "Match database credentials in wp-config.php to the restore destination; "
-        "handle domain changes and absolute symbolic links before a migration. "
+        "review all symbolic links before extraction, and handle domain changes "
+        "and absolute links before a migration. External/dangling links are stored "
+        "as references; their target files outside the document root are not included. "
+        "Essential external targets need separate backup/restoration. "
         "A real restore test has not been performed by the backup workflow. "
         "Never overwrite a running website/database without a reviewed restore plan.\n\n"
         "This is a live backup; the SQL transaction and filesystem copy are not "
