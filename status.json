@@ -1,0 +1,39 @@
+{
+  "status": "in_progress",
+  "category": "inspect",
+  "mode": "inspect",
+  "run_id": "39421819861-1",
+  "source_commit": "81d54eb96504e7120cdf80834b54203aff7b1e22",
+  "generated_utc": "2026-10-20T12:23:09.753057+00:00",
+  "source_hashes": {
+    "assets/css/home.css": "11aa02b5a3890e3023753bb2acfd024cf9e520a74737ee1d4ac8a9b1c2dca557",
+    "assets/images/ui/free-delivery-van.png": "4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af",
+    "front-page.php": "50828b31df5a89a5a31308f3fb4bac6d01412afcab379d4b53bbecb45c46280c",
+    "includes/supplier-popularity.php": "54ef94d249292953c41a81291a5b5eb3f0760ef290f6ee19de79c691747b2e2b"
+  },
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "candidate_badge_png_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false
+      },
+      "changed_file_count": 4
+    }
+  },
+  "preparation_stage": "complete"
+}
