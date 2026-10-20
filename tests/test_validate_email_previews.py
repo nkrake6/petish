@@ -87,6 +87,11 @@ class PreviewValidationTests(unittest.TestCase):
                 self.rejected(HTML.replace('<h1>', f'<p style="{css}">x</p><h1>'))
                 self.rejected(HTML.replace('</style>', css + '</style>'))
 
+    def test_native_woocommerce_mobile_child_selectors_are_accepted(self):
+        css = '@media(max-width:600px){#body_content table > tbody > tr > td{padding:10px!important}}'
+        validator.validate_html(HTML.replace('</style>', css + '</style>'))
+        self.rejected(HTML.replace('</style>', '</style><script>unsafe()</script><style>'), 'active_content')
+
     def test_sensitive_text_and_unknown_email_addresses_are_rejected(self):
         for marker in (
             '/home/user/private.sql', '/workspace/private.sql', '/tmp/private.sql',

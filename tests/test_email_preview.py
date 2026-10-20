@@ -75,6 +75,28 @@ echo json_encode($out);
         self.assertNotIn('iso-8859-1', actual[0])
         self.assertEqual(actual[1:], [True, True])
 
+    def test_logo_rewrite_survives_wordpress_url_attribute_escaping(self):
+        actual = self.run_php("""
+// Match the WordPress URL-attribute contract: bare filenames gain http://.
+function esc_url($url) {return str_starts_with($url,'/')||str_contains($url,':')?$url:'http://'.$url;}
+function wp_kses($html,$allowed,$protocols) {return $html;}
+class WP_HTML_Tag_Processor {
+ private $html;private $visited=false;private $src;
+ public function __construct($html) {$this->html=$html;preg_match('/src="([^"]+)"/',$html,$match);$this->src=$match[1];}
+ public function next_tag(){if($this->visited)return false;$this->visited=true;return true;}
+ public function get_tag(){return 'IMG';}
+ public function get_attribute($name){return $name==='src'?$this->src:null;}
+ public function set_attribute($name,$value){if($name==='src')$this->src=esc_url($value);}
+ public function get_updated_html(){return preg_replace('/src="[^"]+"/','src="'.$this->src.'"',$this->html);}
+}
+$html='<html><head><title>Petish</title></head><body><img src="https://staging.petish.biz/wp-content/themes/dt-the7-child/assets/brand/combined_light_landscape.png" alt="Petish"></body></html>';
+$safe=petish_email_preview_sanitize($html);
+$checks=[esc_url('petish-logo.png')==='http://petish-logo.png',str_contains($safe,'src="petish-logo.png"'),!str_contains($safe,'http://petish-logo.png')];
+foreach([0,2] as $count){try{petish_email_preview_local_images('<img src="/petish-logo.png">',$count);$checks[]=false;}catch(RuntimeException $e){$checks[]=true;}}
+echo json_encode($checks);
+""")
+        self.assertEqual(actual, [True] * 5)
+
     def test_writer_requires_private_directory_and_never_overwrites(self):
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory) / 'private'

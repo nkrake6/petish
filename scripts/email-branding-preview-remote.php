@@ -36,6 +36,14 @@ function petish_email_preview_document($html) {
     return '<!doctype html>' . "\n" . ltrim($html);
 }
 
+/** Finish the approved root-relative sentinel after WordPress URL escaping. */
+function petish_email_preview_local_images($html,$expected) {
+    if (!is_string($html) || !is_int($expected) || $expected<1) petish_email_preview_fail();
+    $html = str_replace('src="/petish-logo.png"','src="petish-logo.png"',$html,$count);
+    if ($count!==$expected) petish_email_preview_fail();
+    return $html;
+}
+
 /** Sanitize the shareable copy; real email templates are never rewritten here. */
 function petish_email_preview_sanitize($html) {
     if (!is_string($html) || strlen($html) > 1048576 || !class_exists('WP_HTML_Tag_Processor')
@@ -58,6 +66,7 @@ function petish_email_preview_sanitize($html) {
     $allowed['meta'] = ['charset'=>true,'name'=>true,'content'=>true];
     $html = wp_kses($html, $allowed, ['https','mailto']);
     $processor = new WP_HTML_Tag_Processor($html);
+    $images = 0;
     while ($processor->next_tag()) {
         $tag = $processor->get_tag();
         if ($processor->get_attribute('style') !== null) {
@@ -85,10 +94,12 @@ function petish_email_preview_sanitize($html) {
                 || !in_array($parsed['host'] ?? '', ['petish.biz','staging.petish.biz'],true)
                 || ($parsed['path'] ?? '') !== $expected || isset($parsed['query']) || isset($parsed['fragment'])
                 || isset($parsed['user']) || isset($parsed['pass'])) petish_email_preview_fail();
-            $processor->set_attribute('src','petish-logo.png');
+            // esc_url() adds http:// to a bare filename; a leading slash survives.
+            $processor->set_attribute('src','/petish-logo.png');
+            ++$images;
         }
     }
-    $html = $processor->get_updated_html();
+    $html = petish_email_preview_local_images($processor->get_updated_html(),$images);
     return petish_email_preview_public_content(petish_email_preview_document($html));
 }
 

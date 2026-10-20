@@ -45,7 +45,7 @@ SENSITIVE = re.compile(
     r'\b(?:DB_PASSWORD|client_secret|api_secret|secret_key|refresh_token|access_token)\b|'
     r'\bBearer\s+[A-Za-z0-9_.+-]{12,}|\bpassword\s*[:=])', re.I)
 ACTIVE_TEXT = re.compile(r'(?:javascript\s*:|vbscript\s*:|data\s*:|<\s*(?:script|iframe|form|object|embed)\b)', re.I)
-UNSAFE_CSS = re.compile(r'(?:\\|url\s*\(|@import\b|expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|vbscript\s*:|data\s*:|https?\s*:|//|<|>)', re.I)
+UNSAFE_CSS = re.compile(r'(?:\\|url\s*\(|@import\b|expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|vbscript\s*:|data\s*:|https?\s*:|//|<)', re.I)
 
 
 class PreviewRejected(ValueError):
