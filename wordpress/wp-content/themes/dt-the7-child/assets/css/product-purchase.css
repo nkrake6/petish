@@ -1,0 +1,28 @@
+/* Native WooPayments controls: preserve provider branding and selection logic. */
+body.petish-product-wallet-layout .summary .petish-product-payments {
+  clear: both;
+  min-width: 0;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 0 20px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+body.petish-product-wallet-layout .summary .petish-product-payments > .wcpay-express-checkout-wrapper {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+body.petish-product-wallet-layout .summary .petish-product-payments #payment-method-message {
+  margin-top: 12px;
+  margin-bottom: 0;
+  background: transparent;
+}
+body.petish-product-wallet-layout .summary .petish-product-payments #wcpay-express-checkout-element {
+  min-width: 0;
+  background: transparent;
+}
+

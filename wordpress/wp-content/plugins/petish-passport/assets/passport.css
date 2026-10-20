@@ -1,0 +1,133 @@
+/* Petish account components use the shared child-theme tokens. */
+body.woocommerce-account{--pp-surface:var(--color-surface,#fff);--pp-text:var(--color-text,#14213d);--pp-muted:var(--color-text-muted,#526077);--pp-primary:var(--color-primary,#0f4c5c);--pp-on:var(--color-primary-on,#fff);--pp-border:var(--color-border,#e3e7ef);--pp-control:var(--color-control-border,#8290a5);--pp-soft:var(--color-lavender,#ede7ff);--pp-secondary:var(--color-secondary-text,#6532a1);--pp-error:var(--color-error,#b42318)}
+body.woocommerce-account .woocommerce{color:var(--pp-text)}
+body.woocommerce-account .woocommerce form:is(.login,.register,.lost_reset_password,.edit-account){background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:20px;padding:28px;color:var(--pp-text)}
+body.woocommerce-account .woocommerce form label,body.woocommerce-account .woocommerce form label span,body.woocommerce-account .woocommerce form legend{color:var(--pp-text)!important}
+body.woocommerce-account .woocommerce form .form-row label{display:block;font-weight:600;margin-bottom:8px}
+body.woocommerce-account .woocommerce form .form-row input.input-text{width:100%;min-height:46px;background:var(--pp-surface);color:var(--pp-text);border:1px solid var(--pp-control);border-radius:12px;padding:10px 12px}
+body.woocommerce-account .woocommerce .show-password-input,body.woocommerce-account .woocommerce .show-password-input::after,body.woocommerce-account .woocommerce .show-password-input:before{color:var(--pp-text)!important}
+body.woocommerce-account .woocommerce .password-input input{padding-right:48px!important}
+body.woocommerce-account .woocommerce form .show-password-input{width:44px;height:44px;min-height:44px;right:2px;display:flex;align-items:center;justify-content:center;background:transparent;border:0;padding:0}
+body.woocommerce-account .woocommerce .woocommerce-privacy-policy-text{color:var(--pp-muted);font-size:.9375rem}
+body.woocommerce-account .woocommerce button.button,body.woocommerce-account .woocommerce a.button{background:var(--color-button-primary,#6532a1);color:var(--color-button-primary-on,#fff);border:1px solid var(--color-button-primary-border,#6532a1);border-radius:12px;min-height:44px;padding:11px 18px;font:500 .875rem/1.5 var(--font-label,sans-serif);text-decoration:none}
+body.woocommerce-account .woocommerce button.button:hover,body.woocommerce-account .woocommerce a.button:hover{background:var(--color-button-primary-hover,#512581);color:var(--color-button-primary-on,#fff);border-color:var(--color-button-primary-border,#6532a1)}
+/* Email verification is a secondary action; browsing products remains primary. */
+body.woocommerce-account .woocommerce a.button[href*="wc_send_verification=1"]{background:var(--pp-soft);color:var(--pp-secondary);border-color:var(--pp-control)}
+body.woocommerce-account .woocommerce a.button[href*="wc_send_verification=1"]:hover{background:var(--color-secondary-hover,#e1d6fa);color:var(--pp-secondary);border-color:var(--pp-secondary)}
+body.woocommerce-account .woocommerce-MyAccount-navigation{width:20%;float:left}
+body.woocommerce-account .woocommerce-MyAccount-content{width:76%;float:right;min-width:0;color:var(--pp-text)}
+body.woocommerce-account .woocommerce-MyAccount-navigation ul{list-style:none;margin:0;padding:8px;border:1px solid var(--pp-border);border-radius:18px;background:var(--pp-surface)}
+body.woocommerce-account .woocommerce-MyAccount-navigation li{margin:0;padding:0}
+body.woocommerce-account .woocommerce-MyAccount-navigation li a{display:block;padding:12px;min-height:44px;box-sizing:border-box;color:var(--pp-text);font:500 .875rem/1.5 var(--font-label,sans-serif);text-decoration:none;border-radius:10px;overflow-wrap:anywhere}
+body.woocommerce-account .woocommerce-MyAccount-navigation li.is-active a{background:var(--pp-soft);color:var(--pp-secondary)}
+body.woocommerce-account .woocommerce-MyAccount-navigation li a:hover{color:var(--pp-primary);text-decoration:none}
+body.woocommerce-account .woocommerce :is(.woocommerce-message,.woocommerce-info,.woocommerce-error){background:var(--pp-surface);color:var(--pp-text);border-color:var(--pp-primary);border-radius:12px}
+body.woocommerce-account .woocommerce .woocommerce-error{border-color:var(--pp-error)}
+body.woocommerce-account .woocommerce :is(a,button,input,select):focus-visible{outline:3px solid var(--pp-primary);outline-offset:4px}
+.petish-passport{color:var(--pp-text);min-width:0;max-width:100%}
+.petish-passport *,.petish-passport *::before,.petish-passport *::after{box-sizing:border-box}
+.petish-passport :is(h2,h3,h4,p,ul,dl){margin-top:0}
+.petish-passport h2{font:600 clamp(1.65rem,1.25rem + 1vw,2.125rem)/1.28 var(--font-heading,sans-serif);letter-spacing:-.035em;margin-bottom:12px}
+.petish-passport h3{font:600 1.25rem/1.4 var(--font-heading,sans-serif);letter-spacing:-.02em;margin-bottom:10px}
+.petish-passport h4{font:600 1.125rem/1.4 var(--font-heading,sans-serif);letter-spacing:-.02em}
+.petish-passport p{margin-bottom:16px;line-height:1.65}
+.petish-passport a{color:var(--pp-primary)}
+.petish-passport .pp-page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin:0 0 18px}
+.petish-passport .pp-page-heading>div{min-width:0}
+.petish-passport .pp-eyebrow{color:var(--pp-secondary);font:500 .75rem/1.5 var(--font-label,sans-serif);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.petish-passport .pp-intro,.petish-passport .pp-small,.petish-passport .pp-field-hint{color:var(--pp-muted)}
+.petish-passport .pp-intro{margin-bottom:0}
+.petish-passport .pp-small,.petish-passport .pp-field-hint{font:400 .875rem/1.65 var(--font-label,sans-serif)}
+.petish-passport .pp-icon{flex:0 0 20px;width:20px;height:20px}
+.petish-passport .pp-privacy{display:flex;align-items:center;gap:9px;color:var(--pp-muted);font:400 .8125rem/1.5 var(--font-label,sans-serif);margin:0 0 26px}
+.petish-passport .pp-privacy .pp-icon{width:16px;height:16px;flex-basis:16px}
+.petish-passport .pp-panel{padding:30px;border:1px solid var(--pp-border);border-radius:var(--radius-card,24px);background:var(--pp-surface);box-shadow:var(--shadow-panel,0 10px 36px rgba(20,33,61,.055))}
+body.woocommerce-account .petish-passport .pp-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:auto;max-width:100%;min-height:46px;padding:11px 18px;border:1px solid var(--color-button-primary-border,#6532a1);border-radius:var(--radius-control,12px);color:var(--color-button-primary-on,#fff);background:var(--color-button-primary,#6532a1);font:500 .875rem/1.5 var(--font-label,sans-serif);text-decoration:none;text-align:center;cursor:pointer;box-shadow:none;white-space:normal;flex-shrink:0}
+body.woocommerce-account .petish-passport .pp-button:hover{background:var(--color-button-primary-hover,#512581);color:var(--color-button-primary-on,#fff);border-color:var(--color-button-primary-border,#6532a1)}
+body.woocommerce-account .petish-passport .pp-button-secondary{color:var(--pp-secondary);background:var(--pp-soft);border-color:var(--pp-control)}
+body.woocommerce-account .petish-passport .pp-button-secondary:hover{color:var(--pp-secondary);background:var(--color-secondary-hover,#e1d6fa);border-color:var(--pp-secondary)}
+.petish-passport .pp-empty{text-align:center;padding:40px 28px}
+.petish-passport .pp-empty>p:not(.pp-eyebrow){max-width:490px;margin-inline:auto}
+.petish-passport .pp-empty h3{font-size:clamp(1.4rem,1.2rem + 1vw,1.8rem);margin-bottom:14px}
+.petish-passport .pp-empty .pp-small{margin:18px auto 0}
+.petish-passport .pp-empty-art{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin:0 0 26px;height:102px}
+.petish-passport .pp-empty-art span{display:flex;align-items:center;justify-content:center;width:82px;height:82px;border-radius:45% 45% 39% 39%;background:var(--pp-soft);font-size:46px;line-height:1;transform:rotate(-8deg)}
+.petish-passport .pp-empty-art span:nth-child(2){width:102px;height:102px;font-size:60px;transform:none}
+.petish-passport .pp-empty-art span:nth-child(3){transform:rotate(8deg)}
+.petish-passport .pp-switcher{display:flex;align-items:flex-end;gap:12px;margin:0 0 24px}
+.petish-passport .pp-switcher>div{flex:1;min-width:0}
+.petish-passport .pp-switcher label{display:block;color:var(--pp-muted);font:500 .875rem/1.5 var(--font-label,sans-serif);margin-bottom:8px}
+.petish-passport .pp-switcher select{width:100%;margin-bottom:0}
+.petish-passport .pp-identity{display:flex;align-items:center;gap:30px;position:relative;overflow:hidden;margin-bottom:36px}
+.petish-passport .pp-identity::before{content:"";position:absolute;inset:0 auto 0 0;width:6px;background:var(--color-purple,#9b5de5)}
+.petish-passport .pp-avatar{display:inline-flex;flex:0 0 56px;align-items:center;justify-content:center;width:56px;height:56px;border-radius:18px;overflow:hidden;vertical-align:middle;background:var(--pp-soft)}
+.petish-passport .pp-avatar img{display:block;width:100%;height:100%;object-fit:cover}
+.petish-passport .pp-avatar-illustration span{font-size:34px;line-height:1}
+.petish-passport .pp-avatar-large{flex-basis:176px;width:176px;height:176px;border-radius:40px;border:1px solid var(--pp-border)}
+.petish-passport .pp-avatar-large.pp-avatar-illustration span{font-size:100px}
+.petish-passport .pp-identity-content{min-width:0}
+.petish-passport .pp-pill{display:inline-flex;align-items:center;gap:5px;background:var(--pp-soft);color:var(--pp-secondary);border-radius:999px;padding:5px 11px;font:500 .75rem/1.5 var(--font-label,sans-serif)}
+.petish-passport .pp-pill .pp-icon{width:15px;height:15px;flex-basis:15px}
+.petish-passport .pp-identity h3{font:700 clamp(1.9rem,1.4rem + 1.5vw,2.75rem)/1.2 var(--font-heading,sans-serif);margin:14px 0 9px;overflow-wrap:anywhere}
+.petish-passport .pp-species{color:var(--pp-muted);margin-bottom:14px}
+.petish-passport .pp-details{margin:0 0 18px;font-size:.875rem}
+.petish-passport .pp-details>div{display:flex;gap:8px}
+.petish-passport .pp-details dt{color:var(--pp-muted)}
+.petish-passport .pp-details dd{margin:0;color:var(--pp-text);font-weight:600}
+.petish-passport .pp-section-heading{margin:0 0 18px}
+.petish-passport .pp-section-heading h3{margin-bottom:6px}
+.petish-passport .pp-section-heading p{margin-bottom:0}
+.petish-passport .pp-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.petish-passport .pp-feature{min-width:0;padding:22px;border:1px solid var(--pp-border);border-radius:20px;background:var(--pp-surface)}
+.petish-passport .pp-feature-icon{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;color:var(--pp-secondary);background:var(--pp-soft);border-radius:13px;margin-bottom:18px}
+.petish-passport .pp-feature:nth-child(even) .pp-feature-icon{color:var(--pp-primary);background:var(--color-bg,#f8f9fc)}
+.petish-passport .pp-coming{float:right;color:var(--pp-muted);border:1px solid var(--pp-control);border-radius:8px;padding:3px 7px;font:400 .75rem/1.5 var(--font-label,sans-serif)}
+.petish-passport .pp-feature h4{clear:both;margin-bottom:8px;overflow-wrap:anywhere}
+.petish-passport .pp-feature p{font-size:.9375rem;color:var(--pp-muted);margin-bottom:0}
+.petish-passport .pp-family{margin-top:36px}
+.petish-passport .pp-pet-list{padding:0;margin:0;list-style:none;border:1px solid var(--pp-border);border-radius:20px;background:var(--pp-surface);overflow:hidden}
+.petish-passport .pp-pet-row{display:flex;align-items:center;gap:14px;padding:16px 20px;margin:0}
+.petish-passport .pp-pet-row+.pp-pet-row{border-top:1px solid var(--pp-border)}
+.petish-passport .pp-pet-row-text{flex:1;min-width:0;display:grid;gap:2px}
+.petish-passport .pp-pet-row-text strong{font:600 1rem/1.4 var(--font-heading,sans-serif);overflow-wrap:anywhere}
+.petish-passport .pp-pet-row-text span{color:var(--pp-muted);font:400 .8125rem/1.5 var(--font-label,sans-serif)}
+.petish-passport .pp-row-edit{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;font:500 .875rem/1.5 var(--font-label,sans-serif);text-decoration:none}
+.petish-passport .pp-back{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-bottom:20px;font:500 .875rem/1.5 var(--font-label,sans-serif);text-decoration:none}
+.petish-passport .pp-back:hover,.petish-passport .pp-cancel:hover{text-decoration:none}
+.petish-passport .pp-form{margin-top:8px}
+.petish-passport .pp-field{margin:0 0 22px}
+.petish-passport .pp-field>label{display:block;color:var(--pp-text);font:600 .9375rem/1.5 var(--font-body,sans-serif);margin-bottom:8px}
+.petish-passport .pp-field :is(input[type="text"],input[type="file"],select){width:100%;max-width:100%;min-width:0;margin:0;color:var(--pp-text);background:var(--pp-surface);border:1px solid var(--pp-control);border-radius:var(--radius-control,12px);min-height:46px;padding:10px 12px;font:400 1rem/1.5 var(--font-body,sans-serif)}
+.petish-passport .pp-field input[type="file"]{padding:8px;font-size:.875rem}
+.petish-passport .pp-field input::file-selector-button{border:1px solid var(--pp-control);border-radius:7px;color:var(--pp-secondary);background:var(--pp-soft);min-height:34px;padding:5px 10px;margin-right:10px;font:500 .8125rem/1.5 var(--font-label,sans-serif);cursor:pointer}
+.petish-passport .pp-field-hint{margin:8px 0 0}
+.petish-passport .pp-field-hint:empty{display:none}
+.petish-passport input[aria-invalid="true"]{border:2px solid var(--pp-error)}
+.petish-passport .pp-optional{font-weight:400;color:var(--pp-muted)}
+.petish-passport .pp-current-photo{display:flex;align-items:center;gap:12px;margin-bottom:12px;color:var(--pp-muted);font:400 .875rem/1.5 var(--font-label,sans-serif)}
+.petish-passport .pp-checkbox{display:flex;align-items:flex-start;gap:11px;color:var(--pp-text);margin-top:18px;min-height:44px;cursor:pointer;font:400 .9375rem/1.65 var(--font-body,sans-serif)}
+.petish-passport .pp-checkbox input{width:20px;height:20px;margin:3px 0 0;flex:0 0 20px;accent-color:var(--pp-primary)}
+.petish-passport .pp-form-actions{display:flex;align-items:center;flex-wrap:wrap;gap:14px 24px;border-top:1px solid var(--pp-border);padding-top:24px;margin-top:26px}
+.petish-passport .pp-cancel{display:inline-flex;align-items:center;justify-content:center;min-height:44px;font:500 .875rem/1.5 var(--font-label,sans-serif)}
+.petish-passport .pp-delete-link{margin-top:28px}
+.petish-passport .pp-delete-link a{display:inline-flex;align-items:center;min-height:44px;color:var(--pp-error);text-decoration:none}
+.petish-passport .pp-delete-link .pp-small{margin-bottom:0}
+.petish-passport .pp-delete>.pp-avatar{margin-bottom:22px}
+.petish-passport .pp-delete h2{overflow-wrap:anywhere}
+body.woocommerce-account .petish-passport .pp-button-danger{background:var(--pp-error);color:var(--color-surface,#fff);border-color:var(--pp-error)}
+body.woocommerce-account .petish-passport .pp-button-danger:hover{background:var(--pp-error);color:var(--color-surface,#fff);border-color:var(--pp-text);text-decoration:none}
+@media(max-width:991px){body.woocommerce-account .woocommerce-MyAccount-navigation,body.woocommerce-account .woocommerce-MyAccount-content{width:100%;float:none}body.woocommerce-account .woocommerce-MyAccount-navigation{margin-bottom:28px}body.woocommerce-account .woocommerce-MyAccount-navigation ul{display:flex;flex-wrap:wrap;gap:3px}body.woocommerce-account .woocommerce-MyAccount-navigation li a{padding:10px 12px}}
+@media(max-width:600px){.petish-passport .pp-page-heading{flex-direction:column;gap:16px}.petish-passport .pp-page-heading>.pp-button{width:100%}.petish-passport .pp-panel{padding:24px 20px;border-radius:20px}.petish-passport .pp-empty{padding:30px 20px}.petish-passport .pp-identity{flex-direction:column;text-align:center;gap:22px}.petish-passport .pp-identity::before{inset:0 0 auto;width:100%;height:5px}.petish-passport .pp-avatar-large{width:150px;height:150px;flex-basis:150px}.petish-passport .pp-avatar-large.pp-avatar-illustration span{font-size:86px}.petish-passport .pp-details>div{justify-content:center;flex-wrap:wrap}.petish-passport .pp-feature-grid{grid-template-columns:minmax(0,1fr);gap:12px}.petish-passport .pp-feature{padding:20px}.petish-passport .pp-feature-icon{margin-bottom:14px}.petish-passport .pp-switcher{flex-direction:column;align-items:stretch;gap:10px}.petish-passport .pp-switcher .pp-button{width:100%}.petish-passport .pp-pet-row{gap:10px;padding:14px;flex-wrap:wrap}.petish-passport .pp-pet-row .pp-avatar{width:46px;height:46px;flex-basis:46px;border-radius:14px}.petish-passport .pp-active-label{display:none}.petish-passport .pp-form-actions{align-items:stretch;gap:8px}.petish-passport .pp-form-actions .pp-button,.petish-passport .pp-form-actions .pp-cancel{width:100%}.petish-passport .pp-coming{font-size:.75rem}}
+@media(prefers-reduced-motion:reduce){.petish-passport *,.petish-passport *::before,.petish-passport *::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* The7 adds navigation padding outside its content width. Keep both account columns in one row. */
+body.woocommerce-account .woocommerce-MyAccount-navigation{padding:0;box-sizing:border-box}
+
+/* The7 wraps notice text and actions; keep panel padding separate from row layout. */
+body.woocommerce-account .woocommerce-MyAccount-content > :is(.woocommerce-info,.woocommerce-message){display:block;box-sizing:border-box;width:100%;padding:20px 24px;margin:0 0 16px;border:1px solid var(--pp-border);border-radius:12px}
+body.woocommerce-account .woocommerce-MyAccount-content > :is(.woocommerce-info,.woocommerce-message) > :is(.woocommerce-info-text,.woocommerce-message-text){display:flex;align-items:center;justify-content:space-between;gap:20px;min-width:0;width:100%}
+body.woocommerce-account .woocommerce-MyAccount-content > :is(.woocommerce-info,.woocommerce-message) a.button{float:none;order:1;flex:0 0 auto;margin:0}
+@media(max-width:600px){
+body.woocommerce-account .woocommerce-MyAccount-content > :is(.woocommerce-info,.woocommerce-message){padding:20px}
+body.woocommerce-account .woocommerce-MyAccount-content > :is(.woocommerce-info,.woocommerce-message) > :is(.woocommerce-info-text,.woocommerce-message-text){flex-direction:column;align-items:flex-start;gap:16px}
+}
