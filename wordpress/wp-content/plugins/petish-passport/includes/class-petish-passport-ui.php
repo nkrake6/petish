@@ -39,6 +39,11 @@ final class Petish_Passport_UI {
   $dir=dirname(__DIR__);$url=plugin_dir_url($dir.'/petish-passport.php');
   $deps=wp_style_is('petish-design','enqueued')?array('petish-design'):array();
   wp_enqueue_style('petish-passport',$url.'assets/passport.css',$deps,filemtime($dir.'/assets/passport.css'));
+  wp_enqueue_script('petish-account-navigation',$url.'assets/account-navigation.js',array(),filemtime($dir.'/assets/account-navigation.js'),true);
+  wp_localize_script('petish-account-navigation','petishAccountNavigation',array(
+   'menuLabel'=>__('Account menu','petish-passport'),
+   'currentSection'=>__('Current section: %s','petish-passport'),
+  ));
   if(self::on_endpoint()) wp_enqueue_script('petish-passport',$url.'assets/passport.js',array(),filemtime($dir.'/assets/passport.js'),true);
  }
  private static function nav_item() {

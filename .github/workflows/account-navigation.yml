@@ -1,0 +1,93 @@
+name: Verify and release Petish account navigation
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Verify staging, inspect production, or apply the verified navigation files
+        required: true
+        default: staging
+        type: choice
+        options: [staging, inspect, apply]
+  workflow_run:
+    # Keep staging checks sequential: deployment, email preview, navigation.
+    workflows: [Preview Petish staging order email branding]
+    branches: [main]
+    types: [completed]
+  push:
+    branches: [main, deploy-account-navigation]
+    paths:
+      - .github/workflows/account-navigation.yml
+      - scripts/hostinger-account-navigation.sh
+      - scripts/deploy-account-navigation-remote.php
+      - scripts/verify-account-navigation.php
+      - scripts/sanitize-account-navigation-result.py
+      - scripts/validate-account-navigation-release.py
+      - tools/account-navigation/browser.mjs
+      - operations/account-navigation-release.json
+      - wordpress/wp-content/plugins/petish-passport/includes/class-petish-passport-ui.php
+      - wordpress/wp-content/plugins/petish-passport/assets/passport.css
+      - wordpress/wp-content/plugins/petish-passport/assets/account-navigation.js
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ (github.event_name == 'workflow_run' || inputs.mode == 'staging') && 'petish-staging-code' || ((github.ref_name == 'deploy-account-navigation' || inputs.mode == 'apply') && 'petish-production-backup-mail' || format('petish-account-navigation-inspection-{0}', github.run_id)) }}
+  cancel-in-progress: false
+
+jobs:
+  navigation:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+      ACCOUNT_NAVIGATION_MODE: ${{ github.event_name == 'workflow_run' && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref_name == 'deploy-account-navigation' && 'apply' || 'inspect')) }}
+      ACCOUNT_NAVIGATION_SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Check out reviewed account navigation tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Prepare pinned SSH connection and verification tools
+        id: prepare
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            if bash scripts/hostinger-connection-check.sh; then break; fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 2
+          done
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
+          fi
+          if [[ "$ACCOUNT_NAVIGATION_MODE" == staging ]]; then
+            export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/petish-account-navigation-browsers"
+            printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+            npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
+            node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium
+          fi
+          if [[ "$ACCOUNT_NAVIGATION_MODE" == apply ]]; then
+            python3 -m pip install --disable-pip-version-check --no-input Pillow==12.0.0
+          fi
+      - name: Verify staging or inspect and release the account navigation
+        if: always()
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          ACCOUNT_NAVIGATION_PREREQUISITES: ${{ steps.prepare.outcome }}
+        run: bash scripts/hostinger-account-navigation.sh
+      - name: Remove private runner data
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/petish-account-navigation.* "$RUNNER_TEMP/petish-account-navigation-browsers"
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"

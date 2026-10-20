@@ -1,0 +1,325 @@
+/** Read-only, synthetic-customer account-navigation checks on fixed staging. */
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+
+const ORIGIN = 'https://staging.petish.biz';
+const NAV = '.woocommerce-MyAccount-navigation';
+const TOGGLE = '.pp-account-navigation-toggle';
+const CURRENT = '.pp-account-navigation-current';
+const ENDPOINTS = ['my-pets', 'orders', 'edit-account'];
+const SAFETY = {
+  environment_staging: true, woocommerce_test_mode: true, wcpay_dev_mode: true,
+  account_is_live: false, guard_runtime_verified: true, suppliers_blocked: true,
+  mail_capture_verified: true, webhooks_blocked: true,
+};
+export const CHECK_KEYS = Object.freeze([
+  'browser_started', 'customer_login_verified', 'native_navigation_links_present',
+  'native_hrefs_unchanged', 'my_pets_390_verified', 'my_pets_320_verified',
+  'orders_390_verified', 'orders_320_verified', 'edit_account_390_verified',
+  'edit_account_320_verified', 'current_label_verified', 'mobile_compact_closed',
+  'toggle_opens', 'escape_closes_focus_returns', 'outside_closes', 'focusout_closes',
+  'desktop_visible', 'resize_visible', 'no_js_fallback_visible', 'dark_mode_readable',
+  'unsafe_requests_blocked',
+]);
+const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'navigation',
+  'links', 'mobile', 'keyboard', 'desktop', 'resize', 'no_js', 'dark_mode', 'network']);
+
+export function validateInput(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || value.url !== ORIGIN || !Number.isSafeInteger(value.customer_id) || value.customer_id < 1
+      || typeof value.login !== 'string' || !value.login || value.login.length > 200
+      || typeof value.password !== 'string' || !value.password || value.password.length > 2048
+      || typeof value.customer_email !== 'string' || value.customer_email.length > 254
+      || !/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.invalid$/.test(value.customer_email)
+      || !value.safety || typeof value.safety !== 'object'
+      || Object.entries(SAFETY).some(([name, expected]) => value.safety[name] !== expected)) {
+    throw new Error('input');
+  }
+  return value;
+}
+
+/** Never permits a state-changing GET or a POST other than the one login form. */
+export function allowedRequest(raw, method = 'GET', loginAllowed = false, body = '', resourceType = 'document') {
+  try {
+    const url = new URL(raw);
+    if (url.origin !== ORIGIN || url.protocol !== 'https:' || url.username || url.password
+        || (url.port && url.port !== '443')) return false;
+    if (/\/(?:checkout|cart|customer-logout|logout|wc-api)(?:\/|$)/i.test(url.pathname)
+        || /\/wp-admin(?:\/|$)/i.test(url.pathname)
+        || /\/wp-json\/(?:wc|wc-admin|wc-analytics)(?:\/|$)/i.test(url.pathname)
+        || [...url.searchParams.keys()].some(key => /^(?:add-to-cart|remove_item|undo_item|wc-ajax|wc-api|_method|delete|logout)$/i.test(key))
+        || /^(?:logout|delete|remove|save|update|add_to_cart)/i.test(url.searchParams.get('action') ?? '')) return false;
+    if (method === 'GET' || method === 'HEAD') return true;
+    if (method !== 'POST' || !loginAllowed || resourceType !== 'document'
+        || !['/my-account/', '/my-account', '/wp-login.php'].includes(url.pathname)
+        || url.search) return false;
+    const fields = new URLSearchParams(body);
+    const nativeLogin = fields.has('username') && fields.has('password') && fields.has('login');
+    const wpLogin = fields.has('log') && fields.has('pwd');
+    return (nativeLogin || wpLogin)
+      && !['register', 'save_account_details', 'save_address', 'add-to-cart', 'place_order', 'action']
+        .some(name => fields.has(name));
+  } catch { return false; }
+}
+
+export function publicReport(value) {
+  const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, value?.checks?.[key] === true]));
+  const successful = value?.status === 'success' && value?.category === 'complete'
+    && Object.values(checks).every(Boolean);
+  return { status: successful ? 'success' : 'failure',
+    category: successful ? 'complete' : (CATEGORIES.has(value?.category) && value.category !== 'complete' ? value.category : 'input'),
+    checks };
+}
+
+function readPrivateInput(filename) {
+  const resolved = path.resolve(filename), stat = fs.lstatSync(resolved);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size < 1 || stat.size > 32768
+      || (stat.mode & 0o7777) !== 0o600 || fs.realpathSync(resolved) !== resolved) throw new Error('input');
+  return validateInput(JSON.parse(fs.readFileSync(resolved, 'utf8')));
+}
+
+function writeReport(filename, result) {
+  const resolved = path.resolve(filename);
+  if (fs.realpathSync(path.dirname(resolved)) !== path.dirname(resolved)) throw new Error('input');
+  const fd = fs.openSync(resolved, fs.constants.O_WRONLY | fs.constants.O_CREAT
+    | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, 0o600);
+  try { fs.writeFileSync(fd, JSON.stringify(publicReport(result), null, 2) + '\n'); }
+  finally { fs.closeSync(fd); }
+}
+
+function requireCheck(condition, category) { if (!condition) throw new Error(category); }
+
+async function installReadOnlyGuard(context, loginState) {
+  await context.route('**/*', async route => {
+    const request = route.request();
+    const allowed = allowedRequest(request.url(), request.method(), loginState.allowed && !loginState.used,
+      request.postData() ?? '', request.resourceType());
+    if (!allowed) { await route.abort('blockedbyclient'); return; }
+    if (request.method() === 'POST') loginState.used = true;
+    await route.continue();
+  });
+  if (typeof context.routeWebSocket === 'function') {
+    await context.routeWebSocket('**/*', socket => socket.close());
+  }
+}
+
+async function goAccount(page, endpoint) {
+  const response = await page.goto(`${ORIGIN}/my-account/${endpoint}/`, { waitUntil: 'domcontentloaded' });
+  requireCheck(response?.ok() && new URL(page.url()).origin === ORIGIN
+    && new URL(page.url()).pathname === `/my-account/${endpoint}/`, 'navigation');
+  await page.locator(NAV).waitFor({ state: 'visible' });
+}
+
+async function linkSnapshot(page) {
+  return page.locator(`${NAV} ul a`).evaluateAll(links => links.map(link => ({
+    text: link.textContent.trim(), href: link.getAttribute('href'),
+    active: !!link.closest('li.is-active') || link.getAttribute('aria-current') === 'page',
+  })));
+}
+
+function expectedLinks(links) {
+  const paths = links.map(link => { try { return new URL(link.href, ORIGIN).pathname; } catch { return ''; } });
+  return links.length >= 5 && paths.includes('/my-account/my-pets/')
+    && paths.includes('/my-account/for-my-pet/') && paths.includes('/my-account/orders/')
+    && paths.includes('/my-account/edit-account/')
+    && paths.some(value => /^\/my-account\/customer-logout\/?$/.test(value));
+}
+
+function sameLinks(a, b) {
+  return a.length === b.length && a.every((link, index) => link.href === b[index].href && link.text === b[index].text);
+}
+
+async function nativeListVisible(page) {
+  if (!await page.locator(`${NAV} > ul`).isVisible()) return false;
+  const links = page.locator(`${NAV} ul a`);
+  for (let i = 0; i < await links.count(); i++) if (!await links.nth(i).isVisible()) return false;
+  return true;
+}
+
+async function focusOutside(page) {
+  return page.evaluate(navSelector => {
+    const navigation = document.querySelector(navSelector);
+    const outside = [...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]
+      .find(node => !navigation.contains(node) && !node.disabled && node.tabIndex >= 0
+        && node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden');
+    if (!outside) return false;
+    outside.focus({ preventScroll: true });
+    return document.activeElement === outside;
+  }, NAV);
+}
+
+async function verifyMobile(page, width, nativeLinks) {
+  const navigation = page.locator(NAV), toggle = navigation.locator(TOGGLE), list = navigation.locator(':scope > ul');
+  await page.setViewportSize({ width, height: 900 });
+  await page.waitForFunction(selector => {
+    const toggle = document.querySelector(selector);
+    return toggle && getComputedStyle(toggle).display !== 'none' && toggle.getAttribute('aria-expanded') === 'false';
+  }, `${NAV} ${TOGGLE}`);
+  const current = nativeLinks.find(link => link.active)?.text;
+  requireCheck(!!current && (await navigation.locator(CURRENT).textContent())?.trim() === current, 'mobile');
+  const box = await navigation.boundingBox(), buttonBox = await toggle.boundingBox();
+  requireCheck(box && buttonBox && box.height <= 110 && buttonBox.height >= 44
+    && box.x >= -1 && box.x + box.width <= width + 1 && !await list.isVisible(), 'mobile');
+  await toggle.click();
+  requireCheck(await toggle.getAttribute('aria-expanded') === 'true' && await nativeListVisible(page), 'mobile');
+  await navigation.locator('ul a').first().focus();
+  await page.keyboard.press('Escape');
+  requireCheck(!await list.isVisible() && await toggle.evaluate(node => document.activeElement === node), 'keyboard');
+  await toggle.click();
+  const outsidePoint = await page.evaluate(selector => {
+    const box = document.querySelector(selector).getBoundingClientRect();
+    return { x: 1, y: Math.max(1, Math.min(innerHeight - 1, box.top > 8 ? box.top - 5 : box.bottom + 5)) };
+  }, NAV);
+  await page.mouse.click(outsidePoint.x, outsidePoint.y);
+  requireCheck(!await list.isVisible() && await toggle.getAttribute('aria-expanded') === 'false', 'keyboard');
+  await toggle.click();
+  await navigation.locator('ul a').first().focus();
+  requireCheck(await focusOutside(page), 'keyboard');
+  await page.waitForFunction(selector => document.querySelector(selector)?.getAttribute('aria-expanded') === 'false', `${NAV} ${TOGGLE}`);
+  requireCheck(!await list.isVisible(), 'keyboard');
+  requireCheck(sameLinks(nativeLinks, await linkSnapshot(page)), 'links');
+}
+
+async function verifyDesktopResize(page) {
+  const navigation = page.locator(NAV), toggle = navigation.locator(TOGGLE);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForFunction(selector => getComputedStyle(document.querySelector(selector)).display === 'none', `${NAV} ${TOGGLE}`);
+  requireCheck(await nativeListVisible(page) && !await toggle.isVisible(), 'desktop');
+  const current = navigation.locator('li.is-active a').first();
+  await current.focus();
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.waitForFunction(selector => document.activeElement === document.querySelector(selector), `${NAV} ${TOGGLE}`);
+  requireCheck(await toggle.isVisible() && !await navigation.locator(':scope > ul').isVisible(), 'resize');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForFunction(selector => document.activeElement === document.querySelector(selector), `${NAV} li.is-active a`);
+  requireCheck(await nativeListVisible(page) && !await toggle.isVisible(), 'resize');
+}
+
+async function verifyDarkReadability(page) {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
+  const readable = await page.locator(`${NAV} ${TOGGLE}`).evaluate(button => {
+    const parse = value => {
+      const parts = value.match(/[\d.]+/g)?.map(Number);
+      return parts?.length >= 3 ? [...parts.slice(0, 3), parts[3] ?? 1] : null;
+    };
+    const luminance = color => color.slice(0, 3).map(value => {
+      value /= 255; return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+    }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+    const style = getComputedStyle(button), text = parse(style.color);
+    let background = null, node = button;
+    while (node && !background) {
+      const parsed = parse(getComputedStyle(node).backgroundColor);
+      if (parsed && parsed[3] >= .99) background = parsed;
+      node = node.parentElement;
+    }
+    if (!text || text[3] < .99 || !background) return false;
+    const a = luminance(text), b = luminance(background);
+    return (Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 4.5;
+  });
+  requireCheck(readable && await page.locator(`${NAV} ${TOGGLE}`).isVisible(), 'dark_mode');
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+}
+
+export async function run(input, chromium) {
+  const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false]));
+  let category = 'input', browser;
+  try {
+    validateInput(input);
+    category = 'browser';
+    const executable = process.env.PETISH_BROWSER_EXECUTABLE
+      || (fs.existsSync(chromium.executablePath()) ? undefined : (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined));
+    if (executable && (!path.isAbsolute(executable) || !fs.statSync(executable).isFile())) throw new Error('browser');
+    browser = await chromium.launch({ headless: true, ...(executable ? { executablePath: executable } : {}), args: ['--no-sandbox'] });
+    checks.browser_started = true;
+    const context = await browser.newContext({ viewport: { width: 390, height: 900 },
+      ignoreHTTPSErrors: false, locale: 'en-AU', timezoneId: 'Australia/Sydney',
+      reducedMotion: 'reduce', serviceWorkers: 'block', acceptDownloads: false });
+    const loginState = { allowed: false, used: false };
+    await installReadOnlyGuard(context, loginState);
+    checks.unsafe_requests_blocked = !allowedRequest('https://example.invalid/', 'GET')
+      && !allowedRequest(`${ORIGIN}/checkout/`, 'GET')
+      && !allowedRequest(`${ORIGIN}/my-account/edit-account/`, 'POST', true)
+      && !allowedRequest(`${ORIGIN}/?add-to-cart=1`, 'GET');
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(45000);
+    category = 'login';
+    await page.goto(`${ORIGIN}/my-account/`, { waitUntil: 'domcontentloaded' });
+    await page.locator('form.woocommerce-form-login input[name="username"]').fill(input.login);
+    await page.locator('form.woocommerce-form-login input[name="password"]').fill(input.password);
+    loginState.allowed = true;
+    await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+      page.locator('form.woocommerce-form-login button[name="login"]').click()]);
+    loginState.allowed = false;
+    requireCheck(loginState.used && (await context.cookies(ORIGIN)).some(cookie => cookie.name.startsWith('wordpress_logged_in_')), 'login');
+    await goAccount(page, 'edit-account');
+    requireCheck(await page.locator('input[name="account_email"]').inputValue() === input.customer_email, 'login');
+    checks.customer_login_verified = true;
+    const storageState = await context.storageState(); // In-memory only; never written or reported.
+    const noJS = await browser.newContext({ storageState, javaScriptEnabled: false,
+      viewport: { width: 390, height: 900 }, ignoreHTTPSErrors: false,
+      locale: 'en-AU', serviceWorkers: 'block', acceptDownloads: false });
+    await installReadOnlyGuard(noJS, { allowed: false, used: true });
+    const fallback = await noJS.newPage();
+    fallback.setDefaultTimeout(15000); fallback.setDefaultNavigationTimeout(45000);
+    const baselines = new Map();
+    category = 'no_js';
+    for (const endpoint of ENDPOINTS) {
+      await goAccount(fallback, endpoint);
+      const links = await linkSnapshot(fallback);
+      requireCheck(expectedLinks(links), 'links');
+      requireCheck(await nativeListVisible(fallback)
+        && await fallback.locator(`${NAV} ${TOGGLE}`).count() === 0, 'no_js');
+      await fallback.setViewportSize({ width: 320, height: 900 });
+      requireCheck(await nativeListVisible(fallback), 'no_js');
+      await fallback.setViewportSize({ width: 1280, height: 900 });
+      requireCheck(await nativeListVisible(fallback), 'no_js');
+      await fallback.setViewportSize({ width: 390, height: 900 });
+      baselines.set(endpoint, links);
+    }
+    checks.no_js_fallback_visible = true;
+    checks.native_navigation_links_present = true;
+    category = 'navigation';
+    for (const endpoint of ENDPOINTS) {
+      await page.setViewportSize({ width: 390, height: 900 });
+      await goAccount(page, endpoint);
+      await page.locator(`${NAV}.pp-account-navigation ${TOGGLE}`).waitFor({ state: 'visible' });
+      requireCheck(sameLinks(baselines.get(endpoint), await linkSnapshot(page)), 'links');
+      for (const width of [390, 320]) {
+        category = 'mobile';
+        await verifyMobile(page, width, baselines.get(endpoint));
+        checks[`${endpoint.replaceAll('-', '_')}_${width}_verified`] = true;
+      }
+      category = 'desktop'; await verifyDesktopResize(page);
+      category = 'dark_mode'; await verifyDarkReadability(page);
+    }
+    for (const name of ['native_hrefs_unchanged', 'current_label_verified', 'mobile_compact_closed',
+      'toggle_opens', 'escape_closes_focus_returns', 'outside_closes', 'focusout_closes',
+      'desktop_visible', 'resize_visible', 'dark_mode_readable']) checks[name] = true;
+    requireCheck(Object.values(checks).every(Boolean), 'navigation');
+    return publicReport({ status: 'success', category: 'complete', checks });
+  } catch (error) {
+    return publicReport({ status: 'failure', category: CATEGORIES.has(error?.message) ? error.message : category, checks });
+  } finally { if (browser) await browser.close().catch(() => {}); }
+}
+
+async function main() {
+  let result = publicReport({ category: 'input' });
+  try {
+    if (process.argv.length !== 4) throw new Error('input');
+    const input = readPrivateInput(process.argv[2]);
+    const require = createRequire(new URL('../staging-rehearsal/package.json', import.meta.url));
+    const { chromium } = require('playwright');
+    result = await run(input, chromium);
+  } catch {}
+  try {
+    if (process.argv.length !== 4) throw new Error('input');
+    writeReport(process.argv[3], result);
+  } catch { result = publicReport({ category: 'input' }); }
+  process.stdout.write(JSON.stringify(result) + '\n');
+  if (result.status !== 'success') process.exitCode = 1;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

@@ -123,6 +123,22 @@ body.woocommerce-account .petish-passport .pp-button-danger:hover{background:var
 /* The7 adds navigation padding outside its content width. Keep both account columns in one row. */
 body.woocommerce-account .woocommerce-MyAccount-navigation{padding:0;box-sizing:border-box}
 
+/* Keep native links and desktop navigation; collapse only after JS enhances mobile. */
+body.woocommerce-account .pp-account-navigation-toggle{display:none}
+@media(max-width:991px){
+body.woocommerce-account .woocommerce-MyAccount-navigation.pp-account-navigation{position:relative;z-index:2}
+body.woocommerce-account .pp-account-navigation .pp-account-navigation-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;box-sizing:border-box;min-height:64px;margin:0;padding:12px 16px;border:1px solid var(--pp-border);border-radius:16px;background:var(--pp-surface);color:var(--pp-text);font:500 .9375rem/1.4 var(--font-label,sans-serif);text-align:start;cursor:pointer;box-shadow:none}
+body.woocommerce-account .pp-account-navigation-text{display:grid;gap:2px;min-width:0}
+body.woocommerce-account .pp-account-navigation-caption{color:var(--pp-muted);font-size:.75rem;font-weight:400}
+body.woocommerce-account .pp-account-navigation-current{overflow-wrap:anywhere;font-weight:600}
+body.woocommerce-account .pp-account-navigation-chevron{flex:0 0 8px;width:8px;height:8px;margin-inline:4px;border-inline-end:2px solid currentColor;border-block-end:2px solid currentColor;transform:rotate(45deg);transition:transform .15s ease}
+body.woocommerce-account .woocommerce-MyAccount-navigation.pp-account-navigation>ul{display:none;position:absolute;inset:calc(100% + 8px) 0 auto;margin:0;max-height:min(60vh,420px);overflow-y:auto;overscroll-behavior:contain;box-shadow:var(--shadow-panel,0 10px 36px rgba(20,33,61,.12));z-index:30}
+body.woocommerce-account .woocommerce-MyAccount-navigation.pp-account-navigation-open>ul{display:block}
+body.woocommerce-account .pp-account-navigation-open .pp-account-navigation-chevron{transform:rotate(225deg)}
+body.woocommerce-account .woocommerce-MyAccount-navigation.pp-account-navigation li a{min-height:44px;padding:11px 12px}
+}
+@media(prefers-reduced-motion:reduce){body.woocommerce-account .pp-account-navigation-chevron{transition:none}}
+
 /* The7 wraps notice text and actions; keep panel padding separate from row layout. */
 body.woocommerce-account .woocommerce-MyAccount-content > :is(.woocommerce-info,.woocommerce-message){display:block;box-sizing:border-box;width:100%;padding:20px 24px;margin:0 0 16px;border:1px solid var(--pp-border);border-radius:12px}
 body.woocommerce-account .woocommerce-MyAccount-content > :is(.woocommerce-info,.woocommerce-message) > :is(.woocommerce-info-text,.woocommerce-message-text){display:flex;align-items:center;justify-content:space-between;gap:20px;min-width:0;width:100%}
