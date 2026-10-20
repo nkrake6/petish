@@ -114,6 +114,22 @@ class ScreeningTests(unittest.TestCase):
         self.assertFalse(SCREEN.secret_findings("$client_secret = '<configure externally>';"))
         self.assertFalse(SCREEN.secret_findings("$client_secret = '';"))
 
+    def test_localisation_xml_and_catalogues_receive_text_screening(self):
+        provider = "GOCSPX-" + "q" * 24
+        entries = [
+            file_entry(THEME + "/wpml-config.xml", b'<?xml version="1.0"?><wpml-config/>'),
+            file_entry(THEME + "/languages/theme.pot", b'msgid "Petish"\nmsgstr ""\n'),
+            file_entry(THEME + "/languages/en_AU.po", b'msgid "Color"\nmsgstr "Colour"\n'),
+            file_entry(THEME + "/languages/private.po", ('msgid "' + provider + '"\nmsgstr ""\n').encode()),
+            file_entry(THEME + "/invalid.xml", b"\xff\xfe\x00\x00"),
+        ]
+        self.assertEqual(self.scan(entries), 0)
+        manifest = self.manifest()
+        self.assertEqual(manifest["file_count"], 3)
+        self.assertEqual(manifest["quarantined_file_count"], 2)
+        self.assertEqual({item["rule"] for item in manifest["findings"]}, {"google_oauth_secret", "non_text_source_payload"})
+        self.assertNotIn(provider, (self.ready / "source-manifest.json").read_text())
+
     def test_private_and_metadata_payloads_are_omitted(self):
         paths = [".env", "._passport.php", "logs/debug.txt", "orders.json", "private/credentials.php", "archive.sql"]
         entries = [file_entry(PASSPORT + "/" + path, b"synthetic-private-fixture") for path in paths]

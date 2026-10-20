@@ -40,7 +40,7 @@ ROOTS = (
     "wp-content/plugins/petish-fulfilment",
 )
 ANCESTORS = {"wp-content", "wp-content/themes", "wp-content/plugins", "wp-content/mu-plugins"}
-TEXT_EXTENSIONS = {".php", ".css", ".js", ".json", ".md", ".txt", ".html", ".svg"}
+TEXT_EXTENSIONS = {".php", ".css", ".js", ".json", ".md", ".txt", ".html", ".svg", ".xml", ".pot", ".po"}
 BINARY_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".woff", ".woff2", ".ttf", ".otf", ".ico"}
 PRIVATE_DIRECTORIES = {
     "private", "secrets", "credentials", "backups", "backup", "logs", "log",
