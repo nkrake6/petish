@@ -1,0 +1,8 @@
+{
+  "AUTOMATION_KIND": "backup",
+  "AUTOMATION_RESULT": "failure",
+  "GITHUB_RUN_ID": "39345977607",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "62a7cd5d315854a2beda95b0f8308c0f9bbb34f6",
+  "generated_utc": "2026-10-20T00:10:35.181455+00:00"
+}
