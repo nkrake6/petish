@@ -1,0 +1,67 @@
+{
+  "status": "in_progress",
+  "category": "health",
+  "mode": "apply",
+  "run_id": "39407138767-1",
+  "source_commit": "81d759876cd9f1ce04c9168b9c03c1c84cf38874",
+  "tested_source_commit": "86e315f3daf172e1c9faee9a62d768b48f634bca",
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "logo_verified": true,
+        "logo_world_readable": true,
+        "logo_path_world_traversable": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false
+      },
+      "changed_file_count": 6
+    },
+    "preflight": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "production_paths_verified": true,
+        "approved_full_animal_logo_verified": true,
+        "production_environment_verified": true,
+        "tested_theme_and_woocommerce_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "production_data_snapshot_verified": true
+      }
+    },
+    "health": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "homepage_http_verified": true,
+        "shop_http_verified": true,
+        "product_http_verified": true,
+        "cart_http_verified": true,
+        "account_http_verified": true,
+        "approved_logo_http_verified": true,
+        "logo_http_fetch_succeeded": true,
+        "logo_http_is_png": true,
+        "logo_http_is_webp": false,
+        "logo_http_file_bytes_match": false,
+        "logo_http_dimensions_match": true,
+        "logo_http_pixels_match": true
+      }
+    }
+  },
+  "verified_backup_branch": "full-site-backup/39405728869-1"
+}
