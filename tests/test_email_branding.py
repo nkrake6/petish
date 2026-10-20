@@ -15,7 +15,7 @@ PHP = shutil.which('php') or '/workspace/.petish-dev/bin/php'
 class Structure(HTMLParser):
     def __init__(self):
         super().__init__()
-        self.stack, self.ids, self.images, self.errors = [], [], [], []
+        self.stack, self.ids, self.images, self.errors, self.links = [], [], [], [], []
 
     def handle_starttag(self, tag, attributes):
         attrs = dict(attributes)
@@ -23,6 +23,8 @@ class Structure(HTMLParser):
             self.ids.append(attrs['id'])
         if tag == 'img':
             self.images.append(attrs)
+        if tag == 'a':
+            self.links.append(attrs)
         if tag not in {'meta', 'img', 'br', 'hr', 'link', 'input'}:
             self.stack.append(tag)
 
@@ -138,6 +140,31 @@ echo json_encode(['html'=>$html,'css'=>petish_email_branding_styles('/* native s
         result = self.render(logo='javascript:alert(1)')
         self.assertNotIn('javascript:', result['html'])
         self.assertIn('src=""', result['html'])
+
+    def test_native_action_button_preserves_its_link_and_escapes_its_label(self):
+        url = 'https://petish.example/my-account/?key=opaque%2Bexample&id=12&login=alex'
+        script = '''<?php
+define('ABSPATH','/fixture/');
+function esc_url($url){return htmlspecialchars($url,ENT_QUOTES,'UTF-8');}
+function esc_html($text){return htmlspecialchars($text,ENT_QUOTES,'UTF-8');}
+$url=__URL__;$label='<img src=x onerror=unsafe()>Confirm email address';
+ob_start();require __TEMPLATE__;$html=ob_get_clean();echo json_encode($html);
+'''.replace('__URL__', json.dumps(url)).replace('__TEMPLATE__', json.dumps(str(THEME / 'woocommerce/emails/email-button.php')))
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / 'button.php'
+            fixture.write_text(script)
+            result = subprocess.run([PHP, str(fixture)], capture_output=True, timeout=10)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stderr, b'')
+        html = json.loads(result.stdout)
+        parser = Structure(); parser.feed(html)
+        self.assertEqual(parser.errors, [])
+        self.assertEqual(parser.links[0]['href'], url)
+        self.assertEqual(parser.links[0]['class'], 'button')
+        self.assertIn('background-color:#6532A1', parser.links[0]['style'])
+        self.assertIn('color:#FFFFFF', parser.links[0]['style'])
+        self.assertIn('&lt;img', html)
+        self.assertEqual(parser.images, [])
 
 
 if __name__ == '__main__':
