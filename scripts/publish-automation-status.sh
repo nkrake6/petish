@@ -6,7 +6,7 @@ set -euo pipefail
 : "${GITHUB_RUN_ATTEMPT:?Missing GITHUB_RUN_ATTEMPT}"
 : "${GITHUB_SHA:?Missing GITHUB_SHA}"
 : "${RUNNER_TEMP:?Missing RUNNER_TEMP}"
-[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging|recovery|mail|mail-test)$ ]]
+[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging|recovery|mail|mail-test|rehearsal)$ ]]
 [[ "$AUTOMATION_RESULT" =~ ^(success|failure|cancelled|skipped)$ ]]
 [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
 [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
@@ -19,6 +19,13 @@ data = {key: os.environ[key] for key in (
     'AUTOMATION_KIND', 'AUTOMATION_RESULT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')}
 data['generated_utc'] = datetime.now(timezone.utc).isoformat()
 from pathlib import Path
+if data['AUTOMATION_KIND'] == 'rehearsal':
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('rehearsal_sanitizer', 'scripts/sanitize-rehearsal-result.py')
+    sanitizer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sanitizer)
+    report = Path(os.environ['RUNNER_TEMP']) / 'petish-rehearsal-preflight.json'
+    data['rehearsal'] = sanitizer.sanitize(report)
 if data['AUTOMATION_KIND'] == 'mail-test':
     import re
     report = Path(os.environ['RUNNER_TEMP']) / 'petish-mail-test-result.json'

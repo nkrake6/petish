@@ -1,0 +1,65 @@
+name: Rehearse Petish checkout on private staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Check isolation first, or run the authorized test-payment rehearsal
+        required: true
+        default: preflight
+        type: choice
+        options: [preflight, rehearse]
+  push:
+    branches: [main, staging-rehearsal]
+    paths:
+      - .github/workflows/rehearse-staging.yml
+      - scripts/hostinger-staging-rehearsal.sh
+      - scripts/staging-rehearsal-remote.php
+      - scripts/sanitize-rehearsal-result.py
+      - tools/staging-rehearsal/**
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-staging-code
+  cancel-in-progress: false
+
+jobs:
+  rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+      REHEARSAL_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref == 'refs/heads/staging-rehearsal' && 'rehearse' || 'preflight') }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Prepare pinned SSH connection
+        run: |
+          bash scripts/hostinger-connection-check.sh
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass
+          fi
+      - name: Verify staging runtime and run only the selected rehearsal
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: bash scripts/hostinger-staging-rehearsal.sh
+      - name: Publish nonsecret rehearsal result
+        if: always()
+        env:
+          AUTOMATION_KIND: rehearsal
+          AUTOMATION_RESULT: ${{ job.status }}
+        run: bash scripts/publish-automation-status.sh
+      - name: Remove private runner data
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP/petish-staging-rehearsal"
+          rm -f -- "$RUNNER_TEMP/petish-rehearsal-result.json" "$RUNNER_TEMP/petish-rehearsal-preflight.json"
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
