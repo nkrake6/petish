@@ -175,6 +175,44 @@ function recordCart(result, cart) {
   result.cart_api_error_code = CART_CODES.has(cart.error_code) ? cart.error_code : 'other';
 }
 
+async function deleteCartItems(page, cart) {
+  return page.evaluate(async ({ nonce, wpNonce }) => {
+    const failed = (status = 0, code = 'invalid_response') => ({ completed: false,
+      http_status: Number.isInteger(status) ? status : 0,
+      error_code: typeof code === 'string' ? code : 'invalid_response' });
+    if (!nonce) return failed(0, 'woocommerce_rest_missing_nonce');
+    if (typeof window.wp?.apiFetch === 'function') {
+      try {
+        const response = await window.wp.apiFetch({ path: '/wc/store/v1/cart/items',
+          method: 'DELETE', parse: false, headers: { Nonce: nonce } });
+        if (response?.ok === true || Array.isArray(response?.items)) {
+          return { completed: true, http_status: response?.status ?? 200, error_code: 'none' };
+        }
+      } catch {}
+    }
+    if (!/^[A-Za-z0-9]{10}$/.test(wpNonce ?? '')) {
+      try {
+        const response = await fetch('/wp-admin/admin-ajax.php?action=rest-nonce', {
+          credentials: 'same-origin', cache: 'no-store',
+        });
+        wpNonce = (await response.text()).trim();
+        if (!response.ok || !/^[A-Za-z0-9]{10}$/.test(wpNonce)) {
+          return failed(response.status, 'wp_rest_nonce_unavailable');
+        }
+        window.__petishRehearsalWpNonce = wpNonce;
+      } catch { return failed(0, 'network'); }
+    }
+    try {
+      const response = await fetch('/wp-json/wc/store/v1/cart/items', { method: 'DELETE',
+        credentials: 'same-origin', headers: { Nonce: nonce, 'X-WP-Nonce': wpNonce } });
+      if (response.ok) return { completed: true, http_status: response.status, error_code: 'none' };
+      const error = await response.json().catch(() => null);
+      return failed(response.status, error?.code);
+    } catch { return failed(0, 'network'); }
+  }, { nonce: cart.nonce, wpNonce: cart.wpNonce }).catch(() => ({ completed: false,
+    http_status: 0, error_code: 'network' }));
+}
+
 async function emptyCart(page, result) {
   result.cart_failure_step = 'open';
   const response = await page.goto(ORIGIN + '/cart/', { waitUntil: 'domcontentloaded' });
@@ -182,18 +220,31 @@ async function emptyCart(page, result) {
   result.cart_page_loaded = new URL(page.url()).origin === ORIGIN && (response?.ok() ?? false);
   if (!result.cart_page_loaded) throw new Error('cart');
   result.cart_failure_step = 'empty';
+  let cleared = false;
+  let clearFailure;
   for (let attempt = 0; attempt < 30; attempt++) {
     const cart = await cartData(page);
     recordCart(result, cart);
     if (!result.cart_api_available) { result.cart_failure_step = 'api'; throw new Error('cart'); }
     if (cart.value.items.length === 0) { result.cart_empty_verified = true; return; }
+    // Clear only the currently authenticated synthetic customer's cart. This
+    // native, idempotent operation avoids racing the cart block's React mount.
+    if (!cleared) {
+      const removed = await deleteCartItems(page, cart);
+      cleared = true;
+      if (removed.completed) { await page.waitForTimeout(300); continue; }
+      clearFailure = removed;
+    }
     const remove = await visibleFirst([
       page.locator('.wc-block-cart-item__remove-link'), page.locator('a.remove'),
       page.getByRole('button', { name: /remove item|remove this item/i }),
     ]);
-    if (!remove) throw new Error('cart');
-    await remove.click();
-    await page.waitForTimeout(700);
+    if (remove) await remove.click();
+    await page.waitForTimeout(500);
+  }
+  if (clearFailure) {
+    result.cart_api_http_status = clearFailure.http_status;
+    result.cart_api_error_code = CART_CODES.has(clearFailure.error_code) ? clearFailure.error_code : 'other';
   }
   throw new Error('cart');
 }

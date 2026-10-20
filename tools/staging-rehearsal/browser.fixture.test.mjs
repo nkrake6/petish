@@ -17,7 +17,7 @@ const fixtureInput = () => validateInput({
     mail_capture_verified: true, webhooks_blocked: true },
 });
 
-function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = false } = {}) {
+function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = false, hideRemoveUI = false } = {}) {
   const state = { items: [{ id: 999, quantity: 1 }], attempts: [], logins: 0, removed: 0,
     unexpected: [], restNonceRequests: 0, shippingSelected: false, shippingSelections: 0 };
   const key = live ? 'pk_live_fixture' : 'pk_test_fixture';
@@ -63,13 +63,16 @@ function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = f
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cart()) });
     }
     if (url.pathname === '/wp-json/wc/store/v1/cart/items' && request.method() === 'DELETE') {
+      if (request.headers()['x-wp-nonce'] !== 'fixturewp0' || request.headers().nonce !== 'private-fixture-nonce') {
+        return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'rest_cookie_invalid_nonce' }) });
+      }
       state.items = []; state.removed++;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cart()) });
     }
     if (url.pathname === '/cart/') {
       if (url.searchParams.get('add-to-cart') === '242' && url.searchParams.get('variation_id') === '246'
           && url.searchParams.get('attribute_color') === 'Blue') state.items = [{ id: 246, quantity: 1 }];
-      return route.fulfill(html(state.items.length ? '<button class="wc-block-cart-item__remove-link" onclick="fetch(\'/wp-json/wc/store/v1/cart/items\',{method:\'DELETE\'}).then(()=>this.remove())">Remove item</button>' : '<p>Cart is empty</p>'));
+      return route.fulfill(html(state.items.length && !hideRemoveUI ? '<button class="wc-block-cart-item__remove-link" onclick="fetch(\'/wp-json/wc/store/v1/cart/items\',{method:\'DELETE\',headers:{Nonce:\'private-fixture-nonce\',\'X-WP-Nonce\':\'fixturewp0\'}}).then(()=>this.remove())">Remove item</button>' : '<p>Cart fixture</p>'));
     }
     if (url.pathname === '/checkout/') {
       return route.fulfill(html(`<main class="wc-block-checkout">
@@ -165,4 +168,14 @@ test('receipt identity determines whether the declined order was retried', { ski
   assert.equal(result.declined_order_id, 5001);
   assert.equal(result.order_id, 5002);
   assert.equal(result.same_order_retried, false);
+});
+
+test('authenticated native cart deletion does not depend on a mounted Remove button', { skip: !available, timeout: 30000 }, async () => {
+  const fixture = fixtureBrowser({ hideRemoveUI: true });
+  const result = await run(fixtureInput(), fixture.chromium);
+  assert.equal(result.failure_stage, undefined);
+  assert.equal(result.cart_empty_verified, true);
+  assert.equal(result.expected_variation_in_cart, true);
+  assert.equal(result.paid_receipt_verified, true);
+  assert.equal(fixture.state.removed, 1);
 });
