@@ -145,8 +145,12 @@ if data['AUTOMATION_KIND'] == 'rehearsal' and not os.environ.get('AUTOMATION_PRO
         summary += ['', 'Browser: ' + ('stopped at ' + stage if stage else
                     ('paid receipt verified' if browser.get('paid_receipt_verified') else 'unverified')) + '.',
                     'Payment submission attempts: ' + str(browser.get('payment_attempts', 'unavailable')) + '.']
+        reason = browser.get('unsafe_reason')
+        if reason:
+            summary.append('Safety check: ' + reason + '.')
         if stage:
             print('::error title=Private staging rehearsal::Browser stopped at ' + stage +
+                  (' (' + reason + ')' if reason else '') +
                   '; payment submission attempts: ' + str(browser.get('payment_attempts', 'unavailable')) +
                   '. See the sanitized staging summary.')
     summary += ['', 'Staging requires supplier calls and external order emails to be blocked.',

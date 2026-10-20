@@ -22,6 +22,13 @@ const SAFETY = {
 const STAGES = new Set(['input', 'browser', 'login', 'cart', 'checkout', 'address',
   'shipping', 'test_key', 'decline', 'retry', 'receipt', 'complete', 'network']);
 const CART_STEPS = new Set(['open', 'empty', 'add', 'verify', 'api']);
+const REQUEST_DIAGNOSTICS = {
+  unsafe_reason: new Set(['live_key_observed', 'live_response_observed', 'checkout_method_unexpected', 'checkout_test_key_missing']),
+  checkout_request_method: new Set(['expected', 'empty', 'missing', 'express', 'other']),
+  checkout_body_format: new Set(['json', 'form', 'unparseable']),
+  checkout_method_override: new Set(['none', 'put', 'patch', 'delete', 'other']),
+  stripe_endpoint: new Set(['payment_methods', 'payment_intents', 'setup_intents', 'elements_sessions', 'other']),
+};
 const CART_CODES = new Set(['none', 'rest_not_logged_in', 'rest_cookie_invalid_nonce',
   'rest_forbidden', 'rest_cannot_view', 'woocommerce_rest_authentication_error',
   'woocommerce_rest_missing_session', 'woocommerce_rest_cart_error',
@@ -73,12 +80,16 @@ export function publicReport(value) {
     'shipping_customer_destination_verified', 'shipping_package_destination_verified',
     'shipping_expected_rate_present', 'shipping_expected_rate_selected',
     'shipping_customer_update_verified', 'checkout_currency_verified');
+  fields.push('checkout_calc_totals', 'calc_totals_update_allowed');
   const result = {};
   for (const key of fields) if (typeof value[key] === 'boolean') result[key] = value[key];
   if (Number.isInteger(value.payment_attempts) && value.payment_attempts >= 0 && value.payment_attempts <= 2) {
     result.payment_attempts = value.payment_attempts;
   }
   if (STAGES.has(value.failure_stage)) result.failure_stage = value.failure_stage;
+  for (const [field, allowed] of Object.entries(REQUEST_DIAGNOSTICS)) {
+    if (allowed.has(value[field])) result[field] = value[field];
+  }
   if (CART_STEPS.has(value.cart_failure_step)) result.cart_failure_step = value.cart_failure_step;
   if (CART_CODES.has(value.cart_api_error_code)) result.cart_api_error_code = value.cart_api_error_code;
   if (CART_CODES.has(value.shipping_api_error_code)) result.shipping_api_error_code = value.shipping_api_error_code;
@@ -430,6 +441,54 @@ function keyFlags(text, state) {
   if (/pk_test_[A-Za-z0-9]+/.test(text)) state.testKeyObserved = true;
 }
 
+function stripeEndpoint(raw) {
+  const pathname = new URL(raw).pathname;
+  return ['payment_methods', 'payment_intents', 'setup_intents', 'elements_sessions']
+    .find(endpoint => new RegExp(`^/v[0-9]+/${endpoint}(?:/|$)`).test(pathname)) ?? 'other';
+}
+
+/** Classifies private request data without returning its values. */
+export function checkoutRequestPolicy(raw, body, headers = {}, testKeyObserved = false) {
+  const url = new URL(raw);
+  const lowerHeaders = Object.fromEntries(Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value]));
+  let data = null, format = 'unparseable';
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) { data = parsed; format = 'json'; }
+  } catch {
+    if (body.includes('=') && !/^[\s]*[\[{]/.test(body)) {
+      data = new URLSearchParams(body); format = 'form';
+    }
+  }
+  const has = key => data instanceof URLSearchParams ? data.has(key) : !!data && Object.hasOwn(data, key);
+  const get = key => data instanceof URLSearchParams ? data.get(key) : data?.[key];
+  const method = !has('payment_method') ? 'missing' : get('payment_method') === '' ? 'empty'
+    : get('payment_method') === 'woocommerce_payments' ? 'expected'
+      : typeof get('payment_method') === 'string' && /express|payment_request|apple_pay|google_pay/i.test(get('payment_method')) ? 'express' : 'other';
+  const rawOverride = lowerHeaders['x-http-method-override'];
+  const override = rawOverride === undefined ? 'none' : ['PUT', 'PATCH', 'DELETE'].includes(rawOverride)
+    ? rawOverride.toLowerCase() : 'other';
+  const calcValues = has('__experimental_calc_totals')
+    ? data instanceof URLSearchParams ? data.getAll('__experimental_calc_totals') : [get('__experimental_calc_totals')]
+    : url.searchParams.getAll('__experimental_calc_totals');
+  const calc = calcValues.length === 1 && [true, 1, 'true', '1'].includes(calcValues[0]);
+  const diagnostics = { checkout_request_method: method, checkout_body_format: format,
+    checkout_method_override: override, checkout_calc_totals: calc };
+  // Gutenberg api-fetch transports native PUT/PATCH as POST. Woo's update handler
+  // calculates totals only; its POST handler can take payment and stays strict.
+  const updateOnly = url.origin === ORIGIN && /^\/wp-json\/wc\/store\/v1\/checkout\/?$/.test(url.pathname)
+    && ['put', 'patch'].includes(override) && calc && !url.searchParams.has('_method')
+    && /^[A-Za-z0-9]{10}$/.test(lowerHeaders['x-wp-nonce'] ?? '')
+    && (format !== 'unparseable' || body.trim() === '')
+    && ['missing', 'empty', 'expected'].includes(method);
+  if (updateOnly) return { allowed: true, updateOnly: true, diagnostics };
+  if (override !== 'none' || url.searchParams.has('_method') || method !== 'expected') {
+    return { allowed: false, diagnostics, reason: 'checkout_method_unexpected' };
+  }
+  return testKeyObserved ? { allowed: true, updateOnly: false, diagnostics }
+    : { allowed: false, diagnostics, reason: 'checkout_test_key_missing' };
+}
+
 async function checkTestKey(page, state) {
   for (let attempt = 0; attempt < 30; attempt++) {
     for (const frame of page.frames()) keyFlags(frame.url(), state);
@@ -541,17 +600,31 @@ export async function run(input, chromium) {
       const url = request.url();
       const body = request.postData() ?? '';
       keyFlags(url + '\n' + body, state);
+      const headers = await request.allHeaders();
+      if (new URL(url).hostname === 'api.stripe.com') {
+        const authorization = headers.authorization ?? '';
+        keyFlags(authorization, state);
+        if (/^Basic\s+/i.test(authorization)) {
+          keyFlags(Buffer.from(authorization.replace(/^Basic\s+/i, ''), 'base64').toString('utf8'), state);
+        }
+      }
       if (!allowedRequest(url) || state.liveKeyObserved) {
-        if (state.liveKeyObserved) result.unsafe_request_blocked = true;
+        if (state.liveKeyObserved) {
+          result.unsafe_request_blocked = true;
+          result.unsafe_reason ??= 'live_key_observed';
+          if (new URL(url).hostname === 'api.stripe.com') result.stripe_endpoint = stripeEndpoint(url);
+        }
         await route.abort('blockedbyclient');
         return;
       }
       if (new URL(url).origin === ORIGIN && request.method() === 'POST'
           && (/\/wc\/store\/v1\/checkout(?:[/?]|$)/.test(url) || /[?&]wc-ajax=checkout(?:&|$)/.test(url))) {
-        let method;
-        try { method = JSON.parse(body).payment_method; } catch { method = new URLSearchParams(body).get('payment_method'); }
-        if (method !== 'woocommerce_payments' || !state.testKeyObserved) {
+        const policy = checkoutRequestPolicy(url, body, headers, state.testKeyObserved);
+        Object.assign(result, policy.diagnostics);
+        if (policy.updateOnly) result.calc_totals_update_allowed = true;
+        if (!policy.allowed) {
           result.unsafe_request_blocked = true;
+          result.unsafe_reason ??= policy.reason;
           await route.abort('blockedbyclient');
           return;
         }
@@ -569,6 +642,8 @@ export async function run(input, chromium) {
           if (data?.livemode === true || data?.payment_intent?.livemode === true || data?.error?.payment_intent?.livemode === true) {
             state.liveKeyObserved = true;
             result.unsafe_request_blocked = true;
+            result.unsafe_reason = 'live_response_observed';
+            result.stripe_endpoint = stripeEndpoint(url.href);
           }
           if (data?.error?.code === 'card_declined') state.declined = true;
         } else if (url.origin === ORIGIN && /\/wc\/store\/v1\/checkout(?:[/?]|$)/.test(url.href)) {

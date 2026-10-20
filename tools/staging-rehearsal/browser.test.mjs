@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { allowedRequest, publicReport, validateInput } from './browser.mjs';
+import { allowedRequest, checkoutRequestPolicy, publicReport, validateInput } from './browser.mjs';
 
 const safe = () => ({
   url: 'https://staging.petish.biz', login: 'private-fixture-login', password: 'private-fixture-password',
@@ -47,4 +47,30 @@ test('public report cannot include credentials, receipt access keys, errors or U
     payment_attempts: 1, failure_stage: 'receipt' });
   assert.equal(JSON.stringify(result).includes('PRIVATE'), false);
   assert.deepEqual(publicReport({ payment_attempts: 3, failure_stage: 'PRIVATE', paid_receipt_verified: 'yes' }), {});
+});
+
+test('only the authenticated native totals update can omit a payment gateway and test key', () => {
+  const checkout = 'https://staging.petish.biz/wp-json/wc/store/v1/checkout';
+  const headers = { 'X-HTTP-Method-Override': 'PUT', 'X-WP-Nonce': 'fixturewp0' };
+  const update = checkoutRequestPolicy(checkout + '?__experimental_calc_totals=true', '', headers, false);
+  assert.equal(update.allowed, true);
+  assert.equal(update.updateOnly, true);
+  assert.deepEqual(update.diagnostics, { checkout_request_method: 'missing', checkout_body_format: 'unparseable',
+    checkout_method_override: 'put', checkout_calc_totals: true });
+  for (const [url, body, requestHeaders] of [
+    [checkout + '?__experimental_calc_totals=true', '', {}],
+    [checkout + '?__experimental_calc_totals=true&_method=POST', '', headers],
+    [checkout + '?__experimental_calc_totals=true', '', { ...headers, 'X-WP-Nonce': '' }],
+    [checkout, '{}', headers],
+    [checkout + '?__experimental_calc_totals=true', '{malformed', headers],
+    [checkout + '?__experimental_calc_totals=true', '', { ...headers, 'X-HTTP-Method-Override': 'DELETE' }],
+    [checkout + '?__experimental_calc_totals=true', '', { ...headers, 'X-HTTP-Method-Override': 'UNKNOWN' }],
+    ['https://petish.biz/wp-json/wc/store/v1/checkout?__experimental_calc_totals=true', '', headers],
+  ]) assert.equal(checkoutRequestPolicy(url, body, requestHeaders, true).allowed, false);
+  const payment = JSON.stringify({ payment_method: 'woocommerce_payments' });
+  assert.equal(checkoutRequestPolicy(checkout, payment, {}, false).reason, 'checkout_test_key_missing');
+  assert.equal(checkoutRequestPolicy(checkout, payment, {}, true).allowed, true);
+  assert.equal(checkoutRequestPolicy(checkout, '{}', {}, true).reason, 'checkout_method_unexpected');
+  assert.equal(checkoutRequestPolicy(checkout, '{"__experimental_calc_totals":true}',
+    { ...headers, 'X-HTTP-Method-Override': 'PATCH' }, false).allowed, true);
 });

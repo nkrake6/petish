@@ -17,10 +17,10 @@ const fixtureInput = () => validateInput({
     mail_capture_verified: true, webhooks_blocked: true },
 });
 
-function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = false, hideRemoveUI = false, hydrationDelay = 0, currency = 'AUD' } = {}) {
+function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = false, hideRemoveUI = false, hydrationDelay = 0, currency = 'AUD', totalsUpdate = false } = {}) {
   const state = { items: [{ id: 999, quantity: 1 }], attempts: [], logins: 0, removed: 0,
     unexpected: [], restNonceRequests: 0, shippingSelected: false, shippingSelections: 0,
-    destination: { country: '', state: '', postcode: '' }, customerUpdates: 0 };
+    destination: { country: '', state: '', postcode: '' }, customerUpdates: 0, totalsUpdates: 0 };
   const key = live ? 'pk_live_fixture' : 'pk_test_fixture';
   const html = body => ({ status: 200, contentType: 'text/html', body: `<!doctype html><html><body>${body}</body></html>` });
   const cart = () => ({ items: state.items, shipping_address: state.destination,
@@ -103,6 +103,7 @@ function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = f
         window.wcpayConfig={publishableKey:'${key}'};
         window.addEventListener('message',event=>{if(event.origin==='https://js.stripe.com')window.fixtureNumber=event.data.fixtureNumber;});
         document.querySelector('button').onclick=async()=>{
+          ${totalsUpdate ? `await fetch('/wp-json/wc/store/v1/checkout?__experimental_calc_totals=true',{method:'POST',headers:{'X-HTTP-Method-Override':'PUT','X-WP-Nonce':'fixturewp0'}});` : ''}
           const response=await fetch('/wp-json/wc/store/v1/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payment_method:'woocommerce_payments',fixture_number:window.fixtureNumber})});
           const data=await response.json();
           if(data.declined)document.querySelector('#result').innerHTML='<div role="alert">Your card was declined.</div>';
@@ -116,6 +117,12 @@ function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = f
       return route.fulfill(checkout);
     }
     if (url.pathname === '/wp-json/wc/store/v1/checkout' && request.method() === 'POST') {
+      if (request.headers()['x-http-method-override'] === 'PUT') {
+        assert.equal(url.searchParams.get('__experimental_calc_totals'), 'true');
+        assert.equal(request.headers()['x-wp-nonce'], 'fixturewp0');
+        state.totalsUpdates++;
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+      }
       const body = JSON.parse(request.postData());
       state.attempts.push(body.fixture_number);
       if (state.attempts.length === 1) return route.fulfill({ status: 200, contentType: 'application/json',
@@ -228,4 +235,16 @@ test('a non-AUD checkout is refused before a payment submission', { skip: !avail
   assert.equal(result.paid_receipt_verified, false);
   assert.deepEqual(fixture.state.attempts, []);
   assert.equal(fixture.state.customerUpdates, 0);
+});
+
+test('native api-fetch totals updates remain separate from both real test-payment submissions', { skip: !available, timeout: 30000 }, async () => {
+  const fixture = fixtureBrowser({ totalsUpdate: true });
+  const result = await run(fixtureInput(), fixture.chromium);
+  assert.equal(result.failure_stage, undefined);
+  assert.equal(result.calc_totals_update_allowed, true);
+  assert.equal(result.unsafe_request_blocked, false);
+  assert.equal(result.paid_receipt_verified, true);
+  assert.equal(result.payment_attempts, 2);
+  assert.equal(fixture.state.totalsUpdates, 2);
+  assert.deepEqual(fixture.state.attempts, ['4000000000000002', '4242424242424242']);
 });

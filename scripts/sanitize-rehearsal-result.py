@@ -32,9 +32,17 @@ BROWSER_CHECKS = {'browser_started', 'customer_login_verified', 'cart_prepared',
     'shipping_one_package_verified', 'shipping_customer_destination_verified',
     'shipping_package_destination_verified', 'shipping_expected_rate_present',
     'shipping_expected_rate_selected', 'shipping_customer_update_verified',
-    'checkout_currency_verified'}
+    'checkout_currency_verified', 'checkout_calc_totals', 'calc_totals_update_allowed'}
 BROWSER_HTTP_FIELDS = {'cart_page_http_status', 'cart_api_http_status', 'shipping_api_http_status'}
 BROWSER_COUNT_LIMITS = {'shipping_package_count': 20, 'shipping_rate_count': 50}
+BROWSER_REQUEST_ENUMS = {
+    'unsafe_reason': {'live_key_observed', 'live_response_observed',
+                      'checkout_method_unexpected', 'checkout_test_key_missing'},
+    'checkout_request_method': {'expected', 'empty', 'missing', 'express', 'other'},
+    'checkout_body_format': {'json', 'form', 'unparseable'},
+    'checkout_method_override': {'none', 'put', 'patch', 'delete', 'other'},
+    'stripe_endpoint': {'payment_methods', 'payment_intents', 'setup_intents', 'elements_sessions', 'other'},
+}
 BROWSER_CART_STEPS = {'open', 'empty', 'add', 'verify', 'api'}
 BROWSER_CART_ERRORS = {'none', 'rest_not_logged_in', 'rest_cookie_invalid_nonce',
     'rest_forbidden', 'rest_cannot_view', 'woocommerce_rest_authentication_error',
@@ -188,7 +196,7 @@ def sanitize_browser(source):
     try:
         raw = read_report(source)
         validation_stage = 'browser'
-        if not isinstance(raw, dict) or not set(raw) <= BROWSER_CHECKS | BROWSER_HTTP_FIELDS | set(BROWSER_COUNT_LIMITS) \
+        if not isinstance(raw, dict) or not set(raw) <= BROWSER_CHECKS | BROWSER_HTTP_FIELDS | set(BROWSER_COUNT_LIMITS) | set(BROWSER_REQUEST_ENUMS) \
                 | {'payment_attempts', 'failure_stage', 'cart_failure_step', 'cart_api_error_code', 'shipping_api_error_code'}:
             raise ValueError()
         if any(type(value) is not bool for key, value in raw.items() if key in BROWSER_CHECKS):
@@ -202,6 +210,9 @@ def sanitize_browser(source):
                 raise ValueError()
         for field, maximum in BROWSER_COUNT_LIMITS.items():
             if field in raw and (type(raw[field]) is not int or not 0 <= raw[field] <= maximum):
+                raise ValueError()
+        for field, allowed in BROWSER_REQUEST_ENUMS.items():
+            if field in raw and raw[field] not in allowed:
                 raise ValueError()
         if 'cart_failure_step' in raw and raw['cart_failure_step'] not in BROWSER_CART_STEPS:
             raise ValueError()

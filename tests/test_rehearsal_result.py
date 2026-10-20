@@ -328,6 +328,24 @@ class BrowserPublicReportTests(unittest.TestCase):
         for value in (PRIVATE,None,[],{},'https://staging.petish.biz/private'):
             self.assertEqual(self.sanitize({**raw,'shipping_api_error_code':value}),
                 {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+
+    def test_checkout_guard_diagnostics_are_finite_classifications_only(self):
+        raw={'payment_attempts':1,'failure_stage':'network','unsafe_request_blocked':True,
+             'unsafe_reason':'checkout_method_unexpected','checkout_request_method':'empty',
+             'checkout_body_format':'json','checkout_calc_totals':True,'stripe_endpoint':'payment_intents',
+             'checkout_method_override':'put','calc_totals_update_allowed':True}
+        self.assertEqual(self.sanitize(raw),raw)
+        for field,allowed in validator.BROWSER_REQUEST_ENUMS.items():
+            for value in allowed:
+                report={**raw,field:value};self.assertEqual(self.sanitize(report),report)
+            for value in (PRIVATE,'https://staging.petish.biz/checkout/?key='+PRIVATE,123,None,True,[],{}):
+                self.assertEqual(self.sanitize({**raw,field:value}),
+                    {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+        for field in ('checkout_body','checkout_payment_data','checkout_payment_method','checkout_url',
+                      'checkout_api_key','unsafe_request_url','unsafe_request_payload','unsafe_message',
+                      'stripe_request_url','stripe_error_message','stripe_body','stripe_client_secret'):
+            self.assertEqual(self.sanitize({**raw,field:PRIVATE}),
+                {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
         for field in ('shipping_address','shipping_destination','shipping_rate_id','shipping_api_body',
                       'shipping_api_error_message','shipping_html','checkout_currency_code'):
             self.assertEqual(self.sanitize({**raw,field:PRIVATE}),
@@ -366,7 +384,11 @@ class BrowserPublicReportTests(unittest.TestCase):
                   'shipping_expected_rate_present':False,'shipping_expected_rate_selected':False,
                   'shipping_customer_update_verified':True,'checkout_currency_verified':True,
                   'shipping_package_count':1,'shipping_rate_count':0,'shipping_api_http_status':200,
-                  'shipping_api_error_code':'woocommerce_rest_invalid_address'}
+                  'shipping_api_error_code':'woocommerce_rest_invalid_address',
+                  'unsafe_reason':'checkout_method_unexpected','checkout_request_method':'missing',
+                  'checkout_body_format':'json','checkout_calc_totals':True,
+                  'stripe_endpoint':'payment_intents','checkout_method_override':'put',
+                  'calc_totals_update_allowed':True}
         code='import {publicReport} from '+json.dumps(browser.as_uri())+';'
         code+='process.stdout.write(JSON.stringify(publicReport('+json.dumps({
             **expected,
