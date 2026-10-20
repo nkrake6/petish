@@ -12,7 +12,10 @@ direct links and image loading passed with no overflow or JavaScript errors.
 Live branding is unchanged.
 
 Review gallery: <https://nkrake6.github.io/petish/email-preview/?v=2>.
-Public availability is checked after each preview publication.
+Public availability passed in
+[`39379868505`](https://github.com/nkrake6/petish/actions/runs/39379868505):
+the gallery, four emails, scripts, styles and corrected animal logo matched
+the reviewed Git files byte for byte.
 
 The shared HTML email header and footer live in the The7 child theme at
 `woocommerce/emails/`. Styling is appended through
