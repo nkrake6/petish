@@ -11,6 +11,8 @@ on:
       - scripts/hostinger-full-backup.sh
       - scripts/verify-full-backup.py
       - scripts/package-encrypted-backup.py
+      - scripts/restore-backup-sandbox.sh
+      - scripts/test-full-backup-restore.py
 
 permissions:
   contents: write
@@ -90,11 +92,29 @@ jobs:
             printf 'Keep your backup passphrase in your password manager. GitHub cannot show a stored secret back to you. The backup cannot be restored without it.\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Restore database and files in an isolated disposable sandbox
+        env:
+          PETISH_BACKUP_PASSPHRASE: ${{ secrets.PETISH_BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          bash scripts/restore-backup-sandbox.sh | tee "$RUNNER_TEMP/petish-backup-restore-result.json"
+
+      - name: Publish a nonsecret result for browser-session monitoring
+        if: always()
+        env:
+          AUTOMATION_KIND: backup
+          AUTOMATION_RESULT: ${{ job.status }}
+        run: bash scripts/publish-automation-status.sh
+
       - name: Clean up private runner files and encryption agent
         if: always()
         run: |
+          docker ps --all --quiet --filter label=org.petish.restore-smoke=true \
+            | xargs --no-run-if-empty docker rm --force --volumes >/dev/null \
+            || printf '%s\n' 'Disposable database cleanup needs runner teardown.' >&2
           if command -v gpgconf >/dev/null 2>&1 && [[ -d "$RUNNER_TEMP/petish-full-backup/gnupg" ]]; then
             gpgconf --homedir "$RUNNER_TEMP/petish-full-backup/gnupg" --kill gpg-agent || true
           fi
           rm -rf -- "$RUNNER_TEMP/petish-full-backup"
           rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-backup-host-keys"
+          rm -f -- "$RUNNER_TEMP/petish-backup-restore-result.json"

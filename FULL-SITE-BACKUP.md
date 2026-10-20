@@ -1,6 +1,8 @@
 # Full Petish website backup in Git
 
-This workflow backs up the **complete WordPress document root and complete site database**, including uploads, WordPress core, all themes/plugins, wp-config.php, users, orders, settings, and page/product content. The full archive is encrypted **before** it is committed to Git. The earlier code-only snapshot approach is not used.
+This workflow backs up the **complete WordPress document root, private Passport storage, and complete site database**, including uploads, WordPress core, all themes/plugins, wp-config.php, users, orders, settings, page/product content, and Passport photos stored outside the webroot. The full archive is encrypted **before** it is committed to Git. The earlier code-only snapshot approach is not used.
+
+The required private source is the domain's exact sibling directory `private/petish-passport`, alongside `public_html`. It is archived as `private-files/petish-passport/`. Missing, unreadable, symlinked, or aliased private storage stops the backup instead of silently omitting it.
 
 ## One-time setup
 
@@ -19,9 +21,9 @@ Changes to this backup workflow or its backup scripts on `main` also start a run
 The workflow:
 
 1. Verifies the SSH server identity and logs in through GitHub's runner.
-2. Reads Petish's document-root files and makes a complete SQL dump (schema/data, views, triggers, routines, events) into a temporary private directory outside the webroot.
+2. Reads Petish's document-root files and required sibling private Passport tree, and makes a complete SQL dump (schema/data, views, triggers, routines, events) into a temporary private directory outside the webroot.
 3. Streams the full archive into AES256 encryption, never saving a plaintext site archive on the runner.
-4. Decrypts it through a streaming integrity/structure check without extracting private files or printing their contents.
+4. Decrypts it through a streaming integrity/structure check without extracting private files or printing their contents. The verifier requires the private Passport root and records only aggregate private-file counts/bytes, never filenames.
 5. Splits the encrypted archive into ordered 48 MiB parts with checksums and restoration instructions.
 6. Commits those encrypted parts on a new **`full-site-backup/<run-id>-<attempt>`** Git branch. Nothing is deployed or merged into main.
 
@@ -31,11 +33,15 @@ The final run summary links to the backup branch. Share that branch name with Co
 
 - The website is not put into maintenance mode or reconfigured. Only private temporary SQL/diagnostic files are created on the hosting account and removed when the remote script exits normally or receives a catchable termination signal.
 - The database uses a single transaction where supported. The SQL dump and filesystem are not one atomic site-wide snapshot; concurrent file changes can make the backup fail rather than silently omit files. Plan a quiet period for the most consistent backup.
-- Symbolic links are preserved exactly as link objects, including external/dangling links, and never followed. Their target data outside the document root is not copied. An encrypted link inventory and restoration notes identify this dependency; review it before treating the backup as a self-contained restore. Unsupported special files still stop the workflow. Hostinger account services and external object storage are not part of the WordPress document root/database.
+- Symbolic links within the source trees are preserved exactly as link objects, including external/dangling links, and never followed. The private Passport root itself cannot be a link or resolve into the document root. Target data outside the document root and explicitly included private Passport tree is not copied. An encrypted link inventory and restoration notes identify this dependency; review it before treating the backup as a self-contained restore. Unsupported special files still stop the workflow. Hostinger account services and external object storage remain outside the backup.
 - A failed SQL dump, encryption/integrity check, or archive size check prevents publication. The compressed/encrypted backup must fit the workflow's 1.5 GiB ceiling below GitHub's single-push limit. Exceeding it stops the backup; files are never silently dropped.
 - Archive failures emit only a numeric exit code and fixed diagnostic categories. A small private-metadata preflight distinguishes archive-tool problems from website-file failures. Raw paths, tar errors and SQL diagnostics are never published.
 - Repeated full backups consume Git repository storage. Older backup branches are not deleted automatically.
 - Successful validation is not a successful restore test. Restore into an isolated site/database and verify it before relying on any disaster recovery plan.
 - Because credentials and licensed software are present, keep the passphrase separate from Git even if the repository is private. Do not replace encrypted parts with a plaintext SQL/archive.
+
+## Restore private Passport storage
+
+After decryption in a private working directory, restore `site-files/` into the target document root and `private-files/petish-passport/` into the destination domain's sibling `private/petish-passport/` directory. **The private tree must stay outside `public_html`, WordPress uploads, and all other publicly served directories.** Preserve restrictive permissions/ownership and review the Passport plugin's configured private path if the hosting account or domain changes. The encrypted metadata records both original source roots. Test restoration in an isolated site before touching the live destination.
 
 Saving the workflow does not execute a backup. Only a completed run and pushed backup branch establish that a backup was stored.

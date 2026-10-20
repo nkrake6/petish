@@ -13,8 +13,10 @@ PART_BYTES = 48 * 1024 * 1024
 def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTES):
     encrypted_path, destination = Path(encrypted_path), Path(destination)
     verification = json.loads(Path(verification_path).read_text())
-    if verification.get("archive_verified") is not True or encrypted_path.stat().st_size == 0:
-        raise ValueError("A nonempty verified encrypted backup is required")
+    if verification.get("archive_verified") is not True \
+            or verification.get("private_passport_root_verified") is not True \
+            or encrypted_path.stat().st_size == 0:
+        raise ValueError("A nonempty verified encrypted backup including private Passport storage is required")
     if part_bytes < 1:
         raise ValueError("Invalid part size")
     destination.mkdir(mode=0o700, parents=True, exist_ok=False)
@@ -37,10 +39,12 @@ def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTE
             parts.append({"file": name, "bytes": size, "sha256": digest.hexdigest()})
             index += 1
     manifest = {
-        "format": "petish-full-wordpress-backup-v1",
+        "format": "petish-full-wordpress-backup-v2",
         "site": "https://petish.biz/",
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "scope": "complete document-root tree and site SQL database; symlinks preserved without following targets",
+        "scope": "complete document-root tree, private Passport storage, and site SQL database; symlinks preserved without following targets",
+        "private_archive_root": "private-files/petish-passport",
+        "private_restore_location": "domain-private-directory-outside-document-root",
         "encryption": "OpenPGP symmetric AES256 with integrity protection",
         "encrypted_bytes": encrypted_bytes,
         "encrypted_sha256": whole_hash.hexdigest(),
@@ -61,14 +65,24 @@ def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTE
         "must also match `encrypted_sha256` in manifest.json.\n\n"
         "Decrypt/extract outside any public web directory. The archive contains "
         "`site-files/` (the full WordPress document root), `database/site.sql`, "
-        "and `backup-metadata/README.txt`. Read that metadata before restoring.\n\n"
+        "`private-files/petish-passport/` (private Passport files), and "
+        "`backup-metadata/README.txt`. Read that metadata before restoring.\n\n"
+        "Restore `private-files/petish-passport/` into the target domain's sibling "
+        "`private/petish-passport/` directory **outside the public document root**. "
+        "Never place these private photos under `public_html`, uploads, or another "
+        "web-served directory. Preserve restrictive hosting-account permissions "
+        "and review the Passport plugin's storage path when migrating.\n\n"
         "Restore the files and import SQL into an isolated database/site first. "
         "Match database credentials in wp-config.php to the restore destination; "
         "review all symbolic links before extraction, and handle domain changes "
         "and absolute links before a migration. External/dangling links are stored "
-        "as references; their target files outside the document root are not included. "
+        "as references; target files outside the document root and explicitly included "
+        "private Passport tree are not included. "
         "Essential external targets need separate backup/restoration. "
-        "A real restore test has not been performed by the backup workflow. "
+        "This manifest records encrypted-stream integrity. The workflow separately "
+        "attempts a disposable regular-file/database restore smoke test; check its "
+        "automation-status/backup result for success. That check skips links and "
+        "does not bootstrap WordPress or test external integrations. "
         "Never overwrite a running website/database without a reviewed restore plan.\n\n"
         "This is a live backup; the SQL transaction and filesystem copy are not "
         "one atomic site-wide snapshot. Hostinger account services such as DNS, "

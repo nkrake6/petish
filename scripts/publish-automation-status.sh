@@ -18,6 +18,21 @@ from datetime import datetime, timezone
 data = {key: os.environ[key] for key in (
     'AUTOMATION_KIND', 'AUTOMATION_RESULT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')}
 data['generated_utc'] = datetime.now(timezone.utc).isoformat()
+if data['AUTOMATION_KIND'] == 'backup':
+    from pathlib import Path
+    report = Path(os.environ['RUNNER_TEMP']) / 'petish-backup-restore-result.json'
+    if report.is_file() and report.stat().st_size < 8192:
+        try:
+            restored = json.loads(report.read_text())
+            fields = ('restore_smoke_test_passed', 'private_passport_root_restored',
+                      'wordpress_application_bootstrap_tested', 'private_sandbox_removed',
+                      'regular_files_restored', 'private_files_restored', 'archive_links_skipped',
+                      'sql_create_table_statements', 'restored_database_tables',
+                      'database_import_verified')
+            data['restore_check'] = {key: restored[key] for key in fields
+                                     if key in restored and type(restored[key]) in (bool, int)}
+        except (ValueError, TypeError):
+            pass
 with open(sys.argv[1], 'w') as output:
     json.dump(data, output, indent=2)
     output.write('\n')
