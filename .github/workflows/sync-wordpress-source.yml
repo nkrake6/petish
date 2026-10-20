@@ -1,0 +1,80 @@
+name: Recover current Petish custom source
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sync-wordpress-source.yml
+      - scripts/export-wordpress-source-remote.sh
+      - scripts/screen-wordpress-source.py
+      - scripts/hostinger-source-sync.sh
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-source-sync
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Check SSH connection and prepare runner tools
+        run: |
+          bash scripts/hostinger-connection-check.sh
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass
+          fi
+          bash scripts/install-gitleaks.sh
+      - name: Recover and screen allowlisted custom code
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: bash scripts/hostinger-source-sync.sh
+      - name: Commit screened source to a separate review branch
+        env:
+          SOURCE_BRANCH: site-source/${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [[ -L wordpress || -L source-manifest.json ]]; then
+            printf '%s\n' 'Refusing a symbolic link at the source snapshot destination.' >&2
+            exit 1
+          fi
+          git switch -c "$SOURCE_BRANCH"
+          git rm -r --ignore-unmatch -- wordpress source-manifest.json
+          cp -a "$RUNNER_TEMP/petish-source-sync/ready/wordpress" ./wordpress
+          cp "$RUNNER_TEMP/petish-source-sync/ready/source-manifest.json" ./source-manifest.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- wordpress source-manifest.json
+          git commit -m "Recover screened Petish custom source $GITHUB_RUN_ID"
+          git push origin "$SOURCE_BRANCH"
+          {
+            printf '## Custom source recovered for review\n\n'
+            printf '[Review screened source](https://github.com/%s/tree/%s/wordpress)\n\n' "$GITHUB_REPOSITORY" "$SOURCE_BRANCH"
+            printf 'Scope: The7 child theme, Passport, Fulfilment and Petish production MU customisations. No database, uploads, private photos, WordPress configuration or commercial parent theme.\n\n'
+            printf 'Check source-manifest.json for omitted or quarantined files. Recovery does not deploy or alter the live website.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish a nonsecret result for browser-session monitoring
+        if: always()
+        env:
+          AUTOMATION_KIND: source-sync
+          AUTOMATION_RESULT: ${{ job.status }}
+        run: bash scripts/publish-automation-status.sh
+      - name: Remove private runner export and scanner reports
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP/petish-source-sync"
+          rm -f -- "$RUNNER_TEMP/petish-verified-automation-host-keys" "$RUNNER_TEMP/petish-candidate-host-keys"

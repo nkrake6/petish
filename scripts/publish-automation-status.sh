@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+: "${AUTOMATION_KIND:?Missing AUTOMATION_KIND}"
+: "${AUTOMATION_RESULT:?Missing AUTOMATION_RESULT}"
+: "${GITHUB_RUN_ID:?Missing GITHUB_RUN_ID}"
+: "${GITHUB_RUN_ATTEMPT:?Missing GITHUB_RUN_ATTEMPT}"
+: "${GITHUB_SHA:?Missing GITHUB_SHA}"
+: "${RUNNER_TEMP:?Missing RUNNER_TEMP}"
+[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging)$ ]]
+[[ "$AUTOMATION_RESULT" =~ ^(success|failure|cancelled|skipped)$ ]]
+[[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
+[[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
+export AUTOMATION_KIND AUTOMATION_RESULT
+status_file="$RUNNER_TEMP/petish-automation-status.json"
+python3 - "$status_file" <<'PY'
+import json, os, sys
+from datetime import datetime, timezone
+data = {key: os.environ[key] for key in (
+    'AUTOMATION_KIND', 'AUTOMATION_RESULT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')}
+data['generated_utc'] = datetime.now(timezone.utc).isoformat()
+with open(sys.argv[1], 'w') as output:
+    json.dump(data, output, indent=2)
+    output.write('\n')
+PY
+blob="$(git hash-object -w "$status_file")"
+tree="$(printf '100644 blob %s\tstatus.json\n' "$blob" | git mktree)"
+export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
+export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+commit="$(printf 'Petish %s result %s\n' "$AUTOMATION_KIND" "$AUTOMATION_RESULT" | git commit-tree "$tree")"
+git push origin "$commit:refs/heads/automation-status/$AUTOMATION_KIND-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
