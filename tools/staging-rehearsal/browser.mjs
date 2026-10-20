@@ -123,18 +123,8 @@ async function cartData(page) {
     const safeError = (value, status = 0) => ({ value: null, nonce: null, wpNonce: null,
       http_status: Number.isInteger(status) ? status : 0,
       error_code: typeof value?.code === 'string' ? value.code : 'invalid_response' });
-    if (typeof window.wp?.apiFetch === 'function') {
-      try {
-        const response = await window.wp.apiFetch({ path: '/wc/store/v1/cart', parse: false });
-        const value = typeof response?.json === 'function' ? await response.json() : response;
-        if (Array.isArray(value?.items)) return { value,
-          nonce: response?.headers?.get?.('Nonce') ?? null,
-          wpNonce: window.__petishRehearsalWpNonce ?? null,
-          http_status: response?.status ?? 200, error_code: 'none' };
-      } catch {}
-    }
-    // Core admin-ajax authenticates the cookie session without REST's nonce
-    // middleware. Its nonce is wp_rest; Store API's separate Nonce is not one.
+    // Bind both nonce types to this exact logged-in QA session before reading
+    // the cart. A successful anonymous Store API GET is insufficient.
     let wpNonce = window.__petishRehearsalWpNonce;
     if (!/^[A-Za-z0-9]{10}$/.test(wpNonce ?? '')) {
       try {
@@ -146,14 +136,24 @@ async function cartData(page) {
           return safeError({ code: 'wp_rest_nonce_unavailable' }, response.status);
         }
         window.__petishRehearsalWpNonce = wpNonce;
-        if (window.wp?.apiFetch?.nonceMiddleware) window.wp.apiFetch.nonceMiddleware.nonce = wpNonce;
-        else if (typeof window.wp?.apiFetch?.createNonceMiddleware === 'function'
-            && typeof window.wp.apiFetch.use === 'function' && !window.__petishRehearsalNonceInstalled) {
-          window.wp.apiFetch.use(window.wp.apiFetch.createNonceMiddleware(wpNonce));
-          window.__petishRehearsalNonceInstalled = true;
-        }
-        if (window.wpApiSettings && typeof window.wpApiSettings === 'object') window.wpApiSettings.nonce = wpNonce;
       } catch { return safeError({ code: 'network' }); }
+    }
+    if (window.wp?.apiFetch?.nonceMiddleware) window.wp.apiFetch.nonceMiddleware.nonce = wpNonce;
+    else if (typeof window.wp?.apiFetch?.createNonceMiddleware === 'function'
+        && typeof window.wp.apiFetch.use === 'function' && !window.__petishRehearsalNonceInstalled) {
+      window.wp.apiFetch.use(window.wp.apiFetch.createNonceMiddleware(wpNonce));
+      window.__petishRehearsalNonceInstalled = true;
+    }
+    if (window.wpApiSettings && typeof window.wpApiSettings === 'object') window.wpApiSettings.nonce = wpNonce;
+    if (typeof window.wp?.apiFetch === 'function') {
+      try {
+        const response = await window.wp.apiFetch({ path: '/wc/store/v1/cart', parse: false,
+          headers: { 'X-WP-Nonce': wpNonce } });
+        const value = typeof response?.json === 'function' ? await response.json() : response;
+        const nonce = response?.headers?.get?.('Nonce') ?? null;
+        if (Array.isArray(value?.items) && nonce) return { value, nonce, wpNonce,
+          http_status: response?.status ?? 200, error_code: 'none' };
+      } catch {}
     }
     try {
       const response = await fetch('/wp-json/wc/store/v1/cart', {
@@ -292,19 +292,9 @@ async function waitForCheckoutHydration(page) {
     const root = await visibleFirst([page.locator('.wc-block-checkout'), page.locator('form.checkout')]);
     const email = await visibleFirst([page.locator('#email'), page.locator('#billing-email'),
       page.locator('#billing_email'), page.locator('input[type=email]')]);
-    if (root && email) {
-      for (const [prefix, separator] of [['shipping', '-'], ['billing', '-'], ['shipping', '_'], ['billing', '_']]) {
-        let complete = true;
-        for (const field of ['first_name', 'last_name', 'address_1', 'city', 'postcode']) {
-          const control = page.locator(`#${prefix}${separator}${field}`).first();
-          if (!await control.count() || !await control.isVisible().catch(() => false)) {
-            complete = false;
-            break;
-          }
-        }
-        if (complete) return;
-      }
-    }
+    // Logged-in checkout may show a saved-address summary instead of editable
+    // address inputs. The authenticated Store API verifies the full address.
+    if (root && email) return;
     await page.waitForTimeout(300);
   }
   throw new Error('checkout');
