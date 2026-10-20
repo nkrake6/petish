@@ -36,7 +36,11 @@ snapshots are implemented. Production deployment is a separate task.
 Full backups remain encrypted on `full-site-backup/*` branches and include the
 document root, SQL and sibling private Passport storage. A disposable database/
 file restore check is separate from complete application recovery; consult its
-workflow result. Never commit raw SQL, credentials, configuration or the pasted
+workflow result. The separate full application recovery check passed for backup
+`39346479613-1` on 20 October 2026: all 14 active plugins, 104 published products,
+main pages, media and private-photo protection were verified. Task 1 is complete;
+see [RECOVERY-VERIFICATION.md](RECOVERY-VERIFICATION.md).
+Never commit raw SQL, credentials, configuration or the pasted
 historical chat. See [FULL-SITE-BACKUP.md](FULL-SITE-BACKUP.md).
 
 The next business milestone is verifying supplier freight and stock, then

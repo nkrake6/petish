@@ -69,6 +69,13 @@ restore check with external networking disabled. This does not restore over
 production or the existing staging installation. It does not prove complete
 application behaviour, external dependencies, payments or supplier integration.
 
+The separate `verify-wordpress-recovery.yml` workflow starts an existing stored
+backup in a disconnected application/database sandbox and tests the active
+theme/plugins, public page responses, media and private-photo protection. Its
+first actual-backup run passed on 20 October 2026; see
+[RECOVERY-VERIFICATION.md](RECOVERY-VERIFICATION.md). It does not submit checkout,
+payments or supplier orders. Choose an exact backup branch for each new drill.
+
 ## Monitoring from this cloud session
 
 Native HTTPS Git works through the supplied authentication proxy. GitHub API
@@ -76,7 +83,7 @@ access may be unavailable even when Git works; do not request another token
 merely because `gh api` is denied.
 
 Each new workflow publishes a small nonsecret result branch:
-`automation-status/<source-sync|backup|staging>-<run>-<attempt>`. Discover it with
+`automation-status/<source-sync|backup|staging|recovery>-<run>-<attempt>`. Discover it with
 `git ls-remote --heads origin 'refs/heads/automation-status/*'`, fetch the exact
 branch and read `status.json`. These results distinguish completed checks from
 workflow files that have only been prepared.

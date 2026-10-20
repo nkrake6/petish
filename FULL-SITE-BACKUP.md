@@ -46,3 +46,12 @@ The final run summary links to the backup branch. A nonsecret `automation-status
 After decryption in a private working directory, restore `site-files/` into the target document root and `private-files/petish-passport/` into the destination domain's sibling `private/petish-passport/` directory. **The private tree must stay outside `public_html`, WordPress uploads, and all other publicly served directories.** Preserve restrictive permissions/ownership and review the Passport plugin's configured private path if the hosting account or domain changes. The encrypted metadata records both original source roots. Test restoration in an isolated site before touching the live destination.
 
 Saving the workflow does not execute a backup. Only a completed run and pushed backup branch establish that a backup was stored.
+
+## Application recovery verified
+
+The stored backup `full-site-backup/39346479613-1` also passed a separate
+application recovery test on 20 October 2026. The recovered core, active theme
+and all 14 active plugins booted; homepage, shop, product, cart, account, media
+and private-photo checks passed. See [RECOVERY-VERIFICATION.md](RECOVERY-VERIFICATION.md)
+for evidence, isolation controls and limits. New backups need their own selected
+recovery run; a pass for this backup does not establish recovery of later ones.
