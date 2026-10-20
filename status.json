@@ -1,0 +1,50 @@
+{
+  "status": "in_progress",
+  "category": "inspect",
+  "mode": "inspect",
+  "run_id": "39514823669-1",
+  "source_commit": "30d9b0f46ef3caa9a94129d4d444ea30e45e5722",
+  "generated_utc": "2026-10-20T23:24:48.918250+00:00",
+  "source_hashes": {
+    "assets/passport.js": "97e0a4ecaddfd555ca779edec6a01685da268e9ee39e8a4555908d9becc26f49",
+    "assets/pet-club.css": "6871a9d7d2a87f7bc47be1d179e2cdb816228f70249379ff2adbd5c3b364be0f",
+    "includes/class-petish-passport-community.php": "2d87be101757ed29a28eec2bdf9a59c04ec3a14d5037870f4a585601839f4f34",
+    "includes/class-petish-passport-media.php": "f45b48ad7239ed484c24438394f96cefac533de600daa7ccbe98f8404e3b4176",
+    "includes/class-petish-passport-moments.php": "5c24f7f0d6c71df2c422f02eb6401fdca1365f2fbf99ac43f2e4124f2944881c",
+    "includes/class-petish-passport-store.php": "7b3b144f5e5ab983a471fb1945300dfdee7d354724ed5cd386a6fcd07fabad45",
+    "includes/class-petish-passport-ui.php": "d8d9729a6aa64e937f075dbd655e6e037b0e76d4224004eb354660d9ff15d00c",
+    "petish-passport.php": "daedeb5dfd4b995641f11ad2386d95967bfefa1c0c2e3b0e3b2d16086e6dd56c",
+    "templates/community.php": "6e8c5ede57400b14f282df0d3fac3785b92b3cc8fd7e11ad640d03345823a947",
+    "templates/dashboard.php": "72854c7e61fd1b8ddfba4717bfab31b220608432eac36f44a61bbdd15b3f7039",
+    "templates/delete.php": "6067c76a295ff52d9f65d8f51a639a38af77d9ee532e91527c4fb1ad32eca1de",
+    "templates/form.php": "70974cf0e56a383c49bcce39498e77a10900504f7840b68ef120a8497f5656a1",
+    "templates/moment-form.php": "31028698f8698d4362434938ca8282a2aacfe5f7023047cd1fdcf9fcaece6d31",
+    "templates/public.php": "e73b60eb9a86affa924376a71c0356760cf4610ee3526e985ea29442c8a61dc8"
+  },
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false,
+        "maintenance_guard_created": false,
+        "maintenance_guard_removed": false
+      },
+      "changed_file_count": 14
+    }
+  },
+  "preparation_stage": "complete"
+}
