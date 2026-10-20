@@ -54,8 +54,10 @@ try {
     $rows=$database->query("SELECT option_name, option_value FROM `{$prefix}options` WHERE option_name IN ('woocommerce_email_from_address','woocommerce_email_from_name','active_plugins') ORDER BY option_name");
     $options=[];while($row=$rows->fetch_assoc())$options[$row['option_name']]=$row['option_value'];
     $rows->free();$database->close();
+    $category='active_plugins_metadata';
     $active=isset($options['active_plugins'])?unserialize($options['active_plugins'],['allowed_classes'=>false]):[];
     if(!is_array($active))throw new RuntimeException();
+    $category='mail_plugin_metadata';
     $known=['wp-mail-smtp','easy-wp-smtp','fluent-smtp','post-smtp','smtp-mailer','wp-smtp','gosmtp','mailpoet','petish-mailer'];$plugins=[];
     foreach($known as $slug){
         $directory=$site.'/wp-content/plugins/'.$slug;
@@ -63,7 +65,14 @@ try {
         $enabled=false;foreach($active as $plugin)if(is_string($plugin)&&strpos($plugin,$slug.'/')===0)$enabled=true;
         $plugins[]=['slug'=>$slug,'active'=>$enabled];
     }
-    $constants=[];$tokens=token_get_all(file_get_contents($site.'/wp-config.php'));
+    $category='php_tokenizer_unavailable';
+    if(!function_exists('token_get_all'))throw new RuntimeException();
+    $category='wpconfig_unreadable';
+    $config=file_get_contents($site.'/wp-config.php');
+    if(!is_string($config))throw new RuntimeException();
+    $category='smtp_constant_metadata';
+    $constants=[];$tokens=token_get_all($config);
+    unset($config);
     foreach($tokens as $i=>$token){
         if(!is_array($token)||$token[0]!==T_STRING||strtolower($token[1])!=='define')continue;
         $following=[];for($j=$i+1;$j<count($tokens)&&count($following)<2;$j++)if(!is_array($tokens[$j])||!in_array($tokens[$j][0],[T_WHITESPACE,T_COMMENT,T_DOC_COMMENT],true))$following[]=$tokens[$j];
@@ -72,6 +81,7 @@ try {
         if(preg_match('/\A(?:SMTP_[A-Z0-9_]+|WPMS_[A-Z0-9_]+|PETISH_[A-Z0-9_]*SMTP[A-Z0-9_]*)\z/D',$name))$constants[]=$name;
     }
     $constants=array_values(array_unique($constants));sort($constants);
+    $category='private_mailer_metadata';
     $file=dirname($site).'/private/petish-mailer/smtp.json';$exists=file_exists($file)||is_link($file);$plain=true;
     for($cursor=$file;$cursor!=='/'&&$cursor!=='.';$cursor=dirname($cursor))if(is_link($cursor))$plain=false;
     $regular=$exists&&$plain&&is_file($file);$private=$regular&&((fileperms($file)&0077)===0)&&((fileperms(dirname($file))&0077)===0)&&fileowner($file)===fileowner($site.'/wp-config.php');

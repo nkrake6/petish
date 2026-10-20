@@ -120,7 +120,11 @@ jobs:
           set -euo pipefail
           umask 077
           source scripts/hostinger-ssh-common.sh
-          petish_prepare_ssh
+          if ! petish_prepare_ssh 2> "$RUNNER_TEMP/petish-email-private.stderr"; then
+            printf '%s\n' '{"status":"unavailable","category":"ssh_hostkey_or_credentials_unavailable"}' \
+              > "$RUNNER_TEMP/petish-email-private-server.json"
+            exit 1
+          fi
           "${petish_ssh[@]}" 'bash -s' < scripts/inspect-email-settings-remote.sh \
             > "$RUNNER_TEMP/petish-email-private-server.json" 2> "$RUNNER_TEMP/petish-email-private.stderr"
       - name: Publish sanitized readiness report to a separate branch
@@ -142,13 +146,23 @@ jobs:
           if os.environ['PUBLIC_RESULT']=='success':
               report.update(json.loads((root/'petish-email-public-network.json').read_text()))
           else: report['public_audit']={'status':'unavailable','category':'public_lookup_failed'}
-          server={'status':'unavailable','category':'ssh_or_server_lookup_failed'}
-          if os.environ['SERVER_RESULT']=='success':
-              try:
-                  path=root/'petish-email-private-server.json'
-                  if path.stat().st_size>16384: raise ValueError()
-                  raw=json.loads(path.read_text())
-                  if set(raw)!={'status','sender','mail_plugins','smtp_constant_names','private_mailer'} or raw['status']!='success': raise ValueError()
+          # SSH exits nonzero for an intentionally failed read-only audit too.
+          # Preserve only our finite failure vocabulary, never raw stderr or
+          # exception/configuration text, irrespective of the step outcome.
+          known_failures={'site_unavailable','wpcli_unavailable','php_unavailable',
+              'database_configuration','database_driver','database_connection',
+              'selected_options','active_plugins_metadata','mail_plugin_metadata',
+              'php_tokenizer_unavailable','wpconfig_unreadable','smtp_constant_metadata',
+              'private_mailer_metadata','ssh_hostkey_or_credentials_unavailable'}
+          server={'status':'unavailable','category':'remote_audit_no_safe_diagnostic'}
+          path=root/'petish-email-private-server.json'
+          try:
+              if path.stat().st_size>16384: raise ValueError()
+              raw=json.loads(path.read_text())
+              if isinstance(raw,dict) and set(raw)=={'status','category'} and raw['status']=='unavailable' and raw['category'] in known_failures:
+                  server={'status':'unavailable','category':raw['category']}
+              else:
+                  if os.environ['SERVER_RESULT']!='success' or not isinstance(raw,dict) or set(raw)!={'status','sender','mail_plugins','smtp_constant_names','private_mailer'} or raw['status']!='success': raise ValueError()
                   if set(raw['sender'])!={'address_option_present','name_option_present','address_is_orders_petish','name_is_petish'} or not all(type(value) is bool for value in raw['sender'].values()): raise ValueError()
                   if set(raw['private_mailer'])!={'exists','regular_without_symlink','owner_only_permissions'} or not all(type(value) is bool for value in raw['private_mailer'].values()): raise ValueError()
                   known={'wp-mail-smtp','easy-wp-smtp','fluent-smtp','post-smtp','smtp-mailer','wp-smtp','gosmtp','mailpoet','petish-mailer'}
@@ -157,7 +171,28 @@ jobs:
                       if set(plugin)!={'slug','active'} or plugin['slug'] not in known or type(plugin['active']) is not bool: raise ValueError()
                   if not isinstance(raw['smtp_constant_names'],list) or len(raw['smtp_constant_names'])>100 or not all(isinstance(value,str) and re.fullmatch(r'(?:SMTP_[A-Z0-9_]+|WPMS_[A-Z0-9_]+|PETISH_[A-Z0-9_]*SMTP[A-Z0-9_]*)',value) for value in raw['smtp_constant_names']): raise ValueError()
                   server=raw
-              except (OSError,ValueError,TypeError,KeyError): server={'status':'unavailable','category':'server_metadata_validation_failed'}
+          except (OSError,ValueError,TypeError,KeyError):
+              # The text stays private. Only fixed classifications leave the
+              # runner; matching does not interpolate a single source byte.
+              patterns=[
+                  (r'host key verification failed|remote host identification has changed', 'ssh_hostkey_failed'),
+                  (r'permission denied|authentication failed|too many authentication failures', 'ssh_auth_failed'),
+                  (r'connection timed out|connection refused|network is unreachable|no route to host|could not resolve hostname', 'ssh_connection_failed'),
+                  (r'call to undefined function\s+token_get_all', 'php_tokenizer_unavailable'),
+                  (r'php parse error|syntax error', 'php_parse_failed'),
+                  (r'allowed memory size|maximum execution time', 'php_resource_limit'),
+                  (r'cannot do.*process::run|proc_open.*disabled', 'wpcli_process_execution_disabled'),
+                  (r'php fatal error|uncaught.*error', 'php_runtime_failed')]
+              try:
+                  with (root/'petish-email-private.stderr').open('rb') as stream:
+                      stderr=stream.read(32768).decode(errors='replace')
+                  for pattern,category in patterns:
+                      if re.search(pattern,stderr,re.I):
+                          server={'status':'unavailable','category':category}
+                          break
+              except OSError: pass
+              if server['category']=='remote_audit_no_safe_diagnostic' and os.environ['SERVER_RESULT']=='success':
+                  server={'status':'unavailable','category':'server_metadata_validation_failed'}
           report['wordpress']=server
           (root/'email-readiness.json').write_text(json.dumps(report,indent=2)+'\n')
           PY
