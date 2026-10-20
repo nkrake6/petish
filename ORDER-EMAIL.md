@@ -26,6 +26,13 @@ The owner confirmed successful receipt in Gmail. Authentication headers were
 not separately inspected. SMTP connection, sender-alias acceptance and delivery
 are verified; order-event and shipment notifications still need their sample-order tests.
 
+The owner confirmed that WooCommerce's **New order** recipient is
+`orders@petish.biz` and that customer processing, completed and refund emails
+are enabled. These are confirmed settings; native order-event generation and
+message contents still require the actual staging rehearsal described in
+[STAGING-REHEARSAL.md](STAGING-REHEARSAL.md). Its isolation preflight passed in
+run `39365001006`; the full checkout/email/refund rehearsal remains pending.
+
 ## Secure setup
 
 Add the `administrator@petish.biz` mailbox password as the GitHub Actions repository secret
@@ -95,6 +102,11 @@ WooCommerce handles order notifications; SMTP delivers those messages.
 Shipment updates still require tracking to return from DSers/suppliers and a
 compatible WooCommerce tracking integration. Test split parcels and partial
 fulfilment with the sample-order plan before promising tracking notifications.
+
+The read-only inventory found one DSers API key and five DSers webhooks, but no
+recognized WooCommerce shipment-tracking plugin. This establishes setup
+inventory only. It does not verify supplier shipment updates, tracking returned
+to WooCommerce, customer tracking emails or a delivery round trip.
 
 Hostinger mailbox sending limits depend on the subscribed plan and have not
 been verified. Keep marketing campaigns separate from transactional delivery;

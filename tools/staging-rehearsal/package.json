@@ -1,0 +1,12 @@
+{
+  "name": "petish-private-staging-rehearsal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test browser.test.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.62.1"
+  }
+}

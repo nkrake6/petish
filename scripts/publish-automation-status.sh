@@ -26,6 +26,17 @@ if data['AUTOMATION_KIND'] == 'rehearsal':
     spec.loader.exec_module(sanitizer)
     report = Path(os.environ['RUNNER_TEMP']) / 'petish-rehearsal-preflight.json'
     data['rehearsal'] = sanitizer.sanitize(report)
+    data['rehearsal_phases'] = {}
+    for phase in ('preflight', 'prepare', 'verify', 'refund', 'cleanup'):
+        source = Path(os.environ['RUNNER_TEMP']) / ('petish-rehearsal-' + phase + '.json')
+        if source.exists():
+            data['rehearsal_phases'][phase] = sanitizer.sanitize(source)
+    browser = Path(os.environ['RUNNER_TEMP']) / 'petish-rehearsal-browser.json'
+    if browser.exists():
+        data['rehearsal_browser'] = sanitizer.sanitize_browser(browser)
+    progress = os.environ.get('AUTOMATION_PROGRESS')
+    if progress in {'preflight', 'prepare', 'browser', 'verify', 'refund', 'cleanup'}:
+        data['rehearsal_progress'] = progress
 if data['AUTOMATION_KIND'] == 'mail-test':
     import re
     report = Path(os.environ['RUNNER_TEMP']) / 'petish-mail-test-result.json'
@@ -129,4 +140,8 @@ export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[
 export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 commit="$(printf 'Petish %s result %s\n' "$AUTOMATION_KIND" "$AUTOMATION_RESULT" | git commit-tree "$tree")"
-git push origin "$commit:refs/heads/automation-status/$AUTOMATION_KIND-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+if [[ ${AUTOMATION_PROGRESS:-} =~ ^(preflight|prepare|browser|verify|refund|cleanup)$ && $AUTOMATION_KIND == rehearsal ]]; then
+    git push origin "$commit:refs/heads/automation-progress/rehearsal-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$AUTOMATION_PROGRESS"
+else
+    git push origin "$commit:refs/heads/automation-status/$AUTOMATION_KIND-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+fi

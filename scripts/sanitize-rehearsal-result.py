@@ -15,6 +15,20 @@ CHECKS = {'environment_staging', 'woocommerce_test_mode', 'wcpay_dev_mode',
     'browser_input_written', 'wp_cron_disabled', 'async_runner_disabled',
     'loader_requires_private', 'source_environment_staging', 'source_wcpay_dev_mode',
     'source_wp_cron_disabled', 'source_staging_database_literal', 'source_production_database_literal', 'source_production_database_read'}
+MODULE_CHECKS = {'prepared', 'shipping_simulated', 'paid_test_order_verified',
+    'decline_stock_unchanged', 'paid_stock_reduced_once', 'provider_test_payment_verified',
+    'native_order_emails_captured', 'native_test_refund_verified', 'provider_full_test_refund_verified',
+    'completed_email_captured', 'refund_email_captured', 'stock_restored_to_baseline',
+    'synthetic_tracking_note_only', 'supplier_action_performed', 'shipping_fixture_removed',
+    'qa_cart_cleared', 'order_refunded_before_cleanup', 'recovery_required',
+    'native_email_contents_verified', 'customer_note_email_captured'}
+PHASES = {'preflight', 'prepare', 'verify', 'refund', 'cleanup'}
+BROWSER_CHECKS = {'browser_started', 'customer_login_verified', 'cart_prepared',
+    'checkout_rendered', 'shipping_verified', 'test_publishable_key_verified',
+    'decline_verified', 'paid_receipt_verified', 'native_checkout_used',
+    'unsafe_request_blocked', 'same_order_retried'}
+BROWSER_STAGES = {'input', 'browser', 'login', 'cart', 'checkout', 'address',
+    'shipping', 'test_key', 'decline', 'retry', 'receipt', 'complete', 'network'}
 ACCOUNT = {'cached_account_present', 'account_is_live', 'native_connected',
     'test_onboarding', 'dev_mode', 'test_mode', 'gateway_test_mode', 'payments_enabled'}
 NATIVE = {'mode_class', 'mode_methods', 'account_service_class', 'account_service_methods',
@@ -29,7 +43,37 @@ CATEGORIES = {'complete', 'input', 'paths', 'source_guard', 'source_configuratio
     'supplier_guard', 'mail_capture', 'native_modes', 'account', 'credentials',
     'browser_input', 'configuration', 'unknown', 'preflight', 'checkout',
     'verification', 'refund', 'cleanup', 'provider', 'guard_hash', 'protected_bootstrap',
-    'runtime_isolation', 'native_capabilities', 'native_test_mode_unverified', 'sample_product'}
+    'runtime_isolation', 'native_capabilities', 'native_test_mode_unverified', 'sample_product',
+    'prepare', 'verify', 'provider_identity', 'provider_order_reference',
+    'provider_request', 'native_provider_response'}
+STRUCTURES = {'credentials', 'checkout_fixture', 'captured_mail', 'cached_account', 'provider_charge'}
+PRIVATE_STRUCTURE_ID = re.compile(
+    r'(?:^|[.\[\]])(?:(?:acct|ch|pi|pm|cus|re|tok|src|seti|cs|txn|tr|po|dp|sub|in|il|ba|wc_order)_'
+    r'[A-Za-z0-9_]{8,}|(?:sk|pk|rk)_(?:test|live)_[A-Za-z0-9_]+|whsec_[A-Za-z0-9_]+)(?=$|[.\[\]])'
+)
+
+
+def read_report(source):
+    """Bound input without following links or blocking on a substituted FIFO."""
+    path = Path(source)
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 65536:
+        raise ValueError()
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 \
+                or (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+            raise ValueError()
+        with os.fdopen(descriptor, 'rb') as stream:
+            descriptor = None
+            contents = stream.read(65537)
+        if len(contents) > 65536:
+            raise ValueError()
+        return json.loads(contents)
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
 
 
 def identifier(value, nullable=False):
@@ -52,20 +96,21 @@ def sanitize(source):
     result = {'status': 'unavailable', 'category': 'safe_result_unavailable'}
     validation_stage = 'input'
     try:
-        path = Path(source)
-        info = path.lstat()
-        if not stat.S_ISREG(info.st_mode) or info.st_size > 65536:
-            raise ValueError()
-        raw = json.loads(path.read_text())
+        raw = read_report(source)
         validation_stage = 'schema'
         allowed = {'status', 'category', 'run_id', 'checks', 'native', 'account',
-                   'structure', 'guard_allowed_hosts'}
+                   'structure', 'guard_allowed_hosts', 'phase'}
         if not isinstance(raw, dict) or not set(raw) <= allowed:
             raise ValueError()
         validation_stage = 'status_category'
         if raw.get('status') not in {'success', 'unavailable', 'failure'} or raw.get('category') not in CATEGORIES:
             raise ValueError()
         result = {'status': raw['status'], 'category': raw['category']}
+        if 'phase' in raw:
+            validation_stage = 'phase'
+            if raw['phase'] not in PHASES:
+                raise ValueError()
+            result['phase'] = raw['phase']
         if 'run_id' in raw:
             validation_stage = 'run_id'
             if raw['run_id'] is not None and (not isinstance(raw['run_id'], str) or not re.fullmatch('[0-9]+-[0-9]+', raw['run_id'])):
@@ -73,7 +118,9 @@ def sanitize(source):
             result['run_id'] = raw['run_id']
         if 'checks' in raw:
             validation_stage = 'checks'
-            result['checks'] = boolean_map(raw['checks'], CHECKS)
+            result['checks'] = boolean_map(raw['checks'], CHECKS | MODULE_CHECKS)
+            if any(type(value) is not bool for key, value in raw['checks'].items() if key in MODULE_CHECKS):
+                raise ValueError()
         if 'account' in raw:
             validation_stage = 'account'
             result['account'] = boolean_map(raw['account'], ACCOUNT)
@@ -93,7 +140,7 @@ def sanitize(source):
         if 'structure' in raw:
             validation_stage = 'structure'
             structure = raw['structure']
-            if not isinstance(structure, dict) or not set(structure) <= {'credentials', 'checkout_fixture', 'captured_mail'}:
+            if not isinstance(structure, dict) or not set(structure) <= STRUCTURES:
                 raise ValueError()
             result['structure'] = {}
             for key, rows in structure.items():
@@ -103,6 +150,7 @@ def sanitize(source):
                 for row in rows:
                     if not isinstance(row, dict) or set(row) != {'path', 'type'} \
                             or not isinstance(row['path'], str) or not re.fullmatch(r'[A-Za-z0-9_.\[\]\-]{1,150}', row['path']) \
+                            or PRIVATE_STRUCTURE_ID.search(row['path']) \
                             or row['type'] not in {'string', 'integer', 'double', 'boolean', 'NULL', 'array', 'object', 'number', 'null', 'int', 'float', 'bool'}:
                         raise ValueError()
                     safe.append(row)
@@ -114,14 +162,38 @@ def sanitize(source):
                 raise ValueError()
             result['guard_allowed_hosts'] = hosts
         return result
-    except (OSError, ValueError, TypeError, KeyError):
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
+        return {'status': 'unavailable', 'category': 'safe_result_unavailable', 'validation_stage': validation_stage}
+
+
+def sanitize_browser(source):
+    """Accept exactly the finite browser publicReport fields, never its private file."""
+    validation_stage = 'input'
+    try:
+        raw = read_report(source)
+        validation_stage = 'browser'
+        if not isinstance(raw, dict) or not set(raw) <= BROWSER_CHECKS | {'payment_attempts', 'failure_stage'}:
+            raise ValueError()
+        if any(type(value) is not bool for key, value in raw.items() if key in BROWSER_CHECKS):
+            raise ValueError()
+        if type(raw.get('payment_attempts')) is not int or not 0 <= raw['payment_attempts'] <= 2:
+            raise ValueError()
+        if 'failure_stage' in raw and raw['failure_stage'] not in BROWSER_STAGES:
+            raise ValueError()
+        return raw
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
         return {'status': 'unavailable', 'category': 'safe_result_unavailable', 'validation_stage': validation_stage}
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
+    browser = len(sys.argv) == 4 and sys.argv[1] == '--browser'
+    if not browser and len(sys.argv) != 3:
         raise SystemExit('Invalid rehearsal report arguments.')
-    descriptor = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(descriptor, 'w') as target:
-        json.dump(sanitize(sys.argv[1]), target, indent=2)
-        target.write('\n')
+    source, output = sys.argv[2:] if browser else sys.argv[1:]
+    try:
+        descriptor = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, 'w') as target:
+            json.dump(sanitize_browser(source) if browser else sanitize(source), target, indent=2)
+            target.write('\n')
+    except (OSError, ValueError):
+        raise SystemExit('Rehearsal report output could not be created.')

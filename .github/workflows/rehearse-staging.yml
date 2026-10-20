@@ -15,6 +15,8 @@ on:
       - .github/workflows/rehearse-staging.yml
       - scripts/hostinger-staging-rehearsal.sh
       - scripts/staging-rehearsal-remote.php
+      - scripts/staging-rehearsal-order.php
+      - scripts/staging-rehearsal-fixture.php
       - scripts/sanitize-rehearsal-result.py
       - tools/staging-rehearsal/**
 
@@ -61,5 +63,5 @@ jobs:
         if: always()
         run: |
           rm -rf -- "$RUNNER_TEMP/petish-staging-rehearsal"
-          rm -f -- "$RUNNER_TEMP/petish-rehearsal-result.json" "$RUNNER_TEMP/petish-rehearsal-preflight.json"
+          rm -f -- "$RUNNER_TEMP/petish-rehearsal-"*.json
           rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"

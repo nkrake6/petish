@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import shutil
 
 ROOT=Path(__file__).resolve().parents[1]
 SCRIPT=ROOT/'scripts/sanitize-rehearsal-result.py'
@@ -14,7 +15,7 @@ spec=importlib.util.spec_from_file_location('petish_rehearsal_result',SCRIPT)
 validator=importlib.util.module_from_spec(spec);spec.loader.exec_module(validator)
 UNAVAILABLE={'status':'unavailable','category':'safe_result_unavailable'}
 VALIDATION_STAGES={'input','schema','status_category','run_id','checks','account',
-                   'native','structure','provider_hosts'}
+                   'native','structure','provider_hosts','phase','browser'}
 PRIVATE='PRIVATE_SENTINEL_TOKEN/DO-NOT-PUBLISH'
 
 
@@ -97,6 +98,59 @@ class RehearsalResultTests(unittest.TestCase):
         raw=fixture();raw.update(status='unavailable',category='native_test_mode_unverified',run_id=None)
         raw['account'].update(payments_enabled=None,gateway_test_mode=None)
         self.assertEqual(self.sanitize(raw),raw)
+
+    def test_full_driver_phases_preserve_boolean_module_evidence(self):
+        phase_checks={
+            'preflight':{'environment_staging':True,'browser_input_written':True},
+            'prepare':{'prepared':True,'shipping_simulated':True},
+            'verify':{'paid_test_order_verified':True,'decline_stock_unchanged':True,
+                      'paid_stock_reduced_once':True,'provider_test_payment_verified':True,
+                      'native_order_emails_captured':True,'native_email_contents_verified':True},
+            'refund':{'native_test_refund_verified':True,'provider_full_test_refund_verified':True,
+                      'completed_email_captured':True,'refund_email_captured':True,
+                      'stock_restored_to_baseline':True,'synthetic_tracking_note_only':True,
+                      'supplier_action_performed':False,'customer_note_email_captured':True},
+            'cleanup':{'shipping_fixture_removed':True,'qa_cart_cleared':True,
+                       'order_refunded_before_cleanup':True,'recovery_required':False},
+        }
+        for phase,checks in phase_checks.items():
+            with self.subTest(phase=phase):
+                raw={'status':'success','category':'complete','phase':phase,'run_id':'12345-1','checks':checks}
+                self.assertEqual(self.sanitize(raw),raw)
+        recovery={'status':'unavailable','category':'cleanup','phase':'cleanup',
+                  'checks':{'shipping_fixture_removed':False,'qa_cart_cleared':False,
+                            'order_refunded_before_cleanup':False,'recovery_required':True}}
+        self.assertEqual(self.sanitize(recovery),recovery)
+
+    def test_provider_failure_categories_and_key_type_metadata_are_safe(self):
+        for category in ('provider_identity','provider_order_reference','provider_request','native_provider_response'):
+            raw={'status':'unavailable','category':category,'phase':'refund',
+                 'structure':{'cached_account':[{'path':'id','type':'string'}],
+                              'provider_charge':[{'path':'id','type':'string'},
+                                                 {'path':'metadata.order_id','type':'string'},
+                                                 {'path':'refunds.data[0].status','type':'string'}]}}
+            self.assertEqual(self.sanitize(raw),raw)
+            raw['structure']['provider_charge'][0]['value']=PRIVATE
+            self.assert_unavailable(self.sanitize(raw),'structure')
+        for path in ('pi_private123456789','metadata.ch_private123456789',
+                     'account.acct_private123456789','refunds.re_private123456789',
+                     'metadata.pk_test_private123456789','metadata.wc_order_private123456789'):
+            raw={'status':'success','category':'complete','phase':'verify',
+                 'structure':{'provider_charge':[{'path':path,'type':'string'}]}}
+            self.assert_unavailable(self.sanitize(raw),'structure')
+
+    def test_phase_enum_and_module_booleans_reject_custom_data_and_null(self):
+        for phase in (PRIVATE,'payment_observed','browser',None,[],{}):
+            raw=fixture();raw['phase']=phase
+            self.assert_unavailable(self.sanitize(raw),'phase')
+        for key in validator.MODULE_CHECKS:
+            for value in (None,0,1,'true',PRIVATE,[],{}):
+                with self.subTest(key=key,value_type=type(value).__name__):
+                    raw={'status':'success','category':'complete','phase':'verify','checks':{key:value}}
+                    self.assert_unavailable(self.sanitize(raw),'checks')
+        for key in ('order_id','customer_id','baseline_stock','email_event_count','order_key','capture_file'):
+            raw={'status':'success','category':'complete','phase':'verify','checks':{key:True}}
+            self.assert_unavailable(self.sanitize(raw),'checks')
 
     def test_unknown_top_level_credentials_order_keys_and_receipt_urls_reject_whole_report(self):
         for key,value in [('credentials',{'api_key':PRIVATE}),('order_key',PRIVATE),('order_id',1234),
@@ -181,6 +235,86 @@ class RehearsalResultTests(unittest.TestCase):
             if target!=output:target.symlink_to(output)
             result=subprocess.run([sys.executable,str(SCRIPT),str(self.source),str(target)],capture_output=True,text=True,timeout=3)
             self.assertNotEqual(result.returncode,0);self.assertEqual(output.read_bytes(),before)
+
+    def test_linked_source_and_deep_json_fail_closed_without_parser_exceptions(self):
+        self.source.write_text(json.dumps(fixture()))
+        linked=self.directory/'private-hardlink';os.link(self.source,linked)
+        self.assert_unavailable(validator.sanitize(linked),'input')
+        self.source.unlink();self.source.write_text('['*2000+'"'+PRIVATE+'"'+']'*2000)
+        # Parsing may reject at the decoder or at the non-object schema guard.
+        self.assert_unavailable(validator.sanitize(self.source))
+
+
+# Browser reports are a separate flat publicReport schema, not driver envelopes.
+class BrowserPublicReportTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.directory=Path(self.temp.name)
+        self.source=self.directory/'browser-stdout.json'
+
+    def tearDown(self):self.temp.cleanup()
+
+    def sanitize(self,raw):
+        self.source.write_text(json.dumps(raw))
+        result=validator.sanitize_browser(self.source)
+        self.assertNotIn(PRIVATE,json.dumps(result))
+        return result
+
+    def test_all_actual_public_browser_booleans_attempts_and_failure_enums(self):
+        raw={key:True for key in validator.BROWSER_CHECKS}
+        raw.update(unsafe_request_blocked=False,payment_attempts=2)
+        self.assertEqual(self.sanitize(raw),raw)
+        for stage in validator.BROWSER_STAGES:
+            failed={'failure_stage':stage,'payment_attempts':0,'browser_started':False}
+            self.assertEqual(self.sanitize(failed),failed)
+
+    def test_private_browser_file_fields_cannot_be_published_as_stdout(self):
+        for key,value in (('order_id',12345),('declined_order_id',12344),('created_order_ids',[12344,12345]),
+                          ('order_key',PRIVATE),('password',PRIVATE),('receipt_url','https://example.invalid/'+PRIVATE),
+                          ('customer_email','private@example.invalid'),('body',PRIVATE)):
+            with self.subTest(key=key):
+                result=self.sanitize({'payment_attempts':2,'paid_receipt_verified':True,key:value})
+                self.assertEqual(result,{'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+
+    def test_browser_types_counts_stages_and_missing_attempts_fail_closed(self):
+        invalid=[{},[],None,{'payment_attempts':0,'failure_stage':PRIVATE}]
+        for attempts in (True,False,-1,3,2.0,'2',PRIVATE,None):invalid.append({'payment_attempts':attempts})
+        for key in validator.BROWSER_CHECKS:
+            for value in (None,0,1,'true',PRIVATE):invalid.append({'payment_attempts':0,key:value})
+        for raw in invalid:
+            result=self.sanitize(raw)
+            self.assertEqual(result,{'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+
+    def test_browser_cli_and_fifo_guard_never_echo_private_source_or_exceptions(self):
+        self.source.write_text(json.dumps({'payment_attempts':2,'paid_receipt_verified':True}))
+        output=self.directory/'browser-public.json'
+        result=subprocess.run([sys.executable,str(SCRIPT),'--browser',str(self.source),str(output)],
+                              capture_output=True,text=True,timeout=3)
+        self.assertEqual(result.returncode,0)
+        self.assertEqual(json.loads(output.read_text()),{'payment_attempts':2,'paid_receipt_verified':True})
+        self.assertEqual(output.stat().st_mode&0o777,0o600)
+        fifo=self.directory/'private-fifo';os.mkfifo(fifo)
+        self.assertEqual(validator.sanitize_browser(fifo),{'status':'unavailable','category':'safe_result_unavailable','validation_stage':'input'})
+        secret_output=self.directory/('PRIVATE_SENTINEL_TOKEN')
+        secret_output.write_text(PRIVATE)
+        result=subprocess.run([sys.executable,str(SCRIPT),'--browser',str(self.source),str(secret_output)],
+                              capture_output=True,text=True,timeout=3)
+        self.assertEqual(result.returncode,1)
+        self.assertNotIn('PRIVATE_SENTINEL_TOKEN',result.stdout+result.stderr)
+        self.assertNotIn('Traceback',result.stdout+result.stderr)
+        self.assertEqual(secret_output.read_text(),PRIVATE)
+
+    @unittest.skipUnless(shutil.which('node'),'Node is required to exercise actual browser publicReport')
+    def test_actual_js_public_report_matches_python_public_boundary(self):
+        browser=ROOT/'tools/staging-rehearsal/browser.mjs'
+        code='import {publicReport} from '+json.dumps(browser.as_uri())+';'
+        code+='process.stdout.write(JSON.stringify(publicReport('+json.dumps({
+            'browser_started':True,'paid_receipt_verified':True,'payment_attempts':2,
+            'order_id':12345,'order_key':PRIVATE,'created_order_ids':[12345]})+')));'
+        result=subprocess.run(['node','--input-type=module','-e',code],capture_output=True,text=True,timeout=5)
+        self.assertEqual(result.returncode,0)
+        self.assertNotIn(PRIVATE,result.stdout+result.stderr)
+        raw=json.loads(result.stdout)
+        self.assertEqual(self.sanitize(raw),raw)
 
 
 if __name__=='__main__':unittest.main()

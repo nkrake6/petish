@@ -1,5 +1,5 @@
 <?php
-/** Protected staging preflight only. No orders, payments or supplier purchases. */
+/** Private staging rehearsal. Native TEST payment/refund only; no suppliers. */
 if (PHP_SAPI !== 'cli') exit(1);
 ini_set('display_errors', '0'); ini_set('log_errors', '0'); error_reporting(0);
 
@@ -21,7 +21,7 @@ $report = [
                'gateway_class'=>null,'gateway_methods'=>[], 'api_client_class'=>null,'api_client_methods'=>[], 'api_method_signatures'=>[], 'helper_method_calls'=>[]],
     'account'=>['cached_account_present'=>false,'account_is_live'=>null,'native_connected'=>null,
                 'payments_enabled'=>null,'test_onboarding'=>null,'dev_mode'=>null,'test_mode'=>null,'gateway_test_mode'=>null],
-    'structure'=>['credentials'=>[],'checkout_fixture'=>[],'captured_mail'=>[]], 'guard_allowed_hosts'=>[],
+    'structure'=>['credentials'=>[],'checkout_fixture'=>[],'captured_mail'=>[],'cached_account'=>[],'provider_charge'=>[]], 'guard_allowed_hosts'=>[],
 ];
 // A native staging denial may call exit instead of throwing. Keep all native
 // output private and emit this finite report even on that shutdown path.
@@ -128,10 +128,109 @@ function rehearsal_write_private($path,$value) {
     try { if (!chmod($path,0600)||fwrite($handle,$value)!==strlen($value)||!fflush($handle)) rehearsal_fail(); }
     finally { fclose($handle); }
 }
+function rehearsal_cached_account() {
+    $service=WC_Payments::get_account_service();
+    $cached=is_callable([$service,'get_cached_account_data'])?$service->get_cached_account_data():null;
+    if(!is_array($cached)||!$cached){$raw=get_option('wcpay_account_data',[]);$cached=is_array($raw)&&is_array($raw['data']??null)?$raw['data']:[];}
+    return $cached;
+}
+function rehearsal_account_fingerprint($account) {
+    if(!is_array($account)||($account['is_live']??null)!==false||($account['payments_enabled']??null)!==true)return null;
+    $ids=[];
+    foreach(['id','account_id','stripe_account_id','test_drive_account_id']as$key){
+        $value=$account[$key]??null;
+        if(is_string($value)&&preg_match('/\Aacct_[A-Za-z0-9_]{1,180}\z/D',$value))$ids[$key]=$value;
+    }
+    if(!$ids)return null;
+    ksort($ids);return hash('sha256',json_encode($ids,JSON_THROW_ON_ERROR));
+}
+function rehearsal_provider_assert($gateway,$fingerprint) {
+    if(wp_get_environment_type()!=='staging'||!defined('WCPAY_DEV_MODE')||WCPAY_DEV_MODE!==true
+        ||!defined('PETISH_STAGING_GUARD_ACTIVE')||PETISH_STAGING_GUARD_ACTIVE!==true
+        ||!WC_Payments::mode()->is_dev()||!WC_Payments::mode()->is_test()
+        ||!WC_Payments_Onboarding_Service::is_test_mode_enabled()
+        ||!is_callable([$gateway,'is_connected'])||$gateway->is_connected()!==true
+        ||!is_string($fingerprint)||!hash_equals($fingerprint,rehearsal_account_fingerprint(rehearsal_cached_account())??''))rehearsal_fail();
+}
+function rehearsal_replace_private($path,$value) {
+    if(file_exists($path)&&(!rehearsal_path($path)||(fileperms($path)&07777)!==0600))rehearsal_fail();
+    if(is_link($path))rehearsal_fail();
+    $temporary=dirname($path).'/.input-'.bin2hex(random_bytes(8));
+    rehearsal_write_private($temporary,$value);
+    if(!rename($temporary,$path)){@unlink($temporary);rehearsal_fail();}
+}
+
+
+/**
+ * Verify a raw Stripe-shaped charge returned by the native provider client.
+ * Pure validation only: no requests, order changes, refunds, or private output.
+ */
+function rehearsal_provider_charge(array $charge, string $charge_id, int $expected_minor): array {
+    $reject = static function (): never {
+        throw new UnexpectedValueException('Provider charge verification failed.');
+    };
+    if ($expected_minor < 1 || !preg_match('/\A[A-Za-z0-9_]{1,255}\z/D', $charge_id)) {
+        $reject();
+    }
+    foreach (['id', 'livemode', 'paid', 'captured', 'currency', 'amount', 'amount_refunded', 'refunded'] as $field) {
+        if (!array_key_exists($field, $charge)) $reject();
+    }
+    if (!is_string($charge['id']) || $charge['id'] !== $charge_id
+        || $charge['livemode'] !== false || $charge['paid'] !== true || $charge['captured'] !== true
+        || $charge['currency'] !== 'aud' || !is_int($charge['amount']) || $charge['amount'] !== $expected_minor
+        || !is_int($charge['amount_refunded']) || $charge['amount_refunded'] < 0
+        || $charge['amount_refunded'] > $charge['amount'] || !is_bool($charge['refunded'])) {
+        $reject();
+    }
+    // A charge's refunded flag denotes a full refund; inconsistent flags are
+    // never used as evidence that another financial operation is appropriate.
+    if ($charge['refunded'] !== ($charge['amount_refunded'] === $charge['amount'])) $reject();
+
+    $refunds = [];
+    if (array_key_exists('refunds', $charge)) {
+        if (!is_array($charge['refunds']) || !array_key_exists('data', $charge['refunds'])
+            || !is_array($charge['refunds']['data']) || !array_is_list($charge['refunds']['data'])) {
+            $reject();
+        }
+        $refunds = $charge['refunds']['data'];
+    } elseif ($charge['amount_refunded'] !== 0) {
+        $reject();
+    }
+    $sum = 0;
+    $seen_ids = [];
+    foreach ($refunds as $refund) {
+        if (!is_array($refund) || ($refund['status'] ?? null) !== 'succeeded'
+            || ($refund['currency'] ?? null) !== 'aud' || ($refund['charge'] ?? null) !== $charge_id
+            || !isset($refund['amount']) || !is_int($refund['amount']) || $refund['amount'] < 1
+            || $refund['amount'] > $charge['amount'] || $sum > PHP_INT_MAX - $refund['amount']) {
+            $reject();
+        }
+        if (array_key_exists('id', $refund)) {
+            if (!is_string($refund['id']) || !preg_match('/\A[A-Za-z0-9_]{1,255}\z/D', $refund['id'])
+                || isset($seen_ids[$refund['id']])) $reject();
+            $seen_ids[$refund['id']] = true;
+        }
+        $sum += $refund['amount'];
+        if ($sum > $charge['amount']) $reject();
+    }
+    if ($sum !== $charge['amount_refunded']) $reject();
+    if ($charge['refunded'] && count($refunds) === 0) $reject();
+
+    return [
+        'livemode' => false,
+        'paid' => true,
+        'captured' => true,
+        'currency' => 'aud',
+        'amount_minor' => $charge['amount'],
+        'amount_refunded_minor' => $charge['amount_refunded'],
+        'order_reference_verified' => true,
+        'refund_succeeded' => $charge['refunded'] && $sum === $charge['amount'],
+    ];
+}
 
 try {
-    if ($argc!==3 || $argv[1]!=='preflight' || !preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[2])) rehearsal_fail();
-    $run=$argv[2]; $report['run_id']=$run;
+    if ($argc!==3 || !in_array($argv[1],['preflight','prepare','verify','refund','cleanup'],true) || !preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[2])) rehearsal_fail();
+    $operation=$argv[1];$run=$argv[2]; $report['run_id']=$run;$report['phase']=$operation;
     $home=getenv('HOME'); if (!is_string($home)||!rehearsal_path($home,true)) rehearsal_fail();
     $root=$home.'/domains/staging.petish.biz/public_html'; $production=$home.'/domains/petish.biz/public_html';
     $private=$home.'/.petish-staging'; $config=$private.'/config.php'; $loader=$root.'/wp-config.php';
@@ -189,18 +288,33 @@ try {
     $work=$private.'/rehearsal-'.$run;
     if (!file_exists($work) && !mkdir($work,0700)) rehearsal_fail();
     if (!rehearsal_path($work,true)||(fileperms($work)&07777)!==0700||fileowner($work)!==fileowner($config)) rehearsal_fail();
-    if (file_exists($work.'/browser-input.json')||is_link($work.'/browser-input.json')) rehearsal_fail();
+    if($operation==='preflight'&&(file_exists($work.'/browser-input.json')||is_link($work.'/browser-input.json')))rehearsal_fail();
+    if(is_link($work.'/browser-input.json'))rehearsal_fail();
 
     $report['category']='protected_bootstrap';
     // A second, request-local barrier sits outside the installed guard. There
     // is no allowlisted provider HTTP in this preflight phase.
     if (defined('WP_HTTP_BLOCK_EXTERNAL')||defined('WP_ACCESSIBLE_HOSTS')) rehearsal_fail();
-    define('WP_HTTP_BLOCK_EXTERNAL',true); define('WP_ACCESSIBLE_HOSTS',''); define('WP_USE_THEMES',false);
+    $provider_hosts=['api.wordpress.com','jetpack.wordpress.com','payments.woocommerce.com','public-api.wordpress.com'];
+    define('WP_HTTP_BLOCK_EXTERNAL',true); define('WP_ACCESSIBLE_HOSTS',$operation==='preflight'?'':implode(',',$provider_hosts)); define('WP_USE_THEMES',false);
     $_SERVER['HTTP_HOST']='staging.petish.biz'; $_SERVER['SERVER_NAME']='staging.petish.biz';
     $_SERVER['HTTPS']='on'; $_SERVER['REQUEST_METHOD']='GET'; $_SERVER['REQUEST_URI']='/';
     $_SERVER['SERVER_PROTOCOL']='HTTP/1.1'; $_SERVER['REMOTE_ADDR']='127.0.0.1';
     require_once $root.'/wp-includes/plugin.php';
-    $block_http=static function(){return new WP_Error('petish_rehearsal_http_blocked','Private rehearsal preflight blocks all outbound HTTP.');};
+    $provider_window=false;
+    $provider_url=static function($url)use($provider_hosts){
+        if(!is_string($url))return false;$parsed=parse_url($url);
+        return is_array($parsed)&&($parsed['scheme']??null)==='https'&&in_array($parsed['host']??null,$provider_hosts,true)
+            &&!isset($parsed['user'])&&!isset($parsed['pass'])&&!isset($parsed['fragment'])&&(!isset($parsed['port'])||$parsed['port']===443);
+    };
+    $block_http=static function($preempt=false,$args=[],$url='')use(&$provider_window,$provider_url){
+        if($provider_window&&$provider_url($url)&&is_array($args)&&in_array(strtoupper($args['method']??'GET'),['GET','POST'],true))return $preempt;
+        return new WP_Error('petish_rehearsal_http_blocked','Private rehearsal blocks outbound HTTP outside its verified provider operation.');
+    };
+    add_filter('http_request_args',static function($args,$url)use(&$provider_window,$provider_url){
+        if($provider_window&&$provider_url($url)){$args['redirection']=0;$args['sslverify']=true;$args['reject_unsafe_urls']=true;}
+        return $args;
+    },PHP_INT_MAX,2);
     $block_mail=static function(){return true;};
     $stop_delivery=static function(){throw new \PHPMailer\PHPMailer\Exception('Private rehearsal delivery is blocked.');};
     add_filter('pre_http_request',$block_http,PHP_INT_MAX,3);
@@ -228,7 +342,8 @@ try {
     remove_filter('pre_http_request',$block_http,PHP_INT_MAX);add_filter('pre_http_request',$block_http,PHP_INT_MAX,3);
     remove_filter('pre_wp_mail',$block_mail,PHP_INT_MAX);add_filter('pre_wp_mail',$block_mail,PHP_INT_MAX,2);
     remove_action('phpmailer_init',$stop_delivery,PHP_INT_MAX);add_action('phpmailer_init',$stop_delivery,PHP_INT_MAX);
-    $report['checks']['all_http_forced_blocked']=is_wp_error(apply_filters('pre_http_request',false,[],'https://example.invalid/petish-readiness'));
+    $http_proof=apply_filters('pre_http_request',false,[],'https://public-api.wordpress.com/petish-readiness');
+    $report['checks']['all_http_forced_blocked']=is_wp_error($http_proof)&&$http_proof->get_error_code()==='petish_rehearsal_http_blocked';
     $report['checks']['runtime_database_staging']=defined('DB_NAME')&&DB_NAME===$definitions['DB_NAME']&&defined('DB_HOST')&&DB_HOST===$definitions['DB_HOST'];
     $report['checks']['environment_staging']=function_exists('wp_get_environment_type')&&wp_get_environment_type()==='staging';
     $guard_active=defined('PETISH_STAGING_GUARD_ACTIVE')&&PETISH_STAGING_GUARD_ACTIVE===true;
@@ -294,6 +409,7 @@ try {
     $raw_cache=get_option('wcpay_account_data',[]);$option_cache=is_array($raw_cache)&&is_array($raw_cache['data']??null)?$raw_cache['data']:[];
     if(!is_array($cached)||!$cached)$cached=$option_cache;
     $report['account']['cached_account_present']=is_array($cached)&&count($cached)>0;
+    if(is_array($cached))$report['structure']['cached_account']=rehearsal_structure($cached);
     if(is_array($cached))foreach(['is_live'=>'account_is_live','payments_enabled'=>'payments_enabled']as$key=>$field)if(isset($cached[$key])&&is_bool($cached[$key]))$report['account'][$field]=$cached[$key];
     unset($raw_cache,$option_cache,$cached);
     if(is_callable(['WC_Payments_Onboarding_Service','is_test_mode_enabled'])){$value=WC_Payments_Onboarding_Service::is_test_mode_enabled();if(is_bool($value))$report['account']['test_onboarding']=$value;}
@@ -320,8 +436,83 @@ try {
         'variation_id'=>246,'parent_id'=>242,'attribute_pa_color'=>'blue','run_id'=>$run,
         'customer_email'=>$synthetic_user->user_email,'customer_id'=>(int)$synthetic_user->ID];
     if($input['customer_id']<1)rehearsal_fail();
-    rehearsal_write_private($work.'/browser-input.json',json_encode($input,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+    if($operation==='preflight'){
+        rehearsal_write_private($work.'/browser-input.json',json_encode($input,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+        $report['checks']['browser_input_written']=true;
+    }else{
+        $report['category']=$operation;
+        foreach(['staging-rehearsal-order.php','staging-rehearsal-fixture.php']as$name){
+            $path=__DIR__.'/'.$name;if(!rehearsal_path($path)||filesize($path)>1048576)rehearsal_fail();
+        }
+        require_once __DIR__.'/staging-rehearsal-order.php';
+        $report['category']='provider_identity';
+        $identity_path=$work.'/provider-account.sha256';
+        if($operation==='prepare'){
+            $fingerprint=rehearsal_account_fingerprint(rehearsal_cached_account());
+            if(!is_string($fingerprint))rehearsal_fail();
+            rehearsal_provider_assert($gateway,$fingerprint);
+            rehearsal_write_private($identity_path,$fingerprint."\n");
+        }else{
+            if(!rehearsal_path($identity_path)||(fileperms($identity_path)&07777)!==0600||filesize($identity_path)!==65)rehearsal_fail();
+            $fingerprint=trim(file_get_contents($identity_path));
+            if(!preg_match('/\A[a-f0-9]{64}\z/D',$fingerprint))rehearsal_fail();
+            rehearsal_provider_assert($gateway,$fingerprint);
+        }
+        $with_provider=static function($callback)use(&$provider_window,$operation,$gateway,$fingerprint,&$report){
+            if(!in_array($operation,['verify','refund'],true)||$provider_window||!is_callable($callback))rehearsal_fail();
+            $previous_category=$report['category'];$report['category']='provider_identity';
+            rehearsal_provider_assert($gateway,$fingerprint);
+            $provider_window=true;$report['category']='provider_request';
+            try{$result=$callback();}
+            finally{$provider_window=false;rehearsal_provider_assert($gateway,$fingerprint);}
+            $report['category']=$previous_category;return $result;
+        };
+        $provider_probe=static function($order)use($with_provider,$client_getter,&$report){
+            $previous_category=$report['category'];$report['category']='provider_order_reference';
+            if(!is_object($order)||!is_callable([$order,'get_id'])||in_array((int)$order->get_id(),[2139,2140],true)
+                ||!is_callable(['WC_Payments','get_order_service'])||$client_getter===null)rehearsal_fail();
+            $order_service=WC_Payments::get_order_service();
+            if(!is_callable([$order_service,'get_charge_id_for_order']))rehearsal_fail();
+            $charge_id=$order_service->get_charge_id_for_order($order);
+            if(!is_string($charge_id)||!preg_match('/\Ach_[A-Za-z0-9_]{1,180}\z/D',$charge_id)||strtolower($order->get_currency())!=='aud')rehearsal_fail();
+            $expected_minor=(int)round((float)$order->get_total()*100);
+            $client=WC_Payments::$client_getter();
+            if(!is_callable([$client,'get_charge']))rehearsal_fail();
+            $charge=$with_provider(static function()use($client,$charge_id){return $client->get_charge($charge_id);});
+            $report['category']='native_provider_response';
+            if(!is_array($charge))rehearsal_fail();
+            $report['structure']['provider_charge']=rehearsal_structure($charge);
+            $proof=rehearsal_provider_charge($charge,$charge_id,$expected_minor);
+            $report['category']=$previous_category;return $proof;
+        };
+        $context=['run_id'=>$run,'home'=>$home,'root'=>$root,'private'=>$private,'work'=>$work,
+            'customer_id'=>(int)$synthetic_user->ID,'customer_email'=>$synthetic_user->user_email,
+            'login'=>$login,'password'=>$password,'browserinput'=>$input,'capture_file'=>$capture,
+            'fixture_template'=>__DIR__.'/staging-rehearsal-fixture.php',
+            'with_provider'=>$with_provider,'provider_probe'=>$provider_probe];
+        $report['category']=$operation;
+        if($operation==='prepare'){
+            $result=petish_rehearsal_prepare($context);
+            if(($result['shipping_method_id']??null)!=='petish_rehearsal_shipping:'.$run)rehearsal_fail();
+            $input['shipping_method_id']=$result['shipping_method_id'];
+            rehearsal_replace_private($work.'/browser-input.json',json_encode($input,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+            $report['checks']['browser_input_written']=true;
+        }elseif($operation==='verify'){
+            $browser=rehearsal_private_json($work.'/browser-result.json');
+            $result=petish_rehearsal_verify($context,$browser);unset($browser);
+        }elseif($operation==='refund'){$result=petish_rehearsal_refund($context);}
+        else{$result=petish_rehearsal_cleanup($context);}
+        $public_checks=['prepared','shipping_simulated','paid_test_order_verified','decline_stock_unchanged',
+            'paid_stock_reduced_once','provider_test_payment_verified','native_order_emails_captured',
+            'native_test_refund_verified','provider_full_test_refund_verified','completed_email_captured','refund_email_captured',
+            'stock_restored_to_baseline','synthetic_tracking_note_only','supplier_action_performed',
+            'shipping_fixture_removed','qa_cart_cleared','order_refunded_before_cleanup','recovery_required',
+            'native_email_contents_verified','customer_note_email_captured'];
+        foreach($result as$key=>$value)if(in_array($key,$public_checks,true)&&is_bool($value))$report['checks'][$key]=$value;
+        if(($result['recovery_required']??null)===true)rehearsal_fail();
+        unset($context,$result,$fingerprint,$provider_probe,$with_provider);
+    }
     unset($input,$password,$login);
-    $report['checks']['browser_input_written']=true;$report['status']='success';$report['category']='complete';
+    $report['status']='success';$report['category']='complete';
 } catch(Throwable $ignored) { $report['status']='unavailable'; }
 exit($report['status']==='success'?0:1);
