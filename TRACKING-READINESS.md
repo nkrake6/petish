@@ -16,6 +16,22 @@ This does not rule out DSers writing tracking in order notes.
 
 ## Isolated native receiver rehearsal
 
+Hosted run
+[`39387940791`](https://github.com/nkrake6/petish/actions/runs/39387940791)
+passed on 20 October 2026 using Petish commit `3e35a83`.
+[Screened results](https://github.com/nkrake6/petish/blob/tracking-rehearsal/39387940791-1/status.json)
+confirm the native REST permission checks, partial and completed emails with the
+approved animal logo, two-parcel account display and removal of both the order
+and carrier fixture. No supplier or payment action occurred. Stored plugin
+configuration remained unchanged; the temporary source was removed. The normal
+four-plugin staging preflight also passed in run `39387940751`.
+
+The risk observations were **true**: a replay appended another tracking record
+and repeated the partial-shipment email, and the native API accepted a blank
+number. This is a successful characterization test, not release approval.
+External DSers push verification remains **false**. Live tracking is not enabled
+by this rehearsal.
+
 The workflow [Rehearse Petish shipment tracking on private staging](https://github.com/nkrake6/petish/actions/workflows/tracking-rehearsal.yml)
 evaluates Advanced Shipment Tracking Free 4.0.4 from the
 [official source](https://github.com/zorem/woo-advanced-shipment-tracking/tree/c22a8dad01045779ec247fe830943eaddeaa266f),

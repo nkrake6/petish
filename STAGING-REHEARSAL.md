@@ -18,6 +18,12 @@ Supplier calls and webhooks remained blocked, and order emails stayed in the
 private staging capture. The tracking note was explicitly synthetic. Automatic
 DSers tracking, supplier dispatch and real freight costs remain unverified.
 
+The subsequent [native shipment-tracking rehearsal](TRACKING-READINESS.md)
+passed separately in run `39387940791`. It verified two-parcel REST storage,
+partial/completed branded emails and My Account links using a temporary AST
+receiver. It also reproduced duplicate-update and blank-number issues. This
+still does not verify an external DSers shipment event.
+
 The final `main` preflight
 [`39369073587`](https://github.com/nkrake6/petish/actions/runs/39369073587)
 also passed on commit `30a37bf`, including runner prerequisites and staging

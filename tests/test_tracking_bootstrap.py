@@ -286,6 +286,7 @@ class TrackingBootstrapTests(unittest.TestCase):
     def test_unexpected_missing_duplicate_or_already_active_plugins_are_rejected(self):
         cases = [BASELINE + ["unknown/plugin.php"], BASELINE[:-1],
                  BASELINE + [BASELINE[0]], BASELINE + [AST],
+                 ["petish-fulfilment/alternate.php"] + BASELINE[1:],
                  [None] + BASELINE[1:], "not-an-array"]
         for plugins in cases:
             with self.subTest(plugins=plugins):
