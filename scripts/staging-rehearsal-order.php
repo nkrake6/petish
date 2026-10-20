@@ -173,7 +173,7 @@ function petish_order_scoped($context, $journal, $id) {
     return $order;
 }
 
-function petish_order_events($context, $kind, $id) {
+function petish_order_events($context, $kind, $id = null) {
     $path = $context['work'] . '/' . $kind . '-events.jsonl';
     petish_order_private_file($path);
     $events = [];
@@ -182,10 +182,37 @@ function petish_order_events($context, $kind, $id) {
         while (($line = fgets($handle, 1048577)) !== false) {
             if (strlen($line) > 1048576 || !str_ends_with($line, "\n")) petish_order_fail();
             $entry = json_decode($line, true, 16, JSON_THROW_ON_ERROR);
-            if (($entry['run_id'] ?? null) === $context['run_id'] && ($entry['order_id'] ?? null) === $id) $events[] = $entry;
+            if (($entry['run_id'] ?? null) === $context['run_id']
+                && ($id === null || ($entry['order_id'] ?? null) === $id)) $events[] = $entry;
         }
     } finally { fclose($handle); }
     return $events;
+}
+
+function petish_order_declined_id($context, $journal, $browser, $paid_id) {
+    $explicit = $browser['declined_order_id'] ?? null;
+    if ($explicit !== null && !is_int($explicit)) petish_order_fail();
+    $possible = [];
+    foreach (petish_order_events($context, 'stock') as $event) {
+        $id = $event['order_id'] ?? null;
+        if (($event['event'] ?? null) !== 'failed' || !is_int($id)
+            || $id <= $journal['max_prior_order'] || ($explicit !== null && $id !== $explicit)
+            || !is_numeric($event['stock'] ?? null)
+            || (float)$event['stock'] !== (float)$journal['baseline_stock']) continue;
+        $possible[$id] = true;
+    }
+    $scoped = [];
+    foreach (array_keys($possible) as $id) {
+        // A missing browser ID permits discovery only from the private current-run
+        // failed snapshot, followed by every normal fresh QA order scope check.
+        try { $candidate = petish_order_scoped($context, $journal, $id); }
+        catch (RuntimeException $error) { continue; }
+        if ($id !== $paid_id && (!$candidate->has_status('failed') || $candidate->is_paid()
+            || $candidate->get_transaction_id())) continue;
+        $scoped[] = $id;
+    }
+    if (count($scoped) !== 1) petish_order_fail();
+    return $scoped[0];
 }
 
 function petish_order_captured($context, $journal, $id) {
@@ -286,20 +313,13 @@ function petish_order_verify_locked($context, $browser) {
         || !$order->get_date_paid() || !$order->get_transaction_id() || !$order->has_status('processing')) petish_order_fail();
     petish_order_provider($context, $order, false);
     if ((float)petish_order_product()->get_stock_quantity() !== (float)$journal['baseline_stock'] - 1.0) petish_order_fail();
-    $failed = false; $paid = false;
-    $declined_id = $browser['declined_order_id'] ?? $order->get_id();
-    if (!is_int($declined_id)) petish_order_fail();
-    $declined_order = petish_order_scoped($context, $journal, $declined_id);
-    if ($declined_id !== $order->get_id() && (!$declined_order->has_status('failed') || $declined_order->is_paid()
-        || $declined_order->get_transaction_id())) petish_order_fail();
-    foreach (petish_order_events($context, 'stock', $declined_id) as $event) {
-        if (($event['event'] ?? '') === 'failed' && (float)($event['stock'] ?? -1) === (float)$journal['baseline_stock']) $failed = true;
-    }
+    $paid = false;
+    petish_order_declined_id($context, $journal, $browser, $order->get_id());
     foreach (petish_order_events($context, 'stock', $order->get_id()) as $event) {
         if (in_array($event['event'] ?? '', ['processing', 'payment_complete'], true)
             && (float)($event['stock'] ?? -1) === (float)$journal['baseline_stock'] - 1.0) $paid = true;
     }
-    if (!$failed || !$paid) petish_order_fail();
+    if (!$paid) petish_order_fail();
     $emails = petish_order_emails($context, $journal, $order->get_id(), ['new_order', 'customer_processing_order']);
     $journal['phase'] = 'paid_verified'; $journal['order_id'] = $order->get_id();
     $journal['amount_minor'] = (int)round((float)$order->get_total() * 100);

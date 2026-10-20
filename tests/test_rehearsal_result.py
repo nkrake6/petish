@@ -284,6 +284,31 @@ class BrowserPublicReportTests(unittest.TestCase):
             result=self.sanitize(raw)
             self.assertEqual(result,{'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
 
+    def test_finite_cart_diagnostics_preserve_progress_without_api_bodies(self):
+        raw={'payment_attempts':0,'failure_stage':'cart','cart_page_loaded':True,
+             'cart_api_available':False,'cart_empty_verified':False,
+             'variation_add_request_completed':False,'expected_variation_in_cart':False,
+             'cart_page_http_status':200,'cart_api_http_status':403,
+             'cart_failure_step':'api','cart_api_error_code':'rest_cookie_invalid_nonce'}
+        self.assertEqual(self.sanitize(raw),raw)
+        for field in validator.BROWSER_HTTP_FIELDS:
+            for status in (0,100,200,403,599):
+                value={**raw,field:status};self.assertEqual(self.sanitize(value),value)
+            for status in (True,False,99,600,-1,200.0,'200',PRIVATE,None):
+                result=self.sanitize({**raw,field:status})
+                self.assertEqual(result,{'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+        for step in validator.BROWSER_CART_STEPS:
+            value={**raw,'cart_failure_step':step};self.assertEqual(self.sanitize(value),value)
+        for code in validator.BROWSER_CART_ERRORS:
+            value={**raw,'cart_api_error_code':code};self.assertEqual(self.sanitize(value),value)
+        for field in ('cart_failure_step','cart_api_error_code'):
+            for value in (PRIVATE,'https://staging.petish.biz/?key='+PRIVATE,None,[],{}):
+                self.assertEqual(self.sanitize({**raw,field:value}),
+                    {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+        for field in ('cart_api_error_message','cart_api_body','cart_request_url','cart_nonce','cart_items'):
+            self.assertEqual(self.sanitize({**raw,field:PRIVATE}),
+                {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+
     def test_browser_cli_and_fifo_guard_never_echo_private_source_or_exceptions(self):
         self.source.write_text(json.dumps({'payment_attempts':2,'paid_receipt_verified':True}))
         output=self.directory/'browser-public.json'
@@ -306,14 +331,21 @@ class BrowserPublicReportTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'),'Node is required to exercise actual browser publicReport')
     def test_actual_js_public_report_matches_python_public_boundary(self):
         browser=ROOT/'tools/staging-rehearsal/browser.mjs'
+        expected={'browser_started':True,'paid_receipt_verified':False,'payment_attempts':0,
+                  'failure_stage':'cart','cart_page_loaded':True,'cart_api_available':False,
+                  'cart_empty_verified':False,'variation_add_request_completed':False,
+                  'expected_variation_in_cart':False,'cart_page_http_status':200,
+                  'cart_api_http_status':403,'cart_failure_step':'api',
+                  'cart_api_error_code':'rest_cookie_invalid_nonce'}
         code='import {publicReport} from '+json.dumps(browser.as_uri())+';'
         code+='process.stdout.write(JSON.stringify(publicReport('+json.dumps({
-            'browser_started':True,'paid_receipt_verified':True,'payment_attempts':2,
+            **expected,
             'order_id':12345,'order_key':PRIVATE,'created_order_ids':[12345]})+')));'
         result=subprocess.run(['node','--input-type=module','-e',code],capture_output=True,text=True,timeout=5)
         self.assertEqual(result.returncode,0)
         self.assertNotIn(PRIVATE,result.stdout+result.stderr)
         raw=json.loads(result.stdout)
+        self.assertEqual(raw,expected)
         self.assertEqual(self.sanitize(raw),raw)
 
 

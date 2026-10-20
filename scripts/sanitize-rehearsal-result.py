@@ -26,7 +26,17 @@ PHASES = {'preflight', 'prepare', 'verify', 'refund', 'cleanup'}
 BROWSER_CHECKS = {'browser_started', 'customer_login_verified', 'cart_prepared',
     'checkout_rendered', 'shipping_verified', 'test_publishable_key_verified',
     'decline_verified', 'paid_receipt_verified', 'native_checkout_used',
-    'unsafe_request_blocked', 'same_order_retried'}
+    'unsafe_request_blocked', 'same_order_retried', 'cart_page_loaded',
+    'cart_api_available', 'cart_empty_verified', 'variation_add_request_completed',
+    'expected_variation_in_cart'}
+BROWSER_HTTP_FIELDS = {'cart_page_http_status', 'cart_api_http_status'}
+BROWSER_CART_STEPS = {'open', 'empty', 'add', 'verify', 'api'}
+BROWSER_CART_ERRORS = {'none', 'rest_not_logged_in', 'rest_cookie_invalid_nonce',
+    'rest_forbidden', 'rest_cannot_view', 'woocommerce_rest_authentication_error',
+    'woocommerce_rest_missing_session', 'woocommerce_rest_cart_error',
+    'woocommerce_rest_cart_item_error', 'woocommerce_rest_missing_nonce',
+    'woocommerce_rest_invalid_nonce', 'wp_rest_nonce_unavailable', 'network',
+    'invalid_response', 'other'}
 BROWSER_STAGES = {'input', 'browser', 'login', 'cart', 'checkout', 'address',
     'shipping', 'test_key', 'decline', 'retry', 'receipt', 'complete', 'network'}
 ACCOUNT = {'cached_account_present', 'account_is_live', 'native_connected',
@@ -172,13 +182,21 @@ def sanitize_browser(source):
     try:
         raw = read_report(source)
         validation_stage = 'browser'
-        if not isinstance(raw, dict) or not set(raw) <= BROWSER_CHECKS | {'payment_attempts', 'failure_stage'}:
+        if not isinstance(raw, dict) or not set(raw) <= BROWSER_CHECKS | BROWSER_HTTP_FIELDS \
+                | {'payment_attempts', 'failure_stage', 'cart_failure_step', 'cart_api_error_code'}:
             raise ValueError()
         if any(type(value) is not bool for key, value in raw.items() if key in BROWSER_CHECKS):
             raise ValueError()
         if type(raw.get('payment_attempts')) is not int or not 0 <= raw['payment_attempts'] <= 2:
             raise ValueError()
         if 'failure_stage' in raw and raw['failure_stage'] not in BROWSER_STAGES:
+            raise ValueError()
+        for field in BROWSER_HTTP_FIELDS:
+            if field in raw and (type(raw[field]) is not int or not (raw[field] == 0 or 100 <= raw[field] <= 599)):
+                raise ValueError()
+        if 'cart_failure_step' in raw and raw['cart_failure_step'] not in BROWSER_CART_STEPS:
+            raise ValueError()
+        if 'cart_api_error_code' in raw and raw['cart_api_error_code'] not in BROWSER_CART_ERRORS:
             raise ValueError()
         return raw
     except (OSError, ValueError, TypeError, KeyError, RecursionError):

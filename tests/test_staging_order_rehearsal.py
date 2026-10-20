@@ -269,6 +269,40 @@ try{petish_order_email_contents($context,$journal,9001,'customer_note',$record);
 echo json_encode($out);'''
         self.assertTrue(all(self.execute(body)))
 
+    def test_missing_browser_decline_id_requires_unique_fresh_fully_scoped_failed_snapshot(self):
+        fixture = self.fixture()
+        body = self.stubs(fixture) + 'require ' + repr(str(MODULE)) + r''';
+class WC_Order {
+ public $id;public $customer=7;public $tag='12345-1';public $paid=false;public $status='failed';
+ function __construct($id){$this->id=$id;}function get_customer_id(){return $this->customer;}
+ function get_date_created(){return new DateTimeImmutable();}function get_shipping_country(){return 'AU';}
+ function get_shipping_postcode(){return '3083';}function get_shipping_total(){return 6;}function get_coupon_codes(){return [];}
+ function get_items($type){if($type==='fee')return [];return [new class{function get_variation_id(){return 246;}function get_product_id(){return 242;}function get_quantity(){return 1;}function get_method_id(){return 'petish_rehearsal_shipping';}function get_name(){return 'STAGING SIMULATION [12345-1] — no actual carrier';}function get_total(){return 8;}function get_total_tax(){return 0;}}];}
+ function get_meta($key,$single){return $key==='_wcpay_mode'?'test':$this->tag;}function get_id(){return $this->id;}
+ function get_payment_method(){return 'woocommerce_payments';}function get_currency(){return 'AUD';}
+ function get_billing_email(){return 'qa@petish.invalid';}function has_status($s){return $this->status===$s;}
+ function is_paid(){return $this->paid;}function get_transaction_id(){return $this->paid?'test-reference':'';}
+}
+$GLOBALS['orders']=[];foreach([2139,9001,9002,9003,9004]as$id)$GLOBALS['orders'][$id]=new WC_Order($id);
+$GLOBALS['orders'][9002]->paid=true;$GLOBALS['orders'][9002]->status='processing';
+$GLOBALS['orders'][9003]->customer=8;$GLOBALS['orders'][9004]->tag='other-run';
+function wc_get_order($id){return $GLOBALS['orders'][$id]??false;}
+$context=['run_id'=>'12345-1','work'=>__DIR__,'customer_email'=>'qa@petish.invalid'];
+$journal=['max_prior_order'=>9000,'baseline_stock'=>24,'unit_price'=>'8','prices_include_tax'=>false];
+function snapshots($ids){$rows=[];foreach($ids as$id)$rows[]=['run_id'=>'12345-1','order_id'=>$id,'event'=>'failed','stock'=>24];
+ $rows[]=['run_id'=>'another-run','order_id'=>9002,'event'=>'failed','stock'=>24];
+ file_put_contents(__DIR__.'/stock-events.jsonl',implode("\n",array_map('json_encode',$rows))."\n");}
+$out=[];snapshots([2139,9001,9003,9004]);$out[]=petish_order_declined_id($context,$journal,[],9002)===9001;
+snapshots([9002]);$out[]=petish_order_declined_id($context,$journal,[],9002)===9002;
+snapshots([9001,9002]);try{petish_order_declined_id($context,$journal,[],9002);$out[]=false;}catch(RuntimeException$e){$out[]=true;}
+$out[]=petish_order_declined_id($context,$journal,['declined_order_id'=>9001],9002)===9001;
+try{petish_order_declined_id($context,$journal,['declined_order_id'=>9003],9002);$out[]=false;}catch(RuntimeException$e){$out[]=true;}
+snapshots([2139,9003,9004]);try{petish_order_declined_id($context,$journal,[],9002);$out[]=false;}catch(RuntimeException$e){$out[]=true;}
+snapshots([9001]);$raw=file_get_contents(__DIR__.'/stock-events.jsonl');file_put_contents(__DIR__.'/stock-events.jsonl',str_replace('"stock":24','"stock":23',$raw));
+try{petish_order_declined_id($context,$journal,[],9002);$out[]=false;}catch(RuntimeException$e){$out[]=true;}
+echo json_encode($out);'''
+        self.assertTrue(all(self.execute(body)))
+
 
 if __name__ == '__main__':
     unittest.main()

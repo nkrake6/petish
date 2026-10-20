@@ -132,6 +132,28 @@ if data['AUTOMATION_KIND'] == 'backup':
                                      if key in restored and type(restored[key]) in (bool, int)}
         except (ValueError, TypeError):
             pass
+if data['AUTOMATION_KIND'] == 'rehearsal' and not os.environ.get('AUTOMATION_PROGRESS'):
+    summary = ['## Private staging rehearsal', '',
+               'Selected mode: ' + data.get('rehearsal_mode', 'unavailable'), '',
+               '| Check | Result |', '| --- | --- |']
+    for phase, report in data.get('rehearsal_phases', {}).items():
+        summary.append('| ' + phase + ' | ' + report.get('status', 'unavailable') +
+                       ' (' + report.get('category', 'safe_result_unavailable') + ') |')
+    browser = data.get('rehearsal_browser', {})
+    if browser:
+        stage = browser.get('failure_stage')
+        summary += ['', 'Browser: ' + ('stopped at ' + stage if stage else
+                    ('paid receipt verified' if browser.get('paid_receipt_verified') else 'unverified')) + '.',
+                    'Payment submission attempts: ' + str(browser.get('payment_attempts', 'unavailable')) + '.']
+        if stage:
+            print('::error title=Private staging rehearsal::Browser stopped at ' + stage +
+                  '; payment submission attempts: ' + str(browser.get('payment_attempts', 'unavailable')) +
+                  '. See the sanitized staging summary.')
+    summary += ['', 'Staging requires supplier calls and external order emails to be blocked.',
+                'A passed preflight alone does not verify checkout, notifications or refunds.']
+    if os.environ.get('GITHUB_STEP_SUMMARY'):
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+            output.write('\n'.join(summary) + '\n')
 with open(sys.argv[1], 'w') as output:
     json.dump(data, output, indent=2)
     output.write('\n')

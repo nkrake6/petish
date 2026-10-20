@@ -18,11 +18,12 @@ const fixtureInput = () => validateInput({
 });
 
 function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = false } = {}) {
-  const state = { items: [{ id: 999, quantity: 1 }], attempts: [], logins: 0, removed: 0, unexpected: [] };
+  const state = { items: [{ id: 999, quantity: 1 }], attempts: [], logins: 0, removed: 0,
+    unexpected: [], restNonceRequests: 0, shippingSelected: false, shippingSelections: 0 };
   const key = live ? 'pk_live_fixture' : 'pk_test_fixture';
   const html = body => ({ status: 200, contentType: 'text/html', body: `<!doctype html><html><body>${body}</body></html>` });
   const cart = () => ({ items: state.items, shipping_rates: [{ package_id: 0,
-    shipping_rates: [{ rate_id: 'petish_rehearsal:native-fixture', selected: true }] }] });
+    shipping_rates: [{ rate_id: 'petish_rehearsal:native-fixture', selected: state.shippingSelected }] }] });
   async function fulfill(route) {
     const request = route.request(), url = new URL(request.url());
     if (url.hostname === 'js.stripe.com') {
@@ -45,15 +46,29 @@ function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = f
       return route.fulfill(html('<form action="/wp-login.php" method="POST"><input id="user_login" name="log"><input id="user_pass" name="pwd" type="password"><button id="wp-submit">Log in</button></form>'));
     }
     if (url.pathname === '/my-account/') return route.fulfill(html('<p>Fixture customer account</p>'));
+    if (url.pathname === '/wp-admin/admin-ajax.php' && url.searchParams.get('action') === 'rest-nonce') {
+      state.restNonceRequests++;
+      return route.fulfill({ status: 200, contentType: 'text/plain', body: 'fixturewp0' });
+    }
     if (url.pathname === '/wp-json/wc/store/v1/cart') {
+      if (request.headers()['x-wp-nonce'] !== 'fixturewp0') return route.fulfill({ status: 401,
+        contentType: 'application/json', body: JSON.stringify({ code: 'rest_not_logged_in' }) });
       return route.fulfill({ status: 200, contentType: 'application/json', headers: { Nonce: 'private-fixture-nonce' }, body: JSON.stringify(cart()) });
+    }
+    if (url.pathname === '/wp-json/wc/store/v1/cart/select-shipping-rate' && request.method() === 'POST') {
+      if (request.headers()['x-wp-nonce'] !== 'fixturewp0' || request.headers().nonce !== 'private-fixture-nonce') {
+        return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'rest_cookie_invalid_nonce' }) });
+      }
+      state.shippingSelected = true; state.shippingSelections++;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cart()) });
     }
     if (url.pathname === '/wp-json/wc/store/v1/cart/items' && request.method() === 'DELETE') {
       state.items = []; state.removed++;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cart()) });
     }
     if (url.pathname === '/cart/') {
-      if (url.searchParams.get('add-to-cart') === '246') state.items = [{ id: 246, quantity: 1 }];
+      if (url.searchParams.get('add-to-cart') === '242' && url.searchParams.get('variation_id') === '246'
+          && url.searchParams.get('attribute_color') === 'Blue') state.items = [{ id: 246, quantity: 1 }];
       return route.fulfill(html(state.items.length ? '<button class="wc-block-cart-item__remove-link" onclick="fetch(\'/wp-json/wc/store/v1/cart/items\',{method:\'DELETE\'}).then(()=>this.remove())">Remove item</button>' : '<p>Cart is empty</p>'));
     }
     if (url.pathname === '/checkout/') {
@@ -113,6 +128,10 @@ test('full isolated native-shaped browser flow declines, retries and keeps recei
   assert.equal(result.failure_stage, undefined, JSON.stringify({ stage: result.failure_stage, logins: fixture.state.logins, unexpected: fixture.state.unexpected, cookie_names: fixture.state.cookie_names }));
   assert.equal(result.customer_login_verified, true);
   assert.equal(result.shipping_verified, true);
+  assert.equal(result.cart_api_http_status, 200);
+  assert.equal(result.cart_api_available, true);
+  assert.equal(result.cart_empty_verified, true);
+  assert.equal(result.expected_variation_in_cart, true);
   assert.equal(result.decline_verified, true);
   assert.equal(result.paid_receipt_verified, true);
   assert.equal(result.payment_attempts, 2);
@@ -122,6 +141,8 @@ test('full isolated native-shaped browser flow declines, retries and keeps recei
   assert.deepEqual(fixture.state.attempts, ['4000000000000002', '4242424242424242']);
   assert.equal(fixture.state.logins, 1);
   assert.equal(fixture.state.removed, 1);
+  assert.ok(fixture.state.restNonceRequests > 0);
+  assert.equal(fixture.state.shippingSelections, 1);
   assert.deepEqual(fixture.state.unexpected, []);
   assert.equal(JSON.stringify(publicReport(result)).includes('privatefixture'), false);
 });

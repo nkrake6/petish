@@ -433,7 +433,7 @@ try {
     if(!$color_verified)rehearsal_fail();
     $report['category']='browser_input';
     $input=['safety'=>$safety,'url'=>'https://staging.petish.biz','login'=>$login,'password'=>$password,
-        'variation_id'=>246,'parent_id'=>242,'attribute_pa_color'=>'blue','run_id'=>$run,
+        'variation_id'=>246,'parent_id'=>242,'attribute_color'=>'Blue','run_id'=>$run,
         'customer_email'=>$synthetic_user->user_email,'customer_id'=>(int)$synthetic_user->ID];
     if($input['customer_id']<1)rehearsal_fail();
     if($operation==='preflight'){
