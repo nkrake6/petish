@@ -11,6 +11,7 @@ PHP = shutil.which("php") or "/workspace/.petish-dev/bin/php"
 VERIFY = ROOT / "scripts/verify-pet-club.php"
 FIXTURE = ROOT / "scripts/pet-club-fixture.php"
 BROWSER = ROOT / "tools/pet-club/browser.mjs"
+PRIVATE_NAMES = ROOT / "scripts/pet-club-private-option-names.php"
 
 
 class PetClubVerificationTests(unittest.TestCase):
@@ -130,6 +131,27 @@ $out=petish_club_verify_literal_option_names($root,['internal_runtime_lock','cus
 sort($out);echo json_encode($out);
 """)
         self.assertEqual(result, ["internal_runtime_lock", "nonce_key"])
+
+    def test_private_transport_contains_names_only_and_rejects_other_changes(self):
+        result = self.php("define('PETISH_CLUB_PRIVATE_NAMES_LIBRARY',true);require "
+                          + repr(str(PRIVATE_NAMES)) + ";\n" + r"""
+$before=array_fill_keys(['orders','accounts','products','passports','photos'],'same');
+$before['settings_rows']=[['option_name'=>'existing_setting','value_state'=>hash('sha256','original')]];
+$before['settings']=hash('sha256',json_encode($before['settings_rows'],JSON_THROW_ON_ERROR));$current=$before;
+$current['settings_rows'][]=['option_name'=>'opaque_runtime_key_123','value_state'=>hash('sha256','never disclose')];
+$payload=petish_club_private_option_payload('123-1',$before,$current);
+$out=[array_keys($payload)===['format','run_id','option_names'],$payload['option_names']===['opaque_runtime_key_123'],
+ !str_contains(json_encode($payload),'never disclose'),!str_contains(json_encode($payload),'value_state')];
+foreach(['account','modified','removed','too-many','wrong-run']as$mode){$changed=$current;$run='123-1';
+ if($mode==='account')$changed['accounts']='changed';
+ if($mode==='modified')$changed['settings_rows'][0]['value_state']=hash('sha256','changed');
+ if($mode==='removed')array_shift($changed['settings_rows']);
+ if($mode==='too-many')for($i=0;$i<32;$i++)$changed['settings_rows'][]=['option_name'=>'extra_'.$i,'value_state'=>hash('sha256','private')];
+ if($mode==='wrong-run')$run='invalid';
+ try{petish_club_private_option_payload($run,$before,$changed);$out[]=false;}catch(Throwable$e){$out[]=true;}}
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 9)
 
     def test_diagnosis_blocks_bootstrap_writes_and_preserves_journal(self):
         source = VERIFY.read_text()

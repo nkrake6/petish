@@ -11,6 +11,8 @@ run=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT
 target_run=$run
 recovery_operation=
 retain_remote_tools=0
+encrypted_option_names=0
+encrypted_option_names_verified=0
 mode=${PET_CLUB_MODE:-staging}
 source_sha=${PET_CLUB_SOURCE_SHA:-$GITHUB_SHA}
 [[ $run =~ ^[1-9][0-9]*-[1-9][0-9]*$ && $source_sha =~ ^[a-f0-9]{40}$ ]]
@@ -119,6 +121,7 @@ publish_result() {
     export PETISH_PET_CLUB_SOURCE=$source_sha PETISH_PET_CLUB_STAGE_VERIFIED=$staging_source_verified
     export PETISH_PET_CLUB_ROLLBACK_ATTEMPTED=$rollback_attempted PETISH_PET_CLUB_ROLLBACK_VERIFIED=$rollback_verified
     export PETISH_PET_CLUB_TARGET_RUN=$target_run PETISH_PET_CLUB_RECOVERY_OPERATION=$recovery_operation
+    export PETISH_PET_CLUB_PRIVATE_ENCRYPTED=$encrypted_option_names_verified
     python3 - <<'PY' || return 1
 from datetime import datetime,timezone
 import json,os,re,stat
@@ -129,7 +132,8 @@ result={'status':os.environ['PETISH_PET_CLUB_STATUS'],'category':os.environ['PET
  'source_commit':os.environ['PETISH_PET_CLUB_SOURCE'],'generated_utc':datetime.now(timezone.utc).isoformat(),
  'source_hashes':{},'staging_source_verified':os.environ['PETISH_PET_CLUB_STAGE_VERIFIED']=='1',
  'rollback_attempted':os.environ['PETISH_PET_CLUB_ROLLBACK_ATTEMPTED']=='1',
- 'rollback_verified':os.environ['PETISH_PET_CLUB_ROLLBACK_VERIFIED']=='1','phases':{}}
+ 'rollback_verified':os.environ['PETISH_PET_CLUB_ROLLBACK_VERIFIED']=='1',
+ 'private_option_names_encrypted':os.environ['PETISH_PET_CLUB_PRIVATE_ENCRYPTED']=='1','phases':{}}
 if result['mode']=='cleanup':
  result['recovery_run_id']=os.environ['PETISH_PET_CLUB_TARGET_RUN']
  result['recovery_operation']=os.environ['PETISH_PET_CLUB_RECOVERY_OPERATION']
@@ -149,6 +153,14 @@ if evidence.exists():
  value=json.loads(evidence.read_text());branch=value.get('backup_branch')
  if value.get('verified') is True and isinstance(branch,str) and re.fullmatch(r'full-site-backup/[1-9][0-9]*-[1-9][0-9]*',branch):
   result['verified_backup_branch']=branch
+cipher=root/'public/private-option-names.encrypted.json'
+if result['private_option_names_encrypted']:
+ import importlib.util
+ spec=importlib.util.spec_from_file_location('private_encryption','scripts/encrypt-pet-club-option-names.py')
+ crypto=importlib.util.module_from_spec(spec);spec.loader.exec_module(crypto)
+ crypto.validate_envelope(cipher,Path('operations/pet-club-diagnostic-recipient.pem'),
+  os.environ['PETISH_PET_CLUB_TARGET_RUN'],result['source_commit'])
+elif cipher.exists():raise ValueError()
 (root/'public/status.json').write_text(json.dumps(result,indent=2)+'\n')
 PY
     local blob tree commit
@@ -156,6 +168,10 @@ PY
     git read-tree --empty || return 1
     blob=$(git hash-object -w "$work/public/status.json") || return 1
     git update-index --add --cacheinfo "100644,$blob,status.json" || return 1
+    if [[ $encrypted_option_names_verified == 1 ]]; then
+        blob=$(git hash-object -w "$work/public/private-option-names.encrypted.json") || return 1
+        git update-index --add --cacheinfo "100644,$blob,private-option-names.encrypted.json" || return 1
+    fi
     tree=$(git write-tree) || return 1
     export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
     export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
@@ -255,22 +271,31 @@ from pathlib import Path
 path=Path('operations/pet-club-cleanup.json');info=path.lstat()
 if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or not 0<info.st_size<=4096:raise SystemExit(1)
 value=json.loads(path.read_bytes())
-if not isinstance(value,dict) or set(value)!={'format','run_id','operation'} or value['format']!='petish-pet-club-cleanup-v1' \
+if not isinstance(value,dict) or not {'format','run_id','operation'}<=set(value)<={'format','run_id','operation','encrypted_option_names'} or value['format']!='petish-pet-club-cleanup-v1' \
  or not isinstance(value['run_id'],str) or not re.fullmatch(r'[1-9][0-9]{0,31}-[1-9][0-9]{0,8}',value['run_id']) \
  or value['operation'] not in {'diagnose','cleanup'}:raise SystemExit(1)
-print(value['run_id'],value['operation'])
+private=value.get('encrypted_option_names',False)
+if type(private) is not bool or (private and value['operation']!='diagnose'):raise SystemExit(1)
+print(value['run_id'],value['operation'],int(private))
 PY_RECOVERY
-    read -r target_run recovery_operation < "$work/recovery-request.private.txt"
+    read -r target_run recovery_operation encrypted_option_names < "$work/recovery-request.private.txt"
     [[ $target_run =~ ^[1-9][0-9]*-[1-9][0-9]*$ && $target_run != "$run" && ( $recovery_operation == diagnose || $recovery_operation == cleanup ) ]]
     retain_remote_tools=1
-    for name in verify-pet-club.php pet-club-fixture.php; do
+    recovery_helpers=(verify-pet-club.php pet-club-fixture.php)
+    if [[ $encrypted_option_names == 1 ]]; then recovery_helpers+=(pet-club-private-option-names.php); fi
+    for name in "${recovery_helpers[@]}"; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
     verify_digest=$(sha256sum "$work/bundle/verify-pet-club.php"); verify_digest=${verify_digest%% *}
     fixture_digest=$(sha256sum "$work/bundle/pet-club-fixture.php"); fixture_digest=${fixture_digest%% *}
     [[ $verify_digest =~ ^[a-f0-9]{64}$ && $fixture_digest =~ ^[a-f0-9]{64}$ ]]
-    tar -C "$work/bundle" -cf "$work/recovery.tar" verify-pet-club.php pet-club-fixture.php
+    private_digest=
+    if [[ $encrypted_option_names == 1 ]]; then
+        private_digest=$(sha256sum "$work/bundle/pet-club-private-option-names.php"); private_digest=${private_digest%% *}
+        [[ $private_digest =~ ^[a-f0-9]{64}$ ]]
+    fi
+    tar -C "$work/bundle" -cf "$work/recovery.tar" "${recovery_helpers[@]}"
     failure_category=transport
     source scripts/hostinger-ssh-common.sh
     petish_prepare_ssh
@@ -285,14 +310,19 @@ PY_RECOVERY
       done;
       update="$tools/recovery-'"$run"'"; test ! -e "$update" && test ! -L "$update" || exit 1;
       mkdir -m 700 "$update"; tar --extract --no-same-owner --no-same-permissions --directory "$update";
-      for name in verify-pet-club.php pet-club-fixture.php; do
+      names="verify-pet-club.php pet-club-fixture.php";
+      if test '"$encrypted_option_names"' = 1; then names="$names pet-club-private-option-names.php"; fi;
+      for name in $names; do
         file="$update/$name"; test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %a "$file")" = 600 && test "$(stat -c %h "$file")" = 1 || exit 1;
         actual=$(sha256sum "$file"); actual=${actual%% *};
-        case "$name" in verify-pet-club.php) expected='"$verify_digest"';; pet-club-fixture.php) expected='"$fixture_digest"';; *) exit 1;; esac;
+        case "$name" in verify-pet-club.php) expected='"$verify_digest"';; pet-club-fixture.php) expected='"$fixture_digest"';; pet-club-private-option-names.php) expected='"$private_digest"';; *) exit 1;; esac;
         test "$actual" = "$expected" || exit 1;
-        cp -- "$tools/$name" "$update/original-$name"; chmod 600 "$update/original-$name";
+        if test -e "$tools/$name" || test -L "$tools/$name"; then
+          test -f "$tools/$name" && test ! -L "$tools/$name" && test "$(stat -c %h "$tools/$name")" = 1 && test "$(stat -c %a "$tools/$name")" = 600 || exit 1;
+          cp -- "$tools/$name" "$update/original-$name"; chmod 600 "$update/original-$name";
+        fi;
       done;
-      for name in verify-pet-club.php pet-club-fixture.php; do mv -- "$update/$name" "$tools/$name"; done' \
+      for name in $names; do mv -- "$update/$name" "$tools/$name"; done' \
         < "$work/recovery.tar" > "$work/recovery-upload.private.stdout" 2> "$work/recovery-upload.private.stderr"
     if [[ $recovery_operation == cleanup ]]; then
         fixture_cleanup_needed=1
@@ -302,6 +332,20 @@ PY_RECOVERY
     if [[ $recovery_operation == diagnose ]]; then
         failure_category=diagnose
         fixture_phase diagnose
+        if [[ $encrypted_option_names == 1 ]]; then
+            failure_category=private_extract
+            "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
+              for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
+              php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-pet-club-deploy-'"$target_run"'/pet-club-private-option-names.php" '"$target_run" \
+                > "$work/private-option-names.json" 2> "$work/private-option-names.private.stderr"
+            chmod 600 "$work/private-option-names.json"
+            failure_category=private_encryption
+            python3 scripts/encrypt-pet-club-option-names.py "$work/private-option-names.json" \
+                operations/pet-club-diagnostic-recipient.pem "$work/public/private-option-names.encrypted.json" \
+                "$target_run" "$source_sha" > "$work/encryption.private.stdout" 2> "$work/encryption.private.stderr"
+            encrypted_option_names_verified=1
+            rm -f -- "$work/private-option-names.json"
+        fi
     fi
     operation_verified=1
     exit 0

@@ -243,7 +243,10 @@ class PetClubReleaseTests(unittest.TestCase):
         valid = {'format': 'petish-pet-club-cleanup-v1', 'run_id': '39513159248-1', 'operation': 'diagnose'}
         for value, allowed in [(valid, True), ({**valid, 'operation': 'cleanup'}, True),
                 ({**valid, 'run_id': '../../public_html'}, False), ({**valid, 'operation': 'prepare'}, False),
-                ({**valid, 'password': 'private-sentinel'}, False), ({**valid, 'run_id': 42}, False)]:
+                ({**valid, 'password': 'private-sentinel'}, False),
+                ({**valid, 'encrypted_option_names': True}, True),
+                ({**valid, 'encrypted_option_names': 'true'}, False),
+                ({**valid, 'operation': 'cleanup', 'encrypted_option_names': True}, False), ({**valid, 'run_id': 42}, False)]:
             request.write_text(json.dumps(value))
             result = subprocess.run(['python3', '-c', script], cwd=self.directory, capture_output=True)
             self.assertEqual(result.returncode == 0, allowed)
@@ -254,7 +257,7 @@ class PetClubReleaseTests(unittest.TestCase):
         start = wrapper.index('    "${petish_ssh[@]}"', wrapper.index('# Do not mark SSH cleanup-ready'))
         end = wrapper.index('\n    if [[ $recovery_operation == cleanup ]]; then', start)
         command = wrapper[start:end]
-        for scenario in ('success', 'wrong_marker', 'linked_journal', 'tampered_payload'):
+        for scenario in ('success', 'success_private', 'wrong_marker', 'linked_journal', 'tampered_payload', 'tampered_private'):
             with self.subTest(scenario=scenario):
                 home = self.directory / scenario
                 home.mkdir()
@@ -278,28 +281,37 @@ class PetClubReleaseTests(unittest.TestCase):
                     target.symlink_to(home / 'outside-state')
                 candidate = {'verify-pet-club.php': b'new-reviewed-verifier',
                              'pet-club-fixture.php': b'new-reviewed-fixture'}
+                private = scenario in {'success_private', 'tampered_private'}
+                if private:
+                    candidate['pet-club-private-option-names.php'] = b'new-reviewed-extractor'
                 with tarfile.open(work / 'recovery.tar', 'w') as archive:
                     for name, body in candidate.items():
-                        payload = body + (b'tampered' if scenario == 'tampered_payload' and name == 'pet-club-fixture.php' else b'')
+                        payload = body + (b'tampered' if (scenario == 'tampered_payload' and name == 'pet-club-fixture.php')
+                            or (scenario == 'tampered_private' and name == 'pet-club-private-option-names.php') else b'')
                         member = tarfile.TarInfo(name)
                         member.size = len(payload)
                         member.mode = 0o600
                         archive.addfile(member, io.BytesIO(payload))
-                preamble = 'work=$1; target_run=39513159248-1; run=99999-1; verify_digest=$2; fixture_digest=$3; petish_ssh=(bash -c)\n'
+                preamble = 'work=$1; target_run=39513159248-1; run=99999-1; verify_digest=$2; fixture_digest=$3; encrypted_option_names=$4; private_digest=$5; petish_ssh=(bash -c)\n'
                 environment = os.environ.copy()
                 environment['HOME'] = str(home)
                 result = subprocess.run(['bash', '-euc', preamble + command, 'fixture', str(work),
                     hashlib.sha256(candidate['verify-pet-club.php']).hexdigest(),
-                    hashlib.sha256(candidate['pet-club-fixture.php']).hexdigest()], env=environment, capture_output=True)
-                self.assertEqual(result.returncode == 0, scenario == 'success')
+                    hashlib.sha256(candidate['pet-club-fixture.php']).hexdigest(), str(int(private)),
+                    hashlib.sha256(candidate.get('pet-club-private-option-names.php', b'')).hexdigest()], env=environment, capture_output=True)
+                success = scenario in {'success', 'success_private'}
+                self.assertEqual(result.returncode == 0, success)
                 for name, body in candidate.items():
-                    self.assertEqual((tools / name).read_bytes(), body if scenario == 'success'
+                    if name == 'pet-club-private-option-names.php' and not success:
+                        self.assertFalse((tools / name).exists())
+                        continue
+                    self.assertEqual((tools / name).read_bytes(), body if success
                                      else b'old-verifier' if name == 'verify-pet-club.php' else b'old-fixture')
                 for name, body in preserved.items():
                     path = tools / name
                     if not path.is_symlink():
                         self.assertEqual(path.read_bytes(), body)
-                if scenario == 'success':
+                if success:
                     self.assertEqual((tools / 'recovery-99999-1/original-verify-pet-club.php').read_bytes(), b'old-verifier')
 
     def test_finish_retains_remote_recovery_tools_until_cleanup_and_rollback_pass(self):

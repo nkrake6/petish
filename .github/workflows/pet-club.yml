@@ -17,11 +17,14 @@ on:
       - scripts/deploy-pet-club-remote.php
       - scripts/verify-pet-club.php
       - scripts/pet-club-fixture.php
+      - scripts/pet-club-private-option-names.php
+      - scripts/encrypt-pet-club-option-names.py
       - scripts/sanitize-pet-club-result.py
       - scripts/validate-pet-club-release.py
       - tools/pet-club/browser.mjs
       - operations/pet-club-release.json
       - operations/pet-club-cleanup.json
+      - operations/pet-club-diagnostic-recipient.pem
       - wordpress/wp-content/plugins/petish-passport/**
 
 permissions:
@@ -77,6 +80,10 @@ jobs:
               if [ "$attempt" = 3 ]; then exit 1; fi
               sleep 2
             done
+          fi
+          if [[ "$PET_CLUB_MODE" == cleanup ]]; then
+            preparation_stage=health_dependencies
+            python3 -m pip install --disable-pip-version-check --no-input cryptography==50.0.0
           fi
           preparation_stage=complete
       - name: Verify staging or inspect and release the Pet Club
