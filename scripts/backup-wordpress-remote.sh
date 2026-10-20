@@ -29,6 +29,8 @@ trap 'exit 143' TERM
 site_path="$HOME/domains/petish.biz/public_html"
 domain_path="$HOME/domains/petish.biz"
 passport_path="$domain_path/private/petish-passport"
+mailer_path="$domain_path/private/petish-mailer"
+mailer_mu_path="$site_path/wp-content/mu-plugins/petish-mailer.php"
 if [[ ! -d "$site_path" || ! -f "$site_path/wp-config.php" || ! -f "$site_path/wp-includes/version.php" ]]; then
   fail 'The expected Petish WordPress document root is unavailable.'
 fi
@@ -58,6 +60,38 @@ if [[ "$passport_real" != "$domain_real/private/petish-passport" ||
       "$site_real" == "$passport_real/"* ]]; then
   fail 'The private Passport directory resolves outside its expected private boundary; backup stopped.'
 fi
+# The mailer is optional on older sites. Its private credentials become required
+# as soon as its MU adapter or private directory exists; never omit an orphaned
+# private tree or fall back to a document-root-only SMTP backup.
+mailer_included=false
+source_roots=("$site_real" "$passport_real")
+private_roots=("$passport_real")
+private_archive_names=(petish-passport)
+if [[ -e "$mailer_mu_path" || -L "$mailer_mu_path" || -e "$mailer_path" || -L "$mailer_path" ]]; then
+  if [[ -L "$mailer_path" || ! -d "$mailer_path" || ! -r "$mailer_path" || ! -x "$mailer_path" ]]; then
+    fail 'The required private SMTP directory is unavailable; backup stopped.'
+  fi
+  if ! mailer_real="$(cd -- "$mailer_path" 2>/dev/null && pwd -P)" ||
+     [[ "$mailer_real" != "$domain_real/private/petish-mailer" ||
+        "$mailer_real" == "$site_real" || "$mailer_real" == "$site_real/"* ||
+        "$site_real" == "$mailer_real/"* ]]; then
+    fail 'The private SMTP directory resolves outside its expected private boundary; backup stopped.'
+  fi
+  smtp_path="$mailer_real/smtp.json"
+  if [[ -L "$smtp_path" || ! -f "$smtp_path" || ! -r "$smtp_path" ]]; then
+    fail 'The required private SMTP configuration is unavailable; backup stopped.'
+  fi
+  if ! mailer_mode="$(stat -c '%a' -- "$mailer_real" 2>/dev/null)" ||
+     ! smtp_mode="$(stat -c '%a' -- "$smtp_path" 2>/dev/null)" ||
+     ! smtp_links="$(stat -c '%h' -- "$smtp_path" 2>/dev/null)" ||
+     [[ "$mailer_mode" != 700 || "$smtp_mode" != 600 || "$smtp_links" != 1 ]]; then
+    fail 'The private SMTP storage permissions or link count are unsafe; backup stopped.'
+  fi
+  mailer_included=true
+  source_roots+=("$mailer_real")
+  private_roots+=("$mailer_real")
+  private_archive_names+=(petish-mailer)
+fi
 if ! command -v wp >/dev/null 2>&1; then
   fail 'WP-CLI is unavailable; no backup was created.'
 fi
@@ -83,22 +117,22 @@ fi
 # them: provider links can be external or dangling, and copying their targets
 # could read unrelated server files. Keep their inventory inside encryption.
 # find's default traversal does not follow symbolic links.
-if ! find "$site_real" "$passport_real" -type l -print0 \
+if ! find "${source_roots[@]}" -type l -print0 \
   > "$private_work/backup-metadata/symlink-paths.nul" 2> "$private_work/find.stderr"; then
   fail 'Unable to inventory the complete website file tree; backup stopped.'
 fi
-if ! special_entry="$(find "$site_real" "$passport_real" ! \( -type f -o -type d -o -type l \) -print -quit 2> "$private_work/find.stderr")"; then
+if ! special_entry="$(find "${source_roots[@]}" ! \( -type f -o -type d -o -type l \) -print -quit 2> "$private_work/find.stderr")"; then
   fail 'Unable to inspect the complete website file tree.'
 fi
 if [[ -n "$special_entry" ]]; then
   fail 'The website contains unsupported special files; backup stopped rather than silently omitting them.'
 fi
 unset special_entry
-if ! find "$passport_real" -type f -print0 2> "$private_work/find.stderr" |
+if ! find "${private_roots[@]}" -type f -print0 2> "$private_work/find.stderr" |
   while IFS= read -r -d '' private_file; do
     [[ -r "$private_file" ]] || exit 1
   done; then
-  fail 'The private Passport file tree could not be fully read; backup stopped.'
+  fail 'The private storage file trees could not be fully read; backup stopped.'
 fi
 
 # Targeted config reads keep values in memory, never in logs or command arguments.
@@ -203,7 +237,7 @@ PETISH FULL WORDPRESS BACKUP
 PRIVATE DATA: This archive contains wp-config.php, database credentials, the full
 site database (potentially users, orders and customer data), licensed theme and
 plugin files, every file under the source document root, and private Passport
-photos outside the webroot. It must be encrypted
+photos and configured SMTP credentials outside the webroot. It must be encrypted
 before leaving the private backup pipeline or being stored in Git. Do not publish
 the plaintext archive, SQL, or extracted files as a GitHub artifact or commit.
 
@@ -214,6 +248,8 @@ CONTENTS
   including triggers, stored routines and events.
 - private-files/petish-passport/: complete private Passport tree from the sibling
   domain private/petish-passport directory, never followed through symbolic links.
+- private-files/petish-mailer/: when configured, the complete sibling private SMTP
+  tree including smtp.json. Required when the mailer MU adapter/private tree exists.
 - backup-metadata/: provenance and these restoration notes.
 
 RESTORATION
@@ -227,6 +263,12 @@ RESTORATION
    this directory under public_html, uploads, or another publicly served path.
    Restrict access to the hosting account and preserve Passport's private-storage
    permissions. Review the plugin's storage path on a different account/domain.
+   If private-files/petish-mailer/ is present, restore it into the destination
+   domain's sibling private/petish-mailer/ directory, also OUTSIDE the document
+   root. Its root must have mode 0700 and smtp.json must be a regular, unlinked
+   mode-0600 file. This file contains SMTP credentials: never publish or log it.
+   Keep outbound mail disabled in staging/recovery; confirm the mailbox/provider
+   before enabling mail after a production migration.
 4. Import database/site.sql into an empty target database using a compatible
    MySQL/MariaDB client. Review DEFINER clauses, routine/event permissions, SQL
    modes and server-version compatibility rather than silently dropping objects.
@@ -245,11 +287,12 @@ maintenance window for strict consistency. No maintenance mode or write lock was
 enabled. Any reported dump/tar failure invalidates the backup.
 
 The configured WordPress database, document-root tree, and exact sibling private
-Passport tree are included. The latter is required: missing/unreadable/aliased
-private storage invalidates the backup instead of being silently omitted.
+Passport tree are included. Configured private SMTP storage is included too.
+Missing/unreadable/aliased required private storage invalidates the backup rather
+than being silently omitted. Legacy sites without a mailer may omit SMTP storage.
 Server-global users/grants, DNS, email, account-level cron/firewall configuration,
-remote object storage/CDNs, external databases and other files outside these two
-source trees are not captured. All symbolic links are preserved as links,
+remote object storage/CDNs, external databases and other files outside the
+explicitly included source trees are not captured. All symbolic links are preserved as links,
 including external and dangling links; their target data is not dereferenced or
 copied from outside the explicitly included trees.
 backup-metadata/symlink-paths.nul lists source link paths as NUL-delimited records;
@@ -272,6 +315,11 @@ PETISH_RESTORE_NOTES
   printf 'source_private_root=%s\n' "$passport_real"
   printf 'private_archive_root=private-files/petish-passport\n'
   printf 'private_restore_location=domain-private-directory-outside-document-root\n'
+  printf 'private_smtp_included=%s\n' "$mailer_included"
+  if [[ "$mailer_included" == true ]]; then
+    printf 'source_private_smtp_root=%s\n' "$mailer_real"
+    printf 'private_smtp_archive_root=private-files/petish-mailer\n'
+  fi
   printf 'database_export=full-schema-data-triggers-routines-events\n'
   printf 'database_export_exit=0\n'
   printf 'database_export_bytes=%s\n' "$(wc -c < "$private_work/database/site.sql")"
@@ -334,16 +382,16 @@ if (( preflight_status != 0 )); then
   fail 'Archive diagnostic: private_metadata_preflight_failed. No complete backup was produced.'
 fi
 
-# Transform member/hardlink names, not symlink target text. The two private
+# Transform member/hardlink names, not symlink target text. The private
 # directories do not start with './', so they retain their intended prefixes.
 # The private sibling tree receives a separate archive prefix without being
 # copied into the document root or followed through symbolic links.
 # Never create a plaintext website tar on the remote disk.
 tar_status=0
 tar --create --gzip --file=- --format=posix "${tar_metadata[@]}" \
-  '--transform=flags=rh;s|^\.$|site-files|;s|^\./|site-files/|;s|^petish-passport$|private-files/petish-passport|;s|^petish-passport/|private-files/petish-passport/|' \
+  '--transform=flags=rh;s|^\.$|site-files|;s|^\./|site-files/|;s|^petish-passport$|private-files/petish-passport|;s|^petish-passport/|private-files/petish-passport/|;s|^petish-mailer$|private-files/petish-mailer|;s|^petish-mailer/|private-files/petish-mailer/|' \
   --directory="$site_real" . \
-  --directory="$private_parent_real" petish-passport \
+  --directory="$private_parent_real" "${private_archive_names[@]}" \
   --directory="$private_work" database backup-metadata \
   2> "$private_work/tar.stderr" || tar_status=$?
 if (( tar_status != 0 )); then

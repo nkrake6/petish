@@ -1,0 +1,75 @@
+name: Configure Petish order email
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [configure-mail]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-production-mail
+  cancel-in-progress: false
+
+jobs:
+  configure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - name: Check out reviewed mail tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Check mailbox credential is available
+        env:
+          PETISH_SMTP_PASSWORD: ${{ secrets.PETISH_SMTP_PASSWORD }}
+        run: |
+          set +x
+          python3 - <<'PY'
+          import os
+          password = os.environ.get('PETISH_SMTP_PASSWORD', '')
+          if not password or len(password.encode()) > 2048 or any(ord(char) < 32 or ord(char) == 127 for char in password):
+              raise SystemExit('Add the orders@petish.biz mailbox password as the PETISH_SMTP_PASSWORD repository secret. No site changes were made.')
+          PY
+      - name: Prepare pinned SSH connection
+        run: |
+          bash scripts/hostinger-connection-check.sh
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass
+          fi
+      - name: Authenticate SMTP and install the private production transport
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          PETISH_SMTP_PASSWORD: ${{ secrets.PETISH_SMTP_PASSWORD }}
+        run: |
+          set +x
+          set -euo pipefail
+          bash scripts/hostinger-configure-mail.sh
+      - name: Summarize authenticated transport
+        run: |
+          {
+            printf '## Petish order email configured\n\n'
+            printf 'WordPress transactional mail uses orders@petish.biz over authenticated SMTP with verified TLS. The mailbox credential is stored outside the webroot with owner-only permissions.\n\n'
+            printf 'The connection check authenticated and disconnected without submitting an email. Inbox delivery still requires an authorized test message.\n\n'
+            printf 'A successful run triggers a new encrypted full-site backup and an isolated WordPress recovery check.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish nonsecret configuration result
+        if: always()
+        env:
+          AUTOMATION_KIND: mail
+          AUTOMATION_RESULT: ${{ job.status }}
+        run: bash scripts/publish-automation-status.sh
+      - name: Remove private runner data
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP/petish-mail-config"
+          rm -f -- "$RUNNER_TEMP/petish-mail-result.json" "$RUNNER_TEMP/petish-mail-private.stdout" "$RUNNER_TEMP/petish-mail-private.stderr"
+          rm -f -- "$RUNNER_TEMP/petish-verified-automation-host-keys" "$RUNNER_TEMP/petish-candidate-host-keys"

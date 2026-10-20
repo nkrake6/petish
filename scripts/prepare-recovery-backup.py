@@ -30,7 +30,7 @@ def prepare(branch, directory):
         if len(result.stdout) > 131072:
             raise ValueError()
         manifest = json.loads(result.stdout)
-        if manifest.get("format") != "petish-full-wordpress-backup-v2":
+        if manifest.get("format") not in ("petish-full-wordpress-backup-v2", "petish-full-wordpress-backup-v3"):
             raise ValueError()
         size = manifest.get("encrypted_bytes")
         if type(size) is not int or not 0 < size <= MAX_BYTES:

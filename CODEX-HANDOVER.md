@@ -43,6 +43,12 @@ see [RECOVERY-VERIFICATION.md](RECOVERY-VERIFICATION.md).
 Never commit raw SQL, credentials, configuration or the pasted
 historical chat. See [FULL-SITE-BACKUP.md](FULL-SITE-BACKUP.md).
 
+The owner created `orders@petish.biz` on Hostinger Email. Dedicated SMTP setup
+and verification are described in [ORDER-EMAIL.md](ORDER-EMAIL.md). Check the
+latest `automation-status/mail-*` result before calling it configured. The
+mailbox password belongs in the `PETISH_SMTP_PASSWORD` repository secret;
+never request it in chat. The authentication probe does not submit an email.
+
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,
 delivery and payout. Video reviews, social syncing and a Discord-style community

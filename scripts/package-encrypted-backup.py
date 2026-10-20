@@ -19,6 +19,13 @@ def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTE
         raise ValueError("A nonempty verified encrypted backup including private Passport storage is required")
     if part_bytes < 1:
         raise ValueError("Invalid part size")
+    smtp_covered = verification.get("private_smtp_config_verified", False)
+    smtp_files = verification.get("private_smtp_regular_files", 0)
+    smtp_bytes = verification.get("private_smtp_regular_bytes", 0)
+    if type(smtp_covered) is not bool or type(smtp_files) is not int or type(smtp_bytes) is not int \
+            or (smtp_covered and (smtp_files < 1 or smtp_bytes < 1)) \
+            or (not smtp_covered and (smtp_files != 0 or smtp_bytes != 0)):
+        raise ValueError("Inconsistent private SMTP backup verification")
     destination.mkdir(mode=0o700, parents=True, exist_ok=False)
     parts, whole_hash = [], hashlib.sha256()
     encrypted_bytes = encrypted_path.stat().st_size
@@ -39,10 +46,12 @@ def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTE
             parts.append({"file": name, "bytes": size, "sha256": digest.hexdigest()})
             index += 1
     manifest = {
-        "format": "petish-full-wordpress-backup-v2",
+        "format": "petish-full-wordpress-backup-v3" if smtp_covered else "petish-full-wordpress-backup-v2",
         "site": "https://petish.biz/",
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "scope": "complete document-root tree, private Passport storage, and site SQL database; symlinks preserved without following targets",
+        "scope": "complete document-root tree, private Passport storage, "
+                 + ("private SMTP configuration, " if smtp_covered else "")
+                 + "and site SQL database; symlinks preserved without following targets",
         "private_archive_root": "private-files/petish-passport",
         "private_restore_location": "domain-private-directory-outside-document-root",
         "encryption": "OpenPGP symmetric AES256 with integrity protection",
@@ -51,6 +60,9 @@ def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTE
         "parts": parts,
         "verification": verification,
     }
+    if smtp_covered:
+        manifest["private_smtp_archive_root"] = "private-files/petish-mailer"
+        manifest["private_smtp_restore_location"] = "domain-private-directory-outside-document-root"
     (destination / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (destination / "SHA256SUMS").write_text("".join(f"{part['sha256']}  {part['file']}\n" for part in parts))
     (destination / "RESTORE.md").write_text(
@@ -72,12 +84,19 @@ def package(encrypted_path, destination, verification_path, part_bytes=PART_BYTE
         "Never place these private photos under `public_html`, uploads, or another "
         "web-served directory. Preserve restrictive hosting-account permissions "
         "and review the Passport plugin's storage path when migrating.\n\n"
+        + ("This backup also contains `private-files/petish-mailer/`, including "
+           "private SMTP credentials. Restore it into the target domain's sibling "
+           "`private/petish-mailer/` directory **outside the public document root**. "
+           "Keep the directory at mode 0700 and `smtp.json` as a regular, unlinked "
+           "mode-0600 file. Do not print or publish that file. Keep outbound mail "
+           "disabled in staging/recovery and confirm the mailbox before production use.\n\n"
+           if smtp_covered else "") +
         "Restore the files and import SQL into an isolated database/site first. "
         "Match database credentials in wp-config.php to the restore destination; "
         "review all symbolic links before extraction, and handle domain changes "
         "and absolute links before a migration. External/dangling links are stored "
         "as references; target files outside the document root and explicitly included "
-        "private Passport tree are not included. "
+        "private storage trees are not included. "
         "Essential external targets need separate backup/restoration. "
         "This manifest records encrypted-stream integrity. The workflow separately "
         "attempts a disposable regular-file/database restore smoke test; check its "

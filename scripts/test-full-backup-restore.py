@@ -110,7 +110,7 @@ def safe_extract(stream, destination):
     root_fd = os.open(destination, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     names, regular, links = set(), set(), set()
     hard_links = {}
-    total = files = private_files = skipped_links = 0
+    total = files = private_files = private_smtp_files = skipped_links = 0
     try:
         with gzip.GzipFile(fileobj=stream, mode="rb") as compressed:
             with tarfile.open(fileobj=compressed, mode="r|") as archive:
@@ -161,6 +161,7 @@ def safe_extract(stream, destination):
                         regular.add(name)
                         files += 1
                         private_files += int(name.startswith(VERIFIER.PRIVATE_ROOT + "/"))
+                        private_smtp_files += int(name.startswith(VERIFIER.SMTP_ROOT + "/"))
                     finally:
                         os.close(parent_fd)
                 # Enforce gzip CRC/truncation checks even after tar EOF.
@@ -184,6 +185,7 @@ def safe_extract(stream, destination):
         if not (destination / VERIFIER.PRIVATE_ROOT).is_dir():
             raise RestoreFailure()
         return {"regular_files_restored": files, "private_files_restored": private_files,
+                "private_smtp_files_restored": private_smtp_files,
                 "archive_links_skipped": skipped_links}
     finally:
         os.close(root_fd)
@@ -314,6 +316,9 @@ def restore(encrypted, passphrase, runner_temp):
                 result = safe_extract(source, work / "restored")
             if result["private_files_restored"] != verified["private_regular_files"]:
                 raise RestoreFailure()
+            if result["private_smtp_files_restored"] != verified["private_smtp_regular_files"]:
+                raise RestoreFailure()
+            result["private_smtp_config_verified"] = verified["private_smtp_config_verified"]
             result.update(restore_database(work / "restored/database/site.sql", work))
             result.update({"restore_smoke_test_passed": True,
                            "private_passport_root_restored": True,

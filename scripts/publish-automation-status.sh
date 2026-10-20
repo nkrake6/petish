@@ -6,7 +6,7 @@ set -euo pipefail
 : "${GITHUB_RUN_ATTEMPT:?Missing GITHUB_RUN_ATTEMPT}"
 : "${GITHUB_SHA:?Missing GITHUB_SHA}"
 : "${RUNNER_TEMP:?Missing RUNNER_TEMP}"
-[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging|recovery)$ ]]
+[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging|recovery|mail)$ ]]
 [[ "$AUTOMATION_RESULT" =~ ^(success|failure|cancelled|skipped)$ ]]
 [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
 [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
@@ -19,6 +19,22 @@ data = {key: os.environ[key] for key in (
     'AUTOMATION_KIND', 'AUTOMATION_RESULT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')}
 data['generated_utc'] = datetime.now(timezone.utc).isoformat()
 from pathlib import Path
+if data['AUTOMATION_KIND'] == 'mail':
+    report = Path(os.environ['RUNNER_TEMP']) / 'petish-mail-result.json'
+    if report.is_file() and report.stat().st_size < 4096:
+        try:
+            configured = json.loads(report.read_text())
+            fields = ('configured', 'smtp_authentication_verified', 'tls_peer_verification',
+                      'message_submitted')
+            data['mail_check'] = {key: configured[key] for key in fields
+                                  if key in configured and type(configured[key]) is bool}
+            categories = {'configuration', 'runtime', 'smtp_authentication', 'credential_missing',
+                          'ssh_connection', 'existing_mailer', 'metadata', 'filesystem',
+                          'deployment', 'rollback', 'unknown'}
+            if configured.get('failure_category') in categories:
+                data['mail_check']['failure_category'] = configured['failure_category']
+        except (ValueError, TypeError):
+            pass
 if data['AUTOMATION_KIND'] == 'recovery':
     import re
     backup_branch = os.environ.get('BACKUP_BRANCH', '')
@@ -29,7 +45,8 @@ if data['AUTOMATION_KIND'] == 'recovery':
         try:
             recovered = json.loads(report.read_text())
             fields = ('wordpress_application_recovery_passed', 'regular_files_restored',
-                      'private_files_restored', 'archive_links_skipped', 'database_import_verified',
+                      'private_files_restored', 'private_smtp_files_restored', 'private_smtp_config_verified',
+                      'archive_links_skipped', 'database_import_verified',
                       'restored_database_tables', 'wordpress_bootstrap_verified', 'restored_theme_verified',
                       'restored_custom_plugins_verified', 'active_plugins_bootstrapped', 'published_products',
                       'private_photo_references_verified', 'wordpress_application_bootstrap_tested',
@@ -70,7 +87,8 @@ if data['AUTOMATION_KIND'] == 'backup':
             restored = json.loads(report.read_text())
             fields = ('restore_smoke_test_passed', 'private_passport_root_restored',
                       'wordpress_application_bootstrap_tested', 'private_sandbox_removed',
-                      'regular_files_restored', 'private_files_restored', 'archive_links_skipped',
+                      'regular_files_restored', 'private_files_restored', 'private_smtp_files_restored',
+                      'private_smtp_config_verified', 'archive_links_skipped',
                       'sql_create_table_statements', 'restored_database_tables',
                       'database_import_verified')
             data['restore_check'] = {key: restored[key] for key in fields

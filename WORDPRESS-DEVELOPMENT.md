@@ -83,7 +83,7 @@ access may be unavailable even when Git works; do not request another token
 merely because `gh api` is denied.
 
 Each new workflow publishes a small nonsecret result branch:
-`automation-status/<source-sync|backup|staging|recovery>-<run>-<attempt>`. Discover it with
+`automation-status/<source-sync|backup|staging|recovery|mail>-<run>-<attempt>`. Discover it with
 `git ls-remote --heads origin 'refs/heads/automation-status/*'`, fetch the exact
 branch and read `status.json`. These results distinguish completed checks from
 workflow files that have only been prepared.
@@ -91,3 +91,11 @@ workflow files that have only been prepared.
 Required repository bindings already used by the working backup workflow:
 `HOSTINGER_SSH_PASSWORD` (secret), `PETISH_BACKUP_PASSPHRASE` (secret) and
 `HOSTINGER_SSH_FINGERPRINT` (variable). Never copy their values into this repo.
+
+## Transactional email
+
+[ORDER-EMAIL.md](ORDER-EMAIL.md) describes the dedicated production SMTP setup.
+The new `PETISH_SMTP_PASSWORD` repository secret holds the `orders@petish.biz`
+mailbox password. Main pushes prepare code; the separate mail configuration
+workflow performs authentication before installing it. The connection check
+does not submit a message. Inbox delivery needs an explicitly authorized test.

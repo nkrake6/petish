@@ -1,8 +1,10 @@
 # Full Petish website backup in Git
 
-This workflow backs up the **complete WordPress document root, private Passport storage, and complete site database**, including uploads, WordPress core, all themes/plugins, wp-config.php, users, orders, settings, page/product content, and Passport photos stored outside the webroot. The full archive is encrypted **before** it is committed to Git. Editable custom source is recovered separately; it does not replace this backup.
+This workflow backs up the **complete WordPress document root, private Passport storage, configured private SMTP storage, and complete site database**, including uploads, WordPress core, all themes/plugins, wp-config.php, users, orders, settings, page/product content, and Passport photos stored outside the webroot. The full archive is encrypted **before** it is committed to Git. Editable custom source is recovered separately; it does not replace this backup.
 
 The required private source is the domain's exact sibling directory `private/petish-passport`, alongside `public_html`. It is archived as `private-files/petish-passport/`. Missing, unreadable, symlinked, or aliased private storage stops the backup instead of silently omitting it.
+
+When the Petish mailer MU adapter or its private directory exists, the backup also requires and includes the complete sibling `private/petish-mailer/` tree as `private-files/petish-mailer/`. Its `smtp.json` contains the SMTP password and must be a readable, regular file with no symbolic/hard links and mode 0600; the private mailer root must be canonical, outside the document root, and mode 0700. Missing or unsafe mailer storage stops the backup. The verifier checks its exact configuration schema privately and reports only a verification boolean and aggregate file counts/bytes. These backups use manifest format v3; older sites without either the adapter or private mailer storage remain valid v2 backups.
 
 ## One-time setup
 
@@ -21,9 +23,9 @@ Changes to this backup workflow or its backup scripts on `main` also start a run
 The workflow:
 
 1. Verifies the SSH server identity and logs in through GitHub's runner.
-2. Reads Petish's document-root files and required sibling private Passport tree, and makes a complete SQL dump (schema/data, views, triggers, routines, events) into a temporary private directory outside the webroot.
+2. Reads Petish's document-root files, required sibling private Passport tree, and configured private SMTP tree, and makes a complete SQL dump (schema/data, views, triggers, routines, events) into a temporary private directory outside the webroot.
 3. Streams the full archive into AES256 encryption, never saving a plaintext site archive on the runner.
-4. Decrypts it through a streaming integrity/structure check without extracting private files or printing their contents. The verifier requires the private Passport root and records only aggregate private-file counts/bytes, never filenames.
+4. Decrypts it through a streaming integrity/structure check without extracting private files or printing their contents. The verifier requires the private Passport root and the mailer configuration when applicable, recording only aggregate private-file counts/bytes and fixed verification booleans.
 5. Splits the encrypted archive into ordered 48 MiB parts with checksums and restoration instructions.
 6. Commits those encrypted parts on a new **`full-site-backup/<run-id>-<attempt>`** Git branch. Nothing is deployed or merged into main.
 7. Attempts a private regular-file and database restoration into a disposable Docker sandbox. The database has no network, no host mounts and an immutable disabled event scheduler. Original WordPress configuration is never executed. The sandbox is removed afterward.
@@ -34,16 +36,18 @@ The final run summary links to the backup branch. A nonsecret `automation-status
 
 - The website is not put into maintenance mode or reconfigured. Only private temporary SQL/diagnostic files are created on the hosting account and removed when the remote script exits normally or receives a catchable termination signal.
 - The database uses a single transaction where supported. The SQL dump and filesystem are not one atomic site-wide snapshot; concurrent file changes can make the backup fail rather than silently omit files. Plan a quiet period for the most consistent backup.
-- Symbolic links within the source trees are preserved exactly as link objects, including external/dangling links, and never followed. The private Passport root itself cannot be a link or resolve into the document root. Target data outside the document root and explicitly included private Passport tree is not copied. An encrypted link inventory and restoration notes identify this dependency; review it before treating the backup as a self-contained restore. Unsupported special files still stop the workflow. Hostinger account services and external object storage remain outside the backup.
+- Symbolic links within the source trees are preserved exactly as link objects, including external/dangling links, and never followed. Private storage roots themselves cannot be links or resolve into the document root; the SMTP credential file cannot be a symbolic or hard link. Target data outside the document root and explicitly included private storage trees is not copied. An encrypted link inventory and restoration notes identify this dependency; review it before treating the backup as a self-contained restore. Unsupported special files still stop the workflow. Hostinger account services and external object storage remain outside the backup.
 - A failed SQL dump, encryption/integrity check, or archive size check prevents publication. The compressed/encrypted backup must fit the workflow's 1.5 GiB ceiling below GitHub's single-push limit. Exceeding it stops the backup; files are never silently dropped.
 - Archive failures emit only a numeric exit code and fixed diagnostic categories. A small private-metadata preflight distinguishes archive-tool problems from website-file failures. Raw paths, tar errors and SQL diagnostics are never published.
 - Repeated full backups consume Git repository storage. Older backup branches are not deleted automatically.
 - Streaming validation and the disposable restore smoke test are separate results. The smoke test restores regular files and imports the database; links are skipped and WordPress is not bootstrapped. A complete application recovery test remains necessary before relying on the disaster recovery plan.
 - Because credentials and licensed software are present, keep the passphrase separate from Git even if the repository is private. Do not replace encrypted parts with a plaintext SQL/archive.
 
-## Restore private Passport storage
+## Restore private storage
 
 After decryption in a private working directory, restore `site-files/` into the target document root and `private-files/petish-passport/` into the destination domain's sibling `private/petish-passport/` directory. **The private tree must stay outside `public_html`, WordPress uploads, and all other publicly served directories.** Preserve restrictive permissions/ownership and review the Passport plugin's configured private path if the hosting account or domain changes. The encrypted metadata records both original source roots. Test restoration in an isolated site before touching the live destination.
+
+If present, restore `private-files/petish-mailer/` to the destination domain's sibling `private/petish-mailer/` directory, also **outside every public document root**. Preserve mode 0700 on its root and mode 0600 on the regular, unlinked `smtp.json` file. The SMTP password is private backup data: do not copy it into source control, public uploads, logs, or build artifacts. Keep outgoing mail disabled in staging and recovery, and confirm the destination mailbox/provider before enabling it in production. This preserves the site's SMTP configuration; mailbox contents and the external email service itself are separate services.
 
 Saving the workflow does not execute a backup. Only a completed run and pushed backup branch establish that a backup was stored.
 

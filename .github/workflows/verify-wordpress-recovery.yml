@@ -8,6 +8,10 @@ on:
         type: string
         required: true
         default: full-site-backup/39346479613-1
+  workflow_run:
+    workflows: ['Back up the full Petish site to Git']
+    types: [completed]
+    branches: [main, configure-mail]
   push:
     branches: [main]
     paths:
@@ -26,6 +30,11 @@ concurrency:
 
 jobs:
   recovery:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'configure-mail') &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -33,8 +42,26 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
           persist-credentials: true
+      - name: Select and validate the encrypted backup branch
+        env:
+          UPSTREAM_BACKUP_RUN: ${{ github.event.workflow_run.id }}
+          UPSTREAM_BACKUP_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
+            if ! [[ "$UPSTREAM_BACKUP_RUN" =~ ^[1-9][0-9]*$ && "$UPSTREAM_BACKUP_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+              printf '%s\n' 'The completed backup run identifiers are invalid.' >&2
+              exit 1
+            fi
+            BACKUP_BRANCH="full-site-backup/$UPSTREAM_BACKUP_RUN-$UPSTREAM_BACKUP_ATTEMPT"
+          fi
+          if ! [[ "$BACKUP_BRANCH" =~ ^full-site-backup/[0-9]+-[0-9]+$ ]]; then
+            printf '%s\n' 'Select an existing full-site-backup/<run-id>-<attempt> branch.' >&2
+            exit 1
+          fi
+          printf 'BACKUP_BRANCH=%s\n' "$BACKUP_BRANCH" >> "$GITHUB_ENV"
       - name: Reassemble and verify an existing encrypted Git backup
         run: python3 scripts/prepare-recovery-backup.py "$BACKUP_BRANCH" "$RUNNER_TEMP/petish-recovery-input"
       - name: Start the restored application with external networking disabled

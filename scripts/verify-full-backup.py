@@ -17,6 +17,10 @@ REQUIRED = {
 MAX_EXPANDED_BYTES = 20 * 1024 * 1024 * 1024
 MAX_ENTRIES = 1_000_000
 PRIVATE_ROOT = "private-files/petish-passport"
+SMTP_ROOT = "private-files/petish-mailer"
+SMTP_CONFIG = SMTP_ROOT + "/smtp.json"
+MAILER_MU = "site-files/wp-content/mu-plugins/petish-mailer.php"
+MAX_SMTP_CONFIG_BYTES = 8192
 
 
 def validate_name(name):
@@ -25,14 +29,28 @@ def validate_name(name):
         raise ValueError("Unsafe archive path")
     if path.parts[0] not in {"site-files", "private-files", "database", "backup-metadata"}:
         raise ValueError("Unexpected archive root")
-    if path.parts[0] == "private-files" and path.as_posix() not in {"private-files", PRIVATE_ROOT} \
-            and not path.as_posix().startswith(PRIVATE_ROOT + "/"):
+    if path.parts[0] == "private-files" and path.as_posix() != "private-files" \
+            and not any(path.as_posix() == root or path.as_posix().startswith(root + "/")
+                        for root in (PRIVATE_ROOT, SMTP_ROOT)):
         raise ValueError("Unexpected private archive tree")
     return path.as_posix()
 
 
 def is_storage_member(name):
-    return name.startswith("site-files/") or name.startswith(PRIVATE_ROOT + "/")
+    return name.startswith("site-files/") or any(name.startswith(root + "/") for root in (PRIVATE_ROOT, SMTP_ROOT))
+
+
+def verify_smtp_configuration(data):
+    """Validate only in private memory; never return credentials or parsed fields."""
+    value = json.loads(data)
+    if not isinstance(value, dict) or set(value) != {"host", "port", "encryption", "username", "password"}:
+        raise ValueError("Invalid private SMTP configuration")
+    if value["host"] not in ("smtp.hostinger.com", "smtp.titan.email") \
+            or type(value["port"]) is not int or value["port"] != 465 \
+            or value["encryption"] != "smtps" or value["username"] != "orders@petish.biz" \
+            or not isinstance(value["password"], str) or not 1 <= len(value["password"].encode("utf-8")) <= 2048 \
+            or any(ord(character) < 32 or ord(character) == 127 for character in value["password"]):
+        raise ValueError("Invalid private SMTP configuration")
 
 
 def verify(stream):
@@ -41,6 +59,8 @@ def verify(stream):
     count = total_bytes = 0
     private_root_found = False
     private_regular_files = private_regular_bytes = 0
+    smtp_root_found = smtp_config_verified = False
+    smtp_regular_files = smtp_regular_bytes = 0
     sql_has_schema = False
     with gzip.GzipFile(fileobj=stream, mode="rb") as compressed:
         with tarfile.open(fileobj=compressed, mode="r|") as archive:
@@ -51,12 +71,19 @@ def verify(stream):
                 names.add(name)
                 count += 1
                 total_bytes += member.size
-                if count > MAX_ENTRIES or total_bytes > MAX_EXPANDED_BYTES:
+                if member.size < 0 or count > MAX_ENTRIES or total_bytes > MAX_EXPANDED_BYTES:
                     raise ValueError("Backup exceeds verification capacity")
-                if name in {"private-files", PRIVATE_ROOT} and not member.isdir():
+                if name in {"private-files", PRIVATE_ROOT, SMTP_ROOT} and not member.isdir():
                     raise ValueError("Private storage root must be a directory")
                 if name == PRIVATE_ROOT:
                     private_root_found = True
+                if name == SMTP_ROOT:
+                    if member.mode & 0o7777 != 0o700:
+                        raise ValueError("Unsafe private SMTP directory permissions")
+                    smtp_root_found = True
+                if name == SMTP_CONFIG and (not member.isfile() or member.mode & 0o7777 != 0o600
+                                            or not 0 < member.size <= MAX_SMTP_CONFIG_BYTES):
+                    raise ValueError("Unsafe private SMTP configuration member")
                 if member.isdir():
                     continue
                 if member.issym():
@@ -79,6 +106,9 @@ def verify(stream):
                 if name.startswith(PRIVATE_ROOT + "/"):
                     private_regular_files += 1
                     private_regular_bytes += member.size
+                if name.startswith(SMTP_ROOT + "/"):
+                    smtp_regular_files += 1
+                    smtp_regular_bytes += member.size
                 if name in REQUIRED:
                     if member.size == 0:
                         raise ValueError("Required backup member is empty")
@@ -86,15 +116,21 @@ def verify(stream):
                 with archive.extractfile(member) as source:
                     remaining = member.size
                     carry = b""
+                    smtp_data = bytearray()
                     while remaining:
                         data = source.read(min(1024 * 1024, remaining))
                         if not data:
                             raise ValueError("Truncated archive member")
                         remaining -= len(data)
+                        if name == SMTP_CONFIG:
+                            smtp_data.extend(data)
                         if name == "database/site.sql":
                             window = carry + data
                             sql_has_schema |= b"CREATE TABLE" in window.upper()
                             carry = window[-32:]
+                    if name == SMTP_CONFIG:
+                        verify_smtp_configuration(bytes(smtp_data))
+                        smtp_config_verified = True
             # Consume trailing gzip data to force CRC/end-of-stream verification.
             while compressed.read(1024 * 1024):
                 pass
@@ -110,13 +146,21 @@ def verify(stream):
             target = hard_links[target]
         if target not in regular_files:
             raise ValueError("Missing hard-link target")
+        if target == SMTP_CONFIG:
+            raise ValueError("Private SMTP configuration cannot have hard links")
     if found != REQUIRED or not sql_has_schema or not private_root_found:
         raise ValueError("Incomplete WordPress/database backup")
+    smtp_present = any(name == SMTP_ROOT or name.startswith(SMTP_ROOT + "/") for name in names)
+    if (smtp_present or MAILER_MU in names) and not (smtp_root_found and smtp_config_verified):
+        raise ValueError("Incomplete private SMTP backup")
     return {"archive_verified": True, "archive_entries": count, "uncompressed_bytes": total_bytes,
             "symbolic_links_preserved": len(symbolic_links),
             "private_passport_root_verified": True,
             "private_regular_files": private_regular_files,
-            "private_regular_bytes": private_regular_bytes}
+            "private_regular_bytes": private_regular_bytes,
+            "private_smtp_config_verified": smtp_config_verified,
+            "private_smtp_regular_files": smtp_regular_files,
+            "private_smtp_regular_bytes": smtp_regular_bytes}
 
 
 if __name__ == "__main__":

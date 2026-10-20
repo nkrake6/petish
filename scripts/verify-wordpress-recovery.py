@@ -123,6 +123,9 @@ def recover(encrypted, passphrase, runner_temp, state):
                 files = BASE.safe_extract(source, work / "restored")
             if files["private_files_restored"] != verified["private_regular_files"]:
                 raise BASE.RestoreFailure()
+            if files["private_smtp_files_restored"] != verified["private_smtp_regular_files"]:
+                raise BASE.RestoreFailure()
+            files["private_smtp_config_verified"] = verified["private_smtp_config_verified"]
             with database(work / "restored/database/site.sql", work, state) as (name, socket, restored_db):
                 state[0] = "prepare"
                 try:

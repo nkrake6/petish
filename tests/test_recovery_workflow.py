@@ -12,6 +12,11 @@ import tempfile
 import unittest
 import uuid
 
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PREPARE = ROOT / "scripts/prepare-recovery-backup.py"
@@ -97,6 +102,17 @@ class EncryptedGitInputTests(unittest.TestCase):
         self.assertEqual((output / "site-backup.tar.gz.gpg").read_bytes(), self.encrypted)
         self.assertEqual(output.stat().st_mode & 0o777, 0o700)
 
+    def test_reassembles_v3_smtp_backup_with_identical_integrity_checks(self):
+        self.manifest["format"] = "petish-full-wordpress-backup-v3"
+        result, output = self.run_prepare()
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual((output / "site-backup.tar.gz.gpg").read_bytes(), self.encrypted)
+
+    def test_unknown_manifest_version_fails_closed(self):
+        self.manifest["format"] = "petish-full-wordpress-backup-v999"
+        result, _ = self.run_prepare()
+        self.assert_private_failure(result)
+
     def test_missing_part_is_rejected_without_private_git_error(self):
         (self.directory / self.manifest["parts"][1]["file"]).unlink()
         result, _ = self.run_prepare()
@@ -150,6 +166,67 @@ class EncryptedGitInputTests(unittest.TestCase):
         self.manifest["encrypted_sha256"] = {"private-sentinel": "secret fixture"}
         result, _ = self.run_prepare()
         self.assert_private_failure(result)
+
+
+@unittest.skipIf(yaml is None, "PyYAML is required to execute embedded workflow fixtures")
+class WorkflowChainingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.backup = yaml.load((ROOT / ".github/workflows/backup-full-site.yml").read_text(), Loader=yaml.BaseLoader)
+        cls.recovery = yaml.load((ROOT / ".github/workflows/verify-wordpress-recovery.yml").read_text(), Loader=yaml.BaseLoader)
+        cls.selection_script = next(step["run"] for step in cls.recovery["jobs"]["recovery"]["steps"]
+                                    if step.get("name") == "Select and validate the encrypted backup branch")
+
+    def select(self, event, branch=BRANCH, run="987654321", attempt="2"):
+        with tempfile.TemporaryDirectory() as directory:
+            environment_file = Path(directory) / "environment"
+            result = subprocess.run(["bash", "-c", self.selection_script],
+                env={**os.environ, "GITHUB_EVENT_NAME": event, "GITHUB_ENV": str(environment_file),
+                     "BACKUP_BRANCH": branch, "UPSTREAM_BACKUP_RUN": run, "UPSTREAM_BACKUP_ATTEMPT": attempt},
+                capture_output=True, timeout=10)
+            return result, environment_file.read_text() if environment_file.exists() else ""
+
+    def test_successful_backup_selects_its_exact_run_and_attempt(self):
+        result, written = self.select("workflow_run", branch="must-be-replaced")
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(written, "BACKUP_BRANCH=full-site-backup/987654321-2\n")
+
+    def test_manual_and_push_keep_the_selected_existing_branch(self):
+        for event in ("workflow_dispatch", "push"):
+            with self.subTest(event=event):
+                result, written = self.select(event)
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(written, "BACKUP_BRANCH=" + BRANCH + "\n")
+
+    def test_event_and_manual_identifiers_cannot_inject_environment_lines(self):
+        for event, branch, run, attempt in (
+            ("workflow_run", BRANCH, "123\nprivate-sentinel=value", "1"),
+            ("workflow_run", BRANCH, "123", "0"),
+            ("workflow_dispatch", "full-site-backup/123-1\nprivate-sentinel=value", "123", "1"),
+        ):
+            with self.subTest(event=event, attempt=attempt):
+                result, written = self.select(event, branch, run, attempt)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(written, "")
+                self.assertNotIn(b"private-sentinel", result.stdout + result.stderr)
+
+    def test_chaining_requires_success_and_trusted_source_with_main_tools(self):
+        for workflow, job, source in ((self.backup, "backup", "Configure Petish order email"),
+                                      (self.recovery, "recovery", "Back up the full Petish site to Git")):
+            with self.subTest(job=job):
+                event = workflow["on"]["workflow_run"]
+                self.assertEqual(event["workflows"], [source])
+                self.assertEqual(event["types"], ["completed"])
+                self.assertEqual(event["branches"], ["main", "configure-mail"])
+                guard = workflow["jobs"][job]["if"]
+                self.assertIn("github.event.workflow_run.conclusion == 'success'", guard)
+                self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository", guard)
+                self.assertIn("github.event.workflow_run.head_branch == 'main'", guard)
+                self.assertIn("github.event.workflow_run.head_branch == 'configure-mail'", guard)
+        backup_checkout = next(step for step in self.backup["jobs"]["backup"]["steps"] if "uses" in step)
+        recovery_checkout = next(step for step in self.recovery["jobs"]["recovery"]["steps"] if "uses" in step)
+        self.assertEqual(backup_checkout["with"]["ref"], "main")
+        self.assertIn("github.event_name == 'workflow_run' && 'main'", recovery_checkout["with"]["ref"])
 
 
 class SharedSocketIntegrationTests(unittest.TestCase):
