@@ -1,0 +1,58 @@
+{
+  "AUTOMATION_KIND": "rehearsal",
+  "AUTOMATION_RESULT": "failure",
+  "GITHUB_RUN_ID": "39363859605",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "b291bee272db3adeac075aacec5becadd7c29c3f",
+  "generated_utc": "2026-10-20T03:21:40.271150+00:00",
+  "rehearsal": {
+    "status": "unavailable",
+    "category": "source_configuration",
+    "run_id": "39363859605-1",
+    "checks": {
+      "paths_verified": true,
+      "source_guard_sha_verified": true,
+      "database_separate": false,
+      "runtime_database_staging": false,
+      "environment_staging": false,
+      "woocommerce_test_mode": false,
+      "wcpay_dev_mode": false,
+      "account_is_live": null,
+      "guard_runtime_verified": false,
+      "suppliers_blocked": false,
+      "mail_capture_verified": false,
+      "webhooks_blocked": false,
+      "only_allowlisted_plugins": false,
+      "no_active_webhooks": false,
+      "all_http_forced_blocked": false,
+      "browser_input_written": false
+    },
+    "account": {
+      "cached_account_present": false,
+      "account_is_live": null,
+      "native_connected": null,
+      "payments_enabled": null,
+      "test_onboarding": null,
+      "dev_mode": null,
+      "test_mode": null,
+      "gateway_test_mode": null
+    },
+    "native": {
+      "mode_class": null,
+      "mode_methods": [],
+      "account_service_class": null,
+      "account_service_methods": [],
+      "gateway_class": null,
+      "gateway_methods": [],
+      "api_client_class": null,
+      "api_client_methods": [],
+      "helper_method_calls": []
+    },
+    "structure": {
+      "credentials": [],
+      "checkout_fixture": [],
+      "captured_mail": []
+    },
+    "guard_allowed_hosts": []
+  }
+}
