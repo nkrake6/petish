@@ -50,28 +50,35 @@ def boolean_map(raw, allowed):
 
 def sanitize(source):
     result = {'status': 'unavailable', 'category': 'safe_result_unavailable'}
+    validation_stage = 'input'
     try:
         path = Path(source)
         info = path.lstat()
         if not stat.S_ISREG(info.st_mode) or info.st_size > 65536:
             raise ValueError()
         raw = json.loads(path.read_text())
+        validation_stage = 'schema'
         allowed = {'status', 'category', 'run_id', 'checks', 'native', 'account',
                    'structure', 'guard_allowed_hosts'}
         if not isinstance(raw, dict) or not set(raw) <= allowed:
             raise ValueError()
+        validation_stage = 'status_category'
         if raw.get('status') not in {'success', 'unavailable', 'failure'} or raw.get('category') not in CATEGORIES:
             raise ValueError()
         result = {'status': raw['status'], 'category': raw['category']}
         if 'run_id' in raw:
+            validation_stage = 'run_id'
             if raw['run_id'] is not None and (not isinstance(raw['run_id'], str) or not re.fullmatch('[0-9]+-[0-9]+', raw['run_id'])):
                 raise ValueError()
             result['run_id'] = raw['run_id']
         if 'checks' in raw:
+            validation_stage = 'checks'
             result['checks'] = boolean_map(raw['checks'], CHECKS)
         if 'account' in raw:
+            validation_stage = 'account'
             result['account'] = boolean_map(raw['account'], ACCOUNT)
         if 'native' in raw:
+            validation_stage = 'native'
             native = raw['native']
             if not isinstance(native, dict) or not set(native) <= NATIVE:
                 raise ValueError()
@@ -84,6 +91,7 @@ def sanitize(source):
                         raise ValueError()
                     result['native'][key] = [identifier(name) for name in value]
         if 'structure' in raw:
+            validation_stage = 'structure'
             structure = raw['structure']
             if not isinstance(structure, dict) or not set(structure) <= {'credentials', 'checkout_fixture', 'captured_mail'}:
                 raise ValueError()
@@ -100,13 +108,14 @@ def sanitize(source):
                     safe.append(row)
                 result['structure'][key] = safe
         if 'guard_allowed_hosts' in raw:
+            validation_stage = 'provider_hosts'
             hosts = raw['guard_allowed_hosts']
-            if not isinstance(hosts, list) or len(hosts) > 30 or any(host not in HOSTS for host in hosts):
+            if not isinstance(hosts, list) or len(hosts) > 30 or any(not isinstance(host, str) or (host not in HOSTS and not re.fullmatch(r'[a-z0-9](?:[a-z0-9.-]{0,200})\.(?:wordpress\.com|woocommerce\.com|wp\.com|stripe\.com|wcpayments\.com)', host)) for host in hosts):
                 raise ValueError()
             result['guard_allowed_hosts'] = hosts
         return result
     except (OSError, ValueError, TypeError, KeyError):
-        return {'status': 'unavailable', 'category': 'safe_result_unavailable'}
+        return {'status': 'unavailable', 'category': 'safe_result_unavailable', 'validation_stage': validation_stage}
 
 
 if __name__ == '__main__':
