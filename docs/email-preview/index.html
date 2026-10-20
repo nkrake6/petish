@@ -6,14 +6,14 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="color-scheme" content="light">
   <title>Petish · Customer email previews</title>
-  <link rel="stylesheet" href="preview.css">
-  <script src="preview.js" defer></script>
+  <link rel="stylesheet" href="preview.css?v=2">
+  <script src="preview.js?v=2" defer></script>
 </head>
 <body>
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="./" aria-label="Petish email previews">
-        <img src="petish-logo.png" width="166" alt="Petish">
+      <a class="brand" href="./?v=2" aria-label="Petish email previews">
+        <img src="petish-logo-v2.png" width="166" alt="Petish">
       </a>
       <span class="preview-badge"><span aria-hidden="true"></span> Design preview</span>
     </div>
@@ -46,7 +46,7 @@
           <button id="tab-refunded" class="email-tab" role="tab" type="button" aria-selected="false" aria-controls="email-panel" tabindex="-1" data-email="refunded">Refund</button>
           <button id="tab-note" class="email-tab" role="tab" type="button" aria-selected="false" aria-controls="email-panel" tabindex="-1" data-email="note">Order update</button>
         </div>
-        <a id="open-email" class="open-email" href="processing.html" target="_blank" rel="noopener noreferrer">Open email <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6 14 14 6M6 6h8v8"></path></svg></a>
+        <a id="open-email" class="open-email" href="processing.html?v=2" target="_blank" rel="noopener noreferrer">Open email <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6 14 14 6M6 6h8v8"></path></svg></a>
       </div>
 
       <div id="email-panel" class="email-panel" role="tabpanel" aria-labelledby="tab-processing" tabindex="0">
@@ -63,13 +63,13 @@
               <span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span>
               <span class="window-label">Petish</span>
             </div>
-            <iframe id="email-frame" src="processing.html" title="Petish processing order email preview" sandbox="allow-same-origin" loading="eager" referrerpolicy="no-referrer"></iframe>
+            <iframe id="email-frame" src="processing.html?v=2" title="Petish processing order email preview" sandbox="allow-same-origin" loading="eager" referrerpolicy="no-referrer"></iframe>
           </div>
         </div>
       </div>
     </section>
     <p id="preview-status" class="visually-hidden" role="status" aria-live="polite">Processing order email, desktop width.</p>
-    <noscript><p class="noscript-note">Open an email directly: <a href="processing.html">processing</a>, <a href="completed.html">completed</a>, <a href="refunded.html">refund</a> or <a href="note.html">order update</a>.</p></noscript>
+    <noscript><p class="noscript-note">Open an email directly: <a href="processing.html?v=2">processing</a>, <a href="completed.html?v=2">completed</a>, <a href="refunded.html?v=2">refund</a> or <a href="note.html?v=2">order update</a>.</p></noscript>
     <footer class="page-footer"><span>Petish</span><span>Thoughtful details. Familiar branding.</span></footer>
   </main>
 </body>

@@ -63,11 +63,14 @@ the staged tracking note was explicitly synthetic.
 
 The owner requested Petish-branded customer emails with the full animal logo.
 Shared child-theme email branding was applied to private staging in run
-`39377660802` (theme source `f62346a`). Native processing/completed/refund/note
-preview rendering and publication screening passed in `39378452234` using
+`39379561684` (theme source `238d7dc`). Native processing/completed/refund/note
+preview rendering and publication screening passed in `39379634749` using
 unsaved fictional orders; order counts and stock were unchanged. Generated
 review copies and the desktop/mobile gallery are in `docs/email-preview/`.
-Production email appearance is unchanged. See
+Use `assets/brand/repaired/combined-light-v2.png` (1536×1024) for the full animal
+logo. The older `combined_light_landscape.png` has damaged lettering transparency
+and must not be reused. Public previews use `petish-logo-v2.png` and versioned
+links. Production email appearance is unchanged. See
 [EMAIL-BRANDING.md](EMAIL-BRANDING.md) for the template locations, preview-only
 copy differences and separate live-release scope.
 

@@ -1,21 +1,18 @@
 # Petish WooCommerce email branding
 
 Status: shared branding deployed to private staging in
-[`39377660802`](https://github.com/nkrake6/petish/actions/runs/39377660802)
-from child-theme commit `f62346a`. Native rendering and independent publication
+[`39379561684`](https://github.com/nkrake6/petish/actions/runs/39379561684)
+from child-theme commit `238d7dc`. Native rendering and independent publication
 screening passed in
-[`39378452234`](https://github.com/nkrake6/petish/actions/runs/39378452234)
-using preview tools `01354e1`. All four types rendered with the animal logo;
+[`39379634749`](https://github.com/nkrake6/petish/actions/runs/39379634749)
+using preview tools `238d7dc`. All four types rendered with the animal logo;
 order-record counts and stock were unchanged. Chromium checks passed for every
 type at 900px, 390px and inside the 326px mobile gallery. Tabs, keyboard controls,
 direct links and image loading passed with no overflow or JavaScript errors.
 Live branding is unchanged.
 
-Review gallery: <https://nkrake6.github.io/petish/email-preview/>.
-Public availability passed in
-[`39378623819`](https://github.com/nkrake6/petish/actions/runs/39378623819):
-the served gallery, CSS, JavaScript, all four emails and the animal logo matched
-the reviewed Git files byte for byte.
+Review gallery: <https://nkrake6.github.io/petish/email-preview/?v=2>.
+Public availability is checked after each preview publication.
 
 The shared HTML email header and footer live in the The7 child theme at
 `woocommerce/emails/`. Styling is appended through
@@ -24,8 +21,12 @@ WooCommerce still renders its native order, address, refund and customer-note
 content. Plain-text messages keep their native format.
 
 The owner requested the full logo with the animals. The header references the
-original `assets/brand/combined_light_landscape.png` (1372 × 938), displayed at
-240px wide with its natural aspect ratio. The original artwork is unchanged.
+updated `assets/brand/repaired/combined-light-v2.png` (1536 × 1024),
+displayed at 240 × 160px with its natural aspect ratio. This is the existing
+complete artwork used by the site brand preview; its file bytes are unchanged.
+The older `combined_light_landscape.png` has damaged transparency through the
+lettering and must not be used for email branding. Public previews use the new
+filename `petish-logo-v2.png` and versioned gallery links to avoid stale caches.
 Colours are Petish purple `#6532A1`, lavender `#EDE7FF` and navy `#14213D`.
 Email styling is self-contained and does not depend on website CSS or web fonts.
 

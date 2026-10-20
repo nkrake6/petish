@@ -29,7 +29,7 @@ jobs:
           import hashlib, json, os, time, urllib.request
           from pathlib import Path
           names = ['index.html', 'preview.css', 'preview.js', 'processing.html',
-                   'completed.html', 'refunded.html', 'note.html', 'petish-logo.png']
+                   'completed.html', 'refunded.html', 'note.html', 'petish-logo-v2.png']
           root = Path('docs/email-preview')
           expected = {name: hashlib.sha256((root/name).read_bytes()).digest()
                       for name in names if (root/name).is_file()}

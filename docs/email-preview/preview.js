@@ -1,10 +1,10 @@
 (() => {
   'use strict';
   const emails = {
-    processing: { file: 'processing.html', label: 'Processing order' },
-    completed: { file: 'completed.html', label: 'Completed order' },
-    refunded: { file: 'refunded.html', label: 'Refund confirmation' },
-    note: { file: 'note.html', label: 'Order update' },
+    processing: { file: 'processing.html?v=2', label: 'Processing order' },
+    completed: { file: 'completed.html?v=2', label: 'Completed order' },
+    refunded: { file: 'refunded.html?v=2', label: 'Refund confirmation' },
+    note: { file: 'note.html?v=2', label: 'Order update' },
   };
   const frame = document.querySelector('#email-frame');
   const title = document.querySelector('#email-title');
