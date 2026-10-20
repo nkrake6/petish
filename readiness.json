@@ -1,0 +1,133 @@
+{
+  "status": "success",
+  "source_only": true,
+  "runtime_isolation_verified": false,
+  "paths": {
+    "private_config_canonical": true,
+    "loader_canonical": true,
+    "root_canonical": true,
+    "private_directory_canonical": true,
+    "private_directory_0700": true,
+    "private_config_0600": true
+  },
+  "configuration": {
+    "loader_requires_private": true,
+    "environment_staging_literal": true,
+    "wcpay_dev_mode_true_literal": true,
+    "disable_wp_cron_true_literal": true,
+    "defined_constant_names": [
+      "ABSPATH",
+      "AUTH_KEY",
+      "AUTH_SALT",
+      "AUTOMATIC_UPDATER_DISABLED",
+      "DB_CHARSET",
+      "DB_COLLATE",
+      "DB_HOST",
+      "DB_NAME",
+      "DB_PASSWORD",
+      "DB_USER",
+      "DISABLE_WP_CRON",
+      "DISALLOW_FILE_EDIT",
+      "LOGGED_IN_KEY",
+      "LOGGED_IN_SALT",
+      "NONCE_KEY",
+      "NONCE_SALT",
+      "PETISH_PASSPORT_PRIVATE_DIR",
+      "PETISH_STAGING_GUARD_ACTIVE",
+      "PETISH_STAGING_PAYMENT_CONNECT",
+      "PETISH_STAGING_PRIVATE_DIR",
+      "SECURE_AUTH_KEY",
+      "SECURE_AUTH_SALT",
+      "WCPAY_DEV_MODE",
+      "WP_DEBUG",
+      "WP_DEBUG_DISPLAY",
+      "WP_ENVIRONMENT_TYPE",
+      "WP_HOME",
+      "WP_SITEURL"
+    ]
+  },
+  "guard": {
+    "present": true,
+    "canonical": true,
+    "direct_webhook_false_callback": true,
+    "sha256": "f7615da9180aff6b8b85d81f5821ed1bd4933970adeee3462dd252a502681ee6",
+    "hooks_registered": [
+      "action_scheduler_allow_async_request_runner",
+      "action_scheduler_queue_runner_concurrent_batches",
+      "init",
+      "pre_http_request",
+      "pre_option_blog_public",
+      "pre_wp_mail",
+      "rest_authentication_errors",
+      "rest_pre_dispatch",
+      "send_headers",
+      "template_redirect",
+      "woocommerce_webhook_should_deliver",
+      "wp_robots"
+    ],
+    "declared_function_names": []
+  },
+  "database": {
+    "configuration_read": true,
+    "identity_differs_from_production": true,
+    "host_differs_from_production": true,
+    "name_differs_from_production": true
+  },
+  "woocommerce": {
+    "active_plugins": [
+      "petish-fulfilment",
+      "petish-passport",
+      "woocommerce",
+      "woocommerce-payments"
+    ],
+    "active_plugins_outside_allowlist": [],
+    "enabled_setting": true,
+    "test_mode_setting": true,
+    "checkout_mode": "block",
+    "published_products": 104,
+    "active_webhooks": 0
+  },
+  "variations": [
+    {
+      "variation_id": 246,
+      "published": true,
+      "parent_published": true,
+      "stock_quantity": 24,
+      "manage_stock": true,
+      "stock_status": "instock"
+    },
+    {
+      "variation_id": 153,
+      "published": true,
+      "parent_published": true,
+      "stock_quantity": 2,
+      "manage_stock": true,
+      "stock_status": "instock"
+    },
+    {
+      "variation_id": 2137,
+      "published": true,
+      "parent_published": true,
+      "stock_quantity": 2,
+      "manage_stock": true,
+      "stock_status": "instock"
+    },
+    {
+      "variation_id": 858,
+      "published": true,
+      "parent_published": true,
+      "stock_quantity": 96,
+      "manage_stock": true,
+      "stock_status": "instock"
+    },
+    {
+      "variation_id": 1546,
+      "published": true,
+      "parent_published": true,
+      "stock_quantity": 978,
+      "manage_stock": true,
+      "stock_status": "instock"
+    }
+  ],
+  "category": "complete"
+}
