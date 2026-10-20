@@ -1,0 +1,100 @@
+{
+  "status": "failure",
+  "category": "browser",
+  "mode": "staging",
+  "run_id": "39418749420-1",
+  "source_commit": "88e2dd4bf2affd66488eb9cc1d288814cde516fb",
+  "generated_utc": "2026-10-20T11:59:08.849310+00:00",
+  "source_hashes": {
+    "assets/css/home.css": "11aa02b5a3890e3023753bb2acfd024cf9e520a74737ee1d4ac8a9b1c2dca557",
+    "assets/images/ui/free-delivery-van.png": "bfd1227330732cf1f1c56f2ef6b08794d15cd25221115e6de4baeefe0efa5972",
+    "front-page.php": "50828b31df5a89a5a31308f3fb4bac6d01412afcab379d4b53bbecb45c46280c",
+    "includes/supplier-popularity.php": "389c1079f59f7a81882914561be69ef737d361d02b1b3ee4fdb80177b6c35145"
+  },
+  "staging_source_verified": true,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "preflight": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "guard_runtime_verified": true,
+        "environment_staging": true,
+        "no_active_webhooks": true,
+        "database_separate": true,
+        "runtime_database_staging": true,
+        "webhooks_blocked": true,
+        "browser_input_written": true,
+        "wcpay_dev_mode": true,
+        "source_wp_cron_disabled": true,
+        "suppliers_blocked": true,
+        "only_allowlisted_plugins": true,
+        "all_http_forced_blocked": true,
+        "source_guard_sha_verified": true,
+        "paths_verified": true,
+        "woocommerce_test_mode": true,
+        "mail_capture_verified": true
+      }
+    },
+    "browser": {
+      "status": "failure",
+      "category": "assets",
+      "section_present": false,
+      "checks": {
+        "browser_started": true,
+        "customer_login_verified": true,
+        "homepage_http_ok": true,
+        "hot_subtitle_absent": true,
+        "home_css_http_ok": true,
+        "home_css_hash_matches": true,
+        "badge_png_http_ok": true,
+        "badge_png_image_matches": false,
+        "conditional_section_valid": false,
+        "section_320_valid": false,
+        "section_390_valid": false,
+        "section_1280_valid": false,
+        "badges_bottom_right": false,
+        "badges_nonoverlap_hot": false,
+        "readonly_requests_enforced": true
+      }
+    },
+    "verify": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "previous_account_and_email_assets_preserved": true,
+        "free_delivery_badge_asset_verified": true,
+        "target_environment_verified": true,
+        "tested_theme_and_woocommerce_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "production_data_snapshot_verified": true,
+        "anonymous_render_context_verified": true,
+        "free_delivery_helpers_available": true,
+        "original_hot_rule_preserved": true,
+        "homepage_query_verified": true,
+        "free_delivery_products_available": false,
+        "full_homepage_rendered": true,
+        "hot_subtitle_removed": true,
+        "free_delivery_section_matches_evidence": true,
+        "free_delivery_ordering_verified": true,
+        "free_delivery_section_position_verified": true,
+        "product_badges_match_eligibility": true,
+        "hot_badges_match_existing_rule": true,
+        "homepage_stylesheet_enqueued": true,
+        "stylesheet_version_matches_file": true,
+        "order_counts_unchanged": true,
+        "user_counts_unchanged": true,
+        "authentication_state_unchanged": true,
+        "product_stock_unchanged": true,
+        "account_settings_unchanged": true,
+        "shipping_policy_and_evidence_unchanged": true
+      }
+    }
+  },
+  "preparation_stage": "complete"
+}
