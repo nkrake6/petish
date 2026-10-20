@@ -169,6 +169,24 @@ echo json_encode($out);
         self.assertIn("petish_club_verify_bootstrap($target,$target==='production')", main)
         self.assertNotIn("remove_filter('query'", main)
         self.assertNotIn("$GLOBALS['petish_club_write_attempted']=false", main)
+        self.assertIn("petish_club_verify_read_only_scope($bootstrap_blocked)", main)
+        self.assertLess(main.index("petish_club_verify_state_equal"), main.index("petish_club_verify_mark('production_read_only_verified'"))
+
+    def test_blocked_bootstrap_attempts_are_preserved_without_hiding_contract_writes(self):
+        result = self.php(r"""
+$GLOBALS['guard_attached']=true;
+function has_filter($hook,$callback){return $GLOBALS['guard_attached']?PHP_INT_MAX:false;}
+petish_club_verify_query_guard('UPDATE wp_options SET option_value=1');
+$bootstrap=$GLOBALS['petish_club_blocked_write_count'];
+$out=[$bootstrap===1,$GLOBALS['petish_club_write_attempted']===true,
+ petish_club_verify_query_guard('SELECT 1')==='SELECT 1',petish_club_verify_read_only_scope($bootstrap)];
+$GLOBALS['guard_attached']=false;$out[]=!petish_club_verify_read_only_scope($bootstrap);
+$GLOBALS['guard_attached']=true;petish_club_verify_query_guard('DELETE FROM wp_posts');
+$out[]=!petish_club_verify_read_only_scope($bootstrap);
+$out[]=$GLOBALS['petish_club_write_attempted']===true&&$GLOBALS['petish_club_blocked_write_count']===2;
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 7)
 
     def test_private_files_reject_links_modes_and_replacement(self):
         result = self.php("$base=" + repr(str(self.directory)) + ";\n" + r"""

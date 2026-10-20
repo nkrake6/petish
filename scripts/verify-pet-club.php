@@ -117,7 +117,14 @@ function petish_club_verify_query_guard($sql) {
  $probe=preg_replace('~\A(?:\s+|/\*.*?\*/|--[^\r\n]*(?:\r?\n|$)|\#[^\r\n]*(?:\r?\n|$))*~s','',$sql);
  if(preg_match('/\A(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\b/i',$probe)
   &&!preg_match('/\bINTO\s+(?:OUTFILE|DUMPFILE)\b/i',$probe)&&!preg_match('/;\s*\S/s',rtrim($probe)))return $sql;
- $GLOBALS['petish_club_write_attempted']=true;return 'SELECT 0 WHERE 1=0';
+ $GLOBALS['petish_club_write_attempted']=true;
+ $GLOBALS['petish_club_blocked_write_count']=($GLOBALS['petish_club_blocked_write_count']??0)+1;
+ return 'SELECT 0 WHERE 1=0';
+}
+function petish_club_verify_read_only_scope($bootstrap_blocked) {
+ return is_int($bootstrap_blocked)&&$bootstrap_blocked>=0
+  &&($GLOBALS['petish_club_blocked_write_count']??null)===$bootstrap_blocked
+  &&has_filter('query','petish_club_verify_query_guard')===PHP_INT_MAX;
 }
 function petish_club_verify_photo_state($root) {
  $base=dirname($root).'/private/petish-passport';$files=[];
@@ -318,7 +325,7 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
  $_SERVER['HTTP_HOST']=$host;$_SERVER['SERVER_NAME']=$host;$_SERVER['SERVER_PORT']='443';$_SERVER['HTTPS']='on';
  $_SERVER['REQUEST_METHOD']='GET';$_SERVER['REQUEST_URI']='/my-account/my-pets/';$_SERVER['SERVER_PROTOCOL']='HTTP/1.1';$_SERVER['REMOTE_ADDR']='127.0.0.1';
  require_once$root.'/wp-includes/plugin.php';
- if($read_only){$GLOBALS['petish_club_write_attempted']=false;
+ if($read_only){$GLOBALS['petish_club_write_attempted']=false;$GLOBALS['petish_club_blocked_write_count']=0;
   add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);}
  $http=static fn()=>new WP_Error('petish_club_verify_http_blocked','Pet Club verification blocks outbound requests.');
  $mail=static fn()=>true;$stop=static function(){throw new \PHPMailer\PHPMailer\Exception('Pet Club verification blocks delivery.');};
@@ -708,15 +715,18 @@ function petish_club_verify_main($argv) {
  try{
   if(count($argv)!==3||!petish_club_verify_run($argv[1])||!in_array($argv[2],['production','staging'],true))petish_club_verify_fail();
   $run=$argv[1];$target=$argv[2];$root=petish_club_verify_bootstrap($target,$target==='production');
+  // Bootstrap can attempt lazy runtime writes; the installed barrier blocks
+  // them. Preserve that evidence and separately require our proof to only read.
+  $bootstrap_blocked=$GLOBALS['petish_club_blocked_write_count']??0;
+  $GLOBALS['petish_club_bootstrap_blocked_write_count']=$bootstrap_blocked;
   $report['category']='snapshot';$before=petish_club_verify_state($root);
   if($target==='production'){
    // The guard was installed before wp-load and remains through the final
    // snapshot and shutdown, including WordPress/plugin lazy bootstrap writes.
    petish_club_verify_contracts($root);
-   petish_club_verify_mark('production_read_only_verified',!$GLOBALS['petish_club_write_attempted']
-    &&has_filter('query','petish_club_verify_query_guard')===PHP_INT_MAX);
   }else{petish_club_verify_contracts($root);petish_club_verify_staging($root,$run);}
   $report['category']='snapshot';petish_club_verify_state_equal($before,petish_club_verify_state($root));
+  if($target==='production')petish_club_verify_mark('production_read_only_verified',petish_club_verify_read_only_scope($bootstrap_blocked));
   $expected=array_merge(PETISH_CLUB_VERIFY_COMMON,$target==='staging'?PETISH_CLUB_VERIFY_STAGING:PETISH_CLUB_VERIFY_PRODUCTION);
   if(array_diff($expected,array_keys($report['checks'])))petish_club_verify_fail();
   $report['status']='success';$report['category']='complete';
