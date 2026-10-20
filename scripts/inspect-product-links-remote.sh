@@ -55,7 +55,7 @@ try {
     } elseif (!preg_match('/\A[A-Za-z0-9_.-]+\z/D', $host) && !filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) throw new RuntimeException();
     if ($port < 1 || $port > 65535) throw new RuntimeException();
     $setting = trim((string)getenv('PETISH_DB_CLIENT_FLAGS'));
-    if (ctype_digit($setting)) $flags = (int)$setting;
+    if (preg_match('/\A[0-9]+\z/D', $setting)) $flags = (int)$setting;
     elseif ($setting === 'MYSQLI_CLIENT_SSL' && defined('MYSQLI_CLIENT_SSL')) $flags = MYSQLI_CLIENT_SSL;
     else throw new RuntimeException();
     if (defined('MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT') && ($flags & MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT)) throw new RuntimeException();

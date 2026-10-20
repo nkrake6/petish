@@ -1,0 +1,72 @@
+name: Start and verify a restored Petish backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_branch:
+        description: Existing encrypted full-site backup branch
+        type: string
+        required: true
+        default: full-site-backup/39346479613-1
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-wordpress-recovery.yml
+      - scripts/prepare-recovery-backup.py
+      - scripts/verify-wordpress-recovery.py
+      - scripts/verify-wordpress-recovery.sh
+      - scripts/test-restored-wordpress.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-application-recovery
+  cancel-in-progress: false
+
+jobs:
+  recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      BACKUP_BRANCH: ${{ inputs.backup_branch || 'full-site-backup/39346479613-1' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Reassemble and verify an existing encrypted Git backup
+        run: python3 scripts/prepare-recovery-backup.py "$BACKUP_BRANCH" "$RUNNER_TEMP/petish-recovery-input"
+      - name: Start the restored application with external networking disabled
+        env:
+          PETISH_BACKUP_PASSPHRASE: ${{ secrets.PETISH_BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          bash scripts/verify-wordpress-recovery.sh | tee "$RUNNER_TEMP/petish-wordpress-recovery-result.json"
+      - name: Publish the nonsecret recovery outcome
+        if: always()
+        env:
+          AUTOMATION_KIND: recovery
+          AUTOMATION_RESULT: ${{ job.status }}
+        run: bash scripts/publish-automation-status.sh
+      - name: Summarize the recovery test
+        if: success()
+        run: |
+          {
+            printf '## Restored WordPress application checks passed\n\n'
+            printf 'Backup: `%s`\n\n' "$BACKUP_BRANCH"
+            printf 'The restored core, active theme and plugins booted. Homepage, shop, product, cart, account and media HTTP checks passed; private photo references and anonymous access protection were checked.\n\n'
+            printf 'The disposable copy used new local database credentials, a private database socket and no external networking. Hosting cache/database drop-ins were disabled only in the sandbox. No hosted site was altered. Checkout, real payments and supplier delivery are separate tests.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove disposable containers, volumes and private files
+        if: always()
+        run: |
+          docker ps --all --quiet --filter label=org.petish.application-recovery=true \
+            | xargs --no-run-if-empty docker rm --force --volumes >/dev/null || true
+          docker ps --all --quiet --filter label=org.petish.restore-smoke=true \
+            | xargs --no-run-if-empty docker rm --force --volumes >/dev/null || true
+          docker volume ls --quiet --filter label=org.petish.application-recovery=true \
+            | xargs --no-run-if-empty docker volume rm --force >/dev/null || true
+          rm -rf -- "$RUNNER_TEMP/petish-recovery-input"
+          find "$RUNNER_TEMP" -mindepth 1 -maxdepth 1 -type d -name 'petish-application-recovery-*' -exec rm -rf -- {} +
+          rm -f -- "$RUNNER_TEMP/petish-wordpress-recovery-result.json"

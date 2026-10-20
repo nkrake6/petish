@@ -6,7 +6,7 @@ set -euo pipefail
 : "${GITHUB_RUN_ATTEMPT:?Missing GITHUB_RUN_ATTEMPT}"
 : "${GITHUB_SHA:?Missing GITHUB_SHA}"
 : "${RUNNER_TEMP:?Missing RUNNER_TEMP}"
-[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging)$ ]]
+[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging|recovery)$ ]]
 [[ "$AUTOMATION_RESULT" =~ ^(success|failure|cancelled|skipped)$ ]]
 [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
 [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
@@ -19,6 +19,34 @@ data = {key: os.environ[key] for key in (
     'AUTOMATION_KIND', 'AUTOMATION_RESULT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')}
 data['generated_utc'] = datetime.now(timezone.utc).isoformat()
 from pathlib import Path
+if data['AUTOMATION_KIND'] == 'recovery':
+    import re
+    backup_branch = os.environ.get('BACKUP_BRANCH', '')
+    if re.fullmatch(r'full-site-backup/[0-9]+-[0-9]+', backup_branch):
+        data['backup_branch'] = backup_branch
+    report = Path(os.environ['RUNNER_TEMP']) / 'petish-wordpress-recovery-result.json'
+    if report.is_file() and report.stat().st_size < 8192:
+        try:
+            recovered = json.loads(report.read_text())
+            fields = ('wordpress_application_recovery_passed', 'regular_files_restored',
+                      'private_files_restored', 'archive_links_skipped', 'database_import_verified',
+                      'restored_database_tables', 'wordpress_bootstrap_verified', 'restored_theme_verified',
+                      'restored_custom_plugins_verified', 'active_plugins_bootstrapped', 'published_products',
+                      'private_photo_references_verified', 'wordpress_application_bootstrap_tested',
+                      'homepage_http_verified', 'shop_http_verified', 'product_http_verified',
+                      'cart_http_verified', 'account_http_verified', 'restored_media_http_verified',
+                      'anonymous_private_photo_denied', 'application_outbound_http_blocked',
+                      'application_email_blocked', 'application_original_config_executed',
+                      'application_container_removed', 'private_sandbox_removed', 'host_specific_dropins_quarantined')
+            data['recovery_check'] = {key: recovered[key] for key in fields
+                                      if key in recovered and type(recovered[key]) in (bool, int)}
+            stages = {'input', 'decryption', 'extraction', 'database_start', 'database_import',
+                      'database_verify', 'prepare', 'image', 'container', 'table_prefix',
+                      'database_user', 'bootstrap', 'http', 'complete', 'cleanup'}
+            if recovered.get('failure_stage') in stages:
+                data['recovery_check']['failure_stage'] = recovered['failure_stage']
+        except (ValueError, TypeError):
+            pass
 diagnostics = Path(os.environ['RUNNER_TEMP']) / 'petish-task-diagnostics.json'
 if diagnostics.is_file() and diagnostics.stat().st_size < 8192:
     try:
