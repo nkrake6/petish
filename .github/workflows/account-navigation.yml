@@ -63,30 +63,41 @@ jobs:
         id: prepare
         continue-on-error: true
         run: |
+          preparation_stage=connection
+          trap 'printf "stage=%s\n" "$preparation_stage" >> "$GITHUB_OUTPUT"' EXIT
           for attempt in 1 2 3; do
             if bash scripts/hostinger-connection-check.sh; then break; fi
             if [ "$attempt" = 3 ]; then exit 1; fi
             sleep 2
           done
+          preparation_stage=ssh_tools
           if ! command -v sshpass >/dev/null 2>&1; then
             sudo apt-get -o Acquire::Retries=3 update -qq
             sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
           fi
           if [[ "$ACCOUNT_NAVIGATION_MODE" == staging ]]; then
+            preparation_stage=browser_tools
             export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/petish-account-navigation-browsers"
             printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
             npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
             node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium
           fi
           if [[ "$ACCOUNT_NAVIGATION_MODE" == apply ]]; then
-            python3 -m pip install --disable-pip-version-check --no-input Pillow==12.0.0
+            preparation_stage=health_dependencies
+            for attempt in 1 2 3; do
+              if python3 -m pip install --disable-pip-version-check --no-input Pillow==12.0.0; then break; fi
+              if [ "$attempt" = 3 ]; then exit 1; fi
+              sleep 2
+            done
           fi
+          preparation_stage=complete
       - name: Verify staging or inspect and release the account navigation
         if: always()
         env:
           SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
           SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
           ACCOUNT_NAVIGATION_PREREQUISITES: ${{ steps.prepare.outcome }}
+          ACCOUNT_NAVIGATION_PREPARATION_STAGE: ${{ steps.prepare.outputs.stage }}
         run: bash scripts/hostinger-account-navigation.sh
       - name: Remove private runner data
         if: always()

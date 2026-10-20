@@ -77,6 +77,8 @@ result={'status':os.environ['PETISH_ACCOUNT_STATUS'],'category':os.environ['PETI
  'source_hashes':{},'staging_source_verified':os.environ['PETISH_ACCOUNT_STAGE_VERIFIED']=='1',
  'rollback_attempted':os.environ['PETISH_ACCOUNT_ROLLBACK_ATTEMPTED']=='1',
  'rollback_verified':os.environ['PETISH_ACCOUNT_ROLLBACK_VERIFIED']=='1','phases':{}}
+stage=os.environ.get('ACCOUNT_NAVIGATION_PREPARATION_STAGE','unknown')
+result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
 for phase in ('inspect','preflight','browser','apply','verify','health','assets','commit','rollback'):
