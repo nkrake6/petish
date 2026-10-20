@@ -1,0 +1,87 @@
+{
+  "scope": "read-only; no mail sent or account/site settings changed",
+  "smtp_secret_presence": {
+    "PETISH_SMTP_PASSWORD": false,
+    "HOSTINGER_SMTP_PASSWORD": false
+  },
+  "dns": {
+    "mx": [
+      {
+        "priority": 5,
+        "host": "mx1.hostinger.com"
+      },
+      {
+        "priority": 10,
+        "host": "mx2.hostinger.com"
+      }
+    ],
+    "provider_from_mx": "hostinger_email",
+    "spf": [
+      "v=spf1 include:_spf.mail.hostinger.com ~all"
+    ],
+    "dmarc": [
+      "v=DMARC1; p=none"
+    ],
+    "autodiscover_cname": [
+      "autodiscover.mail.hostinger.com"
+    ],
+    "dkim": {
+      "hostingermail-a": {
+        "cname": [
+          "hostingermail-a.dkim.mail.hostinger.com"
+        ],
+        "txt_present": true,
+        "dkim_txt_present": true
+      },
+      "hostingermail-b": {
+        "cname": [
+          "hostingermail-b.dkim.mail.hostinger.com"
+        ],
+        "txt_present": true,
+        "dkim_txt_present": true
+      },
+      "hostingermail-c": {
+        "cname": [
+          "hostingermail-c.dkim.mail.hostinger.com"
+        ],
+        "txt_present": true,
+        "dkim_txt_present": true
+      },
+      "default": {
+        "cname": [],
+        "txt_present": false,
+        "dkim_txt_present": false
+      }
+    }
+  },
+  "official_documentation": [
+    {
+      "url": "https://support.hostinger.com/en/articles/1583219-how-to-set-up-hostinger-email-on-your-applications-and-devices",
+      "accessible": false,
+      "recognized_smtp_hosts": [],
+      "recognized_ports": []
+    },
+    {
+      "url": "https://support.hostinger.com/en/articles/4767597-how-to-get-email-account-configuration-details-for-hostinger-email",
+      "accessible": false,
+      "recognized_smtp_hosts": [],
+      "recognized_ports": []
+    },
+    {
+      "url": "https://support.hostinger.com/en/articles/1583357-what-are-the-limits-of-hostinger-email",
+      "accessible": false,
+      "recognized_smtp_hosts": [],
+      "recognized_ports": []
+    },
+    {
+      "url": "https://support.hostinger.com/en/articles/4489824-how-to-set-up-titan-email-on-your-applications-and-devices",
+      "accessible": false,
+      "recognized_smtp_hosts": [],
+      "recognized_ports": []
+    }
+  ],
+  "wordpress": {
+    "status": "unavailable",
+    "category": "ssh_or_server_lookup_failed"
+  }
+}
