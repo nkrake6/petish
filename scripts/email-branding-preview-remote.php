@@ -39,7 +39,7 @@ function petish_email_preview_document($html) {
 /** Finish the approved root-relative sentinel after WordPress URL escaping. */
 function petish_email_preview_local_images($html,$expected) {
     if (!is_string($html) || !is_int($expected) || $expected<1) petish_email_preview_fail();
-    $html = str_replace('src="/petish-logo.png"','src="petish-logo.png"',$html,$count);
+    $html = str_replace('src="/petish-logo-v2.png"','src="petish-logo-v2.png"',$html,$count);
     if ($count!==$expected) petish_email_preview_fail();
     return $html;
 }
@@ -89,13 +89,13 @@ function petish_email_preview_sanitize($html) {
         if ($tag === 'IMG') {
             $src = (string)$processor->get_attribute('src');
             $parsed = parse_url($src);
-            $expected = '/wp-content/themes/dt-the7-child/assets/brand/combined_light_landscape.png';
+            $expected = '/wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png';
             if (!is_array($parsed) || ($parsed['scheme'] ?? '') !== 'https'
                 || !in_array($parsed['host'] ?? '', ['petish.biz','staging.petish.biz'],true)
                 || ($parsed['path'] ?? '') !== $expected || isset($parsed['query']) || isset($parsed['fragment'])
                 || isset($parsed['user']) || isset($parsed['pass'])) petish_email_preview_fail();
             // esc_url() adds http:// to a bare filename; a leading slash survives.
-            $processor->set_attribute('src','/petish-logo.png');
+            $processor->set_attribute('src','/petish-logo-v2.png');
             ++$images;
         }
     }
@@ -251,7 +251,7 @@ function petish_email_preview_render($context) {
             $raw = $email->style_inline($email->get_content_html());
             $mark('email_preview_native_renderer',true);
             $safe = petish_email_preview_sanitize($raw);
-            $logo = str_contains($safe,'petish-logo.png');
+            $logo = str_contains($safe,'petish-logo-v2.png');
             $palette = stripos($safe,'#6532a1')!==false && stripos($safe,'#ede7ff')!==false;
             $text = html_entity_decode(strip_tags($safe),ENT_QUOTES | ENT_HTML5,'UTF-8');
             $details = str_contains($text,'P-1042') && str_contains($text,'Corner & Gap Cleaning Brush')

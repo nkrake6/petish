@@ -63,7 +63,7 @@ PY
     local name blob tree commit
     names=(status.json)
     if [[ $preview_status == success ]]; then
-        names+=(processing.html completed.html refunded.html note.html petish-logo.png)
+        names+=(processing.html completed.html refunded.html note.html petish-logo-v2.png)
     fi
     for name in "${names[@]}"; do
         blob=$(git hash-object -w "$work/public/$name") || return 1
@@ -146,10 +146,10 @@ done
 failure_category=html_validation
 python3 scripts/validate-email-previews.py "$work/public" > "$work/html-validation.private.json" 2> "$work/html-validation.private.stderr"
 failure_category=logo_validation
-python3 - "$work/public/petish-logo.png" <<'PY'
+python3 - "$work/public/petish-logo-v2.png" <<'PY'
 from pathlib import Path
 import os,stat,sys
-source=Path('wordpress/wp-content/themes/dt-the7-child/assets/brand/combined_light_landscape.png')
+source=Path('wordpress/wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png')
 info=source.lstat()
 if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or not 8<info.st_size<=10485760:
  raise SystemExit('The reviewed local branding asset is unavailable.')

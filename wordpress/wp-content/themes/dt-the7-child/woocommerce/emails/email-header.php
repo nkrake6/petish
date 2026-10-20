@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 
 $petish_email_logo = function_exists( 'petish_email_branding_logo_url' )
     ? petish_email_branding_logo_url()
-    : get_stylesheet_directory_uri() . '/assets/brand/combined_light_landscape.png';
+    : get_stylesheet_directory_uri() . '/assets/brand/repaired/combined-light-v2.png';
 $petish_email_home = apply_filters( 'woocommerce_email_header_image_url', home_url( '/' ) );
 ?>
 <!DOCTYPE html>
@@ -31,7 +31,7 @@ $petish_email_home = apply_filters( 'woocommerce_email_header_image_url', home_u
 <table border="0" cellpadding="0" cellspacing="0" width="100%" id="template_container" role="presentation" style="background-color:#FFFFFF; border:1px solid #E6DFF0; border-top:5px solid #6532A1; border-radius:16px;">
 <tr><td id="template_header_image" style="padding:28px 32px 22px; background-color:#FFFFFF; text-align:left;">
     <?php if ( $petish_email_home ) : ?><a href="<?php echo esc_url( $petish_email_home ); ?>" style="display:inline-block; text-decoration:none;"><?php endif; ?>
-    <img src="<?php echo esc_url( $petish_email_logo ); ?>" width="240" height="164" alt="<?php esc_attr_e( 'Petish — Small pets, big adventures.', 'petish' ); ?>" style="display:block; width:240px; max-width:100%; height:auto; border:0;" />
+    <img src="<?php echo esc_url( $petish_email_logo ); ?>" width="240" height="160" alt="<?php esc_attr_e( 'Petish — Small pets, big adventures.', 'petish' ); ?>" style="display:block; width:240px; max-width:100%; height:auto; border:0;" />
     <?php if ( $petish_email_home ) : ?></a><?php endif; ?>
 </td></tr>
 <tr><td align="left" valign="top">

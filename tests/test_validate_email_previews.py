@@ -18,7 +18,7 @@ HTML = '''<!doctype html><html><head><meta charset="utf-8">
 <style type="text/css">body { color: #6532A1; background: #EDE7FF; }
 @media screen and (max-width: 600px) { table { width: 100%; } }</style>
 </head><body><table role="presentation"><tr><td>
-<img src="petish-logo.png" alt="Petish" width="240">
+<img src="petish-logo-v2.png" alt="Petish" width="240">
 <h1>Petish — order P-1042</h1><p>Hello Alex Taylor,</p>
 <p>Corner &amp; Gap Cleaning Brush: $8.00</p>
 <p>Standard delivery: $6.60</p><p>Total: $14.60 (includes $1.33 GST)</p>
@@ -56,11 +56,11 @@ class PreviewValidationTests(unittest.TestCase):
     def test_images_cannot_load_external_or_embedded_content(self):
         for source in (
             'https://petish.biz/logo.png', '//evil.invalid/logo.png',
-            'data:image/png;base64,AA==', 'petish-logo.png?track=1',
-            'petish-logo.png#x', './petish-logo.png', 'petish%2dlogo.png',
+            'data:image/png;base64,AA==', 'petish-logo-v2.png?track=1',
+            'petish-logo-v2.png#x', './petish-logo-v2.png', 'petish%2dlogo.png',
         ):
             with self.subTest(source=source):
-                self.rejected(HTML.replace('src="petish-logo.png"', f'src="{source}"'))
+                self.rejected(HTML.replace('src="petish-logo-v2.png"', f'src="{source}"'))
         self.rejected(HTML.replace('alt="Petish"', 'alt="Petish" srcset="https://evil.invalid/logo.png 2x"'))
 
     def test_links_are_exact_public_routes_without_queries_or_fragments(self):
@@ -111,7 +111,7 @@ class PreviewValidationTests(unittest.TestCase):
             ('P-1042', 'P-9999'), ('Alex', 'Customer'),
             ('Corner &amp; Gap Cleaning Brush', 'Different item'),
             ('$14.60', '$99.99'), ('#6532A1', '#ffffff'), ('#EDE7FF', '#ffffff'),
-            ('<img src="petish-logo.png" alt="Petish" width="240">', ''),
+            ('<img src="petish-logo-v2.png" alt="Petish" width="240">', ''),
         ):
             with self.subTest(old=old):
                 self.rejected(HTML.replace(old, new), 'synthetic_content')

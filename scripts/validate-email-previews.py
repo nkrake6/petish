@@ -123,7 +123,7 @@ class PreviewParser(HTMLParser):
         if tag == 'a' and 'href' in attributes and attributes['href'] not in ALLOWED_LINKS:
             reject('links')
         if tag == 'img':
-            if attributes.get('src') != 'petish-logo.png':
+            if attributes.get('src') != 'petish-logo-v2.png':
                 reject('images')
             self.images += 1
         if tag == 'meta':

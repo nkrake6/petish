@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 function petish_email_branding_logo_url() {
     return apply_filters(
         'petish_email_logo_url',
-        get_stylesheet_directory_uri() . '/assets/brand/combined_light_landscape.png'
+        get_stylesheet_directory_uri() . '/assets/brand/repaired/combined-light-v2.png'
     );
 }
 

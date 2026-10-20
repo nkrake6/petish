@@ -89,10 +89,10 @@ class WP_HTML_Tag_Processor {
  public function set_attribute($name,$value){if($name==='src')$this->src=esc_url($value);}
  public function get_updated_html(){return preg_replace('/src="[^"]+"/','src="'.$this->src.'"',$this->html);}
 }
-$html='<html><head><title>Petish</title></head><body><img src="https://staging.petish.biz/wp-content/themes/dt-the7-child/assets/brand/combined_light_landscape.png" alt="Petish"></body></html>';
+$html='<html><head><title>Petish</title></head><body><img src="https://staging.petish.biz/wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png" alt="Petish"></body></html>';
 $safe=petish_email_preview_sanitize($html);
-$checks=[esc_url('petish-logo.png')==='http://petish-logo.png',str_contains($safe,'src="petish-logo.png"'),!str_contains($safe,'http://petish-logo.png')];
-foreach([0,2] as $count){try{petish_email_preview_local_images('<img src="/petish-logo.png">',$count);$checks[]=false;}catch(RuntimeException $e){$checks[]=true;}}
+$checks=[esc_url('petish-logo-v2.png')==='http://petish-logo-v2.png',str_contains($safe,'src="petish-logo-v2.png"'),!str_contains($safe,'http://petish-logo-v2.png')];
+foreach([0,2] as $count){try{petish_email_preview_local_images('<img src="/petish-logo-v2.png">',$count);$checks[]=false;}catch(RuntimeException $e){$checks[]=true;}}
 echo json_encode($checks);
 """)
         self.assertEqual(actual, [True] * 5)
