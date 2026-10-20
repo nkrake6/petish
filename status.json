@@ -1,0 +1,86 @@
+{
+  "status": "success",
+  "category": "complete",
+  "published_counts": {
+    "products": 104,
+    "variations": 499
+  },
+  "metadata_fields": [
+    {
+      "name": "_petish_supplier_order_count",
+      "rows": 103,
+      "products": 103,
+      "variations": 0,
+      "true_like": 1,
+      "false_like": 1,
+      "decimal_zero": 1,
+      "structured": 0,
+      "empty": 0
+    },
+    {
+      "name": "_petish_supplier_order_observed",
+      "rows": 103,
+      "products": 103,
+      "variations": 0,
+      "true_like": 0,
+      "false_like": 0,
+      "decimal_zero": 0,
+      "structured": 0,
+      "empty": 0
+    },
+    {
+      "name": "_petish_supplier_order_source",
+      "rows": 103,
+      "products": 103,
+      "variations": 0,
+      "true_like": 0,
+      "false_like": 0,
+      "decimal_zero": 0,
+      "structured": 0,
+      "empty": 0
+    },
+    {
+      "name": "_petish_supplier_product_url",
+      "rows": 104,
+      "products": 104,
+      "variations": 0,
+      "true_like": 0,
+      "false_like": 0,
+      "decimal_zero": 0,
+      "structured": 0,
+      "empty": 0
+    }
+  ],
+  "excluded_metadata_field_count": 0,
+  "supplier_orders": {
+    "products_with_numeric_count": 103,
+    "products_with_fresh_observation": 103,
+    "hot_eligible_products": 18
+  },
+  "shipping_policy": {
+    "mode": "automatic",
+    "automatic": {
+      "present": true,
+      "schema_valid": true,
+      "rows": 5,
+      "zero_rows": 1,
+      "unexpired_zero_rows": 1,
+      "explicit_free_unexpired_zero_rows": 1
+    },
+    "quotes": {
+      "present": true,
+      "schema_valid": true,
+      "rows": 0,
+      "zero_rows": 0,
+      "current_zero_rows": 0
+    }
+  },
+  "live_theme_hashes": {
+    "front-page.php": "ee5c1425f0bf746471886a88bf185e176b12f8fdf3827831e51a947417dee863",
+    "includes/supplier-popularity.php": "74b02a8407b64f407f69cc776a500d5e68872d5acf5382ef09bae3de4ee403f2",
+    "assets/css/home.css": "81139fc111d1cdc85c412b9ecfe86dbf32cc1a2b4658ffb14088c0b9ab9e026a"
+  },
+  "run_id": "39416351102-1",
+  "source_commit": "052cc3dddbf821912a592d874b125428f33844e7",
+  "generated_utc": "2026-10-20T11:38:19.008861+00:00"
+}
