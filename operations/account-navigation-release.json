@@ -1,7 +1,7 @@
 {
   "format": "petish-account-navigation-v1",
-  "staging_source_commit": "2b3ef0790c1976825cbe3b8c6c15857d9f04f8c6",
-  "staging_status_branch": "automation-status/account-navigation-39412424150-1",
+  "staging_source_commit": "b467d1a5bafd19e8c31e232f86e6fbac0515cea1",
+  "staging_status_branch": "automation-status/account-navigation-39414884957-1",
   "backup_branch": "full-site-backup/39407370013-1",
   "backup_result_branch": "automation-status/backup-39407370013-1",
   "recovery_result_branch": "automation-status/recovery-39407722067-1"
