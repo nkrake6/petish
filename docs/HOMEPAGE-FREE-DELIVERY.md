@@ -10,7 +10,8 @@ final tie-breaker. An unknown order count follows a genuine reported zero.
 Variable products use their native displayed starting price.
 
 The navy pill with the lavender delivery van appears at the bottom-right of
-eligible homepage product images. The existing Hot rule remains independent:
+eligible homepage product images. Its canonical PNG is the reviewed
+1600 × 592 image served by the host. The existing Hot rule remains independent:
 at least 500 supplier-reported orders observed within the last 30 days.
 Being in the free-delivery section never grants a Hot badge.
 
@@ -34,3 +35,19 @@ of supplier-free freight.
 
 The new section therefore stays hidden until supplier offers are confirmed and
 recorded. Do not copy a merchant zero-price policy into supplier evidence.
+
+## Verified release
+
+Released on 20 October 2026 from
+[commit `81d54eb`](https://github.com/nkrake6/petish/commit/81d54eb96504e7120cdf80834b54203aff7b1e22).
+[Staging verification](https://github.com/nkrake6/petish/blob/automation-status/homepage-39421050758-1/status.json)
+passed all 29 native checks and 15 browser checks. Email and account-menu
+regression checks also passed.
+
+The [live release](https://github.com/nkrake6/petish/blob/automation-status/homepage-39421818955-1/status.json)
+committed the four reviewed files and passed the native, public asset and site
+health checks. The public homepage no longer contains the Hot subtitle, and
+the stylesheet and delivery badge are verified. Existing account, email and
+store data checks passed; no rollback was needed.
+
+No products qualified at release, so Free delivery favourites remains hidden.
