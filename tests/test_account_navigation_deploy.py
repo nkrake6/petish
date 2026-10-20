@@ -1,4 +1,4 @@
-"""Exercise the three-file Passport navigation release on disposable site trees."""
+"""Exercise a CSS-only Passport release against the current live navigation."""
 
 import hashlib
 import json
@@ -15,7 +15,7 @@ SCRIPT = ROOT / 'scripts/deploy-account-navigation-remote.php'
 SOURCE = ROOT / 'wordpress/wp-content/plugins/petish-passport'
 PHP = shutil.which('php') or '/workspace/.petish-dev/bin/php'
 FILES = ['assets/account-navigation.js', 'assets/passport.css', 'includes/class-petish-passport-ui.php']
-BASELINE = '51aa5ce'
+BASELINE = '88d06f9'
 
 
 @unittest.skipUnless(Path(PHP).is_file(), 'PHP required for navigation transaction fixtures')
@@ -39,7 +39,7 @@ class AccountNavigationDeploymentTests(unittest.TestCase):
         (self.root / 'wp-config.php').write_text('<?php /* Private configuration fixture. */\n')
         (self.root / '.htaccess').write_text('# Existing routing\n')
         self.originals = {}
-        for name in FILES[1:]:
+        for name in FILES:
             result = subprocess.run(['git', 'show', BASELINE + ':wordpress/wp-content/plugins/petish-passport/' + name],
                                     cwd=ROOT, capture_output=True, check=True)
             self.originals[name] = result.stdout
@@ -78,27 +78,27 @@ class AccountNavigationDeploymentTests(unittest.TestCase):
         return {str(path.relative_to(self.root)): path.read_bytes()
                 for path in self.root.rglob('*') if path.is_file()}
 
-    def test_inspect_is_read_only_and_identifies_three_file_release(self):
+    def test_inspect_is_read_only_and_identifies_one_css_change(self):
         before = self.snapshot()
         report = self.execute('inspect')
         self.assertEqual(report['status'], 'success')
-        self.assertEqual(report['changed_file_count'], 3)
+        self.assertEqual(report['changed_file_count'], 1)
         self.assertTrue(report['checks']['candidate_manifest_verified'])
         self.assertTrue(report['checks']['candidate_syntax_verified'])
         self.assertEqual(before, self.snapshot())
         self.assertFalse((self.home / '.petish-account-navigation-releases').exists())
 
-    def test_apply_and_commit_change_only_three_passport_files_and_retain_email_theme(self):
+    def test_apply_and_commit_change_only_css_and_retain_navigation_and_email_theme(self):
         before = self.snapshot()
         report = self.execute('apply')
         self.assertEqual(report['status'], 'success')
-        self.assertEqual(report['changed_file_count'], 3)
+        self.assertEqual(report['changed_file_count'], 1)
         self.assertTrue(report['checks']['protected_state_unchanged'])
         self.assertTrue(report['checks']['rollback_snapshot_created'])
         self.assertTrue(report['checks']['files_deployed'])
         after = self.snapshot()
         differences = {name for name in set(before) | set(after) if before.get(name) != after.get(name)}
-        self.assertEqual(differences, {'wp-content/plugins/petish-passport/' + name for name in FILES})
+        self.assertEqual(differences, {'wp-content/plugins/petish-passport/assets/passport.css'})
         for name in FILES:
             self.assertEqual((self.plugin / name).read_bytes(), (SOURCE / name).read_bytes())
         committed = self.execute('commit')
@@ -108,18 +108,18 @@ class AccountNavigationDeploymentTests(unittest.TestCase):
         self.assertEqual((release / 'backup/1').read_bytes(), self.originals[FILES[1]])
         self.assertEqual((release / 'backup/2').read_bytes(), self.originals[FILES[2]])
         self.assertEqual((release / 'backup/1').stat().st_mode & 0o777, 0o600)
-        self.assertFalse((release / 'backup/0').exists())
+        self.assertEqual((release / 'backup/0').read_bytes(), self.originals[FILES[0]])
         self.assertFalse((self.home / '.petish-account-navigation-releases/deploy.lock').exists())
         self.assertEqual(self.execute('rollback')['status'], 'failure')
 
-    def test_rollback_restores_existing_files_removes_only_new_asset_and_is_idempotent(self):
+    def test_rollback_restores_css_preserves_existing_navigation_and_is_idempotent(self):
         before = self.snapshot()
         self.assertEqual(self.execute('apply')['status'], 'success')
         rolled = self.execute('rollback')
         self.assertEqual(rolled['status'], 'success')
         self.assertTrue(rolled['checks']['rollback_completed'])
         self.assertEqual(before, self.snapshot())
-        self.assertFalse((self.plugin / FILES[0]).exists())
+        self.assertEqual((self.plugin / FILES[0]).read_bytes(), self.originals[FILES[0]])
         self.assertTrue((self.plugin / 'assets').is_dir())
         retried = self.execute('rollback')
         self.assertEqual(retried['status'], 'success')
@@ -127,8 +127,8 @@ class AccountNavigationDeploymentTests(unittest.TestCase):
         self.assertFalse(retried['checks']['lock_owned'])
         self.assertEqual(before, self.snapshot())
 
-    def test_baseline_css_or_ui_drift_is_not_overwritten(self):
-        for name in FILES[1:]:
+    def test_baseline_css_script_or_ui_drift_is_not_overwritten(self):
+        for name in FILES:
             with self.subTest(name=name):
                 (self.plugin / name).write_bytes(self.originals[name] + b'\n/* New live edit. */\n')
                 before = self.snapshot()
@@ -139,12 +139,12 @@ class AccountNavigationDeploymentTests(unittest.TestCase):
                 (self.plugin / name).write_bytes(self.originals[name])
         self.assertFalse((self.home / '.petish-account-navigation-releases').exists())
 
-    def test_unknown_existing_new_asset_or_payload_tamper_refuses(self):
+    def test_script_drift_or_payload_tamper_refuses(self):
         (self.plugin / FILES[0]).write_text('// Existing human script.\n')
         before = self.snapshot()
         self.assertEqual(self.execute('apply')['category'], 'drift')
         self.assertEqual(before, self.snapshot())
-        (self.plugin / FILES[0]).unlink()
+        (self.plugin / FILES[0]).write_bytes(self.originals[FILES[0]])
         target = self.payload / FILES[0]
         target.write_bytes(target.read_bytes() + b'// Unexpected payload.\n')
         self.assertEqual(self.execute('apply')['category'], 'payload')
@@ -166,7 +166,7 @@ class AccountNavigationDeploymentTests(unittest.TestCase):
         self.assertEqual(before, self.snapshot())
         self.assertEqual((self.home / '.petish-account-navigation-releases/deploy.lock/owner').read_text(), self.run_id + '\n')
 
-    def test_partial_asset_write_failure_automatically_rolls_back_before_ui_change(self):
+    def test_failure_after_css_write_automatically_restores_current_live_state(self):
         source = SCRIPT.read_text()
         statement = "navigation_release_atomic($plugin.'/'.$name,file_get_contents($payload.'/'.$name),0644,$run);"
         self.assertEqual(source.count(statement), 1)

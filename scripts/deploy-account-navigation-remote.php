@@ -5,12 +5,13 @@ ini_set('display_errors','0'); ini_set('log_errors','0'); error_reporting(0);
 
 const PETISH_NAVIGATION_FILES = [
     'assets/account-navigation.js'=>'5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75',
-    'assets/passport.css'=>'5afea46cec5eb11e35048180b00b934b1130439e5928f997769feb5d04155882',
+    'assets/passport.css'=>'e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076',
     'includes/class-petish-passport-ui.php'=>'d5abfc66c9735470b7ed7e3dae728221bb28c78636b06e4bba5efa56dbfe58d5',
 ];
 const PETISH_NAVIGATION_BASELINES = [
-    'assets/passport.css'=>'c5de4283709cfe6a923db4e8fbefca53a341d21c8e9cad0dcbea18bbe5f98ec1',
-    'includes/class-petish-passport-ui.php'=>'018af0b525df449bfb11c959cd319c5c90b65c6e0f04cf2e283489d16c53cf26',
+    'assets/account-navigation.js'=>'5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75',
+    'assets/passport.css'=>'5afea46cec5eb11e35048180b00b934b1130439e5928f997769feb5d04155882',
+    'includes/class-petish-passport-ui.php'=>'d5abfc66c9735470b7ed7e3dae728221bb28c78636b06e4bba5efa56dbfe58d5',
 ];
 
 function navigation_release_fail() { throw new RuntimeException(); }

@@ -204,6 +204,15 @@ async function verifyMobile(page, width, nativeLinks) {
     const toggle = document.querySelector(selector);
     return toggle && getComputedStyle(toggle).display !== 'none' && toggle.getAttribute('aria-expanded') === 'false';
   }, `${NAV} ${TOGGLE}`);
+  // Allow responsive layout to settle, then measure the rendered title/content gap.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const spacing = await navigation.evaluate(node => {
+    const main = document.getElementById('main'), title = document.querySelector('#page .page-title');
+    if (!main || !title || !title.getClientRects().length) return false;
+    const gap = node.getBoundingClientRect().top - title.getBoundingClientRect().bottom;
+    return Math.abs(parseFloat(getComputedStyle(main).paddingTop) - 24) < .1 && gap >= 23 && gap <= 26;
+  });
+  requireCheck(spacing, 'mobile');
   const current = nativeLinks.find(link => link.active)?.text;
   requireCheck(!!current && (await navigation.locator(CURRENT).textContent())?.trim() === current, 'mobile');
   const box = await navigation.boundingBox(), buttonBox = await toggle.boundingBox();

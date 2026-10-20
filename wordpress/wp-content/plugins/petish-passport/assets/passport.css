@@ -126,6 +126,8 @@ body.woocommerce-account .woocommerce-MyAccount-navigation{padding:0;box-sizing:
 /* Keep native links and desktop navigation; collapse only after JS enhances mobile. */
 body.woocommerce-account .pp-account-navigation-toggle{display:none}
 @media(max-width:991px){
+/* Keep the account menu close to the title banner on smaller screens. */
+body#the7-body.woocommerce-account #main{padding-top:24px}
 body.woocommerce-account .woocommerce-MyAccount-navigation.pp-account-navigation{position:relative;z-index:2}
 body.woocommerce-account .pp-account-navigation .pp-account-navigation-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;box-sizing:border-box;min-height:64px;margin:0;padding:12px 16px;border:1px solid var(--pp-border);border-radius:16px;background:var(--pp-surface);color:var(--pp-text);font:500 .9375rem/1.4 var(--font-label,sans-serif);text-align:start;cursor:pointer;box-shadow:none}
 body.woocommerce-account .pp-account-navigation-text{display:grid;gap:2px;min-width:0}

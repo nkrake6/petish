@@ -5,6 +5,10 @@ On screens up to 991px wide, the account links use a disclosure button showing
 links, including My Pets, For my pet and Log out. Desktop keeps the existing
 sidebar. With JavaScript disabled, all links remain visible.
 
+Mobile account pages use 24px of space above the content instead of The7's
+larger general page padding. The title banner and desktop spacing retain their
+existing styles.
+
 The Passport plugin enqueues `assets/account-navigation.js` on account pages.
 The script enhances the native navigation rather than replacing its links or
 logout nonce. Labels are localized by `Petish_Passport_UI::enqueue()`. Styles use
