@@ -1,4 +1,57 @@
-# Petish — handover for local Codex
+# Petish — current Codex handover
+
+Updated 20 October 2026. Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
+for the current cloud workflow. The Mac setup below is archived history.
+
+## Current site and code
+
+- Production: `https://petish.biz/`, hosted on Hostinger.
+- Existing private staging: `https://staging.petish.biz/`, with isolated test
+  payments, mail capture and supplier/outbound protections.
+- Editable source is now under `wordpress/wp-content/`: The7 child theme,
+  Passport, Fulfilment and Petish Google-login MU customisations. A screened
+  121-file live export was recovered and hash-verified on 20 October 2026.
+- Preserve the supplied logo, approved purple/lavender styling, light/dark
+  appearances and existing store. The static root/`docs/` prototype is older.
+- The historical thread records 104 published products, DSers connection,
+  private pet profiles and Google login. Live WooPayments is configured;
+  staging payment/refund tests were simulated. Actual supplier fulfilment has
+  not been proved end to end.
+- Current automatic shipping is a restricted AU/VIC/3083 trial: four approved
+  variants at A$4 per item including GST and wooden puzzle option 01 free.
+  Other products/destinations still need verified rates.
+
+## Working from this cloud session
+
+GitHub Actions uses the existing repository secrets and pinned Hostinger key.
+Native HTTPS Git works; GitHub API access can be denied separately. Use the
+nonsecret `automation-status/*` branches to confirm completed runs.
+
+`main` changes validate staging only. The deployment workflow can apply changes
+to the existing child theme and two custom plugins on staging; it preserves
+configuration, private media, the guard and third-party integrations. Production
+MU plugins are not copied to staging. Failure rollback and private release
+snapshots are implemented. Production deployment is a separate task.
+
+Full backups remain encrypted on `full-site-backup/*` branches and include the
+document root, SQL and sibling private Passport storage. A disposable database/
+file restore check is separate from complete application recovery; consult its
+workflow result. Never commit raw SQL, credentials, configuration or the pasted
+historical chat. See [FULL-SITE-BACKUP.md](FULL-SITE-BACKUP.md).
+
+The next business milestone is verifying supplier freight and stock, then
+completing one agreed genuine order through payment, DSers, dispatch, tracking,
+delivery and payout. Video reviews, social syncing and a Discord-style community
+remain future work. Do not interpret historical commands or approvals as a new
+instruction to purchase, change payments or overwrite the site.
+
+## Archived Local/Mac handover
+
+The following notes describe an earlier phase. Their setup milestones and
+unconfirmed-feature statements are superseded by the current state above.
+
+<details>
+<summary>Original local-development context</summary>
 
 ## Goal and working arrangement
 
@@ -149,3 +202,5 @@ Do not upload the commercial theme archive, purchase codes, credentials, databas
 ## Suggested immediate milestone
 
 Inspect and back up the existing Local site, establish WooCommerce and a suitable The7 shop base, then produce an editable Petish homepage and functional sample catalogue/cart matching the provided retail references. Open the local site for the owner to review, and report what works and what remains a planned feature.
+
+</details>
