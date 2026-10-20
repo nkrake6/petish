@@ -1,0 +1,14 @@
+{
+  "AUTOMATION_KIND": "mail",
+  "AUTOMATION_RESULT": "failure",
+  "GITHUB_RUN_ID": "39360071271",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "dbcdb7c46c5becb7400cbb5a8800809eee140a0e",
+  "generated_utc": "2026-10-20T02:39:25.811637+00:00",
+  "mail_check": {
+    "configured": false,
+    "smtp_authentication_verified": false,
+    "message_submitted": false,
+    "failure_category": "smtp_authentication"
+  }
+}
