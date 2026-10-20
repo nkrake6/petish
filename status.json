@@ -1,0 +1,13 @@
+{
+  "status": "success",
+  "scope": "public-static-concepts-only",
+  "source_sha": "5a0255b96591df8840f19b0371938b5ef87f1661",
+  "expected_file_count": 16,
+  "verified_file_count": 16,
+  "attempt_count": 4,
+  "all_public_files_match_git": true,
+  "pages_match_git": true,
+  "pet_images_and_logo_match_git": true,
+  "screenshots_match_git": true,
+  "photo_credits_match_git": true
+}
