@@ -1,6 +1,6 @@
 # Petish — current Codex handover
 
-Updated 20 October 2026. Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
+Updated 21 October 2026 (Australia/Melbourne). Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
 for the current cloud workflow. The Mac setup below is archived history.
 
 ## Current site and code
@@ -20,6 +20,12 @@ for the current cloud workflow. The Mac setup below is archived history.
 - Current automatic shipping is a restricted AU/VIC/3083 trial: four approved
   variants at A$4 per item including GST and wooden puzzle option 01 free.
   Other products/destinations still need verified rates.
+- Mobile account navigation is a dropdown, with 24px spacing below the banner.
+  Both changes are live; see [account navigation](docs/ACCOUNT-NAVIGATION.md).
+- The Hot-items subtitle has been removed. The separate free-delivery section
+  and approved van badge are deployed, but the section stays hidden until
+  products have confirmed supplier-free evidence and matching zero checkout
+  delivery. See [homepage release](docs/HOMEPAGE-FREE-DELIVERY.md).
 
 ## Working from this cloud session
 
@@ -74,9 +80,38 @@ review copies and the desktop/mobile gallery are in `docs/email-preview/`.
 Use `assets/brand/repaired/combined-light-v2.png` (1536×1024) for the full animal
 logo. The older `combined_light_landscape.png` has damaged lettering transparency
 and must not be reused. Public previews use `petish-logo-v2.png` and versioned
-links. Production email appearance is unchanged. See
+links. The shared branding is now live: production release `39407138767`
+passed native order/account checks, public health checks and rollback-snapshot
+verification. Post-release backup `39407370013-1` and full application recovery
+`39407722067` passed. See
 [EMAIL-BRANDING.md](EMAIL-BRANDING.md) for the template locations, preview-only
-copy differences and separate live-release scope.
+copy differences and verified live-release scope.
+
+The guarded tracking rehearsal passed in `39442113022-1` on source `ca1b800`.
+It suppressed duplicate parcel/email replays, rejected blank numbers and
+destructive replacement, and required the synthetic order's item quantities
+before completion. Two parcels and branded partial/completed messages were
+verified. This is an isolated AST receiver proof: AST and the guard were not
+activated in production, and an actual DSers inbound update remains unverified.
+See [TRACKING-READINESS.md](TRACKING-READINESS.md).
+
+The owner wants automatic delivery calculation, not a return to manual customer
+quote requests. Supplier cost evidence remains the missing input. The current
+per-unit trial must not be expanded by dividing an exact-quantity supplier quote
+and assuming that unit cost applies to every quantity. The proposed rate-data,
+cost-sheet and parcel-notification design is in
+[DELIVERY-OPERATIONS-PLAN.md](DELIVERY-OPERATIONS-PLAN.md).
+
+Petish Fulfilment 0.5.0 now includes
+[WooCommerce → Delivery cost sheet](https://petish.biz/wp-admin/admin.php?page=petish-delivery-cost-sheet).
+Production release `39443058877-1` on `278dbf1` deployed the two new classes and
+bootstrap after staging proof `39442751242-1` on `ba45b43`. All 26 native checks
+passed in both environments, public health passed, and protected data/files
+were preserved. The tool downloads catalogue-bound CSV templates and previews
+supplier freight, FX, fees and contribution. It stores no uploaded costs and
+does not change active rates, prices, orders or supplier connections. Keep
+completed working CSVs private. An exact-quantity supplier quote must retain its
+quantity and destination scope.
 
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,

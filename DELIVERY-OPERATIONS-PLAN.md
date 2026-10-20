@@ -54,8 +54,14 @@ purchase samples, or subscribe to a service merely from this plan.
 
 ## The private delivery cost sheet
 
-The first implementation is a WooCommerce administration tool for downloading
-a catalogue-bound CSV template and previewing completed costing rows. Cost
+The tool is live at
+[WooCommerce → Delivery cost sheet](https://petish.biz/wp-admin/admin.php?page=petish-delivery-cost-sheet).
+Download a current product template, fill in the exact supplier quote and cost
+inputs, then upload the completed CSV to preview the results. Keep the working
+CSV privately; uploaded costs are not stored between requests.
+
+This WooCommerce administration tool downloads a catalogue-bound CSV template
+and previews completed costing rows. Cost
 inputs stay in the private request/download; they are not published to Git,
 sent to suppliers, or saved as active checkout rates.
 
@@ -124,10 +130,13 @@ so blind retries cannot guarantee exactly-once inbox delivery.
 
 ### Work that can be proved before the real sample shipment
 
-The existing isolated AST rehearsal can be extended with a Petish guard around
-the tested REST route. It must run after native permission checks, suppress
-exact replays, reject invalid/destructive input, and require trustworthy item
-allocation before completing an order.
+The isolated AST rehearsal now includes a Petish guard around the tested REST
+route. Hosted run
+[`39442113022`](https://github.com/nkrake6/petish/actions/runs/39442113022)
+passed: it runs after native permission checks, suppresses exact replays,
+rejects invalid/destructive input, and requires the fixture's actual item
+quantities before completing its order. Both branded shipment messages and
+the two-parcel account display passed.
 
 This guard is an isolated receiver proof. It does not activate AST in
 production and does not establish that DSers uses that REST route. Direct
@@ -156,8 +165,19 @@ by this work.
 
 ## Release boundary
 
-The cost-sheet tool may be released after native staging checks because it
-does not change selling prices, delivery charges, orders, or integrations.
+The cost-sheet tool was released in
+[`39443058877`](https://github.com/nkrake6/petish/actions/runs/39443058877)
+from release commit `278dbf1`, after native staging proof `39442751242`.
+Exactly three application files changed. All 26 native checks passed in staging
+and production, including permissions, catalogue identity, CSV handling,
+calculations and unchanged orders, accounts, stock, prices and settings.
+Public page/logo checks passed, protected files were preserved, and the release
+was committed without rollback. The reviewed backup and private rollback
+snapshot were retained.
+
+Local verification also passed 67 cost-sheet functional checks, 150 independent
+decimal comparisons and 25 release/verifier boundary tests.
+
 Activating supplier-derived rates requires verified rate data and the matching
 quantity-aware checkout behavior.
 
