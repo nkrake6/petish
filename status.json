@@ -1,0 +1,43 @@
+{
+  "status": "failure",
+  "category": "health",
+  "mode": "inspect",
+  "run_id": "39405118350-1",
+  "source_commit": "801c01b332160866071682fa4418b174d21390ae",
+  "tested_source_commit": "86e315f3daf172e1c9faee9a62d768b48f634bca",
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "logo_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false
+      },
+      "changed_file_count": 6
+    },
+    "health": {
+      "status": "failure",
+      "category": "http",
+      "checks": {
+        "homepage_http_verified": true,
+        "shop_http_verified": true,
+        "product_http_verified": true,
+        "cart_http_verified": true,
+        "account_http_verified": true,
+        "approved_logo_http_verified": false
+      }
+    }
+  }
+}
