@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "inspect",
   "run_id": "39442331512-1",
   "source_commit": "ba45b438cb4f4139ed5fc890dd19ace1a8a15d78",
-  "generated_utc": "2026-10-20T14:46:49.809789+00:00",
+  "generated_utc": "2026-10-20T14:46:51.539740+00:00",
   "source_hashes": {
     "includes/class-petish-delivery-cost-sheet-admin.php": "4abd44f9544ce6f911af4cf33ba0197029d1f420d00595260abde8044742983e",
     "includes/class-petish-delivery-cost-sheet.php": "f994698c143841cc7cf0a741e46d13cd5c7194ca1370e6eafe16f20b084f4d0d",
