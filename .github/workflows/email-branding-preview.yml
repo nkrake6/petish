@@ -2,6 +2,13 @@ name: Preview Petish staging order email branding
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/email-branding-preview.yml
+      - scripts/hostinger-email-preview.sh
+      - scripts/email-branding-preview-remote.php
+      - scripts/validate-email-previews.py
   workflow_run:
     workflows: [Check or deploy Petish staging custom code]
     branches: [staging]
@@ -17,7 +24,7 @@ concurrency:
 jobs:
   preview:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_dispatch' || github.event_name == 'push' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'staging' &&
        github.event.workflow_run.head_repository.full_name == github.repository)

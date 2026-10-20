@@ -49,6 +49,13 @@ result={'status':os.environ['PETISH_PREVIEW_STATUS'],'category':os.environ['PETI
 if raw.get('category') in module.CATEGORIES|{'safe_result_unavailable'}:result['driver_category']=raw['category']
 if raw.get('validation_stage') in {'input','schema','status_category','run_id','checks','account','native','structure','provider_hosts','phase'}:
  result['validation_stage']=raw['validation_stage']
+try:
+ html_report=json.loads((root/'html-validation.private.json').read_text())
+ if html_report.get('status')=='failure' and html_report.get('category') in {
+  'input','css','html_structure','active_content','attributes','links','images',
+  'synthetic_content','size','sensitive_content','filesystem','encoding'}:
+  result['html_validation_category']=html_report['category']
+except (OSError,ValueError,TypeError):pass
 (root/'public/status.json').write_text(json.dumps(result,indent=2)+'\n')
 PY
     export GIT_INDEX_FILE="$work/publication.index"
