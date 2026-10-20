@@ -1,0 +1,9 @@
+{
+  "status": "unavailable",
+  "category": "prerequisites",
+  "run_id": "39412073787-1",
+  "source_commit": "88a3f7401aaf242eaece03cff6bca124e0387a63",
+  "checks": {},
+  "driver_category": "safe_result_unavailable",
+  "validation_stage": "input"
+}
