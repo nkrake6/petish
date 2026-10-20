@@ -121,7 +121,7 @@ function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = f
         assert.equal(url.searchParams.get('__experimental_calc_totals'), 'true');
         assert.equal(request.headers()['x-wp-nonce'], 'fixturewp0');
         state.totalsUpdates++;
-        return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"order_id":4999}' });
       }
       const body = JSON.parse(request.postData());
       state.attempts.push(body.fixture_number);
@@ -246,5 +246,8 @@ test('native api-fetch totals updates remain separate from both real test-paymen
   assert.equal(result.paid_receipt_verified, true);
   assert.equal(result.payment_attempts, 2);
   assert.equal(fixture.state.totalsUpdates, 2);
+  assert.equal(result.declined_order_id, 5001);
+  assert.deepEqual(result.created_order_ids, [5001]);
+  assert.equal(result.same_order_retried, true);
   assert.deepEqual(fixture.state.attempts, ['4000000000000002', '4242424242424242']);
 });

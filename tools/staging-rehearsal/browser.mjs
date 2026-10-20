@@ -588,7 +588,8 @@ export async function run(input, chromium) {
     checkout_rendered: false, shipping_verified: false, test_publishable_key_verified: false,
     decline_verified: false, paid_receipt_verified: false, native_checkout_used: true,
     unsafe_request_blocked: false, payment_attempts: 0 };
-  const state = { testKeyObserved: false, liveKeyObserved: false, declined: false, orderIds: [] };
+  const state = { testKeyObserved: false, liveKeyObserved: false, declined: false, orderIds: [],
+    paymentRequests: new WeakSet() };
   let stage = 'browser', browser;
   try {
     browser = await chromium.launch({ headless: true });
@@ -628,6 +629,7 @@ export async function run(input, chromium) {
           await route.abort('blockedbyclient');
           return;
         }
+        if (!policy.updateOnly) state.paymentRequests.add(request);
       }
       await route.continue();
     });
@@ -646,7 +648,8 @@ export async function run(input, chromium) {
             result.stripe_endpoint = stripeEndpoint(url.href);
           }
           if (data?.error?.code === 'card_declined') state.declined = true;
-        } else if (url.origin === ORIGIN && /\/wc\/store\/v1\/checkout(?:[/?]|$)/.test(url.href)) {
+        } else if (url.origin === ORIGIN && /\/wc\/store\/v1\/checkout(?:[/?]|$)/.test(url.href)
+            && state.paymentRequests.has(response.request())) {
           const data = await response.json();
           if (Number.isSafeInteger(data?.order_id) && data.order_id > 0 && !state.orderIds.includes(data.order_id)) {
             state.orderIds.push(data.order_id);
