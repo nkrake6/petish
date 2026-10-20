@@ -1,0 +1,33 @@
+{
+  "status": "success",
+  "category": "complete",
+  "run_id": "39378235380-1",
+  "source_commit": "0cab0c84665baaf0c48507551fdbc722c0498b6b",
+  "checks": {
+    "database_separate": true,
+    "runtime_database_staging": true,
+    "environment_staging": true,
+    "woocommerce_test_mode": true,
+    "wcpay_dev_mode": true,
+    "account_is_live": false,
+    "guard_runtime_verified": true,
+    "suppliers_blocked": true,
+    "mail_capture_verified": true,
+    "webhooks_blocked": true,
+    "only_allowlisted_plugins": true,
+    "no_active_webhooks": true,
+    "all_http_forced_blocked": true,
+    "email_preview_unsaved_synthetic_order": true,
+    "email_preview_native_renderer": true,
+    "email_preview_branding_logo_present": true,
+    "email_preview_branding_palette_present": true,
+    "email_preview_native_order_details_present": true,
+    "email_preview_html_sanitized": true,
+    "email_preview_synthetic_content_only": true,
+    "email_preview_four_types_rendered": true,
+    "email_preview_no_order_records_created": true,
+    "email_preview_stock_unchanged": true,
+    "email_preview_rendered": true
+  },
+  "driver_category": "complete"
+}
