@@ -19,6 +19,7 @@ $petish_home_pets     = $petish_home_passport ? Petish_Passport_UI::url() : '';
 $petish_home_images   = get_stylesheet_directory_uri() . '/assets/images/';
 $petish_home_products = array();
 $petish_home_hot      = array();
+$petish_home_free     = array();
 $petish_home_photos   = array(
     array( 'slug' => 'rabbit', 'image' => 'rabbit-v6.webp', 'width' => 2400, 'height' => 1597, 'name' => 'Rabbits', 'alt' => 'Fluffy white lop-eared rabbit resting on a green lawn', 'author' => 'Kamil Klyta', 'source' => 'https://unsplash.com/photos/a-small-white-rabbit-sitting-on-top-of-a-lush-green-field-DibXE-TND1o', 'license_name' => 'Unsplash License', 'license_url' => 'https://unsplash.com/license', 'changes' => 'Resized and converted to WebP; displayed horizontally mirrored with CSS.' ),
     array( 'slug' => 'guinea-pig', 'image' => 'guinea-pig-v6.webp', 'width' => 2400, 'height' => 1347, 'name' => 'Guinea pigs', 'alt' => 'Three guinea pigs nestled together on a soft cream blanket', 'author' => 'Kayl Photo', 'source' => 'https://unsplash.com/photos/three-cute-guinea-pigs-are-posing-for-the-camera-3HfmW2Bjqg8', 'license_name' => 'Unsplash License', 'license_url' => 'https://unsplash.com/license' ),
@@ -44,13 +45,19 @@ if ( $petish_home_commerce ) {
             $petish_home_products[] = $petish_home_product;
         }
     }
-    if ( function_exists( 'petish_supplier_hot_badge' ) ) {
-        // Reuse the badge's dated evidence rule, then rank eligible public products.
+    if ( function_exists( 'petish_supplier_hot_badge' ) || function_exists( 'petish_supplier_free_delivery_eligible' ) ) {
+        // Inspect public products once; each section keeps its own eligibility rule.
         $petish_home_hot_args = array_replace( $petish_home_product_args, array( 'limit' => -1, 'orderby' => 'ID', 'order' => 'ASC' ) );
         foreach ( wc_get_products( $petish_home_hot_args ) as $petish_home_product ) {
-            if ( $petish_home_product instanceof WC_Product && 'publish' === $petish_home_product->get_status()
-                && $petish_home_product->is_visible() && '' !== petish_supplier_hot_badge( $petish_home_product ) ) {
+            if ( ! $petish_home_product instanceof WC_Product || 'publish' !== $petish_home_product->get_status()
+                || ! $petish_home_product->is_visible() ) {
+                continue;
+            }
+            if ( function_exists( 'petish_supplier_hot_badge' ) && '' !== petish_supplier_hot_badge( $petish_home_product ) ) {
                 $petish_home_hot[] = $petish_home_product;
+            }
+            if ( function_exists( 'petish_supplier_free_delivery_eligible' ) && petish_supplier_free_delivery_eligible( $petish_home_product ) ) {
+                $petish_home_free[] = $petish_home_product;
             }
         }
         usort( $petish_home_hot, static function ( $left, $right ) {
@@ -59,6 +66,10 @@ if ( $petish_home_commerce ) {
             return 0 !== $order ? $order : $left->get_id() <=> $right->get_id();
         } );
         $petish_home_hot = array_slice( $petish_home_hot, 0, 4 );
+        if ( function_exists( 'petish_supplier_free_delivery_compare' ) ) {
+            usort( $petish_home_free, 'petish_supplier_free_delivery_compare' );
+            $petish_home_free = array_slice( $petish_home_free, 0, 4 );
+        }
     }
 }
 
@@ -90,7 +101,7 @@ $petish_home_render_product = static function ( $product ) use ( $petish_home_ic
     ?>
     <article class="ph-product">
         <a class="ph-product-link" href="<?php echo esc_url( $product->get_permalink() ); ?>">
-            <span class="ph-product-image"><?php echo wp_kses_post( $product->get_image( 'woocommerce_thumbnail', array( 'loading' => 'lazy', 'decoding' => 'async' ) ) ); ?></span>
+            <span class="ph-product-image"><?php echo wp_kses_post( $product->get_image( 'woocommerce_thumbnail', array( 'loading' => 'lazy', 'decoding' => 'async' ) ) ); ?><?php if ( function_exists( 'petish_supplier_free_delivery_badge' ) ) { echo wp_kses_post( petish_supplier_free_delivery_badge( $product ) ); } ?></span>
             <div class="ph-product-body">
                 <?php if ( class_exists( 'Petish_Catalogue' ) && method_exists( 'Petish_Catalogue', 'reviews_visible' ) && Petish_Catalogue::reviews_visible() ) : ?>
                     <span class="ph-product-review"><?php echo esc_html( Petish_Catalogue::label( $product, '' ) ); ?></span>
@@ -201,9 +212,20 @@ get_header();
 
         <?php if ( $petish_home_hot ) : ?>
             <section id="petish-hot-items" class="ph-section ph-collection ph-hot-items" aria-labelledby="petish-hot-items-title">
-                <div class="ph-section-heading"><div><h2 id="petish-hot-items-title"><?php esc_html_e( 'Hot items', 'petish' ); ?></h2><p><?php esc_html_e( 'Selected by supplier-reported orders.', 'petish' ); ?></p></div><a class="ph-text-link" href="<?php echo esc_url( add_query_arg( 'orderby', 'petish_supplier_popularity', $petish_home_shop ) ); ?>"><?php esc_html_e( 'Browse popular products', 'petish' ); ?><?php echo $petish_home_icon( 'arrow' ); ?></a></div>
+                <div class="ph-section-heading"><div><h2 id="petish-hot-items-title"><?php esc_html_e( 'Hot items', 'petish' ); ?></h2></div><a class="ph-text-link" href="<?php echo esc_url( add_query_arg( 'orderby', 'petish_supplier_popularity', $petish_home_shop ) ); ?>"><?php esc_html_e( 'Browse popular products', 'petish' ); ?><?php echo $petish_home_icon( 'arrow' ); ?></a></div>
                 <div class="ph-product-grid">
                     <?php foreach ( $petish_home_hot as $petish_home_product ) : ?>
+                        <?php $petish_home_render_product( $petish_home_product ); ?>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
+        <?php if ( $petish_home_free ) : ?>
+            <section id="petish-free-delivery" class="ph-section ph-collection ph-free-delivery" aria-labelledby="petish-free-delivery-title">
+                <div class="ph-section-heading"><div><h2 id="petish-free-delivery-title"><?php esc_html_e( 'Free delivery favourites', 'petish' ); ?></h2><p><?php echo esc_html( petish_supplier_free_delivery_destination_label() ); ?></p></div></div>
+                <div class="ph-product-grid">
+                    <?php foreach ( $petish_home_free as $petish_home_product ) : ?>
                         <?php $petish_home_render_product( $petish_home_product ); ?>
                     <?php endforeach; ?>
                 </div>

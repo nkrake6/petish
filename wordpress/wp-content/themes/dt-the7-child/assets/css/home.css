@@ -116,6 +116,9 @@ body.home.petish-site #footer .ph-photo-credits li { margin: 0; font: inherit; }
 .petish-home .ph-product-image { position: relative; display: block; inline-size: 100%; min-inline-size: 0; flex: 0 0 auto; aspect-ratio: 1; padding: 16px; background: var(--color-surface); }
 .petish-home .ph-product-image > img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
 .petish-home .ph-product-image > .petish-hot-badge { top: 12px; right: 12px; max-inline-size: calc(100% - 24px); white-space: nowrap; }
+.petish-home .ph-product-image > .petish-free-delivery-badge { position: absolute; right: 8px; bottom: 8px; width: min(144px, calc(100% - 16px)); height: auto; padding: 0; margin: 0; line-height: 0; }
+.petish-home .petish-free-delivery-badge img { display: block; width: 100%; height: auto; border-radius: 0; }
+.petish-home .ph-free-delivery .ph-section-heading p { margin-top: 8px; color: var(--color-text-muted); font-size: .875rem; }
 .petish-home .ph-product-body { display: flex; flex-direction: column; flex: 1 1 auto; padding: 21px; border-top: 1px solid var(--color-border); }
 .petish-home .ph-product-review { color: var(--color-text-muted); font: 400 .75rem/1.5 var(--font-label); margin-bottom: 8px; }
 .petish-home .ph-product h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; min-block-size: 3em; max-block-size: 3em; font: 600 1rem/1.5 var(--font-heading); margin-bottom: 12px; letter-spacing: -.02em; text-wrap: wrap; }
