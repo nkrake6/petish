@@ -1,0 +1,179 @@
+name: Inspect Petish email readiness without sending mail
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/inspect-email-settings.yml
+      - scripts/inspect-email-settings-remote.sh
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-email-readiness
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Prepare read-only DNS and SSH tools
+        id: prepare
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          umask 077
+          bash scripts/hostinger-connection-check.sh
+          if ! command -v sshpass >/dev/null 2>&1 || ! command -v dig >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass dnsutils
+          fi
+      - name: Inspect public DNS and official SMTP documentation
+        id: public
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import concurrent.futures, json, os, re, shlex, subprocess, urllib.request
+          from pathlib import Path
+          def dns(name, kind):
+              try:
+                  result = subprocess.run(['dig', '+short', '+time=3', '+tries=1', kind, name], capture_output=True, text=True, timeout=6)
+                  if result.returncode or len(result.stdout) > 16384:
+                      return []
+                  return [line.strip() for line in result.stdout.splitlines() if line.strip() and not line.startswith(';')][:16]
+              except (OSError, subprocess.TimeoutExpired):
+                  return []
+          def txt(name):
+              values = []
+              for line in dns(name, 'TXT'):
+                  try:
+                      value = ''.join(shlex.split(line))
+                      if len(value) <= 2048 and all(32 <= ord(c) < 127 for c in value): values.append(value)
+                  except ValueError: pass
+              return values
+          def cnames(name):
+              return [value.lower().rstrip('.') for value in dns(name, 'CNAME') if re.fullmatch(r'[A-Za-z0-9_.-]+\.?', value)]
+          mx = []
+          for line in dns('petish.biz', 'MX'):
+              match = re.fullmatch(r'([0-9]{1,5})\s+([A-Za-z0-9_.-]+)\.?', line)
+              if match: mx.append({'priority': int(match[1]), 'host': match[2].lower().rstrip('.')})
+          hosts = [record['host'] for record in mx]
+          provider = 'unverified'
+          if hosts and all(re.fullmatch(r'mx[0-9]+\.hostinger\.com', host) for host in hosts): provider = 'hostinger_email'
+          elif hosts and all(re.fullmatch(r'mx[0-9]+\.titan\.email', host) for host in hosts): provider = 'titan_email'
+          elif hosts: provider = 'other_or_mixed'
+          dkim = {}
+          for selector in ['hostingermail-a', 'hostingermail-b', 'hostingermail-c', 'default']:
+              name = selector + '._domainkey.petish.biz'
+              values = txt(name)
+              dkim[selector] = {'cname': cnames(name), 'txt_present': bool(values), 'dkim_txt_present': any('v=DKIM1' in value for value in values)}
+          urls = [
+              'https://support.hostinger.com/en/articles/1583219-how-to-set-up-hostinger-email-on-your-applications-and-devices',
+              'https://support.hostinger.com/en/articles/4767597-how-to-get-email-account-configuration-details-for-hostinger-email',
+              'https://support.hostinger.com/en/articles/1583357-what-are-the-limits-of-hostinger-email',
+              'https://support.hostinger.com/en/articles/4489824-how-to-set-up-titan-email-on-your-applications-and-devices'
+          ]
+          def documentation(url):
+              output = {'url': url, 'accessible': False, 'recognized_smtp_hosts': [], 'recognized_ports': []}
+              try:
+                  request = urllib.request.Request(url, headers={'User-Agent': 'Petish read-only email readiness audit'})
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      final = urllib.parse.urlsplit(response.url)
+                      if final.scheme != 'https' or not (final.hostname == 'hostinger.com' or final.hostname.endswith('.hostinger.com')): return output
+                      raw = response.read(3145729)
+                      if len(raw) > 3145728: return output
+                      text = raw.decode(errors='replace')
+                      output.update(accessible=True, url=response.url)
+                      output['recognized_smtp_hosts'] = sorted(set(re.findall(r'\bsmtp\.(?:hostinger\.com|titan\.email)\b', text, re.I)))
+                      output['recognized_ports'] = [port for port in [465,587] if re.search(r'(?<![0-9])'+str(port)+r'(?![0-9])',text)]
+              except Exception: pass
+              return output
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              docs = list(pool.map(documentation, urls))
+          report = {'dns': {'mx': mx, 'provider_from_mx': provider,
+                    'spf': [value for value in txt('petish.biz') if value.lower().startswith('v=spf1')],
+                    'dmarc': [value for value in txt('_dmarc.petish.biz') if value.lower().startswith('v=dmarc1')],
+                    'autodiscover_cname': cnames('autodiscover.petish.biz'), 'dkim': dkim}, 'official_documentation': docs}
+          path = Path(os.environ['RUNNER_TEMP']) / 'petish-email-public-network.json'
+          path.write_text(json.dumps(report, indent=2)+'\n')
+          PY
+      - name: Inspect existing mail configuration metadata without reading SMTP secrets
+        id: server
+        if: steps.prepare.outcome == 'success'
+        continue-on-error: true
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: |
+          set +x
+          set -euo pipefail
+          umask 077
+          source scripts/hostinger-ssh-common.sh
+          petish_prepare_ssh
+          "${petish_ssh[@]}" 'bash -s' < scripts/inspect-email-settings-remote.sh \
+            > "$RUNNER_TEMP/petish-email-private-server.json" 2> "$RUNNER_TEMP/petish-email-private.stderr"
+      - name: Publish sanitized readiness report to a separate branch
+        if: always()
+        env:
+          PUBLIC_RESULT: ${{ steps.public.outcome }}
+          SERVER_RESULT: ${{ steps.server.outcome }}
+          HAS_PETISH_SMTP_PASSWORD: ${{ secrets.PETISH_SMTP_PASSWORD != '' }}
+          HAS_HOSTINGER_SMTP_PASSWORD: ${{ secrets.HOSTINGER_SMTP_PASSWORD != '' }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          report = {'scope': 'read-only; no mail sent or account/site settings changed',
+                    'smtp_secret_presence': {'PETISH_SMTP_PASSWORD': os.environ['HAS_PETISH_SMTP_PASSWORD']=='true', 'HOSTINGER_SMTP_PASSWORD': os.environ['HAS_HOSTINGER_SMTP_PASSWORD']=='true'}}
+          if os.environ['PUBLIC_RESULT']=='success':
+              report.update(json.loads((root/'petish-email-public-network.json').read_text()))
+          else: report['public_audit']={'status':'unavailable','category':'public_lookup_failed'}
+          server={'status':'unavailable','category':'ssh_or_server_lookup_failed'}
+          if os.environ['SERVER_RESULT']=='success':
+              try:
+                  path=root/'petish-email-private-server.json'
+                  if path.stat().st_size>16384: raise ValueError()
+                  raw=json.loads(path.read_text())
+                  if set(raw)!={'status','sender','mail_plugins','smtp_constant_names','private_mailer'} or raw['status']!='success': raise ValueError()
+                  if set(raw['sender'])!={'address_option_present','name_option_present','address_is_orders_petish','name_is_petish'} or not all(type(value) is bool for value in raw['sender'].values()): raise ValueError()
+                  if set(raw['private_mailer'])!={'exists','regular_without_symlink','owner_only_permissions'} or not all(type(value) is bool for value in raw['private_mailer'].values()): raise ValueError()
+                  known={'wp-mail-smtp','easy-wp-smtp','fluent-smtp','post-smtp','smtp-mailer','wp-smtp','gosmtp','mailpoet','petish-mailer'}
+                  if not isinstance(raw['mail_plugins'],list) or len(raw['mail_plugins'])>len(known): raise ValueError()
+                  for plugin in raw['mail_plugins']:
+                      if set(plugin)!={'slug','active'} or plugin['slug'] not in known or type(plugin['active']) is not bool: raise ValueError()
+                  if not isinstance(raw['smtp_constant_names'],list) or len(raw['smtp_constant_names'])>100 or not all(isinstance(value,str) and re.fullmatch(r'(?:SMTP_[A-Z0-9_]+|WPMS_[A-Z0-9_]+|PETISH_[A-Z0-9_]*SMTP[A-Z0-9_]*)',value) for value in raw['smtp_constant_names']): raise ValueError()
+                  server=raw
+              except (OSError,ValueError,TypeError,KeyError): server={'status':'unavailable','category':'server_metadata_validation_failed'}
+          report['wordpress']=server
+          (root/'email-readiness.json').write_text(json.dumps(report,indent=2)+'\n')
+          PY
+          [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
+          blob=$(git hash-object -w "$RUNNER_TEMP/email-readiness.json")
+          tree=$(printf '100644 blob %s\temail-readiness.json\n' "$blob" | git mktree)
+          export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
+          export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+          export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          commit=$(printf 'Read-only Petish email readiness\n' | git commit-tree "$tree")
+          branch="email-readiness/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git push origin "$commit:refs/heads/$branch"
+          printf '[Email readiness report](https://github.com/%s/blob/%s/email-readiness.json)\n' "$GITHUB_REPOSITORY" "$branch" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove private runner data
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/petish-email-private-server.json" "$RUNNER_TEMP/petish-email-private.stderr" \
+            "$RUNNER_TEMP/petish-email-public-network.json" "$RUNNER_TEMP/email-readiness.json" \
+            "$RUNNER_TEMP/petish-verified-automation-host-keys" "$RUNNER_TEMP/petish-candidate-host-keys"
