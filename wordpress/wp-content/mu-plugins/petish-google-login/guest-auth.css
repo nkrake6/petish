@@ -1,0 +1,242 @@
+/* Guest account entry only; native WooCommerce forms and Nextend actions stay intact. */
+body#the7-body.petish-site.petish-guest-auth #content > .woocommerce {
+  inline-size: 100%;
+  max-inline-size: 1000px;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+body.petish-guest-auth .petish-auth-intro {
+  margin: 0 0 16px;
+  color: var(--color-text);
+  font: 600 1.125rem/1.5 var(--font-heading);
+  text-align: center;
+}
+
+body.petish-guest-auth .petish-auth-google {
+  inline-size: 100%;
+  max-inline-size: 320px;
+  margin-inline: auto;
+}
+
+body.petish-guest-auth .petish-auth-google .nsl-container-buttons {
+  padding: 0;
+}
+
+body.petish-guest-auth .petish-auth-google .nsl-container-buttons > a {
+  inline-size: 100%;
+  max-inline-size: 320px;
+  margin: 0;
+  border-radius: var(--radius-control);
+}
+
+body.petish-guest-auth .petish-auth-google .nsl-button-google {
+  min-block-size: 48px;
+  align-items: center;
+  border-radius: var(--radius-control);
+}
+
+body.petish-guest-auth .petish-google-login-help {
+  max-inline-size: 58ch;
+  margin: 12px auto 0;
+  color: var(--color-text-muted);
+  font: 400 .875rem/1.6 var(--font-body);
+  text-align: center;
+}
+
+body.petish-guest-auth .petish-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 26px 0;
+  color: var(--color-text-muted);
+  font: 500 .875rem/1.5 var(--font-label);
+}
+
+body.petish-guest-auth .petish-auth-divider::before,
+body.petish-guest-auth .petish-auth-divider::after {
+  content: "";
+  flex: 1;
+  block-size: 1px;
+  background: var(--color-border);
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 24px;
+  margin: 0;
+}
+
+body.petish-guest-auth #customer_login::before,
+body.petish-guest-auth #customer_login::after {
+  content: none;
+  display: none;
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login > :is(.u-column1,.u-column2) {
+  display: block;
+  float: none;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login > div > h2 {
+  margin: 0 0 22px;
+  color: var(--color-text);
+  font: 600 1.5rem/1.3 var(--font-heading);
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login form:is(.login,.register) {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
+  color: var(--color-text);
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login form .form-row {
+  display: block;
+  float: none;
+  width: 100%;
+  margin: 0 0 20px;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login form label:not(.woocommerce-form__label-for-checkbox) {
+  display: block;
+  margin: 0 0 8px;
+  color: var(--color-text);
+  font: 500 .875rem/1.5 var(--font-label);
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login input:is([type="text"],[type="email"],[type="password"]) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 11px 14px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: 400 1rem/1.5 var(--font-body);
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login .woocommerce-invalid input.input-text,
+body#the7-body.petish-site.petish-guest-auth #customer_login .woocommerce-invalid-required-field input.input-text,
+body#the7-body.petish-site.petish-guest-auth #customer_login input[aria-invalid="true"] {
+  border-color: var(--color-error);
+}
+
+body.petish-guest-auth #customer_login .password-input {
+  display: flex;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login .password-input input {
+  padding-inline-end: 48px;
+}
+
+body.petish-guest-auth #customer_login .show-password-input {
+  top: 50%;
+  right: 4px;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login form.login > .form-row:not(.form-row-wide) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-bottom: 0;
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login .woocommerce-form__label-for-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  margin: 0;
+  color: var(--color-text);
+  font: 400 .875rem/1.5 var(--font-body);
+  cursor: pointer;
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login .woocommerce-form__input-checkbox {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login form .button {
+  min-height: 46px;
+  margin: 0;
+  padding: 11px 20px;
+  border-radius: var(--radius-control);
+  font: 500 .875rem/1.5 var(--font-label);
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login .lost_password {
+  margin: 12px 0 0;
+  font: 400 .875rem/1.5 var(--font-body);
+}
+
+body.petish-guest-auth #customer_login .woocommerce-privacy-policy-text {
+  margin: 0 0 20px;
+  color: var(--color-text-muted);
+  font: 400 .875rem/1.6 var(--font-body);
+}
+
+body.petish-guest-auth #customer_login .woocommerce-privacy-policy-text p {
+  margin: 0;
+}
+
+body#the7-body.petish-site.petish-guest-auth #customer_login form.register > .form-row:last-child {
+  margin-bottom: 0;
+}
+
+body.petish-guest-auth #customer_login :is(.woocommerce-password-strength,.woocommerce-password-hint) {
+  margin-block: 8px 0;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 767px) {
+  body#the7-body.petish-site.petish-guest-auth #customer_login {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  body#the7-body.petish-site.petish-guest-auth #customer_login > :is(.u-column1,.u-column2) {
+    padding: 22px;
+    border-radius: 18px;
+  }
+
+  body.petish-guest-auth .petish-auth-divider {
+    margin-block: 22px;
+  }
+}

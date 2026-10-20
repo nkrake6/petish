@@ -1,0 +1,18 @@
+{
+  "species": "chinchilla",
+  "photographer": "Maxunbanned",
+  "photographer_url": "https://commons.wikimedia.org/wiki/User:Maxunbanned",
+  "source": "https://commons.wikimedia.org/wiki/File:PiperTheChinchilla.jpg",
+  "source_revision": "https://commons.wikimedia.org/w/index.php?title=File:PiperTheChinchilla.jpg&oldid=1086619618",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "file": "chinchilla-v4.webp",
+  "width": 2000,
+  "height": 1340,
+  "bytes": 91120,
+  "sha256": "25011b879b15f78d991ae92774b47f5f4b6786fc6933ef2e548a9042c1e219a7",
+  "processing": "Existing proportional resize and WebP encoding retained. Displayed without cropping using object-fit contain; the adapted photograph remains CC BY-SA 4.0.",
+  "verified_date": "2026-10-19",
+  "license_scope": "This individual adapted photograph only.",
+  "display": "Full-width hero image element with containment and CSS background #E0DCDE sampled from its neutral corner. No animal pixels or source photograph were changed."
+}
