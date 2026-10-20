@@ -24,14 +24,18 @@ was consumed and its private directory removed; the encrypted request was
 removed from `main`. This confirms SMTP acceptance of the orders alias.
 The owner confirmed successful receipt in Gmail. Authentication headers were
 not separately inspected. SMTP connection, sender-alias acceptance and delivery
-are verified; order-event and shipment notifications still need their sample-order tests.
+are verified. The native order-event rehearsal subsequently passed on private
+staging; supplier shipment notifications still need their end-to-end test.
 
 The owner confirmed that WooCommerce's **New order** recipient is
 `orders@petish.biz` and that customer processing, completed and refund emails
-are enabled. These are confirmed settings; native order-event generation and
-message contents still require the actual staging rehearsal described in
-[STAGING-REHEARSAL.md](STAGING-REHEARSAL.md). Its isolation preflight passed in
-run `39365001006`; the full checkout/email/refund rehearsal remains pending.
+are enabled. The native order-email and refund rehearsal passed in hosted run
+[`39368488467`](https://github.com/nkrake6/petish/actions/runs/39368488467).
+Staging captured the new-order, processing, completed, customer-note and refund
+emails; recipient, order/product and AUD-total checks passed. The provider
+confirmed a successful test payment and full test refund, and stock returned
+to baseline. The customer note used explicitly synthetic tracking only.
+See [STAGING-REHEARSAL.md](STAGING-REHEARSAL.md) for the scope and evidence.
 
 ## Secure setup
 

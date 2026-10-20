@@ -15,8 +15,8 @@ for the current cloud workflow. The Mac setup below is archived history.
   appearances and existing store. The static root/`docs/` prototype is older.
 - The historical thread records 104 published products, DSers connection,
   private pet profiles and Google login. Live WooPayments is configured;
-  staging payment/refund tests were simulated. Actual supplier fulfilment has
-  not been proved end to end.
+  native staging test payments and refunds are verified below. Actual supplier
+  fulfilment has not been proved end to end.
 - Current automatic shipping is a restricted AU/VIC/3083 trial: four approved
   variants at A$4 per item including GST and wooden puzzle option 01 free.
   Other products/destinations still need verified rates.
@@ -53,8 +53,13 @@ SMTP authentication and TLS passed in run `39360477958`; the private credential
 is covered by encrypted backups `39360478186-1` and `39360505612-1`, both fully
 recovered in isolated WordPress checks. The owner separately authorized one
 delivery test; run `39361096109` submitted it successfully and the owner confirmed
-receipt in Gmail. Do not resend automatically. WooCommerce order-event and
-shipment notifications still need the agreed sample-order tests.
+receipt in Gmail. Do not resend automatically. The private staging rehearsal
+passed in run `39368488467` on reviewed commit `4cc648a`: native decline then
+success, provider-confirmed full test refund, stock restored, and five native
+email types captured with verified contents. The temporary fixture and QA
+session were cleaned up. See [STAGING-REHEARSAL.md](STAGING-REHEARSAL.md).
+Automatic supplier shipment notifications and DSers tracking remain unverified;
+the staged tracking note was explicitly synthetic.
 
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,

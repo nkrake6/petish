@@ -1,9 +1,22 @@
 # Petish private staging rehearsal
 
-Status: isolation preflight
-[`39365001006`](https://github.com/nkrake6/petish/actions/runs/39365001006)
-passed. The full checkout, native test refund and order-email rehearsal is
-prepared but has not yet been verified by an actual run.
+Status: the full hosted rehearsal
+[`39368488467`](https://github.com/nkrake6/petish/actions/runs/39368488467)
+passed on 20 October 2026 at 04:15 UTC, using reviewed commit `4cc648a`.
+This was the actual staging checkout and native payment gateway, with provider
+confirmation that the charge and full refund were in test mode.
+
+| Check | Verified result |
+| --- | --- |
+| Decline | First test card declined; stock stayed at its baseline. |
+| Payment | Second test card succeeded on the same order; stock fell by one. |
+| Emails | New order, processing, completed, customer note and refund messages were captured. Exact recipients, order/product details and native AUD totals passed content checks. |
+| Refund | Native gateway and provider confirmed the full test refund; stock returned to baseline. |
+| Cleanup | Temporary shipping fixture removed, QA session cleared and saved cart restored; no recovery required. |
+
+Supplier calls and webhooks remained blocked, and order emails stayed in the
+private staging capture. The tracking note was explicitly synthetic. Automatic
+DSers tracking, supplier dispatch and real freight costs remain unverified.
 
 The rehearsal uses `https://staging.petish.biz`, its separate database and the
 existing synthetic customer. It must not use the production checkout, real
@@ -50,6 +63,11 @@ The browser permits only staging and the payment frontend hosts needed for
 test checkout. Server provider requests are limited to the guarded verification
 and refund operations. All order emails remain captured locally on staging.
 Credentials, order keys, receipt URLs and message bodies stay private.
+
+WordPress API clients can transport a background `PUT`/`PATCH` as a `POST` with
+`X-HTTP-Method-Override`. The browser permits only the verified checkout totals
+update with a valid session nonce and explicit totals flag; actual payment
+submissions still require the WooPayments gateway and an observed test key.
 
 ## Review the result
 
