@@ -1,0 +1,73 @@
+name: Check public Petish email previews
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - docs/email-preview/**
+      - .github/workflows/check-email-preview.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-public-email-preview
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Verify the published gallery, four emails and animal logo
+        id: public
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, time, urllib.request
+          from pathlib import Path
+          names = ['index.html', 'preview.css', 'preview.js', 'processing.html',
+                   'completed.html', 'refunded.html', 'note.html', 'petish-logo.png']
+          root = Path('docs/email-preview')
+          expected = {name: hashlib.sha256((root/name).read_bytes()).digest()
+                      for name in names if (root/name).is_file()}
+          verified = False
+          if len(expected) == len(names):
+              for attempt in range(16):
+                  try:
+                      for name in names:
+                          request = urllib.request.Request(
+                              'https://nkrake6.github.io/petish/email-preview/' + name + '?revision=' + os.environ['GITHUB_SHA'],
+                              headers={'User-Agent':'Petish public preview availability check', 'Cache-Control':'no-cache'})
+                          with urllib.request.urlopen(request, timeout=10) as response:
+                              raw = response.read(2097153)
+                              if response.status != 200 or len(raw) > 2097152 or hashlib.sha256(raw).digest() != expected[name]:
+                                  raise ValueError()
+                      verified = True
+                      break
+                  except Exception:
+                      if attempt < 15: time.sleep(12)
+          report = {'status':'success' if verified else 'unavailable',
+                    'scope':'public-static-preview-only', 'source_sha':os.environ['GITHUB_SHA'],
+                    'gallery_and_four_emails_match_git':verified,
+                    'animal_logo_matches_git':verified}
+          (Path(os.environ['RUNNER_TEMP'])/'email-preview-site-status.json').write_text(json.dumps(report,indent=2)+'\n')
+          raise SystemExit(0 if verified else 1)
+          PY
+      - name: Publish the finite availability result
+        if: always()
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
+          blob=$(git hash-object -w "$RUNNER_TEMP/email-preview-site-status.json")
+          tree=$(printf '100644 blob %s\tstatus.json\n' "$blob" | git mktree)
+          export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
+          export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+          export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          commit=$(printf 'Check public Petish email previews\n' | git commit-tree "$tree")
+          git push origin "$commit:refs/heads/automation-status/email-preview-site-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Require public availability
+        if: steps.public.outcome != 'success'
+        run: exit 1

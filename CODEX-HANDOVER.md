@@ -61,6 +61,16 @@ session were cleaned up. See [STAGING-REHEARSAL.md](STAGING-REHEARSAL.md).
 Automatic supplier shipment notifications and DSers tracking remain unverified;
 the staged tracking note was explicitly synthetic.
 
+The owner requested Petish-branded customer emails with the full animal logo.
+Shared child-theme email branding was applied to private staging in run
+`39377660802` (theme source `f62346a`). Native processing/completed/refund/note
+preview rendering and publication screening passed in `39378452234` using
+unsaved fictional orders; order counts and stock were unchanged. Generated
+review copies and the desktop/mobile gallery are in `docs/email-preview/`.
+Production email appearance is unchanged. See
+[EMAIL-BRANDING.md](EMAIL-BRANDING.md) for the template locations, preview-only
+copy differences and separate live-release scope.
+
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,
 delivery and payout. Video reviews, social syncing and a Discord-style community

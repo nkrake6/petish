@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light">
+  <title>Petish · Customer email previews</title>
+  <link rel="stylesheet" href="preview.css">
+  <script src="preview.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="./" aria-label="Petish email previews">
+        <img src="petish-logo.png" width="166" alt="Petish">
+      </a>
+      <span class="preview-badge"><span aria-hidden="true"></span> Design preview</span>
+    </div>
+  </header>
+  <main>
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">A little more Petish</p>
+        <h1>Customer emails</h1>
+        <p class="introduction">One familiar design, from order confirmation to the next update.</p>
+      </div>
+      <fieldset class="display-options">
+        <legend class="visually-hidden">Preview width</legend>
+        <button class="display-button is-active" type="button" data-width="desktop" aria-pressed="true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8m-4-4v4"></path></svg>
+          Desktop
+        </button>
+        <button class="display-button" type="button" data-width="mobile" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"></rect><path d="M11 18h2"></path></svg>
+          Mobile
+        </button>
+      </fieldset>
+    </div>
+
+    <section class="preview-card" aria-label="Customer email examples">
+      <div class="preview-toolbar">
+        <div class="email-tabs" role="tablist" aria-label="Email type">
+          <button id="tab-processing" class="email-tab is-active" role="tab" type="button" aria-selected="true" aria-controls="email-panel" data-email="processing">Processing</button>
+          <button id="tab-completed" class="email-tab" role="tab" type="button" aria-selected="false" aria-controls="email-panel" tabindex="-1" data-email="completed">Completed</button>
+          <button id="tab-refunded" class="email-tab" role="tab" type="button" aria-selected="false" aria-controls="email-panel" tabindex="-1" data-email="refunded">Refund</button>
+          <button id="tab-note" class="email-tab" role="tab" type="button" aria-selected="false" aria-controls="email-panel" tabindex="-1" data-email="note">Order update</button>
+        </div>
+        <a id="open-email" class="open-email" href="processing.html" target="_blank" rel="noopener noreferrer">Open email <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6 14 14 6M6 6h8v8"></path></svg></a>
+      </div>
+
+      <div id="email-panel" class="email-panel" role="tabpanel" aria-labelledby="tab-processing" tabindex="0">
+        <div class="preview-caption">
+          <div>
+            <p class="caption-label">Previewing</p>
+            <h2 id="email-title">Processing order</h2>
+          </div>
+          <p class="fictional-note">Fictional order details <span aria-hidden="true">·</span> No email is sent</p>
+        </div>
+        <div class="preview-surface" data-display="desktop">
+          <div class="email-window">
+            <div class="email-window-bar" aria-hidden="true">
+              <span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span>
+              <span class="window-label">Petish</span>
+            </div>
+            <iframe id="email-frame" src="processing.html" title="Petish processing order email preview" sandbox="allow-same-origin" loading="eager" referrerpolicy="no-referrer"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+    <p id="preview-status" class="visually-hidden" role="status" aria-live="polite">Processing order email, desktop width.</p>
+    <noscript><p class="noscript-note">Open an email directly: <a href="processing.html">processing</a>, <a href="completed.html">completed</a>, <a href="refunded.html">refund</a> or <a href="note.html">order update</a>.</p></noscript>
+    <footer class="page-footer"><span>Petish</span><span>Thoughtful details. Familiar branding.</span></footer>
+  </main>
+</body>
+</html>

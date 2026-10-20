@@ -1,5 +1,15 @@
 # Petish WooCommerce email branding
 
+Status: shared branding deployed to private staging in
+[`39377660802`](https://github.com/nkrake6/petish/actions/runs/39377660802)
+from child-theme commit `f62346a`. Native rendering and independent publication
+screening passed in
+[`39378452234`](https://github.com/nkrake6/petish/actions/runs/39378452234)
+using preview tools `01354e1`. All four types rendered with the animal logo;
+order-record counts and stock were unchanged. Live branding is unchanged.
+
+Review gallery: <https://nkrake6.github.io/petish/email-preview/>.
+
 The shared HTML email header and footer live in the The7 child theme at
 `woocommerce/emails/`. Styling is appended through
 `inc/petish-email-branding.php`, loaded by the child theme's `functions.php`.
