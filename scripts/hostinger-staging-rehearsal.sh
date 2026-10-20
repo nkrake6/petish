@@ -23,7 +23,7 @@ trap 'exit 1' HUP INT TERM
 "${petish_ssh[@]}" 'set -eu; umask 077; dir="$HOME/.petish-staging/rehearsal-tools-'"$run"'"; test ! -e "$dir" && test ! -L "$dir" || exit 1; mkdir -m 700 "$dir"; cat > "$dir/driver.php"; chmod 600 "$dir/driver.php"' \
     < scripts/staging-rehearsal-remote.php > "$work/upload.private.stdout" 2> "$work/upload.private.stderr"
 result=0
-"${petish_ssh[@]}" 'php -d display_errors=0 -d log_errors=0 "$HOME/.petish-staging/rehearsal-tools-'"$run"'/driver.php" preflight '"$run" \
+"${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1; for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value; php -d display_errors=0 -d log_errors=0 "$HOME/.petish-staging/rehearsal-tools-'"$run"'/driver.php" preflight '"$run" \
     > "$RUNNER_TEMP/petish-rehearsal-preflight.json" 2> "$work/preflight.private.stderr" || result=$?
 python3 scripts/sanitize-rehearsal-result.py "$RUNNER_TEMP/petish-rehearsal-preflight.json" "$RUNNER_TEMP/petish-rehearsal-result.json"
 [[ $result == 0 ]] || exit "$result"

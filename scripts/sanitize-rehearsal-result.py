@@ -14,7 +14,7 @@ CHECKS = {'environment_staging', 'woocommerce_test_mode', 'wcpay_dev_mode',
     'only_allowlisted_plugins', 'no_active_webhooks', 'all_http_forced_blocked',
     'browser_input_written', 'wp_cron_disabled', 'async_runner_disabled',
     'loader_requires_private', 'source_environment_staging', 'source_wcpay_dev_mode',
-    'source_wp_cron_disabled', 'source_staging_database_literal', 'source_production_database_literal'}
+    'source_wp_cron_disabled', 'source_staging_database_literal', 'source_production_database_literal', 'source_production_database_read'}
 ACCOUNT = {'cached_account_present', 'account_is_live', 'native_connected',
     'test_onboarding', 'dev_mode', 'test_mode', 'gateway_test_mode', 'payments_enabled'}
 NATIVE = {'mode_class', 'mode_methods', 'account_service_class', 'account_service_methods',

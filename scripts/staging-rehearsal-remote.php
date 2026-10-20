@@ -15,6 +15,7 @@ $report = [
         'all_http_forced_blocked'=>false, 'browser_input_written'=>false,
         'loader_requires_private'=>false,'source_environment_staging'=>false,'source_wcpay_dev_mode'=>false,
         'source_wp_cron_disabled'=>false,'source_staging_database_literal'=>false,'source_production_database_literal'=>false,
+        'source_production_database_read'=>false,
     ],
     'native'=>['mode_class'=>null,'mode_methods'=>[], 'account_service_class'=>null,'account_service_methods'=>[],
                'gateway_class'=>null,'gateway_methods'=>[], 'api_client_class'=>null,'api_client_methods'=>[], 'api_method_signatures'=>[], 'helper_method_calls'=>[]],
@@ -153,6 +154,19 @@ try {
     $report['checks']['source_wp_cron_disabled']=($definitions['DISABLE_WP_CRON']??null)===true;
     $report['checks']['source_staging_database_literal']=is_string($definitions['DB_NAME']??null)&&is_string($definitions['DB_HOST']??null);
     $report['checks']['source_production_database_literal']=is_string($production_definitions['DB_NAME']??null)&&is_string($production_definitions['DB_HOST']??null);
+    if(!$report['checks']['source_production_database_literal']){
+        // The fixed SSH wrapper uses WP-CLI's non-executing config parser for
+        // Hostinger's generated production config. No WordPress is loaded and
+        // only these two comparison fields are supplied; no database secret.
+        $parsed_production=[];
+        foreach(['DB_NAME','DB_HOST']as$name){
+            $value=getenv('PETISH_REHEARSAL_PRODUCTION_'.$name);
+            if(!is_string($value)||$value===''||strlen($value)>255||preg_match('/[\x00-\x1f\x7f]/',$value))rehearsal_fail();
+            $parsed_production[$name]=$value;
+        }
+        $production_definitions=$parsed_production;unset($parsed_production,$value);
+    }
+    $report['checks']['source_production_database_read']=is_string($production_definitions['DB_NAME']??null)&&is_string($production_definitions['DB_HOST']??null);
     foreach(['loader_requires_private','source_environment_staging','source_wcpay_dev_mode','source_wp_cron_disabled']as$key)if(!$report['checks'][$key])rehearsal_fail();
     foreach (['DB_NAME','DB_HOST'] as $name) if (!is_string($definitions[$name]??null)||!is_string($production_definitions[$name]??null)||$definitions[$name]==='') rehearsal_fail();
     if ($definitions['DB_NAME']===$production_definitions['DB_NAME']) rehearsal_fail();
