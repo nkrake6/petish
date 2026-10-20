@@ -1,0 +1,13 @@
+{
+  "AUTOMATION_KIND": "staging",
+  "AUTOMATION_RESULT": "success",
+  "GITHUB_RUN_ID": "39379561684",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "238d7dc27ef2c92d1e3be53fc26502ea8ae78be4",
+  "generated_utc": "2026-10-20T06:18:31.303359+00:00",
+  "task": {
+    "phase": "staging",
+    "categories": [],
+    "exit_code": 0
+  }
+}
