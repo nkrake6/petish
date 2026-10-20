@@ -95,7 +95,7 @@ Required repository bindings already used by the working backup workflow:
 ## Transactional email
 
 [ORDER-EMAIL.md](ORDER-EMAIL.md) describes the dedicated production SMTP setup.
-The new `PETISH_SMTP_PASSWORD` repository secret holds the `orders@petish.biz`
-mailbox password. Main pushes prepare code; the separate mail configuration
+The new `PETISH_SMTP_PASSWORD` repository secret holds the `administrator@petish.biz`
+mailbox password; `orders@petish.biz` is the sender alias. Main pushes prepare code; the separate mail configuration
 workflow performs authentication before installing it. The connection check
 does not submit a message. Inbox delivery needs an explicitly authorized test.

@@ -1,27 +1,31 @@
 # Petish order email
 
-The owner created `orders@petish.biz` on Hostinger Email. The read-only DNS
+The owner created the `orders@petish.biz` alias on the Hostinger Email mailbox
+`administrator@petish.biz`. SMTP authenticates as the administrator mailbox;
+customers see the orders alias as the sender. The read-only DNS
 audit on 20 October 2026 found Hostinger MX records, an SPF record including
 Hostinger, three Hostinger DKIM selectors and a DMARC monitoring policy
 (`p=none`). These records do not prove delivery to an inbox.
 
 ## Secure setup
 
-Add the mailbox password as the GitHub Actions repository secret
+Add the `administrator@petish.biz` mailbox password as the GitHub Actions repository secret
 `PETISH_SMTP_PASSWORD` at
 <https://github.com/nkrake6/petish/settings/secrets/actions>.
-Use the mailbox password, not the Hostinger account or hosting SSH password.
+Use the administrator mailbox password, not the Hostinger account or hosting SSH password.
 Do not put it in chat, WordPress options, source files or a repository variable.
 
 Run **Configure Petish order email** manually on `main`, or push the reviewed
 `main` commit to the dedicated `configure-mail` branch. Ordinary `main` pushes
 do not activate the production mail adapter. Existing repository SSH credentials
 and the verified Hostinger host key are reused.
+Mail configuration and full backups share a concurrency group so production
+credential changes cannot overlap a backup export.
 
 The workflow first checks existing mail metadata without loading WordPress.
 It refuses competing active mail plugins, SMTP constants and unsafe paths.
 The candidate connection uses `smtp.hostinger.com`, port 465, implicit TLS with
-certificate/hostname verification, and the `orders@petish.biz` mailbox login.
+certificate/hostname verification, and the `administrator@petish.biz` mailbox login.
 It authenticates and disconnects without submitting a message. Only after that
 check succeeds does it install the credential and Petish MU adapter.
 

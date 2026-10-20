@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: petish-full-site-backup
+  group: petish-production-backup-mail
   cancel-in-progress: false
 
 jobs:

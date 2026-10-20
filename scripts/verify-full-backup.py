@@ -47,7 +47,7 @@ def verify_smtp_configuration(data):
         raise ValueError("Invalid private SMTP configuration")
     if value["host"] not in ("smtp.hostinger.com", "smtp.titan.email") \
             or type(value["port"]) is not int or value["port"] != 465 \
-            or value["encryption"] != "smtps" or value["username"] != "orders@petish.biz" \
+            or value["encryption"] != "smtps" or value["username"] != "administrator@petish.biz" \
             or not isinstance(value["password"], str) or not 1 <= len(value["password"].encode("utf-8")) <= 2048 \
             or any(ord(character) < 32 or ord(character) == 127 for character in value["password"]):
         raise ValueError("Invalid private SMTP configuration")

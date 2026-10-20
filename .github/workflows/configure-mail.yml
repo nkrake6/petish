@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: petish-production-mail
+  group: petish-production-backup-mail
   cancel-in-progress: false
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
           import os
           password = os.environ.get('PETISH_SMTP_PASSWORD', '')
           if not password or len(password.encode()) > 2048 or any(ord(char) < 32 or ord(char) == 127 for char in password):
-              raise SystemExit('Add the orders@petish.biz mailbox password as the PETISH_SMTP_PASSWORD repository secret. No site changes were made.')
+              raise SystemExit('Add the administrator@petish.biz mailbox password as the PETISH_SMTP_PASSWORD repository secret. No site changes were made.')
           PY
       - name: Prepare pinned SSH connection
         run: |
@@ -57,7 +57,7 @@ jobs:
         run: |
           {
             printf '## Petish order email configured\n\n'
-            printf 'WordPress transactional mail uses orders@petish.biz over authenticated SMTP with verified TLS. The mailbox credential is stored outside the webroot with owner-only permissions.\n\n'
+            printf 'WordPress transactional mail uses orders@petish.biz as sender and administrator@petish.biz for SMTP authentication over verified TLS. The mailbox credential is stored outside the webroot with owner-only permissions.\n\n'
             printf 'The connection check authenticated and disconnected without submitting an email. Inbox delivery still requires an authorized test message.\n\n'
             printf 'A successful run triggers a new encrypted full-site backup and an isolated WordPress recovery check.\n'
           } >> "$GITHUB_STEP_SUMMARY"

@@ -24,7 +24,7 @@ class PetishMailerTests(unittest.TestCase):
         self.config = self.root / "private/petish-mailer/smtp.json"
         self.config.parent.mkdir(parents=True, mode=0o700)
         self.values = {"host": "smtp.hostinger.com", "port": 465, "encryption": "smtps",
-                       "username": "orders@petish.biz", "password": "fixture-private-value"}
+                       "username": "administrator@petish.biz", "password": "fixture-private-value"}
         self.write_config()
 
     def tearDown(self):
@@ -126,7 +126,7 @@ Petish_Mailer::initialize($mail);
 $tls=$mail->SMTPOptions['ssl'];
 echo json_encode(['smtp'=>$mail->Mailer==='smtp','host'=>$mail->Host==='smtp.hostinger.com',
 'port'=>$mail->Port===465,'secure'=>$mail->SMTPSecure==='ssl','auth'=>$mail->SMTPAuth,
-'username'=>$mail->Username==='orders@petish.biz','from'=>$mail->From==='orders@petish.biz',
+'username'=>$mail->Username==='administrator@petish.biz','from'=>$mail->From==='orders@petish.biz',
 'sender'=>$mail->Sender==='orders@petish.biz','name'=>$mail->FromName==='Petish',
 'verify'=>$tls['verify_peer']&&$tls['verify_peer_name']&&!$tls['allow_self_signed'],
 'debug'=>$mail->SMTPDebug===0]);'''

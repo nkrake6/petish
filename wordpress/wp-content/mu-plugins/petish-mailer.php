@@ -10,6 +10,7 @@ if (!defined('ABSPATH') && !defined('PETISH_SMTP_PROBE')) {
 
 final class Petish_Mailer {
     const FROM = 'orders@petish.biz';
+    const LOGIN = 'administrator@petish.biz';
     const NAME = 'Petish';
     const HOSTS = array('smtp.hostinger.com', 'smtp.titan.email');
 
@@ -89,7 +90,7 @@ final class Petish_Mailer {
         if ($keys !== array('encryption', 'host', 'password', 'port', 'username')) return false;
         if (!is_string($config['host']) || !in_array($config['host'], self::HOSTS, true)
             || 465 !== $config['port'] || 'smtps' !== $config['encryption']
-            || self::FROM !== $config['username'] || !is_string($config['password'])
+            || self::LOGIN !== $config['username'] || !is_string($config['password'])
             || strlen($config['password']) < 1 || strlen($config['password']) > 2048
             || preg_match('/[\x00-\x1F\x7F]/', $config['password'])) return false;
         return $config;
@@ -113,7 +114,7 @@ final class Petish_Mailer {
         $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
         $mailer->SMTPAutoTLS = false;
         $mailer->SMTPAuth = true;
-        $mailer->Username = self::FROM;
+        $mailer->Username = $config['username'];
         $mailer->Password = $config['password'];
         $mailer->AuthType = '';
         $mailer->SMTPKeepAlive = false;

@@ -27,7 +27,7 @@ VERIFY = load("mailer_backup_verifier", "verify-full-backup.py")
 PACKAGE = load("mailer_backup_packager", "package-encrypted-backup.py")
 RESTORE = load("mailer_backup_restore", "test-full-backup-restore.py")
 CONFIG = {"host": "smtp.hostinger.com", "port": 465, "encryption": "smtps",
-          "username": "orders@petish.biz", "password": "private-fixture-password-only"}
+          "username": "administrator@petish.biz", "password": "private-fixture-password-only"}
 
 
 class MailerBackupTests(unittest.TestCase):
@@ -246,7 +246,8 @@ printf '%s\n' 'CREATE TABLE fixture (id INT);' 'INSERT INTO fixture VALUES (7);'
     def test_schema_failure_prints_no_private_values(self):
         self.enable_mailer()
         for key, value in (("host", ["private-fixture-host"]), ("port", True), ("encryption", "none"),
-                           ("username", "private-fixture-user"), ("password", "private-fixture\npassword")):
+                           ("username", "private-fixture-user"), ("username", "orders@petish.biz"),
+                           ("password", "private-fixture\npassword")):
             with self.subTest(key=key):
                 (self.mailer / "smtp.json").write_text(json.dumps({**CONFIG, key: value}))
                 data = self.export().stdout
