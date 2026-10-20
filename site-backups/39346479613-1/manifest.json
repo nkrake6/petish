@@ -1,0 +1,67 @@
+{
+  "format": "petish-full-wordpress-backup-v2",
+  "site": "https://petish.biz/",
+  "created_utc": "2026-10-20T00:15:40.222669+00:00",
+  "scope": "complete document-root tree, private Passport storage, and site SQL database; symlinks preserved without following targets",
+  "private_archive_root": "private-files/petish-passport",
+  "private_restore_location": "domain-private-directory-outside-document-root",
+  "encryption": "OpenPGP symmetric AES256 with integrity protection",
+  "encrypted_bytes": 404002212,
+  "encrypted_sha256": "bb610c16693a50ecff907b0f742feb14f824823203bebdae1b948593ffaf957f",
+  "parts": [
+    {
+      "file": "site-backup.tar.gz.gpg.part-00000",
+      "bytes": 50331648,
+      "sha256": "40d32559ba8f58b0e043115e4b174769774e32b821258d4e26b18b3494fab0db"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00001",
+      "bytes": 50331648,
+      "sha256": "3b133d0d5daa03090cdc2398e0f82a2d6b826a9d63ab3132ea72ca0f1697e4ae"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00002",
+      "bytes": 50331648,
+      "sha256": "3c83f3f0092dc6cf0a1b793cc40ac4bd954da4762aaedebfe49527463fa30084"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00003",
+      "bytes": 50331648,
+      "sha256": "0a55f7aa4338204666944acf17b660492e585a94cc23dbc29113cbd1dde5ec26"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00004",
+      "bytes": 50331648,
+      "sha256": "34d245c81e2920105ff8b300c459edf429069b8c3dc6c95ea8dcd3e62096066e"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00005",
+      "bytes": 50331648,
+      "sha256": "0837ee84c35c7134ecc03c3ab6092606d2a37690e5f2e2f007f4f5b4a3ecc51f"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00006",
+      "bytes": 50331648,
+      "sha256": "8a797e1bfb0743963e4e76ad2431fa4ea1f216f48326d32fefca70660be3fe48"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00007",
+      "bytes": 50331648,
+      "sha256": "c607f072ee6c52f8b508e0ba0f450a59f2146bcb5a9dce9eee104fd2b6cf5165"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00008",
+      "bytes": 1349028,
+      "sha256": "de7b7d3684440399b57a4667d996d88a353461f6f37e8569905753076b6e3a40"
+    }
+  ],
+  "verification": {
+    "archive_verified": true,
+    "archive_entries": 45231,
+    "uncompressed_bytes": 724813122,
+    "symbolic_links_preserved": 1,
+    "private_passport_root_verified": true,
+    "private_regular_files": 1,
+    "private_regular_bytes": 488186
+  }
+}
