@@ -102,6 +102,35 @@ echo json_encode($out);
 """)
         self.assertEqual(result, [True] * 6)
 
+    def test_only_bounded_structural_option_names_can_be_published(self):
+        result = self.php(r"""
+$out=[];foreach(['_wc_customer_update_lock','woocommerce_admin_lock','action_scheduler_lock_async-request-runner',
+ 'nonce_key']as$name)$out[]=petish_club_verify_safe_option_name($name);
+foreach(['customer_12345','john@example.com','_wc_session_0123456789abcdef','petish_club_heart_12_34',
+ 'private_'.str_repeat('a',32),'private_deadbeef','/private/option','has.dot','a_b_'.str_repeat('x',101)]as$name)
+ $out[]=!petish_club_verify_safe_option_name($name);
+$out[]=petish_club_verify_option_prefix('_wc_session_12345')==='_wc_';
+$out[]=petish_club_verify_option_prefix('john@example.com')===null;
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 15)
+
+    def test_structural_names_also_require_trusted_literal_source(self):
+        root = self.directory / "wordpress"
+        trusted = root / "wp-content/plugins/woocommerce"
+        untrusted = root / "wp-content/uploads"
+        theme = root / "wp-content/themes/custom"
+        for folder in (trusted, untrusted, theme):
+            folder.mkdir(parents=True)
+        (trusted / "source.php").write_text("<?php $key = 'internal_runtime_lock'; // 'customer_john_smith'\n")
+        (untrusted / "data.php").write_text("<?php $key = 'profile_sarah';\n")
+        (theme / "custom.php").write_text("<?php $key = 'customer_john_smith';\n")
+        result = self.php("$root=" + repr(str(root)) + ";\n" + r"""
+$out=petish_club_verify_literal_option_names($root,['internal_runtime_lock','customer_john_smith','profile_sarah','nonce_key']);
+sort($out);echo json_encode($out);
+""")
+        self.assertEqual(result, ["internal_runtime_lock", "nonce_key"])
+
     def test_diagnosis_blocks_bootstrap_writes_and_preserves_journal(self):
         source = VERIFY.read_text()
         self.assertLess(source.index("add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);"),

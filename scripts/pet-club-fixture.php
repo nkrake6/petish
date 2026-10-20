@@ -24,29 +24,47 @@ function petish_club_fixture_diagnose($root,$run) {
   $report['checks']['single_added_option_identified']=$added!==null;
   $report['checks']['only_new_nonce_key_and_salt_identified']=petish_club_verify_new_nonce_options($before['settings'],$rows);
   if($added!==null)$report['checks']['added_option_'.petish_club_verify_option_category($added['option_name'])]=true;
-  $delta=null;
+  $delta=null;$candidate_names=[];
+  $report['option_names']=[];$report['option_name_prefixes']=[];
   if(isset($before['settings_rows'])){
    if(!hash_equals($before['settings'],hash('sha256',json_encode($before['settings_rows'],JSON_THROW_ON_ERROR))))petish_club_verify_fail();
    $delta=petish_club_verify_option_delta($before['settings_rows'],$rows);
    $report['checks']['option_rows_baseline_available']=true;$report['checks']['option_delta_identified']=true;
    foreach($delta as$operation=>$changes){$report['checks']['options_'.$operation]=count($changes)>0;
     foreach($changes as$change){$name=$change['option_name'];
+     if(petish_club_verify_safe_option_name($name))$candidate_names[]=$name;
+     else{$report['checks']['option_names_redacted']=true;$prefix=petish_club_verify_option_prefix($name);
+      if($prefix!==null)$report['option_name_prefixes'][]=$prefix;}
      $report['checks']['changed_option_'.petish_club_verify_option_category($name)]=true;
      if(in_array($name,PETISH_CLUB_KNOWN_OPTION_KEYS,true))$report['checks']['changed_known_option_'.str_replace(['.','-'],'_',$name)]=true;
     }
    }
+   $candidate_names=array_values(array_unique($candidate_names));sort($candidate_names);
+   $report['checks']['option_names_truncated']=count($candidate_names)>12;
+   $candidate_names=array_slice($candidate_names,0,12);
+   $verified=petish_club_verify_literal_option_names($root,$candidate_names);
+   foreach(array_diff($candidate_names,$verified)as$name){
+    $report['checks']['option_names_redacted']=true;$prefix=petish_club_verify_option_prefix($name);
+    if($prefix!==null)$report['option_name_prefixes'][]=$prefix;
+   }
+   $report['option_names']=$verified;sort($report['option_names']);
+   $report['checks']['option_names_code_literals_verified']=true;
+   $report['option_name_prefixes']=array_values(array_unique($report['option_name_prefixes']));sort($report['option_name_prefixes']);
   }
   $events=[];$event_file=__DIR__.'/pet-club-'.$state['kind'].'-option-events.json';
   if(file_exists($event_file)||is_link($event_file)){
+   $report['checks']['option_event_trace_present']=true;
    $trace=petish_club_verify_read_json($event_file);
    if(($trace['format']??'')!=='petish-club-option-events-v1'||($trace['run']??'')!==$run
     ||($trace['kind']??'')!==$state['kind']||!is_array($trace['events']??null)||count($trace['events'])>500)petish_club_verify_fail();
+   $report['checks']['option_event_trace_nonempty']=count($trace['events'])>0;
    $names=[];foreach($delta??[]as$changes)foreach($changes as$change)$names[]=$change['option_name'];
    foreach($trace['events']as$event){
     if(!is_array($event)||!is_string($event['option_name']??null)||strlen($event['option_name'])>191
      ||!in_array($event['operation']??'',['added_option','updated_option','deleted_option'],true)
      ||!in_array($event['phase']??'',['fixture','user_creation','pet_creation','moments','sharing','hearts','moderation','cleanup'],true))petish_club_verify_fail();
     if(!in_array($event['option_name'],$names,true))continue;$events[]=$event;
+    $report['checks']['changed_option_events_found']=true;
     if($event['phase']!=='fixture')$report['checks']['option_change_'.$event['phase']]=true;
    }
   }

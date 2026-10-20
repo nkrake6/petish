@@ -42,6 +42,9 @@ const PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS = ['settings_unchanged','single_added_
  'changed_option_woocommerce','changed_option_petish','changed_option_other',
  'option_change_user_creation','option_change_pet_creation','option_change_moments',
  'option_change_sharing','option_change_hearts','option_change_moderation','option_change_cleanup',
+ 'option_event_trace_present','option_event_trace_nonempty','changed_option_events_found',
+ 'option_names_redacted','option_names_truncated',
+ 'option_names_code_literals_verified',
  'added_option_runtime_transient','added_option_runtime_litespeed','added_option_runtime_action_scheduler',
  'added_option_woocommerce','added_option_petish','added_option_other'];
 /** Configuration key names are fixed metadata; their values are never reported. */
@@ -181,6 +184,51 @@ function petish_club_verify_option_category($name) {
  if(str_starts_with($name,'woocommerce_')||str_starts_with($name,'wc_'))return 'woocommerce';
  if(str_starts_with($name,'petish_'))return 'petish';
  return 'other';
+}
+/** Publish software identifiers only, never numbered/user/token-bearing keys. */
+function petish_club_verify_safe_option_name($name) {
+ if(!is_string($name)||strlen($name)>100
+  ||!preg_match('/\A_?[a-z]{1,24}(?:[_-][a-z]{1,24}){1,15}\z/D',$name))return false;
+ foreach(preg_split('/[_-]+/',trim($name,'_'))as$part)
+  if(strlen($part)>=8&&preg_match('/\A[a-f]+\z/D',$part))return false;
+ return true;
+}
+/** Match metadata literals in trusted software, never config, uploads or themes. */
+function petish_club_verify_literal_option_names($root,$names) {
+ $names=array_values(array_unique($names));if(count($names)>12)petish_club_verify_fail();
+ $verified=[];$pending=[];foreach($names as$name){
+  if(!petish_club_verify_safe_option_name($name))petish_club_verify_fail();
+  if(in_array($name,PETISH_CLUB_KNOWN_OPTION_KEYS,true))$verified[]=$name;else$pending[]=$name;
+ }
+ $files=0;$bytes=0;
+ foreach(['wp-includes','wp-admin','wp-content/plugins/woocommerce','wp-content/plugins/woocommerce-payments']as$relative){
+  if(!$pending)break;$directory=$root.'/'.$relative;if(!petish_club_verify_path($directory,true))continue;
+  $iterator=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory,FilesystemIterator::SKIP_DOTS));
+  foreach($iterator as$entry){
+   if(!$entry->isFile()||$entry->isLink()||strtolower($entry->getExtension())!=='php')continue;
+   if(++$files>10000)return $verified;$path=$entry->getPathname();
+   if(!petish_club_verify_path($path))continue;$size=filesize($path);
+   if($size>2097152)continue;if($bytes+$size>67108864)return $verified;$bytes+=$size;
+   $source=file_get_contents($path);if(!is_string($source))continue;
+   $possible=[];foreach($pending as$name)if(str_contains($source,"'".$name."'")||str_contains($source,'"'.$name.'"'))$possible[]=$name;
+   if(!$possible)continue;
+   foreach(token_get_all($source)as$token){
+    if(!is_array($token)||$token[0]!==T_CONSTANT_ENCAPSED_STRING)continue;
+    foreach($possible as$name)if($token[1]==="'".$name."'"||$token[1]==='"'.$name.'"'){
+     $verified[]=$name;$pending=array_values(array_diff($pending,[$name]));$possible=array_values(array_diff($possible,[$name]));
+    }
+    if(!$possible)break;
+   }
+   if(!$pending)return array_values(array_unique($verified));
+  }
+ }
+ return array_values(array_unique($verified));
+}
+const PETISH_CLUB_OPTION_PREFIXES = ['_woocommerce_','woocommerce_','_action_scheduler_','action_scheduler_',
+ '_litespeed_','litespeed_','_petish_','petish_','_wp_','wp_','_wc_','wc_','_as_','as_'];
+function petish_club_verify_option_prefix($name) {
+ foreach(PETISH_CLUB_OPTION_PREFIXES as$prefix)if(str_starts_with($name,$prefix))return $prefix;
+ return null;
 }
 function petish_club_verify_option_delta($before,$after) {
  $old=[];$new=[];foreach([$before,$after]as$rows){

@@ -11,6 +11,7 @@ import subprocess
 import os
 import io
 import tarfile
+import shutil
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -195,6 +196,44 @@ class PetClubReleaseTests(unittest.TestCase):
             self.assertFalse(passed)
             self.assertNotIn('private-sentinel', json.dumps(report))
 
+    def test_only_diagnosis_accepts_bounded_structural_option_names(self):
+        valid = ['_litespeed_cache', 'software_feature_enabled', 'woocommerce_admin_report_users_update']
+        value = self.raw('diagnose')
+        value.update(option_names=valid, option_name_prefixes=['_woocommerce_', 'petish_'])
+        value['checks']['option_names_code_literals_verified'] = True
+        report, passed = self.screen('diagnose', value)
+        self.assertTrue(passed)
+        self.assertEqual(report, value)
+        unproven = copy.deepcopy(value)
+        unproven['checks']['option_names_code_literals_verified'] = False
+        self.assertFalse(self.screen('diagnose', unproven)[1])
+        del unproven['checks']['option_names_code_literals_verified']
+        self.assertFalse(self.screen('diagnose', unproven)[1])
+        for invalid in ([valid[0]] * 2, list(reversed(valid)), ['customer_email@example.com'],
+                ['setting_12345'], ['../private_key'], ['cache_abcdefabcdef'], ['Upper_case'],
+                ['software_' + 'z' * 25], ['simple'], [False], 'software_setting',
+                ['software_' + chr(97 + i) for i in range(13)]):
+            with self.subTest(invalid=invalid):
+                modified = {**value, 'option_names': invalid}
+                self.assertFalse(self.screen('diagnose', modified)[1])
+        for invalid in (['customer_'], ['petish_', 'petish_'], ['wp_', '_wp_'], [False], 'wp_'):
+            self.assertFalse(self.screen('diagnose', {**value, 'option_name_prefixes': invalid})[1])
+        self.assertFalse(self.screen('native', {**self.raw('native'), 'option_names': valid})[1])
+
+    def test_structural_option_name_validation_matches_native_filter(self):
+        php = shutil.which('php') or '/workspace/.petish-dev/bin/php'
+        if not Path(php).is_file():
+            self.skipTest('PHP required')
+        cases = ['software_feature', '_software_feature', 'nonce_key', 'cache-flag', 'setting_123',
+                 'name@example.com', '../private_key', 'cache_abcdefabcdef', 'cache_' + 'z' * 25,
+                 '_cache__flag', 'simple', 'Upper_case', 'a_b', 'a_' + 'z_' * 15 + 'z',
+                 'a_' + 'z_' * 16 + 'z', False, None]
+        code = "define('PETISH_CLUB_VERIFY_LIBRARY',true); require $argv[1]; " \
+               "echo json_encode(array_map('petish_club_verify_safe_option_name',json_decode(stream_get_contents(STDIN),true)));"
+        result = subprocess.run([php, '-r', code, str(ROOT / 'scripts/verify-pet-club.php')],
+                                input=json.dumps(cases).encode(), capture_output=True, check=True)
+        self.assertEqual(json.loads(result.stdout), [safe.safe_option_name(value) for value in cases])
+
     def test_recovery_request_is_bounded_and_has_no_secret_or_path_fields(self):
         wrapper = (ROOT / 'scripts/hostinger-pet-club.sh').read_text()
         script = wrapper.split("<<'PY_RECOVERY'", 1)[1].split('\n', 1)[1].split('\nPY_RECOVERY', 1)[0]
@@ -311,6 +350,7 @@ class PetClubReleaseTests(unittest.TestCase):
         known = {'changed_known_option_' + key.replace('.', '_').replace('-', '_')
                  for key in names('PETISH_CLUB_KNOWN_OPTION_KEYS')}
         self.assertEqual(safe.DIAGNOSTIC_OBSERVATIONS, names('PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS') | known)
+        self.assertEqual(safe.OPTION_PREFIXES, names('PETISH_CLUB_OPTION_PREFIXES'))
         self.assertEqual(safe.FILE_COUNT, len(evidence.FILES))
         browser = (ROOT / 'tools/pet-club/browser.mjs').read_text()
         contract = re.search(r'CHECK_KEYS = Object.freeze\(\[(.*?)\]\)', browser, re.S)

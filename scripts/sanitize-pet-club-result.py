@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import sys
 
@@ -68,6 +69,7 @@ DIAGNOSE = {
     'target_paths_verified', 'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
 }
 DIAGNOSTIC_OBSERVATIONS = {
+    'option_names_code_literals_verified',
     'added_option_other', 'added_option_petish',
     'added_option_runtime_action_scheduler', 'added_option_runtime_litespeed',
     'added_option_runtime_transient', 'added_option_woocommerce',
@@ -95,17 +97,26 @@ DIAGNOSTIC_OBSERVATIONS = {
     'changed_known_option_woocommerce_queue_flush_rewrite_rules', 'changed_known_option_woocommerce_task_list_tracked_completed_tasks',
     'changed_known_option_woocommerce_task_list_tracked_started_tasks', 'changed_known_option_woocommerce_tracker_last_send',
     'changed_known_option_woocommerce_version', 'changed_known_option_wp_user_roles',
-    'changed_option_other', 'changed_option_petish',
-    'changed_option_runtime_action_scheduler', 'changed_option_runtime_litespeed',
-    'changed_option_runtime_transient', 'changed_option_woocommerce',
-    'diagnostic_write_attempt_blocked', 'only_new_nonce_key_and_salt_identified',
-    'option_change_cleanup', 'option_change_hearts',
-    'option_change_moderation', 'option_change_moments',
-    'option_change_pet_creation', 'option_change_sharing',
-    'option_change_user_creation', 'option_delta_identified',
-    'option_rows_baseline_available', 'options_added',
-    'options_modified', 'options_removed',
-    'settings_unchanged', 'single_added_option_identified',
+    'changed_option_events_found', 'changed_option_other',
+    'changed_option_petish', 'changed_option_runtime_action_scheduler',
+    'changed_option_runtime_litespeed', 'changed_option_runtime_transient',
+    'changed_option_woocommerce', 'diagnostic_write_attempt_blocked',
+    'only_new_nonce_key_and_salt_identified', 'option_change_cleanup',
+    'option_change_hearts', 'option_change_moderation',
+    'option_change_moments', 'option_change_pet_creation',
+    'option_change_sharing', 'option_change_user_creation',
+    'option_delta_identified', 'option_event_trace_nonempty',
+    'option_event_trace_present', 'option_names_redacted',
+    'option_names_truncated', 'option_rows_baseline_available',
+    'options_added', 'options_modified',
+    'options_removed', 'settings_unchanged',
+    'single_added_option_identified',
+}
+OPTION_PREFIXES = {
+    '_action_scheduler_', '_as_', '_litespeed_', '_petish_',
+    '_wc_', '_woocommerce_', '_wp_', 'action_scheduler_',
+    'as_', 'litespeed_', 'petish_', 'wc_',
+    'woocommerce_', 'wp_',
 }
 BROWSER = {
     'account_menu_verified', 'anonymous_private_photos_denied', 'browser_started',
@@ -135,6 +146,30 @@ CATEGORIES = navigation.CATEGORIES | {'snapshot','verification','renderer','cata
     'contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'}
 
 
+def safe_option_name(name):
+    if not isinstance(name, str) or len(name) > 100 \
+            or not re.fullmatch(r'_?[a-z]{1,24}(?:[_-][a-z]{1,24}){1,15}', name):
+        return False
+    return not any(len(part) >= 8 and re.fullmatch(r'[a-f]+', part)
+                   for part in re.split(r'[_-]+', name.strip('_')))
+
+
+def diagnostic_names(raw):
+    if 'option_names' in raw:
+        values = raw['option_names']
+        if not isinstance(values, list) or len(values) > 12 \
+                or any(not safe_option_name(value) for value in values) or values != sorted(set(values)):
+            raise ValueError()
+        if values and raw.get('checks', {}).get('option_names_code_literals_verified') is not True:
+            raise ValueError()
+    if 'option_name_prefixes' in raw:
+        values = raw['option_name_prefixes']
+        if not isinstance(values, list) or len(values) > len(OPTION_PREFIXES) \
+                or any(not isinstance(value, str) or value not in OPTION_PREFIXES for value in values) \
+                or values != sorted(set(values)):
+            raise ValueError()
+
+
 def screen(phase, path):
     try:
         if phase not in REQUIRED:
@@ -144,6 +179,9 @@ def screen(phase, path):
         raw = navigation.rehearsal.read_report(path)
         deploy = phase in {'inspect', 'apply', 'rollback', 'commit'}
         fields = {'status', 'category', 'checks'} | ({'changed_file_count'} if deploy else set())
+        if phase == 'diagnose' and isinstance(raw, dict):
+            diagnostic_names(raw)
+            fields |= set(raw) & {'option_names', 'option_name_prefixes'}
         if not isinstance(raw, dict) or set(raw) != fields \
                 or raw['status'] not in {'success', 'failure'} or raw['category'] not in CATEGORIES \
                 or not isinstance(raw['checks'], dict):
