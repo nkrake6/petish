@@ -1,0 +1,51 @@
+name: Test Petish order email
+
+on:
+  push:
+    branches: [prepare-mail-test, send-mail-test]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-mail-test
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+      MAIL_TEST_MODE: ${{ github.ref == 'refs/heads/prepare-mail-test' && 'prepare' || 'send' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Prepare verified SSH connection
+        run: |
+          bash scripts/hostinger-connection-check.sh
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass
+          fi
+      - name: Prepare an encrypted request or submit one explicitly requested test
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: bash scripts/hostinger-test-mail.sh
+      - name: Publish nonsecret test result
+        if: always()
+        env:
+          AUTOMATION_KIND: mail-test
+          AUTOMATION_RESULT: ${{ job.status }}
+        run: bash scripts/publish-automation-status.sh
+      - name: Remove private runner files
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP/petish-mail-test"
+          rm -f -- "$RUNNER_TEMP/petish-mail-test-result.json"
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"

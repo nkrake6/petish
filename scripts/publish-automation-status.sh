@@ -6,7 +6,7 @@ set -euo pipefail
 : "${GITHUB_RUN_ATTEMPT:?Missing GITHUB_RUN_ATTEMPT}"
 : "${GITHUB_SHA:?Missing GITHUB_SHA}"
 : "${RUNNER_TEMP:?Missing RUNNER_TEMP}"
-[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging|recovery|mail)$ ]]
+[[ "$AUTOMATION_KIND" =~ ^(source-sync|backup|staging|recovery|mail|mail-test)$ ]]
 [[ "$AUTOMATION_RESULT" =~ ^(success|failure|cancelled|skipped)$ ]]
 [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
 [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
@@ -19,6 +19,23 @@ data = {key: os.environ[key] for key in (
     'AUTOMATION_KIND', 'AUTOMATION_RESULT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')}
 data['generated_utc'] = datetime.now(timezone.utc).isoformat()
 from pathlib import Path
+if data['AUTOMATION_KIND'] == 'mail-test':
+    import re
+    report = Path(os.environ['RUNNER_TEMP']) / 'petish-mail-test-result.json'
+    if report.is_file() and report.stat().st_size < 4096:
+        try:
+            tested = json.loads(report.read_text())
+            data['mail_test'] = {key: tested[key] for key in ('test_message_submitted', 'request_key_prepared')
+                                 if key in tested and type(tested[key]) is bool}
+            if tested.get('failure_category') in {'ssh_connection', 'configuration', 'runtime', 'smtp_submission'}:
+                data['mail_test']['failure_category'] = tested['failure_category']
+            token, public = tested.get('request_token'), tested.get('public_key_pem')
+            if tested.get('request_key_prepared') is True and isinstance(token,str) and re.fullmatch(r'[a-f0-9]{32}',token) \
+                    and isinstance(public,str) and len(public)<1024 \
+                    and re.fullmatch(r'-----BEGIN PUBLIC KEY-----\n[A-Za-z0-9+/=\n]+-----END PUBLIC KEY-----\n',public):
+                data['mail_test'].update(request_token=token, public_key_pem=public)
+        except (ValueError, TypeError):
+            pass
 if data['AUTOMATION_KIND'] == 'mail':
     report = Path(os.environ['RUNNER_TEMP']) / 'petish-mail-result.json'
     if report.is_file() and report.stat().st_size < 4096:

@@ -60,6 +60,16 @@ recipient. Check receipt, sender, Reply-To and authentication headers. Then use
 an agreed sample order to verify paid-order, shipment, cancellation and refund
 notifications. Do not create a purchase or contact customers for a mail check.
 
+The dedicated **Test Petish order email** workflow keeps the recipient out of
+Git. An explicitly invoked `prepare-mail-test` run publishes an ephemeral public
+key and keeps its private half outside the webroot. The operator encrypts the
+authorized recipient and token using RSA OAEP and commits only the encrypted
+envelope at `operations/petish-mail-test-envelope.json`. A `send-mail-test` run
+consumes the private key before one submission attempt. It never bootstraps
+WordPress, creates an order or automatically retries. Keys expire after 15
+minutes; recipient addresses and SMTP transcripts are not published. Check its
+separate `automation-status/mail-test-*` result and confirm inbox receipt.
+
 ## Tracking remains a separate integration
 
 WooCommerce handles order notifications; SMTP delivers those messages.
