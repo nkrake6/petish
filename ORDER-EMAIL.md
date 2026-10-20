@@ -7,6 +7,15 @@ audit on 20 October 2026 found Hostinger MX records, an SPF record including
 Hostinger, three Hostinger DKIM selectors and a DMARC monitoring policy
 (`p=none`). These records do not prove delivery to an inbox.
 
+On 20 October 2026, configuration run
+[`39360477958`](https://github.com/nkrake6/petish/actions/runs/39360477958)
+verified authentication and TLS and installed the production adapter without
+submitting a message. Encrypted backup `full-site-backup/39360478186-1`
+includes the private SMTP configuration. Application recovery run
+[`39360763834`](https://github.com/nkrake6/petish/actions/runs/39360763834)
+passed with that backup, all 14 active plugins, 104 published products, the main
+store pages and mail/network blocking in the disposable sandbox.
+
 ## Secure setup
 
 Add the `administrator@petish.biz` mailbox password as the GitHub Actions repository secret
