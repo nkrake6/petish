@@ -1,0 +1,106 @@
+name: Check or deploy Petish staging custom code
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Validate only, or deploy custom code to existing private staging
+        required: true
+        default: check
+        type: choice
+        options: [check, apply]
+      source_sha:
+        description: Optional exact 40-character source commit (defaults to this workflow commit)
+        required: false
+        type: string
+  push:
+    branches: [main, staging]
+    paths:
+      - wordpress/**
+      - .github/workflows/deploy-staging.yml
+      - scripts/deploy-staging-remote.sh
+      - scripts/package-staging-source.py
+      - scripts/hostinger-staging-deploy.sh
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-staging-code
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      DEPLOY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref == 'refs/heads/staging' && 'apply' || 'check') }}
+    steps:
+      - name: Check out reviewed deployment tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Check source revision
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || { printf '%s\n' 'An exact source commit is required.' >&2; exit 1; }
+      - name: Check out source separately
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          path: deployment-source
+          persist-credentials: false
+      - name: Build an allowlisted staging package
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('deployment-source/source-manifest.json').read_text())
+          if manifest.get('complete') is not True or manifest.get('findings') or manifest.get('missing_roots'):
+              raise SystemExit('A complete reviewed source recovery is required before staging deployment.')
+          PY
+          python3 scripts/package-staging-source.py deployment-source/wordpress "$RUNNER_TEMP/petish-staging-source.tar.gz" --source-sha "$SOURCE_SHA"
+          bash scripts/install-gitleaks.sh
+          "$RUNNER_TEMP/petish-gitleaks/gitleaks" dir deployment-source/wordpress --no-banner --redact=100 --exit-code=1 > "$RUNNER_TEMP/petish-staging-secret-scan.log" 2>&1 || { printf '%s\n' 'Staging source screening failed; deployment stopped.' >&2; exit 1; }
+      - name: Check SSH connectivity and runner prerequisites
+        run: |
+          bash scripts/hostinger-connection-check.sh
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass
+          fi
+      - name: Validate or deploy only the existing staging custom code
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: |
+          set +x
+          set -euo pipefail
+          task_status=0
+          bash scripts/hostinger-staging-deploy.sh > "$RUNNER_TEMP/petish-task.stdout" 2> "$RUNNER_TEMP/petish-task.stderr" || task_status=$?
+          python3 scripts/record-task-result.py staging "$task_status" "$RUNNER_TEMP/petish-task.stdout" "$RUNNER_TEMP/petish-task.stderr" "$RUNNER_TEMP/petish-task-diagnostics.json"
+          cat "$RUNNER_TEMP/petish-task-diagnostics.json"
+          exit "$task_status"
+      - name: Summarize staging result
+        run: |
+          {
+            printf '## Staging custom code: %s succeeded\n\n' "$DEPLOY_MODE"
+            printf 'Source: `%s`\n\n' "$SOURCE_SHA"
+            printf 'Scope: existing The7 child theme, Passport and Fulfilment only. Database, configuration, private media, staging guard and third-party integrations were preserved.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish nonsecret result
+        if: always()
+        env:
+          AUTOMATION_KIND: staging
+          AUTOMATION_RESULT: ${{ job.status }}
+        run: bash scripts/publish-automation-status.sh
+      - name: Remove private runner package
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/petish-staging-source.tar.gz" "$RUNNER_TEMP/petish-staging-secret-scan.log"
+          rm -f -- "$RUNNER_TEMP/petish-verified-automation-host-keys" "$RUNNER_TEMP/petish-candidate-host-keys"
+          rm -f -- "$RUNNER_TEMP/petish-task.stdout" "$RUNNER_TEMP/petish-task.stderr" "$RUNNER_TEMP/petish-task-diagnostics.json"

@@ -18,8 +18,24 @@ from datetime import datetime, timezone
 data = {key: os.environ[key] for key in (
     'AUTOMATION_KIND', 'AUTOMATION_RESULT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')}
 data['generated_utc'] = datetime.now(timezone.utc).isoformat()
+from pathlib import Path
+diagnostics = Path(os.environ['RUNNER_TEMP']) / 'petish-task-diagnostics.json'
+if diagnostics.is_file() and diagnostics.stat().st_size < 8192:
+    try:
+        outcome = json.loads(diagnostics.read_text())
+        known = {'private_passport_unavailable', 'private_passport_missing', 'private_passport_link',
+                 'private_passport_unreadable', 'private_boundary', 'wpcli_missing',
+                 'db_export_failed', 'archive_changed', 'archive_error', 'verifier_failed',
+                 'passphrase_missing', 'ssh_hostkey_failed', 'ssh_auth_failed',
+                 'source_screening_failed', 'staging_validation_failed', 'unknown'}
+        if outcome.get('phase') in {'backup-export', 'backup-restore', 'staging', 'source-sync'}:
+            data['task'] = {'phase': outcome['phase'],
+                            'categories': [c for c in outcome.get('categories', []) if c in known]}
+            if type(outcome.get('exit_code')) is int:
+                data['task']['exit_code'] = outcome['exit_code']
+    except (ValueError, TypeError):
+        pass
 if data['AUTOMATION_KIND'] == 'backup':
-    from pathlib import Path
     report = Path(os.environ['RUNNER_TEMP']) / 'petish-backup-restore-result.json'
     if report.is_file() and report.stat().st_size < 8192:
         try:

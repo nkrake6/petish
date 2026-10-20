@@ -1,6 +1,6 @@
 # Full Petish website backup in Git
 
-This workflow backs up the **complete WordPress document root, private Passport storage, and complete site database**, including uploads, WordPress core, all themes/plugins, wp-config.php, users, orders, settings, page/product content, and Passport photos stored outside the webroot. The full archive is encrypted **before** it is committed to Git. The earlier code-only snapshot approach is not used.
+This workflow backs up the **complete WordPress document root, private Passport storage, and complete site database**, including uploads, WordPress core, all themes/plugins, wp-config.php, users, orders, settings, page/product content, and Passport photos stored outside the webroot. The full archive is encrypted **before** it is committed to Git. Editable custom source is recovered separately; it does not replace this backup.
 
 The required private source is the domain's exact sibling directory `private/petish-passport`, alongside `public_html`. It is archived as `private-files/petish-passport/`. Missing, unreadable, symlinked, or aliased private storage stops the backup instead of silently omitting it.
 
@@ -26,8 +26,9 @@ The workflow:
 4. Decrypts it through a streaming integrity/structure check without extracting private files or printing their contents. The verifier requires the private Passport root and records only aggregate private-file counts/bytes, never filenames.
 5. Splits the encrypted archive into ordered 48 MiB parts with checksums and restoration instructions.
 6. Commits those encrypted parts on a new **`full-site-backup/<run-id>-<attempt>`** Git branch. Nothing is deployed or merged into main.
+7. Attempts a private regular-file and database restoration into a disposable Docker sandbox. The database has no network, no host mounts and an immutable disabled event scheduler. Original WordPress configuration is never executed. The sandbox is removed afterward.
 
-The final run summary links to the backup branch. Share that branch name with Codex to confirm the backup files and checksums. Full private data is inside the encrypted parts; no raw source, SQL, credentials, or private filenames are published as artifacts or logs.
+The final run summary links to the backup branch. A nonsecret `automation-status/backup-<run>-<attempt>` branch records completion and restore-smoke results so Codex can monitor through Git. Full private data is inside the encrypted parts; no raw source, SQL, credentials, or private filenames are published as artifacts or logs. Fixed diagnostic categories are published on failure.
 
 ## What this does and does not guarantee
 
@@ -37,7 +38,7 @@ The final run summary links to the backup branch. Share that branch name with Co
 - A failed SQL dump, encryption/integrity check, or archive size check prevents publication. The compressed/encrypted backup must fit the workflow's 1.5 GiB ceiling below GitHub's single-push limit. Exceeding it stops the backup; files are never silently dropped.
 - Archive failures emit only a numeric exit code and fixed diagnostic categories. A small private-metadata preflight distinguishes archive-tool problems from website-file failures. Raw paths, tar errors and SQL diagnostics are never published.
 - Repeated full backups consume Git repository storage. Older backup branches are not deleted automatically.
-- Successful validation is not a successful restore test. Restore into an isolated site/database and verify it before relying on any disaster recovery plan.
+- Streaming validation and the disposable restore smoke test are separate results. The smoke test restores regular files and imports the database; links are skipped and WordPress is not bootstrapped. A complete application recovery test remains necessary before relying on the disaster recovery plan.
 - Because credentials and licensed software are present, keep the passphrase separate from Git even if the repository is private. Do not replace encrypted parts with a plaintext SQL/archive.
 
 ## Restore private Passport storage

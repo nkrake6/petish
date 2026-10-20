@@ -63,7 +63,14 @@ jobs:
           SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
           SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
           PETISH_BACKUP_PASSPHRASE: ${{ secrets.PETISH_BACKUP_PASSPHRASE }}
-        run: bash scripts/hostinger-full-backup.sh
+        run: |
+          set +x
+          set -euo pipefail
+          task_status=0
+          bash scripts/hostinger-full-backup.sh > "$RUNNER_TEMP/petish-task.stdout" 2> "$RUNNER_TEMP/petish-task.stderr" || task_status=$?
+          python3 scripts/record-task-result.py backup-export "$task_status" "$RUNNER_TEMP/petish-task.stdout" "$RUNNER_TEMP/petish-task.stderr" "$RUNNER_TEMP/petish-task-diagnostics.json"
+          cat "$RUNNER_TEMP/petish-task-diagnostics.json"
+          exit "$task_status"
 
       - name: Commit only encrypted backup parts to a new branch
         env:
@@ -118,3 +125,4 @@ jobs:
           rm -rf -- "$RUNNER_TEMP/petish-full-backup"
           rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-backup-host-keys"
           rm -f -- "$RUNNER_TEMP/petish-backup-restore-result.json"
+          rm -f -- "$RUNNER_TEMP/petish-task.stdout" "$RUNNER_TEMP/petish-task.stderr" "$RUNNER_TEMP/petish-task-diagnostics.json"

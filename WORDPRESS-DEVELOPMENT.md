@@ -1,0 +1,86 @@
+# Petish WordPress development
+
+The current store is WordPress/WooCommerce at `petish.biz`, using The7's child
+theme and the custom Passport and Fulfilment plugins. The static storefront at
+the repository root and in `docs/` is an earlier prototype; it is not the deployed
+WordPress application.
+
+Use the existing checkout. Do not create a Git worktree unless requested.
+Preserve unrelated local changes. Never commit the uploaded historical chat,
+configuration credentials, SQL, customer data or decrypted backups.
+
+## Recover current custom source
+
+`.github/workflows/sync-wordpress-source.yml` uses the existing GitHub repository
+SSH secret and verified Hostinger fingerprint. It reads only these production
+trees, without bootstrapping WordPress:
+
+- `wp-content/themes/dt-the7-child`
+- `wp-content/plugins/petish-passport`
+- `wp-content/plugins/petish-fulfilment`
+- Petish production MU plugin loaders and directories, excluding the staging guard
+
+The raw export exists only in private runner temporary storage. The export
+validator checks archive paths and file types, excludes configuration/data/archive
+files and screens source for secret literals. Gitleaks provides a second scan.
+Suspect files are quarantined wholesale, not replaced with deployable redactions.
+Only screened files and a manifest reach a separate `site-source/<run>-<attempt>`
+review branch. Check omissions before merging. Automated screening reduces the
+risk of publishing credentials; review recovered code before changing it.
+
+Changes to the recovery workflow/scripts on `main` start recovery automatically.
+Once editable source is on `main`, subsequent changes belong under `wordpress/`.
+An encrypted full backup remains separate from this code snapshot.
+
+## Staging deployment
+
+The existing private site is `staging.petish.biz`. Its guard, private
+configuration and separate WooPayments test connection must remain intact.
+Production supplier, marketing and Google-login integrations are not copied.
+
+`.github/workflows/deploy-staging.yml` supports:
+
+- Changes on `main`: validate the staging package and destination only.
+- Changes on `staging`: apply the exact source commit to staging.
+- Manual run: choose `check` (default) or `apply`, optionally selecting an exact
+  source commit.
+
+Only the existing child-theme, Passport and Fulfilment directories can be
+replaced. The package contains a file-hash manifest. The remote script validates
+the fixed destination, checks staging configuration and preserves the staging
+guard/configuration hashes. It rejects links and unexpected package entries,
+lints PHP, saves a private code snapshot and restores prior code if a swap fails.
+Successful release snapshots remain outside the webroot for rollback.
+
+This is code deployment, not database rollback or application acceptance testing.
+Review update hooks/schema changes before deploying plugin changes. Validate
+the affected feature on staging after deployment. Production deployment is not
+implemented by this workflow. Real purchases and supplier orders require a
+separately agreed sample-order task.
+
+## Backups and recovery checks
+
+See [FULL-SITE-BACKUP.md](FULL-SITE-BACKUP.md). The encrypted archive includes the
+full document root, database and the private Passport tree outside `public_html`.
+Do not follow external symlinks when restoring.
+
+After storing a backup, the workflow runs a disposable Docker database/file
+restore check with external networking disabled. This does not restore over
+production or the existing staging installation. It does not prove complete
+application behaviour, external dependencies, payments or supplier integration.
+
+## Monitoring from this cloud session
+
+Native HTTPS Git works through the supplied authentication proxy. GitHub API
+access may be unavailable even when Git works; do not request another token
+merely because `gh api` is denied.
+
+Each new workflow publishes a small nonsecret result branch:
+`automation-status/<source-sync|backup|staging>-<run>-<attempt>`. Discover it with
+`git ls-remote --heads origin 'refs/heads/automation-status/*'`, fetch the exact
+branch and read `status.json`. These results distinguish completed checks from
+workflow files that have only been prepared.
+
+Required repository bindings already used by the working backup workflow:
+`HOSTINGER_SSH_PASSWORD` (secret), `PETISH_BACKUP_PASSPHRASE` (secret) and
+`HOSTINGER_SSH_FINGERPRINT` (variable). Never copy their values into this repo.

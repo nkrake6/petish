@@ -42,8 +42,12 @@ if [[ "$site_real" != "$domain_real/"* || "$home_real" == "$site_real" || "$home
 fi
 # Passport photos intentionally live outside public_html. Require their exact
 # private root rather than silently producing a document-root-only backup.
-if [[ -L "$passport_path" || ! -d "$passport_path" || ! -r "$passport_path" || ! -x "$passport_path" ]]; then
-  fail 'The required private Passport directory is missing, unreadable, or a symbolic link; backup stopped.'
+if [[ -L "$passport_path" ]]; then
+  fail 'The required private Passport directory is a symbolic link; backup stopped.'
+elif [[ ! -d "$passport_path" ]]; then
+  fail 'The required private Passport directory is missing; backup stopped.'
+elif [[ ! -r "$passport_path" || ! -x "$passport_path" ]]; then
+  fail 'The required private Passport directory is unreadable; backup stopped.'
 fi
 if ! passport_real="$(cd -- "$passport_path" 2>/dev/null && pwd -P)" ||
    ! private_parent_real="$(cd -- "$domain_path/private" 2>/dev/null && pwd -P)"; then
