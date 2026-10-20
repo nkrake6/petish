@@ -1,0 +1,67 @@
+name: Deploy verified Petish email branding
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Inspect production or apply the verified six-file release
+        required: true
+        default: inspect
+        type: choice
+        options: [inspect, apply]
+  push:
+    branches: [main, deploy-email-branding]
+    paths:
+      - .github/workflows/deploy-email-branding.yml
+      - scripts/hostinger-deploy-email-branding.sh
+      - scripts/deploy-email-branding-remote.php
+      - scripts/verify-production-email-branding.php
+      - operations/email-branding-release.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-production-backup-mail
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+      EMAIL_BRANDING_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref_name == 'deploy-email-branding' && 'apply' || 'inspect') }}
+    steps:
+      - name: Check out reviewed production email release tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Prepare pinned SSH connection
+        id: prepare
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            if bash scripts/hostinger-connection-check.sh; then break; fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 2
+          done
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
+          fi
+      - name: Inspect or release the tested email branding
+        if: always()
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          EMAIL_BRANDING_PREREQUISITES: ${{ steps.prepare.outcome }}
+        run: bash scripts/hostinger-deploy-email-branding.sh
+      - name: Remove private runner data
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/petish-email-release.*
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
