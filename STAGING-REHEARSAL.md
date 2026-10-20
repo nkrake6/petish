@@ -18,6 +18,12 @@ Supplier calls and webhooks remained blocked, and order emails stayed in the
 private staging capture. The tracking note was explicitly synthetic. Automatic
 DSers tracking, supplier dispatch and real freight costs remain unverified.
 
+The final `main` preflight
+[`39369073587`](https://github.com/nkrake6/petish/actions/runs/39369073587)
+also passed on commit `30a37bf`, including runner prerequisites and staging
+runtime checks. Only read-only connection/setup prerequisites are retried;
+checkout and refund operations are not automatically repeated.
+
 The rehearsal uses `https://staging.petish.biz`, its separate database and the
 existing synthetic customer. It must not use the production checkout, real
 payment details, customer accounts or supplier ordering.
