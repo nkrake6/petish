@@ -22,7 +22,9 @@ recovery in run `39360965357`. At 02:50 UTC, delivery-test run
 submitted the owner's single requested message successfully. The one-use key
 was consumed and its private directory removed; the encrypted request was
 removed from `main`. This confirms SMTP acceptance of the orders alias.
-Recipient inbox placement and authentication headers await the owner's check.
+The owner confirmed successful receipt in Gmail. Authentication headers were
+not separately inspected. SMTP connection, sender-alias acceptance and delivery
+are verified; order-event and shipment notifications still need their sample-order tests.
 
 ## Secure setup
 

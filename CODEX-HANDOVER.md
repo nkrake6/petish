@@ -52,8 +52,9 @@ never request it in chat. The authentication probe does not submit an email.
 SMTP authentication and TLS passed in run `39360477958`; the private credential
 is covered by encrypted backups `39360478186-1` and `39360505612-1`, both fully
 recovered in isolated WordPress checks. The owner separately authorized one
-delivery test; run `39361096109` submitted it successfully. Inbox receipt still
-needs the owner's confirmation. Do not resend automatically.
+delivery test; run `39361096109` submitted it successfully and the owner confirmed
+receipt in Gmail. Do not resend automatically. WooCommerce order-event and
+shipment notifications still need the agreed sample-order tests.
 
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,
