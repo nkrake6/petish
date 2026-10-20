@@ -1,0 +1,11 @@
+{
+  "AUTOMATION_KIND": "mail-test",
+  "AUTOMATION_RESULT": "success",
+  "GITHUB_RUN_ID": "39361096109",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "4d5aec6e97365caf9e624affa70db337f70805e1",
+  "generated_utc": "2026-10-20T02:50:47.177351+00:00",
+  "mail_test": {
+    "test_message_submitted": true
+  }
+}
