@@ -53,6 +53,11 @@ lints PHP, saves a private code snapshot and restores prior code if a swap fails
 Successful release snapshots remain outside the webroot for rollback.
 
 This is code deployment, not database rollback or application acceptance testing.
+
+The separate [production email release](PRODUCTION-EMAIL-RELEASE.md) is limited
+to six verified child-theme email files. Release `39407138767` passed all seven
+native renders and public health checks on production. It does not deploy the
+other custom components or the unready shipment-tracking receiver.
 Review update hooks/schema changes before deploying plugin changes. Validate
 the affected feature on staging after deployment. Production deployment is not
 implemented by this workflow. Real purchases and supplier orders require a

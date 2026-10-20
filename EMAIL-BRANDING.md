@@ -1,6 +1,17 @@
 # Petish WooCommerce email branding
 
-Status: shared branding deployed to private staging in
+Status: shared order/account branding is live on `petish.biz` following
+[production release 39407138767](https://github.com/nkrake6/petish/actions/runs/39407138767)
+from release-tools commit `81d7598`, deploying the six unchanged files tested
+on child-theme commit `86e315f`. All seven native email types and the core
+welcome/reset filters passed on the production installation. Native account
+links, full animal logo, verification button, public store pages and logo pixels
+passed. Order/user counts, authentication state, stock and email/account settings
+were unchanged; verification dispatched no message. The private rollback copy
+and a verified pre-release full backup were retained. See
+[PRODUCTION-EMAIL-RELEASE.md](PRODUCTION-EMAIL-RELEASE.md) for release evidence.
+
+Shared branding was deployed to private staging in
 [`39383134509`](https://github.com/nkrake6/petish/actions/runs/39383134509)
 from child-theme commit `86e315f`. Native rendering and independent publication
 screening passed in
@@ -10,7 +21,6 @@ order/user counts, authentication state and stock were unchanged. The deployed
 core WordPress welcome/reset filters also passed synthetic message/link checks. Chromium checks passed for every
 type at 900px, 390px and inside the 326px mobile gallery. Tabs, keyboard controls,
 direct links and image loading passed with no overflow or JavaScript errors.
-Live branding is unchanged.
 
 Review gallery: <https://nkrake6.github.io/petish/email-preview/?v=3>.
 Public availability passed in
@@ -102,9 +112,9 @@ The shared WooCommerce shell covers this native message. WordPress core profile
 email-change confirmations and third-party social-login notification paths are
 separate; they are not claimed as changed or tested by these account previews.
 
-## Later live release
+## Future releases
 
-Review the actual staging previews before a separate production release.
+Review the actual staging previews before another production release.
 Keep the shared header/footer together with their helper and `functions.php`
 include. Preserve configurable WooCommerce footer text and native body hooks.
 Check template compatibility after WooCommerce upgrades. Production deployment
