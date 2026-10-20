@@ -8,10 +8,13 @@ umask 077
 : "${GITHUB_RUN_ATTEMPT:?}"
 : "${GITHUB_SHA:?}"
 run=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT
+target_run=$run
+recovery_operation=
+retain_remote_tools=0
 mode=${PET_CLUB_MODE:-staging}
 source_sha=${PET_CLUB_SOURCE_SHA:-$GITHUB_SHA}
 [[ $run =~ ^[1-9][0-9]*-[1-9][0-9]*$ && $source_sha =~ ^[a-f0-9]{40}$ ]]
-[[ $mode == staging || $mode == inspect || $mode == apply ]]
+[[ $mode == staging || $mode == inspect || $mode == apply || $mode == cleanup ]]
 work=$(mktemp -d "$RUNNER_TEMP/petish-pet-club.XXXXXXXX")
 mkdir -m 700 "$work/public" "$work/bundle" "$work/bundle/payload"
 ssh_ready=0
@@ -35,8 +38,8 @@ screen_phase() {
 remote_phase() {
     local phase=$1 status=0 validation=0
     case "$phase" in inspect|apply|rollback|commit) ;; *) return 1 ;; esac
-    "${petish_ssh[@]}" 'set -eu; tools="$HOME/.petish-pet-club-deploy-'"$run"'";
-      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/deploy-pet-club-remote.php" '"$phase $run"' "$tools/payload"' \
+    "${petish_ssh[@]}" 'set -eu; tools="$HOME/.petish-pet-club-deploy-'"$target_run"'";
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/deploy-pet-club-remote.php" '"$phase $target_run"' "$tools/payload"' \
         > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
     screen_phase "$phase" || validation=$?
     [[ $status == 0 && $validation == 0 ]]
@@ -48,7 +51,7 @@ native_verification() {
     [[ $target != staging ]] || phase=native
     "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
       for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
-      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-pet-club-deploy-'"$run"'/verify-pet-club.php" '"$run $target" \
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-pet-club-deploy-'"$target_run"'/verify-pet-club.php" '"$target_run $target" \
         > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
     screen_phase "$phase" || validation=$?
     [[ $status == 0 && $validation == 0 ]]
@@ -56,11 +59,12 @@ native_verification() {
 
 fixture_phase() {
     local operation=$1 phase=fixture status=0 validation=0
-    [[ $operation == prepare || $operation == cleanup ]] || return 1
+    [[ $operation == prepare || $operation == cleanup || $operation == diagnose ]] || return 1
     [[ $operation != cleanup ]] || phase=cleanup
+    [[ $operation != diagnose ]] || phase=diagnose
     "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
       for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
-      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-pet-club-deploy-'"$run"'/pet-club-fixture.php" '"$operation $run" \
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-pet-club-deploy-'"$target_run"'/pet-club-fixture.php" '"$operation $target_run" \
         > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
     screen_phase "$phase" || validation=$?
     [[ $status == 0 && $validation == 0 ]]
@@ -89,14 +93,14 @@ PY_STAGE
 }
 
 remote_cleanup() {
-    "${petish_ssh[@]}" 'set -eu; tools="$HOME/.petish-pet-club-deploy-'"$run"'";
+    "${petish_ssh[@]}" 'set -eu; tools="$HOME/.petish-pet-club-deploy-'"$target_run"'";
       if test ! -e "$tools" && test ! -L "$tools"; then exit 0; fi;
       test -d "$tools" && test ! -L "$tools" && test "$(readlink -f -- "$tools")" = "$tools" && test "$(stat -c %a "$tools")" = 700 || exit 1;
       marker="$tools/.pet-club-owned";
-      test -f "$marker" && test ! -L "$marker" && test "$(stat -c %h "$marker")" = 1 && test "$(stat -c %a "$marker")" = 600 && test "$(cat "$marker")" = '"$run"' || exit 1;
+      test -f "$marker" && test ! -L "$marker" && test "$(stat -c %h "$marker")" = 1 && test "$(stat -c %a "$marker")" = 600 && test "$(cat "$marker")" = '"$target_run"' || exit 1;
       unsafe=$(find "$tools" -xdev \( -type l -o \( -type f -links +1 \) -o \( ! -type f ! -type d \) \) -print -quit) || exit 1;
       test -z "$unsafe" || exit 1;
-      work="$HOME/.petish-staging/rehearsal-'"$run"'";
+      work="$HOME/.petish-staging/rehearsal-'"$target_run"'";
       if test -e "$work" || test -L "$work"; then
         base="$HOME/.petish-staging";
         test -d "$base" && test ! -L "$base" && test "$(readlink -f -- "$base")" = "$base" && test "$(stat -c %a "$base")" = 700 || exit 1;
@@ -114,6 +118,7 @@ publish_result() {
     export PETISH_PET_CLUB_STATUS=$result_status PETISH_PET_CLUB_CATEGORY=$failure_category
     export PETISH_PET_CLUB_SOURCE=$source_sha PETISH_PET_CLUB_STAGE_VERIFIED=$staging_source_verified
     export PETISH_PET_CLUB_ROLLBACK_ATTEMPTED=$rollback_attempted PETISH_PET_CLUB_ROLLBACK_VERIFIED=$rollback_verified
+    export PETISH_PET_CLUB_TARGET_RUN=$target_run PETISH_PET_CLUB_RECOVERY_OPERATION=$recovery_operation
     python3 - <<'PY' || return 1
 from datetime import datetime,timezone
 import json,os,re,stat
@@ -125,11 +130,14 @@ result={'status':os.environ['PETISH_PET_CLUB_STATUS'],'category':os.environ['PET
  'source_hashes':{},'staging_source_verified':os.environ['PETISH_PET_CLUB_STAGE_VERIFIED']=='1',
  'rollback_attempted':os.environ['PETISH_PET_CLUB_ROLLBACK_ATTEMPTED']=='1',
  'rollback_verified':os.environ['PETISH_PET_CLUB_ROLLBACK_VERIFIED']=='1','phases':{}}
+if result['mode']=='cleanup':
+ result['recovery_run_id']=os.environ['PETISH_PET_CLUB_TARGET_RUN']
+ result['recovery_operation']=os.environ['PETISH_PET_CLUB_RECOVERY_OPERATION']
 stage=os.environ.get('PET_CLUB_PREPARATION_STAGE','unknown')
 result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
-for phase in ('inspect','preflight','native','fixture','browser','cleanup','apply','verify','health','assets','commit','rollback'):
+for phase in ('inspect','preflight','native','fixture','browser','cleanup','diagnose','apply','verify','health','assets','commit','rollback'):
  path=root/(phase+'.safe.json')
  try:
   info=path.lstat()
@@ -193,7 +201,7 @@ finish() {
         fi
     fi
     # Preserve exact helpers/payload and owned journals whenever recovery is incomplete.
-    if [[ $ssh_ready == 1 && $rollback_needed == 0 && ( $fixture_cleanup_needed == 0 || $fixture_cleanup_verified == 1 ) ]] && ! remote_cleanup; then
+    if [[ $ssh_ready == 1 && ${retain_remote_tools:-0} == 0 && $rollback_needed == 0 && ( $fixture_cleanup_needed == 0 || $fixture_cleanup_verified == 1 ) ]] && ! remote_cleanup; then
         outcome=1
         failure_category=cleanup
     fi
@@ -237,6 +245,65 @@ for name in names:
 with (destination/'manifest.json').open('x') as stream:stream.write(json.dumps(manifest,sort_keys=True,indent=2)+'\n')
 (destination/'manifest.json').chmod(0o600)
 PY
+if [[ $mode == cleanup ]]; then
+    failure_category=recovery_request
+    python3 - <<'PY_RECOVERY' > "$work/recovery-request.private.txt" 2> "$work/recovery-request.private.stderr"
+import json,re,stat
+from pathlib import Path
+path=Path('operations/pet-club-cleanup.json');info=path.lstat()
+if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or not 0<info.st_size<=4096:raise SystemExit(1)
+value=json.loads(path.read_bytes())
+if not isinstance(value,dict) or set(value)!={'format','run_id','operation'} or value['format']!='petish-pet-club-cleanup-v1' \
+ or not isinstance(value['run_id'],str) or not re.fullmatch(r'[1-9][0-9]{0,31}-[1-9][0-9]{0,8}',value['run_id']) \
+ or value['operation'] not in {'diagnose','cleanup'}:raise SystemExit(1)
+print(value['run_id'],value['operation'])
+PY_RECOVERY
+    read -r target_run recovery_operation < "$work/recovery-request.private.txt"
+    [[ $target_run =~ ^[1-9][0-9]*-[1-9][0-9]*$ && $target_run != "$run" && ( $recovery_operation == diagnose || $recovery_operation == cleanup ) ]]
+    retain_remote_tools=1
+    for name in verify-pet-club.php pet-club-fixture.php; do
+        cp -- "scripts/$name" "$work/bundle/$name"
+        chmod 600 "$work/bundle/$name"
+    done
+    verify_digest=$(sha256sum "$work/bundle/verify-pet-club.php"); verify_digest=${verify_digest%% *}
+    fixture_digest=$(sha256sum "$work/bundle/pet-club-fixture.php"); fixture_digest=${fixture_digest%% *}
+    [[ $verify_digest =~ ^[a-f0-9]{64}$ && $fixture_digest =~ ^[a-f0-9]{64}$ ]]
+    tar -C "$work/bundle" -cf "$work/recovery.tar" verify-pet-club.php pet-club-fixture.php
+    failure_category=transport
+    source scripts/hostinger-ssh-common.sh
+    petish_prepare_ssh
+    # Do not mark SSH cleanup-ready until old ownership and reviewed replacement bytes are verified.
+    "${petish_ssh[@]}" 'set -eu; umask 077; tools="$HOME/.petish-pet-club-deploy-'"$target_run"'";
+      test -d "$tools" && test ! -L "$tools" && test "$(readlink -f -- "$tools")" = "$tools" && test "$(stat -c %a "$tools")" = 700 || exit 1;
+      marker="$tools/.pet-club-owned";
+      test -f "$marker" && test ! -L "$marker" && test "$(stat -c %h "$marker")" = 1 && test "$(stat -c %a "$marker")" = 600 && test "$(cat "$marker")" = '"$target_run"' || exit 1;
+      unsafe=$(find "$tools" -xdev \( -type l -o \( -type f -links +1 \) -o \( ! -type f ! -type d \) \) -print -quit) || exit 1; test -z "$unsafe" || exit 1;
+      for name in verify-pet-club.php pet-club-fixture.php; do
+        file="$tools/$name"; test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %a "$file")" = 600 && test "$(stat -c %h "$file")" = 1 || exit 1;
+      done;
+      update="$tools/recovery-'"$run"'"; test ! -e "$update" && test ! -L "$update" || exit 1;
+      mkdir -m 700 "$update"; tar --extract --no-same-owner --no-same-permissions --directory "$update";
+      for name in verify-pet-club.php pet-club-fixture.php; do
+        file="$update/$name"; test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %a "$file")" = 600 && test "$(stat -c %h "$file")" = 1 || exit 1;
+        actual=$(sha256sum "$file"); actual=${actual%% *};
+        case "$name" in verify-pet-club.php) expected='"$verify_digest"';; pet-club-fixture.php) expected='"$fixture_digest"';; *) exit 1;; esac;
+        test "$actual" = "$expected" || exit 1;
+        cp -- "$tools/$name" "$update/original-$name"; chmod 600 "$update/original-$name";
+      done;
+      for name in verify-pet-club.php pet-club-fixture.php; do mv -- "$update/$name" "$tools/$name"; done' \
+        < "$work/recovery.tar" > "$work/recovery-upload.private.stdout" 2> "$work/recovery-upload.private.stderr"
+    if [[ $recovery_operation == cleanup ]]; then
+        fixture_cleanup_needed=1
+        retain_remote_tools=0
+    fi
+    ssh_ready=1
+    if [[ $recovery_operation == diagnose ]]; then
+        failure_category=diagnose
+        fixture_phase diagnose
+    fi
+    operation_verified=1
+    exit 0
+fi
 if [[ $mode == apply ]]; then
     failure_category=evidence
     python3 scripts/validate-pet-club-release.py operations/pet-club-release.json "$work/release-evidence.json" \

@@ -59,6 +59,19 @@ CLEANUP = {
     'target_environment_verified', 'target_paths_verified', 'users_and_authentication_unchanged',
     'woocommerce_runtime_verified',
 }
+DIAGNOSE = {
+    'all_outbound_http_blocked', 'cron_and_async_runner_disabled', 'diagnostic_completed',
+    'diagnostic_read_only', 'existing_passports_unchanged', 'fixture_journal_valid',
+    'mail_calls_blocked', 'orders_unchanged', 'owned_users_absent',
+    'private_photo_files_unchanged', 'product_prices_and_stock_unchanged', 'remote_file_access_disabled',
+    'staging_database_separate', 'staging_guard_verified', 'target_environment_verified',
+    'target_paths_verified', 'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
+}
+DIAGNOSTIC_OBSERVATIONS = {
+    'added_option_other', 'added_option_petish', 'added_option_runtime_action_scheduler',
+    'added_option_runtime_litespeed', 'added_option_runtime_transient', 'added_option_woocommerce',
+    'diagnostic_write_attempt_blocked', 'settings_unchanged', 'single_added_option_identified',
+}
 BROWSER = {
     'account_menu_verified', 'anonymous_private_photos_denied', 'browser_started',
     'dark_mode_readable', 'desktop_layout_verified', 'edit_form_verified',
@@ -76,14 +89,14 @@ ASSETS = {'pet_club_script_http_verified', 'pet_club_stylesheet_http_verified'}
 REQUIRED = {
     **{phase: navigation.REQUIRED[phase] for phase in ('inspect', 'apply', 'rollback', 'commit')},
     'preflight': PREFLIGHT, 'native': STAGING, 'verify': VERIFY,
-    'fixture': FIXTURE, 'browser': BROWSER, 'cleanup': CLEANUP,
+    'fixture': FIXTURE, 'browser': BROWSER, 'cleanup': CLEANUP, 'diagnose': DIAGNOSE,
     'health': navigation.email.HEALTH_CHECKS, 'assets': ASSETS,
 }
 REQUIRED['apply'] = REQUIRED['apply'] | {'maintenance_guard_created', 'maintenance_guard_removed'}
 REQUIRED['rollback'] = REQUIRED['rollback'] | {'maintenance_guard_removed'}
 REQUIRED['commit'] = REQUIRED['commit'] | {'maintenance_guard_removed'}
 CATEGORIES = navigation.CATEGORIES | {'snapshot','verification','renderer','catalogue','fixture',
-    'maintenance','native','cleanup','isolation','bootstrap','registration','routes','privacy',
+    'maintenance','native','cleanup','diagnose','isolation','bootstrap','registration','routes','privacy',
     'contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'}
 
 
@@ -101,7 +114,7 @@ def screen(phase, path):
                 or not isinstance(raw['checks'], dict):
             raise ValueError()
         names = DEPLOY if deploy else navigation.email.HEALTH_CHECKS | navigation.email.HEALTH_OBSERVATIONS \
-            if phase == 'health' else REQUIRED[phase]
+            if phase == 'health' else DIAGNOSE | DIAGNOSTIC_OBSERVATIONS if phase == 'diagnose' else REQUIRED[phase]
         if not set(raw['checks']) <= names or any(type(value) is not bool for value in raw['checks'].values()):
             raise ValueError()
         if deploy and (type(raw['changed_file_count']) is not int or not 0 <= raw['changed_file_count'] <= FILE_COUNT):

@@ -3,14 +3,47 @@
 if (PHP_SAPI !== 'cli') exit(1);
 define('PETISH_CLUB_VERIFY_LIBRARY',true);
 require __DIR__.'/verify-pet-club.php';
+function petish_club_fixture_diagnose($root,$run) {
+ global $report;
+ $report['category']='diagnose';$states=[];
+ foreach(['native','browser']as$kind){$path=petish_club_verify_fixture_state_path($kind);
+  if(!file_exists($path)&&!is_link($path))continue;
+  $state=petish_club_verify_read_json($path);petish_club_verify_fixture_owned($state,$run,$kind);$states[]=$state;
+ }
+ petish_club_verify_mark('fixture_journal_valid',count($states)===1);
+ $state=$states[0];foreach($state['users']as$user)if(get_user_by('login',$user['login']))petish_club_verify_fail();
+ petish_club_verify_mark('owned_users_absent',true);
+ if(has_filter('query','petish_club_verify_query_guard')!==PHP_INT_MAX)petish_club_verify_fail();
+  $current=petish_club_verify_state($root);$before=$state['before'];
+  foreach(['orders_unchanged'=>'orders','users_and_authentication_unchanged'=>'accounts',
+   'product_prices_and_stock_unchanged'=>'products','existing_passports_unchanged'=>'passports',
+   'private_photo_files_unchanged'=>'photos']as$check=>$key)petish_club_verify_mark($check,$before[$key]===$current[$key]);
+  $rows=$current['settings_rows'];$added=petish_club_verify_single_added_option($before['settings'],$rows);
+  foreach(PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS as$key)$report['checks'][$key]=false;
+  $report['checks']['settings_unchanged']=hash_equals($before['settings'],$current['settings']);
+  $report['checks']['single_added_option_identified']=$added!==null;
+  if($added!==null)$report['checks']['added_option_'.petish_club_verify_option_category($added['option_name'])]=true;
+  $details=['format'=>'petish-club-diagnostic-v1','run'=>$run,'kind'=>$state['kind'],
+   'baseline_settings_hash'=>$before['settings'],'current_settings_hash'=>$current['settings'],
+   'single_added_option'=>$added];
+  // Only option names and SHA-256 values go into this 0600 private file. Nothing
+  // here restores, deletes or accepts a changed WordPress setting.
+  petish_club_verify_write_json(__DIR__.'/pet-club-diagnostic.json',$details,
+   file_exists(__DIR__.'/pet-club-diagnostic.json'));
+  $report['checks']['diagnostic_write_attempt_blocked']=!empty($GLOBALS['petish_club_write_attempted']);
+  petish_club_verify_mark('diagnostic_read_only',has_filter('query','petish_club_verify_query_guard')===PHP_INT_MAX);
+ petish_club_verify_mark('diagnostic_completed',true);
+}
 function petish_club_fixture_main($argv) {
  global $report;
  petish_club_verify_report_start();
  try {
-  if(count($argv)!==3||!in_array($argv[1],['prepare','cleanup'],true)||!petish_club_verify_run($argv[2]))petish_club_verify_fail();
-  $mode=$argv[1];$run=$argv[2];$root=petish_club_verify_bootstrap('staging');
+  if(count($argv)!==3||!in_array($argv[1],['prepare','cleanup','diagnose'],true)||!petish_club_verify_run($argv[2]))petish_club_verify_fail();
+  $mode=$argv[1];$run=$argv[2];$root=petish_club_verify_bootstrap('staging',$mode==='diagnose');
   $input=__DIR__.'/pet-club-browser-input.json';
-  if($mode==='prepare') {
+  if($mode==='diagnose') {
+   petish_club_fixture_diagnose($root,$run);$expected=PETISH_CLUB_FIXTURE_DIAGNOSE;
+  } elseif($mode==='prepare') {
    $report['category']='fixture';
    // A prior unfinished fixture must be cleaned, never silently replaced.
    foreach(['native','browser']as$kind)if(file_exists(petish_club_verify_fixture_state_path($kind))||is_link(petish_club_verify_fixture_state_path($kind)))petish_club_verify_fail();

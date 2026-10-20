@@ -66,17 +66,49 @@ echo json_encode($out);
 """)
         self.assertEqual(result, [True] * 11)
 
+    def test_settings_diagnosis_proves_only_an_added_row_without_resetting(self):
+        result = self.php(r"""
+$before=[['option_name'=>'existing_setting','value_state'=>hash('sha256','unchanged')]];
+$hash=hash('sha256',json_encode($before,JSON_THROW_ON_ERROR));
+$added=['option_name'=>'action_scheduler_lock_async-request-runner','value_state'=>hash('sha256','temporary lock')];
+$current=array_merge([$added],$before);$copy=$current;
+$out=[petish_club_verify_single_added_option($hash,$current)===$added,$current===$copy,
+ petish_club_verify_single_added_option($hash,$before)===null];
+$changed=$current;$changed[1]['value_state']=hash('sha256','changed');
+$out[]=petish_club_verify_single_added_option($hash,$changed)===null;
+$out[]=petish_club_verify_single_added_option($hash,[])===null;
+$out[]=petish_club_verify_option_category($added['option_name'])==='runtime_action_scheduler';
+$out[]=petish_club_verify_option_category('petish_club_heart_123_456')==='petish';
+$out[]=petish_club_verify_option_category('woocommerce_currency')==='woocommerce';
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 8)
+
+    def test_diagnosis_blocks_bootstrap_writes_and_preserves_journal(self):
+        source = VERIFY.read_text()
+        self.assertLess(source.index("add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);"),
+                        source.index("require$root.'/wp-load.php'"))
+        fixture = FIXTURE.read_text()
+        diagnostic = fixture[fixture.index("function petish_club_fixture_diagnose"):
+                             fixture.index("function petish_club_fixture_main")]
+        self.assertNotIn("unlink(", diagnostic)
+        self.assertNotIn("update_option(", diagnostic)
+        self.assertNotIn("delete_option(", diagnostic)
+        self.assertIn("petish_club_verify_single_added_option", diagnostic)
+        self.assertIn("$mode==='diagnose'", fixture)
+
     def test_private_files_reject_links_modes_and_replacement(self):
         result = self.php("$base=" + repr(str(self.directory)) + ";\n" + r"""
 $path=$base.'/state.json';petish_club_verify_write_json($path,['private'=>'fixture']);
 $out=[(fileperms($path)&07777)===0600,petish_club_verify_read_json($path)===['private'=>'fixture']];
+try{petish_club_verify_write_json($path,['oversized'=>str_repeat('a',1048576)],true);$out[]=false;}catch(Throwable$e){$out[]=petish_club_verify_read_json($path)===['private'=>'fixture'];}
 try{petish_club_verify_write_json($path,[]);$out[]=false;}catch(Throwable$e){$out[]=true;}
 symlink($path,$base.'/linked');$out[]=!petish_club_verify_path($base.'/linked');
 link($path,$base.'/hard');$out[]=!petish_club_verify_path($path);unlink($base.'/hard');
 chmod($path,0644);clearstatcache();try{petish_club_verify_read_json($path);$out[]=false;}catch(Throwable$e){$out[]=true;}
 $out[]=!petish_club_verify_path($base.'/../'.basename($base));echo json_encode($out);
 """)
-        self.assertEqual(result, [True] * 7)
+        self.assertEqual(result, [True] * 8)
 
     def test_cleanup_ownership_requires_planned_account_identity(self):
         result = self.php(r"""

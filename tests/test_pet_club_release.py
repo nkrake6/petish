@@ -8,6 +8,9 @@ from pathlib import Path
 import tempfile
 import re
 import subprocess
+import os
+import io
+import tarfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,7 +46,7 @@ class PetClubReleaseTests(unittest.TestCase):
         return safe.screen(phase, path)
 
     def test_finite_complete_phases_pass(self):
-        for phase in ('inspect', 'apply', 'native', 'fixture', 'browser', 'cleanup', 'verify', 'assets', 'health', 'rollback', 'commit'):
+        for phase in ('inspect', 'apply', 'native', 'fixture', 'browser', 'cleanup', 'diagnose', 'verify', 'assets', 'health', 'rollback', 'commit'):
             value = self.raw(phase)
             report, passed = self.screen(phase, value)
             self.assertTrue(passed)
@@ -179,6 +182,87 @@ class PetClubReleaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             evidence.validate(path)
 
+    def test_diagnosis_allows_finite_observations_but_never_option_names_or_hashes(self):
+        value = self.raw('diagnose')
+        value['checks'].update(dict.fromkeys(safe.DIAGNOSTIC_OBSERVATIONS, False))
+        value['checks']['single_added_option_identified'] = True
+        value['checks']['added_option_runtime_transient'] = True
+        self.assertTrue(self.screen('diagnose', value)[1])
+        for field in ('option_name', 'value_state', 'settings_digest'):
+            modified = copy.deepcopy(value)
+            modified[field] = 'private-sentinel'
+            report, passed = self.screen('diagnose', modified)
+            self.assertFalse(passed)
+            self.assertNotIn('private-sentinel', json.dumps(report))
+
+    def test_recovery_request_is_bounded_and_has_no_secret_or_path_fields(self):
+        wrapper = (ROOT / 'scripts/hostinger-pet-club.sh').read_text()
+        script = wrapper.split("<<'PY_RECOVERY'", 1)[1].split('\n', 1)[1].split('\nPY_RECOVERY', 1)[0]
+        operations = self.directory / 'operations'
+        operations.mkdir()
+        request = operations / 'pet-club-cleanup.json'
+        valid = {'format': 'petish-pet-club-cleanup-v1', 'run_id': '39513159248-1', 'operation': 'diagnose'}
+        for value, allowed in [(valid, True), ({**valid, 'operation': 'cleanup'}, True),
+                ({**valid, 'run_id': '../../public_html'}, False), ({**valid, 'operation': 'prepare'}, False),
+                ({**valid, 'password': 'private-sentinel'}, False), ({**valid, 'run_id': 42}, False)]:
+            request.write_text(json.dumps(value))
+            result = subprocess.run(['python3', '-c', script], cwd=self.directory, capture_output=True)
+            self.assertEqual(result.returncode == 0, allowed)
+            self.assertNotIn(b'private-sentinel', result.stdout)
+
+    def test_recovery_replaces_only_reviewed_helpers_after_old_ownership_checks(self):
+        wrapper = (ROOT / 'scripts/hostinger-pet-club.sh').read_text()
+        start = wrapper.index('    "${petish_ssh[@]}"', wrapper.index('# Do not mark SSH cleanup-ready'))
+        end = wrapper.index('\n    if [[ $recovery_operation == cleanup ]]; then', start)
+        command = wrapper[start:end]
+        for scenario in ('success', 'wrong_marker', 'linked_journal', 'tampered_payload'):
+            with self.subTest(scenario=scenario):
+                home = self.directory / scenario
+                home.mkdir()
+                work = home / 'work'
+                work.mkdir()
+                tools = home / '.petish-pet-club-deploy-39513159248-1'
+                tools.mkdir(mode=0o700)
+                preserved = {'pet-club-native-state.json': b'private-journal-sentinel',
+                             'payload/manifest.json': b'private-payload-sentinel'}
+                for name, body in {'.pet-club-owned': b'39513159248-1\n',
+                        'verify-pet-club.php': b'old-verifier', 'pet-club-fixture.php': b'old-fixture', **preserved}.items():
+                    path = tools / name
+                    path.parent.mkdir(exist_ok=True, mode=0o700)
+                    path.write_bytes(body)
+                    path.chmod(0o600)
+                if scenario == 'wrong_marker':
+                    (tools / '.pet-club-owned').write_text('different-run')
+                if scenario == 'linked_journal':
+                    target = tools / 'pet-club-native-state.json'
+                    target.unlink()
+                    target.symlink_to(home / 'outside-state')
+                candidate = {'verify-pet-club.php': b'new-reviewed-verifier',
+                             'pet-club-fixture.php': b'new-reviewed-fixture'}
+                with tarfile.open(work / 'recovery.tar', 'w') as archive:
+                    for name, body in candidate.items():
+                        payload = body + (b'tampered' if scenario == 'tampered_payload' and name == 'pet-club-fixture.php' else b'')
+                        member = tarfile.TarInfo(name)
+                        member.size = len(payload)
+                        member.mode = 0o600
+                        archive.addfile(member, io.BytesIO(payload))
+                preamble = 'work=$1; target_run=39513159248-1; run=99999-1; verify_digest=$2; fixture_digest=$3; petish_ssh=(bash -c)\n'
+                environment = os.environ.copy()
+                environment['HOME'] = str(home)
+                result = subprocess.run(['bash', '-euc', preamble + command, 'fixture', str(work),
+                    hashlib.sha256(candidate['verify-pet-club.php']).hexdigest(),
+                    hashlib.sha256(candidate['pet-club-fixture.php']).hexdigest()], env=environment, capture_output=True)
+                self.assertEqual(result.returncode == 0, scenario == 'success')
+                for name, body in candidate.items():
+                    self.assertEqual((tools / name).read_bytes(), body if scenario == 'success'
+                                     else b'old-verifier' if name == 'verify-pet-club.php' else b'old-fixture')
+                for name, body in preserved.items():
+                    path = tools / name
+                    if not path.is_symlink():
+                        self.assertEqual(path.read_bytes(), body)
+                if scenario == 'success':
+                    self.assertEqual((tools / 'recovery-99999-1/original-verify-pet-club.php').read_bytes(), b'old-verifier')
+
     def test_finish_retains_remote_recovery_tools_until_cleanup_and_rollback_pass(self):
         source = (ROOT / 'scripts/hostinger-pet-club.sh').read_text()
         start = source.index('finish() {')
@@ -189,7 +273,8 @@ class PetClubReleaseTests(unittest.TestCase):
                 ('failed_fixture', 0, 1, ['fixture_cleanup', 'publish:failure:cleanup']),
                 ('successful_rollback', 1, 0, ['rollback', 'remote_cleanup', 'publish:failure:prerequisites']),
                 ('successful_fixture', 0, 1, ['fixture_cleanup', 'stage_source', 'remote_cleanup', 'publish:success:complete']),
-                ('stale_staging_source', 0, 1, ['fixture_cleanup', 'stage_source', 'remote_cleanup', 'publish:failure:staging_source'])):
+                ('stale_staging_source', 0, 1, ['fixture_cleanup', 'stage_source', 'remote_cleanup', 'publish:failure:staging_source']),
+                ('diagnostic_only', 0, 0, ['publish:success:complete'])):
             with self.subTest(scenario=scenario):
                 work = self.directory / scenario
                 work.mkdir()
@@ -197,6 +282,7 @@ class PetClubReleaseTests(unittest.TestCase):
                 script = '\n'.join([
                     'work=$1; log=$2; scenario=$3; rollback_needed=$4; fixture_cleanup_needed=$5',
                     'mode=staging; ssh_ready=1; fixture_cleanup_verified=0; operation_verified=1; failure_category=prerequisites',
+                    'retain_remote_tools=0; if [[ "$scenario" == diagnostic_only ]]; then retain_remote_tools=1; fi',
                     'remote_phase() { printf "rollback\\n" >> "$log"; [[ "$scenario" != failed_rollback ]]; }',
                     'fixture_phase() { printf "fixture_cleanup\\n" >> "$log"; [[ "$scenario" != failed_fixture ]]; }',
                     'verify_staging_source() { printf "stage_source\\n" >> "$log"; [[ "$scenario" != stale_staging_source ]]; }',
@@ -207,7 +293,7 @@ class PetClubReleaseTests(unittest.TestCase):
                 completed = subprocess.run(['bash', '-c', script, 'fixture', str(work), str(log),
                                             scenario, str(rollback), str(fixture)], capture_output=True)
                 self.assertEqual(log.read_text().splitlines(), expected)
-                self.assertEqual(completed.returncode, 0 if scenario == 'successful_fixture' else 1)
+                self.assertEqual(completed.returncode, 0 if scenario in {'successful_fixture', 'diagnostic_only'} else 1)
                 self.assertFalse(work.exists())
 
     def test_sanitizer_contract_matches_native_constants(self):
@@ -221,6 +307,8 @@ class PetClubReleaseTests(unittest.TestCase):
         self.assertEqual(safe.VERIFY, common | names('PETISH_CLUB_VERIFY_PRODUCTION'))
         self.assertEqual(safe.FIXTURE, names('PETISH_CLUB_FIXTURE_PREPARE'))
         self.assertEqual(safe.CLEANUP, names('PETISH_CLUB_FIXTURE_CLEANUP'))
+        self.assertEqual(safe.DIAGNOSE, names('PETISH_CLUB_FIXTURE_DIAGNOSE'))
+        self.assertEqual(safe.DIAGNOSTIC_OBSERVATIONS, names('PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS'))
         self.assertEqual(safe.FILE_COUNT, len(evidence.FILES))
         browser = (ROOT / 'tools/pet-club/browser.mjs').read_text()
         contract = re.search(r'CHECK_KEYS = Object.freeze\(\[(.*?)\]\)', browser, re.S)

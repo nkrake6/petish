@@ -8,9 +8,9 @@ on:
         required: true
         default: staging
         type: choice
-        options: [staging, inspect, apply]
+        options: [staging, inspect, apply, cleanup]
   push:
-    branches: [main, verify-pet-club, deploy-pet-club]
+    branches: [main, verify-pet-club, deploy-pet-club, recover-pet-club]
     paths:
       - .github/workflows/pet-club.yml
       - scripts/hostinger-pet-club.sh
@@ -21,13 +21,14 @@ on:
       - scripts/validate-pet-club-release.py
       - tools/pet-club/browser.mjs
       - operations/pet-club-release.json
+      - operations/pet-club-cleanup.json
       - wordpress/wp-content/plugins/petish-passport/**
 
 permissions:
   contents: write
 
 concurrency:
-  group: ${{ (inputs.mode == 'staging' || github.ref_name == 'verify-pet-club') && 'petish-staging-code' || ((github.ref_name == 'deploy-pet-club' || inputs.mode == 'apply') && 'petish-production-backup-mail' || format('petish-pet-club-inspection-{0}', github.run_id)) }}
+  group: ${{ (inputs.mode == 'staging' || inputs.mode == 'cleanup' || github.ref_name == 'verify-pet-club' || github.ref_name == 'recover-pet-club') && 'petish-staging-code' || ((github.ref_name == 'deploy-pet-club' || inputs.mode == 'apply') && 'petish-production-backup-mail' || format('petish-pet-club-inspection-{0}', github.run_id)) }}
   cancel-in-progress: false
 
 jobs:
@@ -38,7 +39,7 @@ jobs:
       SSH_HOST: 82.29.81.104
       SSH_PORT: '65002'
       SSH_USER: u839205597
-      PET_CLUB_MODE: ${{ (github.ref_name == 'verify-pet-club') && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref_name == 'deploy-pet-club' && 'apply' || 'inspect')) }}
+      PET_CLUB_MODE: ${{ github.ref_name == 'recover-pet-club' && 'cleanup' || (github.ref_name == 'verify-pet-club') && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref_name == 'deploy-pet-club' && 'apply' || 'inspect')) }}
       PET_CLUB_SOURCE_SHA: ${{ github.sha }}
     steps:
       - name: Check out reviewed Pet Club tools

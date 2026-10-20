@@ -29,6 +29,15 @@ const PETISH_CLUB_FIXTURE_CLEANUP = ['target_paths_verified','target_environment
  'staging_database_separate','staging_guard_verified','fixture_cleanup_verified','orders_unchanged',
  'users_and_authentication_unchanged','product_prices_and_stock_unchanged','settings_unchanged',
  'existing_passports_unchanged','private_photo_files_unchanged'];
+const PETISH_CLUB_FIXTURE_DIAGNOSE = ['target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
+ 'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled','cron_and_async_runner_disabled',
+ 'staging_database_separate','staging_guard_verified','diagnostic_completed','diagnostic_read_only',
+ 'fixture_journal_valid','owned_users_absent','orders_unchanged','users_and_authentication_unchanged',
+ 'product_prices_and_stock_unchanged','existing_passports_unchanged','private_photo_files_unchanged'];
+const PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS = ['settings_unchanged','single_added_option_identified',
+ 'diagnostic_write_attempt_blocked',
+ 'added_option_runtime_transient','added_option_runtime_litespeed','added_option_runtime_action_scheduler',
+ 'added_option_woocommerce','added_option_petish','added_option_other'];
 
 function petish_club_verify_fail() { throw new RuntimeException(); }
 function petish_club_verify_path($path,$directory=false) {
@@ -42,7 +51,8 @@ function petish_club_verify_path($path,$directory=false) {
 function petish_club_verify_mark($name,$value) {
  global $report;
  $allowed=array_unique(array_merge(PETISH_CLUB_VERIFY_COMMON,PETISH_CLUB_VERIFY_STAGING,
-  PETISH_CLUB_VERIFY_PRODUCTION,PETISH_CLUB_FIXTURE_PREPARE,PETISH_CLUB_FIXTURE_CLEANUP));
+  PETISH_CLUB_VERIFY_PRODUCTION,PETISH_CLUB_FIXTURE_PREPARE,PETISH_CLUB_FIXTURE_CLEANUP,
+  PETISH_CLUB_FIXTURE_DIAGNOSE,PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS));
  if(!in_array($name,$allowed,true)||!is_bool($value))petish_club_verify_fail();
  $report['checks'][$name]=$value;if(!$value)petish_club_verify_fail();
 }
@@ -60,16 +70,17 @@ function petish_club_verify_run($run) {
  return is_string($run)&&preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$run)===1;
 }
 function petish_club_verify_write_json($path,$value,$replace=false) {
+ $raw=json_encode($value,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+ if(strlen($raw)>1048576)petish_club_verify_fail();
  if(!petish_club_verify_path(dirname($path),true)||(! $replace&&(file_exists($path)||is_link($path))))petish_club_verify_fail();
  if($replace&&(!petish_club_verify_path($path)||(fileperms($path)&07777)!==0600))petish_club_verify_fail();
  $handle=@fopen($path,$replace?'c+b':'x+b');if(!$handle)petish_club_verify_fail();
  try{if(!flock($handle,LOCK_EX)||!ftruncate($handle,0)||!chmod($path,0600))petish_club_verify_fail();
-  $raw=json_encode($value,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
   if(fwrite($handle,$raw)!==strlen($raw)||!fflush($handle))petish_club_verify_fail();
  }finally{fclose($handle);}
 }
 function petish_club_verify_read_json($path) {
- if(!petish_club_verify_path($path)||(fileperms($path)&07777)!==0600||filesize($path)>131072)petish_club_verify_fail();
+ if(!petish_club_verify_path($path)||(fileperms($path)&07777)!==0600||filesize($path)>1048576)petish_club_verify_fail();
  $value=json_decode(file_get_contents($path),true,64,JSON_THROW_ON_ERROR);
  if(!is_array($value))petish_club_verify_fail();return $value;
 }
@@ -108,6 +119,37 @@ function petish_club_verify_table_state($table,$where='') {
  if($wpdb->last_error!==''||!is_array($rows))petish_club_verify_fail();foreach($rows as$row)if(!is_string($row)||!preg_match('/\A[a-f0-9]{64}\z/D',$row))petish_club_verify_fail();
  return hash('sha256',json_encode([$names,$rows],JSON_THROW_ON_ERROR));
 }
+function petish_club_verify_settings_rows() {
+ global $wpdb;
+ if(!is_string($wpdb->options??null)||!preg_match('/\A[A-Za-z0-9_]+\z/D',$wpdb->options))petish_club_verify_fail();
+ $rows=$wpdb->get_results("SELECT option_name,SHA2(COALESCE(option_value,''),256) AS value_state FROM `{$wpdb->options}`"
+  ." WHERE option_name NOT LIKE '\\_transient\\_%' AND option_name NOT LIKE '\\_site\\_transient\\_%'"
+  ." AND option_name NOT IN ('cron','rewrite_rules','user_count') ORDER BY option_name",ARRAY_A);
+ if($wpdb->last_error!==''||!is_array($rows)||count($rows)>5000)petish_club_verify_fail();
+ foreach($rows as$row)if(!is_array($row)||array_keys($row)!==['option_name','value_state']
+  ||!is_string($row['option_name'])||strlen($row['option_name'])>191
+  ||!is_string($row['value_state'])||!preg_match('/\A[a-f0-9]{64}\z/D',$row['value_state']))petish_club_verify_fail();
+ return $rows;
+}
+/** Exact aggregate equality after virtual omission proves a single newly added row. */
+function petish_club_verify_single_added_option($baseline,$rows) {
+ if(!is_string($baseline)||!preg_match('/\A[a-f0-9]{64}\z/D',$baseline)||!is_array($rows)||count($rows)>5000)petish_club_verify_fail();
+ if(hash_equals($baseline,hash('sha256',json_encode($rows,JSON_THROW_ON_ERROR))))return null;
+ $found=null;foreach(array_keys($rows)as$index){$candidate=$rows;array_splice($candidate,$index,1);
+  if(hash_equals($baseline,hash('sha256',json_encode($candidate,JSON_THROW_ON_ERROR)))){
+   if($found!==null)petish_club_verify_fail();$found=$rows[$index];
+  }
+ }
+ return $found;
+}
+function petish_club_verify_option_category($name) {
+ if(preg_match('/\A_(?:site_)?transient_/',$name))return 'runtime_transient';
+ if(preg_match('/\A_?litespeed[._]/',$name))return 'runtime_litespeed';
+ if(str_starts_with($name,'action_scheduler_'))return 'runtime_action_scheduler';
+ if(str_starts_with($name,'woocommerce_')||str_starts_with($name,'wc_'))return 'woocommerce';
+ if(str_starts_with($name,'petish_'))return 'petish';
+ return 'other';
+}
 /** Values and digests remain private; only equality booleans are published. */
 function petish_club_verify_state($root) {
  global $wpdb;
@@ -120,9 +162,7 @@ function petish_club_verify_state($root) {
   ."SHA2(CONCAT(p.post_title,p.post_content,p.post_excerpt,p.post_modified_gmt),256) AS post_state,"
   ."m.meta_id,m.meta_key,SHA2(COALESCE(m.meta_value,''),256) AS value_state FROM `{$wpdb->posts}` p"
   ." LEFT JOIN `{$wpdb->postmeta}` m ON m.post_id=p.ID WHERE p.post_type IN ('petish_pet','petish_pet_moment') ORDER BY p.ID,m.meta_id",ARRAY_A);
- $settings=$wpdb->get_results("SELECT option_name,SHA2(COALESCE(option_value,''),256) AS value_state FROM `{$wpdb->options}`"
-  ." WHERE option_name NOT LIKE '\\_transient\\_%' AND option_name NOT LIKE '\\_site\\_transient\\_%'"
-  ." AND option_name NOT IN ('cron','rewrite_rules','user_count') ORDER BY option_name",ARRAY_A);
+ $settings=petish_club_verify_settings_rows();
  $active=$wpdb->get_results("SELECT user_id,meta_key,SHA2(meta_value,256) AS value_state FROM `{$wpdb->usermeta}`"
   ." WHERE meta_key='_petish_active_pet' ORDER BY user_id,umeta_id",ARRAY_A);
  foreach([$products,$pets,$settings,$active]as$rows)if(!is_array($rows))petish_club_verify_fail();
@@ -135,6 +175,7 @@ function petish_club_verify_state($root) {
   'records'=>petish_club_verify_table_state($wpdb->users),'metadata'=>petish_club_verify_table_state($wpdb->usermeta)],
   'products'=>hash('sha256',json_encode($products,JSON_THROW_ON_ERROR)),
   'settings'=>hash('sha256',json_encode($settings,JSON_THROW_ON_ERROR)),
+  'settings_rows'=>$settings,
   'passports'=>hash('sha256',json_encode([$pets,$active],JSON_THROW_ON_ERROR)),
   'photos'=>petish_club_verify_photo_state($root)];
 }
@@ -146,7 +187,7 @@ function petish_club_verify_state_equal($before,$after) {
  petish_club_verify_mark('existing_passports_unchanged',hash_equals($before['passports'],$after['passports']));
  petish_club_verify_mark('private_photo_files_unchanged',hash_equals($before['photos'],$after['photos']));
 }
-function petish_club_verify_bootstrap($target) {
+function petish_club_verify_bootstrap($target,$read_only=false) {
  global $report;
  if(!in_array($target,['staging','production'],true)||ini_get('allow_url_fopen'))petish_club_verify_fail();
  $host=$target==='staging'?'staging.petish.biz':'petish.biz';$home=getenv('HOME');
@@ -167,6 +208,8 @@ function petish_club_verify_bootstrap($target) {
  $_SERVER['HTTP_HOST']=$host;$_SERVER['SERVER_NAME']=$host;$_SERVER['SERVER_PORT']='443';$_SERVER['HTTPS']='on';
  $_SERVER['REQUEST_METHOD']='GET';$_SERVER['REQUEST_URI']='/my-account/my-pets/';$_SERVER['SERVER_PROTOCOL']='HTTP/1.1';$_SERVER['REMOTE_ADDR']='127.0.0.1';
  require_once$root.'/wp-includes/plugin.php';
+ if($read_only){$GLOBALS['petish_club_write_attempted']=false;
+  add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);}
  $http=static fn()=>new WP_Error('petish_club_verify_http_blocked','Pet Club verification blocks outbound requests.');
  $mail=static fn()=>true;$stop=static function(){throw new \PHPMailer\PHPMailer\Exception('Pet Club verification blocks delivery.');};
  $false=static fn()=>false;$zero=static fn()=>0;
@@ -174,7 +217,11 @@ function petish_club_verify_bootstrap($target) {
  add_action('phpmailer_init',$stop,PHP_INT_MAX);add_filter('action_scheduler_allow_async_request_runner',$false,PHP_INT_MAX);
  add_filter('action_scheduler_queue_runner_concurrent_batches',$zero,PHP_INT_MAX);
  add_action('wp_loaded',static function(){remove_all_actions('action_scheduler_run_queue');},PHP_INT_MAX);
- add_action('all',static function($hook)use($http,$mail,$stop,$false,$zero){
+ add_action('all',static function($hook)use($http,$mail,$stop,$false,$zero,$read_only){
+  if($read_only&&$hook==='query'){
+   remove_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
+   add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
+  }
   foreach(['pre_http_request'=>[$http,3],'pre_wp_mail'=>[$mail,2],'phpmailer_init'=>[$stop,1],
    'action_scheduler_allow_async_request_runner'=>[$false,1],'action_scheduler_queue_runner_concurrent_batches'=>[$zero,1]]as$name=>$entry)
    if($hook===$name){remove_filter($name,$entry[0],PHP_INT_MAX);add_filter($name,$entry[0],PHP_INT_MAX,$entry[1]);}
