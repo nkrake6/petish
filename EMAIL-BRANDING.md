@@ -34,6 +34,7 @@ private staging mail capture.
 
 Shareable copies use fixed example footer/additional copy and public account
 links rather than exposing private staging settings or customer links. The
+fictional item uses WooCommerce's native no-photo option. The
 deployed template retains WooCommerce's configurable footer and body hooks.
 
 Only four screened synthetic HTML files, the approved logo and finite result

@@ -135,8 +135,8 @@ function petish_email_preview_order() {
     $order->set_currency('AUD');
     $order->set_prices_include_tax(true);
     $order->set_status('processing');
-    $order->set_date_created('2026-10-20T10:00:00+11:00');
-    $order->set_date_paid('2026-10-20T10:02:00+11:00');
+    $order->set_date_created('2026-10-20T12:00:00+11:00');
+    $order->set_date_paid('2026-10-20T12:02:00+11:00');
     $order->set_payment_method('woocommerce_payments');
     $order->set_payment_method_title('Card payment');
     $address = ['first_name'=>'Alex','last_name'=>'Taylor','company'=>'','address_1'=>'12 Example Lane',
@@ -203,14 +203,18 @@ function petish_email_preview_render($context) {
     $stock = $product->get_stock_quantity();
     $order = petish_email_preview_order();
     $mark('email_preview_unsaved_synthetic_order',(int)$order->get_id()===0);
-    $footer = static function() { return 'Petish · Small pets, big adventures.<br>Need a hand? <a href="mailto:orders@petish.biz">orders@petish.biz</a>'; };
-    $additional = static function() { return 'Thank you for choosing Petish. Need a hand? Reply to this email and we will help.'; };
+    $footer = static function() { return '© Petish.'; };
+    $additional = static function() { return 'Thank you for choosing Petish.'; };
+    // The fictional item has no product photo. Use the native no-image option
+    // so its preview does not reserve a blank thumbnail column.
+    $item_args = static function($args) { $args['show_image']=false; return $args; };
     $html_type = static function() { return 'text/html'; };
     $site_title = static function() { return 'Petish'; };
     add_filter('pre_option_blogname',$site_title,PHP_INT_MAX);
     add_filter('pre_option_woocommerce_email_footer_text',$footer,PHP_INT_MAX);
     add_filter('woocommerce_email_footer_text',$footer,PHP_INT_MAX);
     add_filter('woocommerce_email_content_type',$html_type,PHP_INT_MAX);
+    add_filter('woocommerce_email_order_items_args',$item_args,PHP_INT_MAX);
     $definitions = [
         'customer_processing_order'=>['processing.html','processing'],
         'customer_completed_order'=>['completed.html','completed'],
@@ -263,6 +267,7 @@ function petish_email_preview_render($context) {
         remove_filter('pre_option_woocommerce_email_footer_text',$footer,PHP_INT_MAX);
         remove_filter('woocommerce_email_footer_text',$footer,PHP_INT_MAX);
         remove_filter('woocommerce_email_content_type',$html_type,PHP_INT_MAX);
+        remove_filter('woocommerce_email_order_items_args',$item_args,PHP_INT_MAX);
         foreach ($definitions as $id=>$unused) remove_filter('woocommerce_email_additional_content_'.$id,$additional,PHP_INT_MAX);
     }
     $mark('email_preview_html_sanitized',true);
