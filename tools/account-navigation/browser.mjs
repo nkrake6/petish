@@ -23,6 +23,11 @@ export const CHECK_KEYS = Object.freeze([
   'desktop_visible', 'resize_visible', 'no_js_fallback_visible', 'dark_mode_readable',
   'unsafe_requests_blocked',
 ]);
+export const DIAGNOSTIC_KEYS = Object.freeze(['login_page_http_ok', 'login_form_present',
+  'login_submit_clicked', 'login_post_permitted', 'login_post_blocked', 'login_cookie_present',
+  'login_redirect_account', 'account_email_field_present', 'qa_email_matches']);
+const FAILURE_STAGES = new Set(['input', 'browser', 'login_page', 'login_form', 'login_submit',
+  'login_cookie', 'qa_identity', 'no_js', 'navigation', 'mobile', 'desktop', 'dark_mode', 'complete']);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'navigation',
   'links', 'mobile', 'keyboard', 'desktop', 'resize', 'no_js', 'dark_mode', 'network']);
 
@@ -58,6 +63,7 @@ export function allowedRequest(raw, method = 'GET', loginAllowed = false, body =
     const fields = new URLSearchParams(body);
     const nativeLogin = fields.has('username') && fields.has('password') && fields.has('login');
     const wpLogin = fields.has('log') && fields.has('pwd');
+    if (fields.has('redirect_to') && ![ORIGIN + '/my-account/', '/my-account/'].includes(fields.get('redirect_to'))) return false;
     return (nativeLogin || wpLogin)
       && !['register', 'save_account_details', 'save_address', 'add-to-cart', 'place_order', 'action']
         .some(name => fields.has(name));
@@ -70,6 +76,8 @@ export function publicReport(value) {
     && Object.values(checks).every(Boolean);
   return { status: successful ? 'success' : 'failure',
     category: successful ? 'complete' : (CATEGORIES.has(value?.category) && value.category !== 'complete' ? value.category : 'input'),
+    failure_stage: successful ? 'complete' : (FAILURE_STAGES.has(value?.failure_stage) ? value.failure_stage : 'input'),
+    diagnostics: Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, value?.diagnostics?.[key] === true])),
     checks };
 }
 
@@ -96,8 +104,11 @@ async function installReadOnlyGuard(context, loginState) {
     const request = route.request();
     const allowed = allowedRequest(request.url(), request.method(), loginState.allowed && !loginState.used,
       request.postData() ?? '', request.resourceType());
-    if (!allowed) { await route.abort('blockedbyclient'); return; }
-    if (request.method() === 'POST') loginState.used = true;
+    if (!allowed) {
+      if (request.method() === 'POST' && ['/wp-login.php', '/my-account/', '/my-account'].includes(new URL(request.url()).pathname)) loginState.postBlocked = true;
+      await route.abort('blockedbyclient'); return;
+    }
+    if (request.method() === 'POST') { loginState.used = true; loginState.postPermitted = true; }
     await route.continue();
   });
   if (typeof context.routeWebSocket === 'function') {
@@ -225,10 +236,17 @@ async function verifyDarkReadability(page) {
 
 export async function run(input, chromium) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false]));
-  let category = 'input', browser;
+  const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
+  const loginState = { allowed: false, used: false, postPermitted: false, postBlocked: false };
+  const report = (status, category, failure_stage) => {
+    diagnostics.login_post_permitted = loginState.postPermitted;
+    diagnostics.login_post_blocked = loginState.postBlocked;
+    return publicReport({ status, category, failure_stage, diagnostics, checks });
+  };
+  let category = 'input', failureStage = 'input', browser;
   try {
     validateInput(input);
-    category = 'browser';
+    category = 'browser'; failureStage = 'browser';
     const executable = process.env.PETISH_BROWSER_EXECUTABLE
       || (fs.existsSync(chromium.executablePath()) ? undefined : (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined));
     if (executable && (!path.isAbsolute(executable) || !fs.statSync(executable).isFile())) throw new Error('browser');
@@ -237,7 +255,6 @@ export async function run(input, chromium) {
     const context = await browser.newContext({ viewport: { width: 390, height: 900 },
       ignoreHTTPSErrors: false, locale: 'en-AU', timezoneId: 'Australia/Sydney',
       reducedMotion: 'reduce', serviceWorkers: 'block', acceptDownloads: false });
-    const loginState = { allowed: false, used: false };
     await installReadOnlyGuard(context, loginState);
     checks.unsafe_requests_blocked = !allowedRequest('https://example.invalid/', 'GET')
       && !allowedRequest(`${ORIGIN}/checkout/`, 'GET')
@@ -245,17 +262,39 @@ export async function run(input, chromium) {
       && !allowedRequest(`${ORIGIN}/?add-to-cart=1`, 'GET');
     const page = await context.newPage();
     page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(45000);
-    category = 'login';
-    await page.goto(`${ORIGIN}/my-account/`, { waitUntil: 'domcontentloaded' });
-    await page.locator('form.woocommerce-form-login input[name="username"]').fill(input.login);
-    await page.locator('form.woocommerce-form-login input[name="password"]').fill(input.password);
+    category = 'login'; failureStage = 'login_page';
+    // Anonymous staging front pages may be protected by the staging guard.
+    // The same native WP login used by the checkout rehearsal remains available.
+    const loginResponse = await page.goto(`${ORIGIN}/wp-login.php?redirect_to=${encodeURIComponent(ORIGIN + '/my-account/')}`,
+      { waitUntil: 'domcontentloaded' });
+    diagnostics.login_page_http_ok = loginResponse?.ok() ?? false;
+    requireCheck(diagnostics.login_page_http_ok, 'login');
+    failureStage = 'login_form';
+    diagnostics.login_form_present = await page.locator('#user_login').count() === 1
+      && await page.locator('#user_pass').count() === 1 && await page.locator('#wp-submit').count() === 1;
+    requireCheck(diagnostics.login_form_present, 'login');
+    await page.locator('#user_login').fill(input.login);
+    await page.locator('#user_pass').fill(input.password);
+    // Preserve native nonce/test-cookie handling while pinning the post-login
+    // destination to the account page, never wp-admin or an external redirect.
+    requireCheck(await page.locator('input[name="redirect_to"]').inputValue() === ORIGIN + '/my-account/', 'login');
     loginState.allowed = true;
+    failureStage = 'login_submit';
+    diagnostics.login_submit_clicked = true;
     await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-      page.locator('form.woocommerce-form-login button[name="login"]').click()]);
+      page.locator('#wp-submit').click()]);
     loginState.allowed = false;
-    requireCheck(loginState.used && (await context.cookies(ORIGIN)).some(cookie => cookie.name.startsWith('wordpress_logged_in_')), 'login');
+    failureStage = 'login_cookie';
+    diagnostics.login_cookie_present = (await context.cookies(ORIGIN)).some(cookie => cookie.name.startsWith('wordpress_logged_in_'));
+    diagnostics.login_redirect_account = new URL(page.url()).origin === ORIGIN
+      && new URL(page.url()).pathname.startsWith('/my-account/');
+    requireCheck(loginState.used && diagnostics.login_cookie_present && diagnostics.login_redirect_account, 'login');
+    failureStage = 'qa_identity';
     await goAccount(page, 'edit-account');
-    requireCheck(await page.locator('input[name="account_email"]').inputValue() === input.customer_email, 'login');
+    diagnostics.account_email_field_present = await page.locator('input[name="account_email"]').count() === 1;
+    requireCheck(diagnostics.account_email_field_present, 'login');
+    diagnostics.qa_email_matches = await page.locator('input[name="account_email"]').inputValue() === input.customer_email;
+    requireCheck(diagnostics.qa_email_matches, 'login');
     checks.customer_login_verified = true;
     const storageState = await context.storageState(); // In-memory only; never written or reported.
     const noJS = await browser.newContext({ storageState, javaScriptEnabled: false,
@@ -265,7 +304,7 @@ export async function run(input, chromium) {
     const fallback = await noJS.newPage();
     fallback.setDefaultTimeout(15000); fallback.setDefaultNavigationTimeout(45000);
     const baselines = new Map();
-    category = 'no_js';
+    category = 'no_js'; failureStage = 'no_js';
     for (const endpoint of ENDPOINTS) {
       await goAccount(fallback, endpoint);
       const links = await linkSnapshot(fallback);
@@ -281,27 +320,27 @@ export async function run(input, chromium) {
     }
     checks.no_js_fallback_visible = true;
     checks.native_navigation_links_present = true;
-    category = 'navigation';
+    category = 'navigation'; failureStage = 'navigation';
     for (const endpoint of ENDPOINTS) {
       await page.setViewportSize({ width: 390, height: 900 });
       await goAccount(page, endpoint);
       await page.locator(`${NAV}.pp-account-navigation ${TOGGLE}`).waitFor({ state: 'visible' });
       requireCheck(sameLinks(baselines.get(endpoint), await linkSnapshot(page)), 'links');
       for (const width of [390, 320]) {
-        category = 'mobile';
+        category = 'mobile'; failureStage = 'mobile';
         await verifyMobile(page, width, baselines.get(endpoint));
         checks[`${endpoint.replaceAll('-', '_')}_${width}_verified`] = true;
       }
-      category = 'desktop'; await verifyDesktopResize(page);
-      category = 'dark_mode'; await verifyDarkReadability(page);
+      category = 'desktop'; failureStage = 'desktop'; await verifyDesktopResize(page);
+      category = 'dark_mode'; failureStage = 'dark_mode'; await verifyDarkReadability(page);
     }
     for (const name of ['native_hrefs_unchanged', 'current_label_verified', 'mobile_compact_closed',
       'toggle_opens', 'escape_closes_focus_returns', 'outside_closes', 'focusout_closes',
       'desktop_visible', 'resize_visible', 'dark_mode_readable']) checks[name] = true;
     requireCheck(Object.values(checks).every(Boolean), 'navigation');
-    return publicReport({ status: 'success', category: 'complete', checks });
+    return report('success', 'complete', 'complete');
   } catch (error) {
-    return publicReport({ status: 'failure', category: CATEGORIES.has(error?.message) ? error.message : category, checks });
+    return report('failure', CATEGORIES.has(error?.message) ? error.message : category, failureStage);
   } finally { if (browser) await browser.close().catch(() => {}); }
 }
 

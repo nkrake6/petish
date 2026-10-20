@@ -1,0 +1,34 @@
+# Account navigation
+
+On screens up to 991px wide, the account links use a disclosure button showing
+“Account menu” and the current section. Opening it reveals WooCommerce's native
+links, including My Pets, For my pet and Log out. Desktop keeps the existing
+sidebar. With JavaScript disabled, all links remain visible.
+
+The Passport plugin enqueues `assets/account-navigation.js` on account pages.
+The script enhances the native navigation rather than replacing its links or
+logout nonce. Labels are localized by `Petish_Passport_UI::enqueue()`. Styles use
+the existing light and dark theme variables. Escape closes the menu and returns
+focus; clicking or focusing outside also closes it. Resizing keeps focus visible.
+
+Validation:
+
+```sh
+node tests/account-navigation.browser.cjs
+python3 -m unittest discover -s tests -p 'test_account_navigation_*.py'
+```
+
+The staging browser check uses the existing private synthetic customer and reads
+My Pets, Orders and Account details at 320px, 390px and desktop widths. It permits
+one login submission and blocks other writes, checkout, supplier requests and
+logout. Session cookies and input stay private; published evidence contains only
+fixed boolean checks and the three candidate hashes.
+
+The `Verify and release Petish account navigation` workflow inspects production
+on main. Staging checks follow the existing staging deployment and email preview
+sequentially. The `deploy-account-navigation` branch applies only the three
+Passport files after matching staging evidence and a recent full backup with
+successful application recovery. It retains private rollback copies and verifies
+native navigation, asset loading, public pages and unchanged customer, order,
+authentication, stock and account configuration before committing the release.
+The existing email theme and all other Passport files are protected.

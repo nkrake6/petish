@@ -25,6 +25,11 @@ BROWSER = {'browser_started', 'customer_login_verified', 'native_navigation_link
     'toggle_opens', 'escape_closes_focus_returns', 'outside_closes', 'focusout_closes',
     'desktop_visible', 'resize_visible', 'no_js_fallback_visible', 'dark_mode_readable',
     'unsafe_requests_blocked'}
+BROWSER_STAGES = {'input','browser','login_page','login_form','login_submit','login_cookie',
+    'qa_identity','no_js','navigation','mobile','desktop','dark_mode','complete'}
+BROWSER_DIAGNOSTICS = {'login_page_http_ok','login_form_present','login_submit_clicked',
+    'login_post_permitted','login_post_blocked','login_cookie_present','login_redirect_account',
+    'account_email_field_present','qa_email_matches'}
 VERIFY = {'production_paths_verified','production_environment_verified',
     'tested_theme_and_woocommerce_verified','all_outbound_http_blocked','mail_calls_blocked',
     'remote_file_access_disabled','cron_and_async_runner_disabled','production_data_snapshot_verified',
@@ -61,7 +66,15 @@ def screen(phase, path):
             raw = rehearsal.read_report(path)
         deploy = phase in {'inspect','apply','rollback','commit'}
         fields = {'status','category','checks'} | ({'changed_file_count'} if deploy else set())
-        if not isinstance(raw, dict) or set(raw) != fields or raw['status'] not in {'success','failure'} \
+        if not isinstance(raw, dict):
+            raise ValueError()
+        if phase == 'browser' and set(raw) == fields | {'failure_stage','diagnostics'}:
+            if raw['failure_stage'] not in BROWSER_STAGES or not isinstance(raw['diagnostics'],dict) \
+                    or set(raw['diagnostics']) != BROWSER_DIAGNOSTICS \
+                    or any(type(value) is not bool for value in raw['diagnostics'].values()):
+                raise ValueError()
+            fields |= {'failure_stage','diagnostics'}
+        if set(raw) != fields or raw['status'] not in {'success','failure'} \
                 or raw['category'] not in CATEGORIES or not isinstance(raw['checks'],dict):
             raise ValueError()
         names = DEPLOY if deploy else BROWSER if phase == 'browser' else VERIFY if phase == 'verify' \

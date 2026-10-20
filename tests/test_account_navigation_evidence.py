@@ -119,6 +119,20 @@ class AccountNavigationReportTests(unittest.TestCase):
                 raw['changed_file_count'] = count
                 self.assertTrue(self.screen(phase, raw)[1])
 
+    def test_browser_diagnostics_accept_only_finite_stages_and_boolean_flags(self):
+        raw = self.fixture('browser')
+        raw.update(failure_stage='complete', diagnostics={name:False for name in screening.BROWSER_DIAGNOSTICS})
+        self.assertTrue(self.screen('browser',raw)[1])
+        for mutation in ('stage','unknown','value'):
+            bad = deepcopy(raw)
+            if mutation == 'stage':
+                bad['failure_stage'] = PRIVATE
+            elif mutation == 'unknown':
+                bad['diagnostics']['password'] = PRIVATE
+            else:
+                bad['diagnostics']['qa_email_matches'] = PRIVATE
+            self.assertEqual(self.screen('browser',bad),(INVALID,False))
+
     def test_preflight_requires_nonlive_account_and_each_native_isolation_barrier(self):
         raw = self.fixture('preflight')
         for value in (True, None, 0, PRIVATE):

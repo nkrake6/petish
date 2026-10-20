@@ -15,7 +15,7 @@ on:
     branches: [main]
     types: [completed]
   push:
-    branches: [main, deploy-account-navigation]
+    branches: [main, verify-account-navigation, deploy-account-navigation]
     paths:
       - .github/workflows/account-navigation.yml
       - scripts/hostinger-account-navigation.sh
@@ -33,7 +33,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: ${{ (github.event_name == 'workflow_run' || inputs.mode == 'staging') && 'petish-staging-code' || ((github.ref_name == 'deploy-account-navigation' || inputs.mode == 'apply') && 'petish-production-backup-mail' || format('petish-account-navigation-inspection-{0}', github.run_id)) }}
+  group: ${{ (github.event_name == 'workflow_run' || inputs.mode == 'staging' || github.ref_name == 'verify-account-navigation') && 'petish-staging-code' || ((github.ref_name == 'deploy-account-navigation' || inputs.mode == 'apply') && 'petish-production-backup-mail' || format('petish-account-navigation-inspection-{0}', github.run_id)) }}
   cancel-in-progress: false
 
 jobs:
@@ -49,7 +49,7 @@ jobs:
       SSH_HOST: 82.29.81.104
       SSH_PORT: '65002'
       SSH_USER: u839205597
-      ACCOUNT_NAVIGATION_MODE: ${{ github.event_name == 'workflow_run' && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref_name == 'deploy-account-navigation' && 'apply' || 'inspect')) }}
+      ACCOUNT_NAVIGATION_MODE: ${{ (github.event_name == 'workflow_run' || github.ref_name == 'verify-account-navigation') && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref_name == 'deploy-account-navigation' && 'apply' || 'inspect')) }}
       ACCOUNT_NAVIGATION_SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - name: Check out reviewed account navigation tools
