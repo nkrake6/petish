@@ -21,8 +21,14 @@ MODULE_CHECKS = {'prepared', 'shipping_simulated', 'paid_test_order_verified',
     'completed_email_captured', 'refund_email_captured', 'stock_restored_to_baseline',
     'synthetic_tracking_note_only', 'supplier_action_performed', 'shipping_fixture_removed',
     'qa_cart_cleared', 'order_refunded_before_cleanup', 'recovery_required',
-    'native_email_contents_verified', 'customer_note_email_captured'}
-PHASES = {'preflight', 'prepare', 'verify', 'refund', 'cleanup'}
+    'native_email_contents_verified', 'customer_note_email_captured',
+    'email_preview_rendered', 'email_preview_native_renderer',
+    'email_preview_unsaved_synthetic_order', 'email_preview_synthetic_content_only',
+    'email_preview_no_order_records_created', 'email_preview_stock_unchanged',
+    'email_preview_html_sanitized', 'email_preview_branding_logo_present',
+    'email_preview_branding_palette_present', 'email_preview_native_order_details_present',
+    'email_preview_four_types_rendered'}
+PHASES = {'preflight', 'prepare', 'verify', 'refund', 'cleanup', 'email-preview'}
 BROWSER_CHECKS = {'browser_started', 'customer_login_verified', 'cart_prepared',
     'checkout_rendered', 'shipping_verified', 'test_publishable_key_verified',
     'decline_verified', 'paid_receipt_verified', 'native_checkout_used',
@@ -69,7 +75,7 @@ CATEGORIES = {'complete', 'input', 'paths', 'source_guard', 'source_configuratio
     'verification', 'refund', 'cleanup', 'provider', 'guard_hash', 'protected_bootstrap',
     'runtime_isolation', 'native_capabilities', 'native_test_mode_unverified', 'sample_product',
     'prepare', 'verify', 'provider_identity', 'provider_order_reference',
-    'provider_request', 'native_provider_response'}
+    'provider_request', 'native_provider_response', 'email_preview'}
 STRUCTURES = {'credentials', 'checkout_fixture', 'captured_mail', 'cached_account', 'provider_charge'}
 PRIVATE_STRUCTURE_ID = re.compile(
     r'(?:^|[.\[\]])(?:(?:acct|ch|pi|pm|cus|re|tok|src|seti|cs|txn|tr|po|dp|sub|in|il|ba|wc_order)_'

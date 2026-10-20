@@ -1,5 +1,9 @@
 # Petish order email
 
+Shared HTML branding and the separate staging design-preview workflow are
+described in [EMAIL-BRANDING.md](EMAIL-BRANDING.md). The design uses the approved
+animal logo; SMTP delivery and email appearance are configured separately.
+
 The owner created the `orders@petish.biz` alias on the Hostinger Email mailbox
 `administrator@petish.biz`. SMTP authenticates as the administrator mailbox;
 customers see the orders alias as the sender. The read-only DNS

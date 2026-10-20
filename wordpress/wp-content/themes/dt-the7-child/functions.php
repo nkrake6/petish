@@ -11,6 +11,7 @@ require_once get_stylesheet_directory() . '/includes/collection-header.php';
 require_once get_stylesheet_directory() . '/includes/market-selector.php';
 require_once get_stylesheet_directory() . '/includes/supplier-popularity.php';
 require_once get_stylesheet_directory() . '/includes/product-retail-rounding.php';
+require_once get_stylesheet_directory() . '/inc/petish-email-branding.php';
 
 // Let the photo anchor open WooCommerce's existing PhotoSwipe viewer on click/tap.
 // Inline hover zoom otherwise intercepts that gesture; the viewer retains its own zoom.

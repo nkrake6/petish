@@ -229,7 +229,7 @@ function rehearsal_provider_charge(array $charge, string $charge_id, int $expect
 }
 
 try {
-    if ($argc!==3 || !in_array($argv[1],['preflight','prepare','verify','refund','cleanup'],true) || !preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[2])) rehearsal_fail();
+    if ($argc!==3 || !in_array($argv[1],['preflight','prepare','verify','refund','cleanup','email-preview'],true) || !preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[2])) rehearsal_fail();
     $operation=$argv[1];$run=$argv[2]; $report['run_id']=$run;$report['phase']=$operation;
     $home=getenv('HOME'); if (!is_string($home)||!rehearsal_path($home,true)) rehearsal_fail();
     $root=$home.'/domains/staging.petish.biz/public_html'; $production=$home.'/domains/petish.biz/public_html';
@@ -296,7 +296,7 @@ try {
     // is no allowlisted provider HTTP in this preflight phase.
     if (defined('WP_HTTP_BLOCK_EXTERNAL')||defined('WP_ACCESSIBLE_HOSTS')) rehearsal_fail();
     $provider_hosts=['api.wordpress.com','jetpack.wordpress.com','payments.woocommerce.com','public-api.wordpress.com'];
-    define('WP_HTTP_BLOCK_EXTERNAL',true); define('WP_ACCESSIBLE_HOSTS',$operation==='preflight'?'':implode(',',$provider_hosts)); define('WP_USE_THEMES',false);
+    define('WP_HTTP_BLOCK_EXTERNAL',true); define('WP_ACCESSIBLE_HOSTS',in_array($operation,['preflight','email-preview'],true)?'':implode(',',$provider_hosts)); define('WP_USE_THEMES',false);
     $_SERVER['HTTP_HOST']='staging.petish.biz'; $_SERVER['SERVER_NAME']='staging.petish.biz';
     $_SERVER['HTTPS']='on'; $_SERVER['REQUEST_METHOD']='GET'; $_SERVER['REQUEST_URI']='/';
     $_SERVER['SERVER_PROTOCOL']='HTTP/1.1'; $_SERVER['REMOTE_ADDR']='127.0.0.1';
@@ -439,6 +439,23 @@ try {
     if($operation==='preflight'){
         rehearsal_write_private($work.'/browser-input.json',json_encode($input,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
         $report['checks']['browser_input_written']=true;
+    }elseif($operation==='email-preview'){
+        $report['category']='email_preview';
+        $helper=__DIR__.'/email-branding-preview-remote.php';
+        if(!rehearsal_path($helper)||filesize($helper)>1048576)rehearsal_fail();
+        require_once $helper;
+        $preview_context=['run_id'=>$run,'root'=>$root,'private'=>$private,'work'=>$work,
+            'customer_id'=>(int)$synthetic_user->ID,'customer_email'=>$synthetic_user->user_email,
+            'mark'=>static function($key,$value)use(&$report){
+                if(!is_string($key)||!preg_match('/\Aemail_preview_[a-z_]+\z/D',$key)||!is_bool($value))rehearsal_fail();
+                $report['checks'][$key]=$value;
+            }];
+        $preview=petish_email_preview_render($preview_context);
+        foreach($preview as$key=>$value){
+            if(!is_string($key)||!preg_match('/\Aemail_preview_[a-z_]+\z/D',$key)||!is_bool($value))rehearsal_fail();
+            $report['checks'][$key]=$value;
+        }
+        unset($preview_context,$preview);
     }else{
         $report['category']=$operation;
         foreach(['staging-rehearsal-order.php','staging-rehearsal-fixture.php']as$name){

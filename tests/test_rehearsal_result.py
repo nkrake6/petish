@@ -112,6 +112,16 @@ class RehearsalResultTests(unittest.TestCase):
                       'supplier_action_performed':False,'customer_note_email_captured':True},
             'cleanup':{'shipping_fixture_removed':True,'qa_cart_cleared':True,
                        'order_refunded_before_cleanup':True,'recovery_required':False},
+            'email-preview':{'email_preview_rendered':True,'email_preview_native_renderer':True,
+                             'email_preview_unsaved_synthetic_order':True,
+                             'email_preview_synthetic_content_only':True,
+                             'email_preview_no_order_records_created':True,
+                             'email_preview_stock_unchanged':True,
+                             'email_preview_html_sanitized':True,
+                             'email_preview_branding_logo_present':True,
+                             'email_preview_branding_palette_present':True,
+                             'email_preview_native_order_details_present':True,
+                             'email_preview_four_types_rendered':True},
         }
         for phase,checks in phase_checks.items():
             with self.subTest(phase=phase):
