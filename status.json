@@ -1,0 +1,73 @@
+{
+  "status": "success",
+  "category": "complete",
+  "mode": "staging",
+  "run_id": "39442751242-1",
+  "source_commit": "ba45b438cb4f4139ed5fc890dd19ace1a8a15d78",
+  "generated_utc": "2026-10-20T14:49:47.242667+00:00",
+  "source_hashes": {
+    "includes/class-petish-delivery-cost-sheet-admin.php": "4abd44f9544ce6f911af4cf33ba0197029d1f420d00595260abde8044742983e",
+    "includes/class-petish-delivery-cost-sheet.php": "f994698c143841cc7cf0a741e46d13cd5c7194ca1370e6eafe16f20b084f4d0d",
+    "petish-fulfilment.php": "3506e5e4e1afa802ccda41a17a9ddaae61f3a0a715b53fc9097fde374c8133d0"
+  },
+  "staging_source_verified": true,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "preflight": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "source_guard_sha_verified": true,
+        "database_separate": true,
+        "source_wp_cron_disabled": true,
+        "environment_staging": true,
+        "suppliers_blocked": true,
+        "woocommerce_test_mode": true,
+        "paths_verified": true,
+        "browser_input_written": true,
+        "mail_capture_verified": true,
+        "webhooks_blocked": true,
+        "runtime_database_staging": true,
+        "no_active_webhooks": true,
+        "wcpay_dev_mode": true,
+        "guard_runtime_verified": true,
+        "only_allowlisted_plugins": true,
+        "all_http_forced_blocked": true
+      }
+    },
+    "verify": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "cost_sheet_classes_loaded": true,
+        "anonymous_access_denied": true,
+        "customer_access_denied": true,
+        "manager_access_verified": true,
+        "admin_hooks_registered": true,
+        "invalid_nonce_rejected": true,
+        "valid_nonce_accepted": true,
+        "catalogue_template_verified": true,
+        "known_calculation_verified": true,
+        "exact_identity_and_quantity_verified": true,
+        "unknown_cost_not_zero": true,
+        "csv_formula_injection_prevented": true,
+        "csv_limits_enforced": true,
+        "estimate_not_verified_rate": true,
+        "admin_preview_rendered": true,
+        "orders_unchanged": true,
+        "users_and_authentication_unchanged": true,
+        "product_prices_and_stock_unchanged": true,
+        "shipping_policy_and_settings_unchanged": true
+      }
+    }
+  },
+  "preparation_stage": "complete"
+}
