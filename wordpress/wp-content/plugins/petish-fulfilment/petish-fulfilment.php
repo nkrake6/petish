@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Petish Fulfilment
- * Description: Automatic destination delivery pricing and reviewed supplier quotes.
- * Version: 0.4.0
+ * Description: Automatic destination delivery, reviewed supplier quotes and private delivery cost previews.
+ * Version: 0.5.0
  * Requires PHP: 8.1
  * Requires Plugins: woocommerce
  * Text Domain: petish-fulfilment
@@ -13,6 +13,9 @@ require_once __DIR__ . '/includes/class-petish-quote-currency.php';
 require_once __DIR__ . '/includes/class-petish-supplier-quotes.php';
 require_once __DIR__ . '/includes/class-petish-shipping-quote-requests.php';
 Petish_Shipping_Quote_Requests::init();
+require_once __DIR__ . '/includes/class-petish-delivery-cost-sheet.php';
+require_once __DIR__ . '/includes/class-petish-delivery-cost-sheet-admin.php';
+Petish_Delivery_Cost_Sheet_Admin::init();
 
 // WooCommerce's method base class is autoloadable after its plugins_loaded setup.
 add_action('plugins_loaded', static function () {
