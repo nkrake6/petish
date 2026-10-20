@@ -28,15 +28,21 @@ BROWSER_CHECKS = {'browser_started', 'customer_login_verified', 'cart_prepared',
     'decline_verified', 'paid_receipt_verified', 'native_checkout_used',
     'unsafe_request_blocked', 'same_order_retried', 'cart_page_loaded',
     'cart_api_available', 'cart_empty_verified', 'variation_add_request_completed',
-    'expected_variation_in_cart'}
-BROWSER_HTTP_FIELDS = {'cart_page_http_status', 'cart_api_http_status'}
+    'expected_variation_in_cart', 'shipping_cart_api_available',
+    'shipping_one_package_verified', 'shipping_customer_destination_verified',
+    'shipping_package_destination_verified', 'shipping_expected_rate_present',
+    'shipping_expected_rate_selected', 'shipping_customer_update_verified',
+    'checkout_currency_verified'}
+BROWSER_HTTP_FIELDS = {'cart_page_http_status', 'cart_api_http_status', 'shipping_api_http_status'}
+BROWSER_COUNT_LIMITS = {'shipping_package_count': 20, 'shipping_rate_count': 50}
 BROWSER_CART_STEPS = {'open', 'empty', 'add', 'verify', 'api'}
 BROWSER_CART_ERRORS = {'none', 'rest_not_logged_in', 'rest_cookie_invalid_nonce',
     'rest_forbidden', 'rest_cannot_view', 'woocommerce_rest_authentication_error',
     'woocommerce_rest_missing_session', 'woocommerce_rest_cart_error',
     'woocommerce_rest_cart_item_error', 'woocommerce_rest_missing_nonce',
     'woocommerce_rest_invalid_nonce', 'wp_rest_nonce_unavailable', 'network',
-    'invalid_response', 'other'}
+    'invalid_response', 'other', 'rest_invalid_param', 'woocommerce_rest_invalid_param',
+    'woocommerce_rest_customer_error', 'woocommerce_rest_invalid_address'}
 BROWSER_STAGES = {'input', 'browser', 'login', 'cart', 'checkout', 'address',
     'shipping', 'test_key', 'decline', 'retry', 'receipt', 'complete', 'network'}
 ACCOUNT = {'cached_account_present', 'account_is_live', 'native_connected',
@@ -182,8 +188,8 @@ def sanitize_browser(source):
     try:
         raw = read_report(source)
         validation_stage = 'browser'
-        if not isinstance(raw, dict) or not set(raw) <= BROWSER_CHECKS | BROWSER_HTTP_FIELDS \
-                | {'payment_attempts', 'failure_stage', 'cart_failure_step', 'cart_api_error_code'}:
+        if not isinstance(raw, dict) or not set(raw) <= BROWSER_CHECKS | BROWSER_HTTP_FIELDS | set(BROWSER_COUNT_LIMITS) \
+                | {'payment_attempts', 'failure_stage', 'cart_failure_step', 'cart_api_error_code', 'shipping_api_error_code'}:
             raise ValueError()
         if any(type(value) is not bool for key, value in raw.items() if key in BROWSER_CHECKS):
             raise ValueError()
@@ -194,10 +200,14 @@ def sanitize_browser(source):
         for field in BROWSER_HTTP_FIELDS:
             if field in raw and (type(raw[field]) is not int or not (raw[field] == 0 or 100 <= raw[field] <= 599)):
                 raise ValueError()
+        for field, maximum in BROWSER_COUNT_LIMITS.items():
+            if field in raw and (type(raw[field]) is not int or not 0 <= raw[field] <= maximum):
+                raise ValueError()
         if 'cart_failure_step' in raw and raw['cart_failure_step'] not in BROWSER_CART_STEPS:
             raise ValueError()
-        if 'cart_api_error_code' in raw and raw['cart_api_error_code'] not in BROWSER_CART_ERRORS:
-            raise ValueError()
+        for field in ('cart_api_error_code', 'shipping_api_error_code'):
+            if field in raw and raw[field] not in BROWSER_CART_ERRORS:
+                raise ValueError()
         return raw
     except (OSError, ValueError, TypeError, KeyError, RecursionError):
         return {'status': 'unavailable', 'category': 'safe_result_unavailable', 'validation_stage': validation_stage}

@@ -93,6 +93,25 @@ $p=['contents'=>[['product_id'=>242,'variation_id'=>246,'quantity'=>1]],'destina
 echo json_encode(petish_rehearsal_fixture_rates(['existing'=>1],$p)===['existing'=>1]);''')
         self.assertTrue(result)
 
+    def test_store_api_identity_fallback_requires_native_exact_qa_customer_and_no_other_wp_user(self):
+        fixture = self.fixture()
+        body = self.stubs(fixture) + r'''
+class WC_Customer {private $id;function __construct($id){$this->id=$id;}function get_id(){return $this->id;}}
+$GLOBALS['native_customer']=null;function WC(){return (object)['customer'=>$GLOBALS['native_customer']];}
+$config=petish_rehearsal_fixture_config();$original=['existing'=>'unchanged'];
+$package=['contents'=>[['product_id'=>242,'variation_id'=>246,'quantity'=>1]],'destination'=>['country'=>'AU','postcode'=>'3083']];
+$GLOBALS['uid']=0;$out=[!petish_rehearsal_fixture_identity($config)];
+$GLOBALS['native_customer']=new WC_Customer(7);$out[]=petish_rehearsal_fixture_identity($config);
+$out[]=array_keys(petish_rehearsal_fixture_rates($original,$package))===['petish_rehearsal_shipping:12345-1'];
+$GLOBALS['uid']=8;$out[]=!petish_rehearsal_fixture_identity($config);$GLOBALS['uid']=0;
+$GLOBALS['native_customer']=new WC_Customer(8);$out[]=!petish_rehearsal_fixture_identity($config);
+$GLOBALS['native_customer']=new class{function get_id(){return 7;}};$out[]=!petish_rehearsal_fixture_identity($config);
+$GLOBALS['native_customer']=new WC_Customer(7);$GLOBALS['currency']='USD';$out[]=!petish_rehearsal_fixture_identity($config);$GLOBALS['currency']='AUD';
+$package['destination']['postcode']='3000';$out[]=petish_rehearsal_fixture_rates($original,$package)===$original;
+$package['destination']['postcode']='3083';$package['contents'][0]['quantity']=2;$out[]=petish_rehearsal_fixture_rates($original,$package)===$original;
+echo json_encode($out);'''
+        self.assertTrue(all(self.execute(body)))
+
     def test_provider_proof_rejects_live_mismatched_amount_and_partial_refunds(self):
         result = self.execute('require ' + repr(str(MODULE)) + r''';
 $order=new class {function get_total(){return 14.6;}};

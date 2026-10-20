@@ -17,12 +17,14 @@ const fixtureInput = () => validateInput({
     mail_capture_verified: true, webhooks_blocked: true },
 });
 
-function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = false, hideRemoveUI = false } = {}) {
+function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = false, hideRemoveUI = false, hydrationDelay = 0, currency = 'AUD' } = {}) {
   const state = { items: [{ id: 999, quantity: 1 }], attempts: [], logins: 0, removed: 0,
-    unexpected: [], restNonceRequests: 0, shippingSelected: false, shippingSelections: 0 };
+    unexpected: [], restNonceRequests: 0, shippingSelected: false, shippingSelections: 0,
+    destination: { country: '', state: '', postcode: '' }, customerUpdates: 0 };
   const key = live ? 'pk_live_fixture' : 'pk_test_fixture';
   const html = body => ({ status: 200, contentType: 'text/html', body: `<!doctype html><html><body>${body}</body></html>` });
-  const cart = () => ({ items: state.items, shipping_rates: [{ package_id: 0,
+  const cart = () => ({ items: state.items, shipping_address: state.destination,
+    totals: { currency_code: currency }, shipping_rates: [{ package_id: 0, destination: state.destination,
     shipping_rates: [{ rate_id: 'petish_rehearsal:native-fixture', selected: state.shippingSelected }] }] });
   async function fulfill(route) {
     const request = route.request(), url = new URL(request.url());
@@ -62,6 +64,19 @@ function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = f
       state.shippingSelected = true; state.shippingSelections++;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cart()) });
     }
+    if (url.pathname === '/wp-json/wc/store/v1/cart/update-customer' && request.method() === 'POST') {
+      if (request.headers()['x-wp-nonce'] !== 'fixturewp0' || request.headers().nonce !== 'private-fixture-nonce') {
+        return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'rest_cookie_invalid_nonce' }) });
+      }
+      const data = JSON.parse(request.postData());
+      assert.equal(data.shipping_address.country, 'AU');
+      assert.equal(data.shipping_address.state, 'VIC');
+      assert.equal(data.shipping_address.postcode, '3083');
+      assert.match(data.billing_address.email, /\.invalid$/);
+      state.destination = data.shipping_address;
+      state.customerUpdates++;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cart()) });
+    }
     if (url.pathname === '/wp-json/wc/store/v1/cart/items' && request.method() === 'DELETE') {
       if (request.headers()['x-wp-nonce'] !== 'fixturewp0' || request.headers().nonce !== 'private-fixture-nonce') {
         return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'rest_cookie_invalid_nonce' }) });
@@ -75,7 +90,7 @@ function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = f
       return route.fulfill(html(state.items.length && !hideRemoveUI ? '<button class="wc-block-cart-item__remove-link" onclick="fetch(\'/wp-json/wc/store/v1/cart/items\',{method:\'DELETE\',headers:{Nonce:\'private-fixture-nonce\',\'X-WP-Nonce\':\'fixturewp0\'}}).then(()=>this.remove())">Remove item</button>' : '<p>Cart fixture</p>'));
     }
     if (url.pathname === '/checkout/') {
-      return route.fulfill(html(`<main class="wc-block-checkout">
+      const checkout = html(`<main class="wc-block-checkout">
         <input id="email" type="email"><select id="shipping-country"><option value="AU">Australia</option></select>
         <input id="shipping-first_name"><input id="shipping-last_name"><input id="shipping-address_1">
         <input id="shipping-city"><select id="shipping-state"><option value="VIC">Victoria</option></select>
@@ -92,7 +107,13 @@ function fixtureBrowser({ live = false, receiptId = 5001, omitSuccessOrderId = f
           const data=await response.json();
           if(data.declined)document.querySelector('#result').innerHTML='<div role="alert">Your card was declined.</div>';
           else location.assign(data.payment_result.redirect_url);
-        };</script>`));
+        };</script>`);
+      if (hydrationDelay > 0) {
+        const source = JSON.stringify(checkout.body).replaceAll('<', '\\u003c');
+        return route.fulfill(html(`<main class="wc-block-checkout"><p>Loading checkout</p></main>
+          <script>setTimeout(()=>{document.open();document.write(${source});document.close();},${hydrationDelay});</script>`));
+      }
+      return route.fulfill(checkout);
     }
     if (url.pathname === '/wp-json/wc/store/v1/checkout' && request.method() === 'POST') {
       const body = JSON.parse(request.postData());
@@ -131,6 +152,13 @@ test('full isolated native-shaped browser flow declines, retries and keeps recei
   assert.equal(result.failure_stage, undefined, JSON.stringify({ stage: result.failure_stage, logins: fixture.state.logins, unexpected: fixture.state.unexpected, cookie_names: fixture.state.cookie_names }));
   assert.equal(result.customer_login_verified, true);
   assert.equal(result.shipping_verified, true);
+  assert.equal(result.shipping_customer_update_verified, true);
+  assert.equal(result.shipping_customer_destination_verified, true);
+  assert.equal(result.shipping_package_destination_verified, true);
+  assert.equal(result.shipping_one_package_verified, true);
+  assert.equal(result.shipping_expected_rate_present, true);
+  assert.equal(result.shipping_expected_rate_selected, true);
+  assert.equal(result.checkout_currency_verified, true);
   assert.equal(result.cart_api_http_status, 200);
   assert.equal(result.cart_api_available, true);
   assert.equal(result.cart_empty_verified, true);
@@ -146,6 +174,7 @@ test('full isolated native-shaped browser flow declines, retries and keeps recei
   assert.equal(fixture.state.removed, 1);
   assert.ok(fixture.state.restNonceRequests > 0);
   assert.equal(fixture.state.shippingSelections, 1);
+  assert.equal(fixture.state.customerUpdates, 1);
   assert.deepEqual(fixture.state.unexpected, []);
   assert.equal(JSON.stringify(publicReport(result)).includes('privatefixture'), false);
 });
@@ -178,4 +207,25 @@ test('authenticated native cart deletion does not depend on a mounted Remove but
   assert.equal(result.expected_variation_in_cart, true);
   assert.equal(result.paid_receipt_verified, true);
   assert.equal(fixture.state.removed, 1);
+});
+
+test('checkout waits for asynchronously hydrated contact and address controls', { skip: !available, timeout: 30000 }, async () => {
+  const fixture = fixtureBrowser({ hydrationDelay: 900 });
+  const result = await run(fixtureInput(), fixture.chromium);
+  assert.equal(result.failure_stage, undefined);
+  assert.equal(result.checkout_rendered, true);
+  assert.equal(result.shipping_verified, true);
+  assert.equal(result.decline_verified, true);
+  assert.equal(result.paid_receipt_verified, true);
+});
+
+test('a non-AUD checkout is refused before a payment submission', { skip: !available, timeout: 30000 }, async () => {
+  const fixture = fixtureBrowser({ currency: 'USD' });
+  const result = await run(fixtureInput(), fixture.chromium);
+  assert.equal(result.failure_stage, 'shipping');
+  assert.equal(result.checkout_currency_verified, false);
+  assert.equal(result.payment_attempts, 0);
+  assert.equal(result.paid_receipt_verified, false);
+  assert.deepEqual(fixture.state.attempts, []);
+  assert.equal(fixture.state.customerUpdates, 0);
 });

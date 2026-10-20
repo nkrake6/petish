@@ -27,7 +27,8 @@ const CART_CODES = new Set(['none', 'rest_not_logged_in', 'rest_cookie_invalid_n
   'woocommerce_rest_missing_session', 'woocommerce_rest_cart_error',
   'woocommerce_rest_cart_item_error', 'woocommerce_rest_missing_nonce',
   'woocommerce_rest_invalid_nonce', 'wp_rest_nonce_unavailable', 'network',
-  'invalid_response', 'other']);
+  'invalid_response', 'other', 'rest_invalid_param', 'woocommerce_rest_invalid_param',
+  'woocommerce_rest_customer_error', 'woocommerce_rest_invalid_address']);
 
 export function validateInput(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)
@@ -68,6 +69,10 @@ export function publicReport(value) {
     'unsafe_request_blocked', 'same_order_retried'];
   fields.push('cart_page_loaded', 'cart_api_available', 'cart_empty_verified',
     'variation_add_request_completed', 'expected_variation_in_cart');
+  fields.push('shipping_cart_api_available', 'shipping_one_package_verified',
+    'shipping_customer_destination_verified', 'shipping_package_destination_verified',
+    'shipping_expected_rate_present', 'shipping_expected_rate_selected',
+    'shipping_customer_update_verified', 'checkout_currency_verified');
   const result = {};
   for (const key of fields) if (typeof value[key] === 'boolean') result[key] = value[key];
   if (Number.isInteger(value.payment_attempts) && value.payment_attempts >= 0 && value.payment_attempts <= 2) {
@@ -76,7 +81,11 @@ export function publicReport(value) {
   if (STAGES.has(value.failure_stage)) result.failure_stage = value.failure_stage;
   if (CART_STEPS.has(value.cart_failure_step)) result.cart_failure_step = value.cart_failure_step;
   if (CART_CODES.has(value.cart_api_error_code)) result.cart_api_error_code = value.cart_api_error_code;
-  for (const key of ['cart_page_http_status', 'cart_api_http_status']) {
+  if (CART_CODES.has(value.shipping_api_error_code)) result.shipping_api_error_code = value.shipping_api_error_code;
+  for (const [key, maximum] of [['shipping_package_count', 20], ['shipping_rate_count', 50]]) {
+    if (Number.isInteger(value[key]) && value[key] >= 0 && value[key] <= maximum) result[key] = value[key];
+  }
+  for (const key of ['cart_page_http_status', 'cart_api_http_status', 'shipping_api_http_status']) {
     if (Number.isInteger(value[key]) && (value[key] === 0 || (value[key] >= 100 && value[key] <= 599))) {
       result[key] = value[key];
     }
@@ -109,24 +118,6 @@ async function visibleFirst(locators) {
   return null;
 }
 
-async function fillVisible(page, selectors, value) {
-  const control = await visibleFirst(selectors.map(selector => page.locator(selector)));
-  if (!control) return false;
-  await control.fill(value);
-  await control.blur();
-  return true;
-}
-
-async function countryOrState(page, selectors, value, text) {
-  for (const selector of selectors) {
-    const control = page.locator(selector).first();
-    if (!await control.count() || !await control.isVisible().catch(() => false)) continue;
-    if (await control.evaluate(element => element.tagName === 'SELECT')) await control.selectOption(value);
-    else await control.fill(text);
-    await control.blur();
-  }
-}
-
 async function cartData(page) {
   return page.evaluate(async () => {
     const safeError = (value, status = 0) => ({ value: null, nonce: null, wpNonce: null,
@@ -155,6 +146,13 @@ async function cartData(page) {
           return safeError({ code: 'wp_rest_nonce_unavailable' }, response.status);
         }
         window.__petishRehearsalWpNonce = wpNonce;
+        if (window.wp?.apiFetch?.nonceMiddleware) window.wp.apiFetch.nonceMiddleware.nonce = wpNonce;
+        else if (typeof window.wp?.apiFetch?.createNonceMiddleware === 'function'
+            && typeof window.wp.apiFetch.use === 'function' && !window.__petishRehearsalNonceInstalled) {
+          window.wp.apiFetch.use(window.wp.apiFetch.createNonceMiddleware(wpNonce));
+          window.__petishRehearsalNonceInstalled = true;
+        }
+        if (window.wpApiSettings && typeof window.wpApiSettings === 'object') window.wpApiSettings.nonce = wpNonce;
       } catch { return safeError({ code: 'network' }); }
     }
     try {
@@ -277,30 +275,138 @@ async function prepareCart(page, input, result) {
   throw new Error('cart');
 }
 
-async function fillAddress(page, input) {
-  for (const prefix of ['shipping', 'billing']) {
-    await countryOrState(page, [`#${prefix}-country`, `#${prefix}_country`], 'AU', 'Australia');
-    await fillVisible(page, [`#${prefix}-first_name`, `#${prefix}_first_name`], 'Petish');
-    await fillVisible(page, [`#${prefix}-last_name`, `#${prefix}_last_name`], `Rehearsal ${input.run_id}`);
-    await fillVisible(page, [`#${prefix}-address_1`, `#${prefix}_address_1`], 'Staging test address');
-    await fillVisible(page, [`#${prefix}-city`, `#${prefix}_city`], 'Bundoora');
-    await countryOrState(page, [`#${prefix}-state`, `#${prefix}_state`], 'VIC', 'Victoria');
-    await fillVisible(page, [`#${prefix}-postcode`, `#${prefix}_postcode`], '3083');
-    await fillVisible(page, [`#${prefix}-phone`, `#${prefix}_phone`], '0400000000');
+async function verifyContactEmail(page, input) {
+  const control = await visibleFirst([page.locator('#email'), page.locator('#billing-email'),
+    page.locator('#billing_email'), page.locator('input[type=email]')]);
+  if (!control) throw new Error('address');
+  if (await control.inputValue() !== input.customer_email) {
+    await control.fill(input.customer_email);
+    await control.blur();
   }
-  if (!await fillVisible(page, ['#email', '#billing-email', '#billing_email', 'input[type=email]'], input.customer_email)) {
-    throw new Error('address');
-  }
+  if (await control.inputValue() !== input.customer_email) throw new Error('address');
 }
 
-async function verifyShipping(page, input) {
+async function waitForCheckoutHydration(page) {
+  const expires = Date.now() + 30000;
+  while (Date.now() < expires) {
+    const root = await visibleFirst([page.locator('.wc-block-checkout'), page.locator('form.checkout')]);
+    const email = await visibleFirst([page.locator('#email'), page.locator('#billing-email'),
+      page.locator('#billing_email'), page.locator('input[type=email]')]);
+    if (root && email) {
+      for (const [prefix, separator] of [['shipping', '-'], ['billing', '-'], ['shipping', '_'], ['billing', '_']]) {
+        let complete = true;
+        for (const field of ['first_name', 'last_name', 'address_1', 'city', 'postcode']) {
+          const control = page.locator(`#${prefix}${separator}${field}`).first();
+          if (!await control.count() || !await control.isVisible().catch(() => false)) {
+            complete = false;
+            break;
+          }
+        }
+        if (complete) return;
+      }
+    }
+    await page.waitForTimeout(300);
+  }
+  throw new Error('checkout');
+}
+
+function isFixtureDestination(address) {
+  return address && typeof address === 'object' && address.country === 'AU'
+    && address.state === 'VIC' && String(address.postcode ?? '').replace(/\s/g, '') === '3083';
+}
+
+function shippingDiagnostics(result, cart, input) {
+  result.shipping_cart_api_available = Array.isArray(cart?.value?.items);
+  result.checkout_currency_verified = cart?.value?.totals?.currency_code === 'AUD';
+  result.shipping_customer_destination_verified = !!isFixtureDestination(cart?.value?.shipping_address);
+  const packages = cart?.value?.shipping_rates;
+  result.shipping_package_count = Array.isArray(packages) ? packages.length : 0;
+  result.shipping_one_package_verified = Array.isArray(packages) && packages.length === 1;
+  result.shipping_package_destination_verified = result.shipping_one_package_verified
+    && !!isFixtureDestination(packages[0].destination);
+  const rates = result.shipping_one_package_verified && Array.isArray(packages[0].shipping_rates)
+    ? packages[0].shipping_rates : [];
+  result.shipping_rate_count = rates.length;
+  const desired = rates.find(rate => rate.rate_id === input.shipping_method_id);
+  result.shipping_expected_rate_present = !!desired;
+  result.shipping_expected_rate_selected = desired?.selected === true;
+}
+
+async function prepareNativeAddress(page, input, result) {
+  const cart = await cartData(page);
+  shippingDiagnostics(result, cart, input);
+  if (!result.checkout_currency_verified) throw new Error('shipping');
+  const update = await page.evaluate(async ({ nonce, existingWpNonce, email, run }) => {
+    const failed = (status = 0, code = 'invalid_response') => ({ completed: false,
+      http_status: Number.isInteger(status) ? status : 0,
+      error_code: typeof code === 'string' ? code : 'invalid_response' });
+    if (!nonce) return failed(0, 'woocommerce_rest_missing_nonce');
+    let wpNonce = existingWpNonce ?? window.__petishRehearsalWpNonce;
+    if (!/^[A-Za-z0-9]{10}$/.test(wpNonce ?? '')) {
+      try {
+        const response = await fetch('/wp-admin/admin-ajax.php?action=rest-nonce', {
+          credentials: 'same-origin', cache: 'no-store',
+        });
+        wpNonce = (await response.text()).trim();
+        if (!response.ok || !/^[A-Za-z0-9]{10}$/.test(wpNonce)) {
+          return failed(response.status, 'wp_rest_nonce_unavailable');
+        }
+      } catch { return failed(0, 'network'); }
+    }
+    window.__petishRehearsalWpNonce = wpNonce;
+    if (window.wp?.apiFetch?.nonceMiddleware) window.wp.apiFetch.nonceMiddleware.nonce = wpNonce;
+    else if (typeof window.wp?.apiFetch?.createNonceMiddleware === 'function'
+        && typeof window.wp.apiFetch.use === 'function' && !window.__petishRehearsalNonceInstalled) {
+      window.wp.apiFetch.use(window.wp.apiFetch.createNonceMiddleware(wpNonce));
+      window.__petishRehearsalNonceInstalled = true;
+    }
+    if (window.wpApiSettings && typeof window.wpApiSettings === 'object') window.wpApiSettings.nonce = wpNonce;
+    const address = { first_name: 'Petish', last_name: `Rehearsal ${run}`,
+      address_1: 'Staging test address', address_2: '', city: 'Bundoora',
+      state: 'VIC', postcode: '3083', country: 'AU' };
+    const data = { shipping_address: address,
+      billing_address: { ...address, phone: '0400000000', email } };
+    if (typeof window.wp?.apiFetch === 'function') {
+      try {
+        const response = await window.wp.apiFetch({ path: '/wc/store/v1/cart/update-customer',
+          method: 'POST', parse: false, headers: { Nonce: nonce, 'X-WP-Nonce': wpNonce }, data });
+        if (response?.ok === true || Array.isArray(response?.items)) {
+          return { completed: true, http_status: response?.status ?? 200, error_code: 'none' };
+        }
+      } catch {}
+    }
+    try {
+      const response = await fetch('/wp-json/wc/store/v1/cart/update-customer', { method: 'POST',
+        credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Nonce: nonce,
+          'X-WP-Nonce': wpNonce }, body: JSON.stringify(data) });
+      if (response.ok) return { completed: true, http_status: response.status, error_code: 'none' };
+      const error = await response.json().catch(() => null);
+      return failed(response.status, error?.code);
+    } catch { return failed(0, 'network'); }
+  }, { nonce: cart?.nonce, existingWpNonce: cart?.wpNonce,
+    email: input.customer_email, run: input.run_id });
+  result.shipping_api_http_status = update.http_status;
+  result.shipping_api_error_code = CART_CODES.has(update.error_code) ? update.error_code : 'other';
+  if (!update.completed) throw new Error('shipping');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForCheckoutHydration(page);
+  const fresh = await cartData(page);
+  shippingDiagnostics(result, fresh, input);
+  result.shipping_customer_update_verified = result.shipping_customer_destination_verified;
+  if (!result.shipping_customer_update_verified) throw new Error('shipping');
+}
+
+async function verifyShipping(page, input, result) {
   for (let attempt = 0; attempt < 40; attempt++) {
     const cart = await cartData(page);
+    shippingDiagnostics(result, cart, input);
+    if (!result.checkout_currency_verified) throw new Error('shipping');
     const packages = cart?.value?.shipping_rates;
     if (Array.isArray(packages) && packages.length === 1) {
       const rates = packages[0].shipping_rates;
       const desired = Array.isArray(rates) && rates.find(rate => rate.rate_id === input.shipping_method_id);
-      if (desired?.selected === true) return;
+      if (desired?.selected === true && result.shipping_customer_destination_verified
+          && result.shipping_package_destination_verified) return;
       if (desired) {
         const radio = page.locator(`input[type=radio][value="${input.shipping_method_id}"]`).first();
         if (await radio.count()) {
@@ -312,7 +418,7 @@ async function verifyShipping(page, input) {
                 await window.wp.apiFetch({ path: '/wc/store/v1/cart/select-shipping-rate', method: 'POST',
                   headers: { Nonce: nonce }, data: { package_id: packageId, rate_id: rate } });
                 return true;
-              } catch { return false; }
+              } catch {}
             }
             const response = await fetch('/wp-json/wc/store/v1/cart/select-shipping-rate', {
               method: 'POST', credentials: 'same-origin',
@@ -499,14 +605,16 @@ export async function run(input, chromium) {
     result.cart_prepared = true;
     stage = 'checkout';
     await page.goto(ORIGIN + '/checkout/', { waitUntil: 'domcontentloaded' });
-    if (!await visibleFirst([page.locator('.wc-block-checkout'), page.locator('form.checkout')])) throw new Error('checkout');
+    await waitForCheckoutHydration(page);
     result.checkout_rendered = true;
     if (state.liveKeyObserved || result.unsafe_request_blocked) throw new Error('network');
+    stage = 'shipping';
+    await prepareNativeAddress(page, input, result);
     stage = 'address';
-    await fillAddress(page, input);
+    await verifyContactEmail(page, input);
     if (state.liveKeyObserved || result.unsafe_request_blocked) throw new Error('network');
     stage = 'shipping';
-    await verifyShipping(page, input);
+    await verifyShipping(page, input, result);
     result.shipping_verified = true;
     await preparePayment(page);
     stage = 'test_key';
@@ -514,7 +622,7 @@ export async function run(input, chromium) {
     result.test_publishable_key_verified = true;
     stage = 'decline';
     await fillCard(page, '4000000000000002');
-    await verifyShipping(page, input);
+    await verifyShipping(page, input, result);
     if (state.liveKeyObserved) throw new Error('network');
     result.payment_attempts++;
     await submit(page);
@@ -533,7 +641,7 @@ export async function run(input, chromium) {
     await preparePayment(page);
     await checkTestKey(page, state);
     await fillCard(page, '4242424242424242');
-    await verifyShipping(page, input);
+    await verifyShipping(page, input, result);
     if (state.liveKeyObserved) throw new Error('network');
     result.payment_attempts++;
     await submit(page);

@@ -33,9 +33,17 @@ function petish_rehearsal_fixture_config() {
 }
 
 function petish_rehearsal_fixture_identity($config) {
-    return $config && get_current_user_id() === $config['customer_id']
-        && class_exists('WC_Payments') && WC_Payments::mode()->is_dev()
-        && WC_Payments::mode()->is_test() && get_woocommerce_currency() === 'AUD';
+    if (!$config || !class_exists('WC_Payments') || !WC_Payments::mode()->is_dev()
+        || !WC_Payments::mode()->is_test() || get_woocommerce_currency() !== 'AUD') return false;
+    $user_id = get_current_user_id();
+    if ($user_id === $config['customer_id']) return true;
+    // Store API cookie authentication can leave the WordPress principal unset
+    // while WooCommerce has resolved its native signed cart-session customer.
+    // This fallback never overrides a different authenticated WordPress user.
+    if ($user_id !== 0 || !function_exists('WC')) return false;
+    $woocommerce = WC();
+    $customer = is_object($woocommerce) ? ($woocommerce->customer ?? null) : null;
+    return is_a($customer, 'WC_Customer') && (int)$customer->get_id() === $config['customer_id'];
 }
 
 function petish_rehearsal_fixture_package($package, $config) {

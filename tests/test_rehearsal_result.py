@@ -309,6 +309,30 @@ class BrowserPublicReportTests(unittest.TestCase):
             self.assertEqual(self.sanitize({**raw,field:PRIVATE}),
                 {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
 
+    def test_shipping_diagnostics_currency_and_bounded_counts_are_public_metadata(self):
+        raw={'payment_attempts':0,'failure_stage':'shipping','shipping_cart_api_available':True,
+             'shipping_one_package_verified':True,'shipping_customer_destination_verified':True,
+             'shipping_package_destination_verified':False,'shipping_expected_rate_present':False,
+             'shipping_expected_rate_selected':False,'shipping_customer_update_verified':True,
+             'checkout_currency_verified':True,'shipping_package_count':1,'shipping_rate_count':0,
+             'shipping_api_http_status':200,'shipping_api_error_code':'none'}
+        self.assertEqual(self.sanitize(raw),raw)
+        for field,maximum in (('shipping_package_count',20),('shipping_rate_count',50)):
+            for count in (0,1,maximum):
+                value={**raw,field:count};self.assertEqual(self.sanitize(value),value)
+            for count in (True,False,-1,maximum+1,1.0,'1',PRIVATE,None):
+                self.assertEqual(self.sanitize({**raw,field:count}),
+                    {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+        for code in validator.BROWSER_CART_ERRORS:
+            value={**raw,'shipping_api_error_code':code};self.assertEqual(self.sanitize(value),value)
+        for value in (PRIVATE,None,[],{},'https://staging.petish.biz/private'):
+            self.assertEqual(self.sanitize({**raw,'shipping_api_error_code':value}),
+                {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+        for field in ('shipping_address','shipping_destination','shipping_rate_id','shipping_api_body',
+                      'shipping_api_error_message','shipping_html','checkout_currency_code'):
+            self.assertEqual(self.sanitize({**raw,field:PRIVATE}),
+                {'status':'unavailable','category':'safe_result_unavailable','validation_stage':'browser'})
+
     def test_browser_cli_and_fifo_guard_never_echo_private_source_or_exceptions(self):
         self.source.write_text(json.dumps({'payment_attempts':2,'paid_receipt_verified':True}))
         output=self.directory/'browser-public.json'
@@ -336,7 +360,13 @@ class BrowserPublicReportTests(unittest.TestCase):
                   'cart_empty_verified':False,'variation_add_request_completed':False,
                   'expected_variation_in_cart':False,'cart_page_http_status':200,
                   'cart_api_http_status':403,'cart_failure_step':'api',
-                  'cart_api_error_code':'rest_cookie_invalid_nonce'}
+                  'cart_api_error_code':'rest_cookie_invalid_nonce',
+                  'shipping_cart_api_available':True,'shipping_one_package_verified':True,
+                  'shipping_customer_destination_verified':True,'shipping_package_destination_verified':False,
+                  'shipping_expected_rate_present':False,'shipping_expected_rate_selected':False,
+                  'shipping_customer_update_verified':True,'checkout_currency_verified':True,
+                  'shipping_package_count':1,'shipping_rate_count':0,'shipping_api_http_status':200,
+                  'shipping_api_error_code':'woocommerce_rest_invalid_address'}
         code='import {publicReport} from '+json.dumps(browser.as_uri())+';'
         code+='process.stdout.write(JSON.stringify(publicReport('+json.dumps({
             **expected,
