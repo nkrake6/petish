@@ -1,0 +1,104 @@
+name: Inspect Petish supplier delivery metadata
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/inspect-supplier-delivery.yml
+      - scripts/inspect-supplier-delivery-remote.sh
+      - scripts/sanitize-supplier-delivery-report.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-supplier-delivery-inspection
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Prepare verified SSH connection
+        id: prepare
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            if bash scripts/hostinger-connection-check.sh; then break; fi
+            if [[ "$attempt" = 3 ]]; then exit 1; fi
+            sleep 2
+          done
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
+          fi
+      - name: Read product-only aggregates without booting WordPress
+        id: lookup
+        if: steps.prepare.outcome == 'success'
+        continue-on-error: true
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: |
+          set +x
+          set -euo pipefail
+          umask 077
+          source scripts/hostinger-ssh-common.sh
+          petish_prepare_ssh
+          "${petish_ssh[@]}" 'bash -s' < scripts/inspect-supplier-delivery-remote.sh \
+            > "$RUNNER_TEMP/petish-supplier-delivery-private.json" \
+            2> "$RUNNER_TEMP/petish-supplier-delivery-private.stderr"
+      - name: Publish finite metadata names and aggregate counts only
+        if: always()
+        env:
+          PREPARE_RESULT: ${{ steps.prepare.outcome }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 scripts/sanitize-supplier-delivery-report.py \
+            "$RUNNER_TEMP/petish-supplier-delivery-private.json" "$RUNNER_TEMP/petish-supplier-delivery-public.json"
+          python3 - <<'PY'
+          from datetime import datetime,timezone
+          import json,os,re
+          from pathlib import Path
+          path=Path(os.environ['RUNNER_TEMP'])/'petish-supplier-delivery-public.json'
+          value=json.loads(path.read_text())
+          run=os.environ['GITHUB_RUN_ID']+'-'+os.environ['GITHUB_RUN_ATTEMPT']
+          source=os.environ['GITHUB_SHA']
+          if not re.fullmatch(r'[1-9][0-9]*-[1-9][0-9]*',run) or not re.fullmatch(r'[a-f0-9]{40}',source):raise SystemExit(1)
+          if os.environ['PREPARE_RESULT']!='success':value={'status':'unavailable','category':'prerequisites'}
+          value.update(run_id=run,source_commit=source,generated_utc=datetime.now(timezone.utc).isoformat())
+          path.write_text(json.dumps(value,indent=2)+'\n')
+          PY
+          blob=$(git hash-object -w "$RUNNER_TEMP/petish-supplier-delivery-public.json")
+          tree=$(printf '100644 blob %s\tstatus.json\n' "$blob" | git mktree)
+          export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
+          export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+          export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          commit=$(printf 'Read-only Petish supplier delivery metadata\n' | git commit-tree "$tree")
+          branch="supplier-delivery-audit/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git push origin "$commit:refs/heads/$branch"
+          printf '[Read-only supplier delivery audit](https://github.com/%s/blob/%s/status.json)\n' "$GITHUB_REPOSITORY" "$branch" >> "$GITHUB_STEP_SUMMARY"
+      - name: Require a complete read-only audit
+        run: |
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          result=json.loads((Path(os.environ['RUNNER_TEMP'])/'petish-supplier-delivery-public.json').read_text())
+          if result.get('status')!='success':raise SystemExit('The finite audit report identifies the unavailable inspection stage.')
+          PY
+      - name: Remove private runner output
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/petish-supplier-delivery-private.json" "$RUNNER_TEMP/petish-supplier-delivery-private.stderr" "$RUNNER_TEMP/petish-supplier-delivery-public.json"
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
