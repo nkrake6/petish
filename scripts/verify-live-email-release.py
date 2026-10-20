@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read public store pages and the approved logo; never log in or submit data."""
 import hashlib
+import io
 from html.parser import HTMLParser
 import json
 import os
@@ -10,10 +11,12 @@ import sys
 from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
+from PIL import Image
 
 ORIGIN = 'https://petish.biz'
 LOGO = '/wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png'
 LOGO_SHA = '45b8ab50ef5fd0b4bc98fb7994d3a4583d0d013db1b253bf7f870496cd5cf615'
+LOGO_PIXELS_SHA = '8c4c667651043e9920ddddf218b09071db0be642b66ced741e9d5080c1ae0912'
 
 
 class LocalRedirects(HTTPRedirectHandler):
@@ -82,7 +85,17 @@ def verify(checks):
         raise
     checks['logo_http_is_png'] = logo.startswith(b'\x89PNG\r\n\x1a\n')
     checks['logo_http_is_webp'] = logo.startswith(b'RIFF') and logo[8:12] == b'WEBP'
-    checks['approved_logo_http_verified'] = checks['logo_http_is_png'] and hashlib.sha256(logo).hexdigest() == LOGO_SHA
+    checks['logo_http_file_bytes_match'] = hashlib.sha256(logo).hexdigest() == LOGO_SHA
+    checks['logo_http_dimensions_match'] = False
+    checks['logo_http_pixels_match'] = False
+    if checks['logo_http_is_png']:
+        with Image.open(io.BytesIO(logo)) as image:
+            checks['logo_http_dimensions_match'] = image.size == (1536,1024)
+            if checks['logo_http_dimensions_match']:
+                checks['logo_http_pixels_match'] = hashlib.sha256(image.convert('RGBA').tobytes()).hexdigest() == LOGO_PIXELS_SHA
+    # A CDN may losslessly recompress a PNG without changing its appearance.
+    # Match every decoded pixel, including alpha, rather than compression bytes.
+    checks['approved_logo_http_verified'] = checks['logo_http_is_png'] and checks['logo_http_dimensions_match'] and checks['logo_http_pixels_match']
     if not checks['approved_logo_http_verified']:
         raise ValueError()
     return {'status':'success','category':'complete','checks':checks}

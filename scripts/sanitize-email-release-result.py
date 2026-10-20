@@ -23,7 +23,8 @@ VERIFY_CHECKS = {'production_paths_verified','approved_full_animal_logo_verified
 HEALTH_CHECKS = {'homepage_http_verified','shop_http_verified','product_http_verified',
                  'cart_http_verified','account_http_verified','approved_logo_http_verified'}
 HEALTH_OBSERVATIONS = {'logo_http_fetch_succeeded','logo_http_is_png','logo_http_is_webp',
-                      'logo_http_forbidden','logo_http_not_found','logo_http_server_error'}
+                      'logo_http_forbidden','logo_http_not_found','logo_http_server_error',
+                      'logo_http_file_bytes_match','logo_http_dimensions_match','logo_http_pixels_match'}
 CATEGORIES = {'input','paths','payload','logo','drift','protected_state','lock','snapshot',
               'deployment','rollback','commit','complete','bootstrap','runtime','renderer','verification','http'}
 BASE = {'paths_verified','candidate_manifest_verified','candidate_syntax_verified',
