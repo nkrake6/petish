@@ -16,6 +16,9 @@ on:
       - scripts/hostinger-deploy-email-branding.sh
       - scripts/deploy-email-branding-remote.php
       - scripts/verify-production-email-branding.php
+      - scripts/verify-live-email-release.py
+      - scripts/sanitize-email-release-result.py
+      - scripts/validate-email-release-request.py
       - operations/email-branding-release.json
 
 permissions:

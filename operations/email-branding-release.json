@@ -1,0 +1,8 @@
+{
+  "format": "petish-email-release-v1",
+  "staging_source_commit": "86e315f3daf172e1c9faee9a62d768b48f634bca",
+  "staging_preview_branch": "email-preview/39383213374-1",
+  "backup_branch": "full-site-backup/39404802272-1",
+  "backup_result_branch": "automation-status/backup-39404802272-1",
+  "recovery_result_branch": "automation-status/recovery-39405110164-1"
+}

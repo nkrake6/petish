@@ -8,7 +8,8 @@ import sys
 
 DEPLOY_CHECKS = {'paths_verified','candidate_manifest_verified','candidate_syntax_verified',
     'logo_verified','production_config_present','live_files_compatible','protected_state_unchanged',
-    'rollback_snapshot_created','files_deployed','rollback_completed','release_committed','lock_owned'}
+    'rollback_snapshot_created','files_deployed','rollback_completed','release_committed','lock_owned',
+    'logo_world_readable','logo_path_world_traversable'}
 VERIFY_CHECKS = {'production_paths_verified','approved_full_animal_logo_verified',
     'production_environment_verified','tested_theme_and_woocommerce_verified',
     'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled',
@@ -21,6 +22,8 @@ VERIFY_CHECKS = {'production_paths_verified','approved_full_animal_logo_verified
     'seven_native_emails_rendered_without_dispatch'}
 HEALTH_CHECKS = {'homepage_http_verified','shop_http_verified','product_http_verified',
                  'cart_http_verified','account_http_verified','approved_logo_http_verified'}
+HEALTH_OBSERVATIONS = {'logo_http_fetch_succeeded','logo_http_is_png','logo_http_is_webp',
+                      'logo_http_forbidden','logo_http_not_found','logo_http_server_error'}
 CATEGORIES = {'input','paths','payload','logo','drift','protected_state','lock','snapshot',
               'deployment','rollback','commit','complete','bootstrap','runtime','renderer','verification','http'}
 BASE = {'paths_verified','candidate_manifest_verified','candidate_syntax_verified',
@@ -51,7 +54,7 @@ def screen(phase, path):
         if not isinstance(raw, dict) or set(raw) != allowed or raw['status'] not in {'success','failure'} \
                 or raw['category'] not in CATEGORIES or not isinstance(raw['checks'], dict):
             raise ValueError()
-        names = DEPLOY_CHECKS if phase in {'inspect','apply','rollback','commit'} else VERIFY_CHECKS if phase == 'verify' else HEALTH_CHECKS
+        names = DEPLOY_CHECKS if phase in {'inspect','apply','rollback','commit'} else VERIFY_CHECKS if phase == 'verify' else HEALTH_CHECKS | HEALTH_OBSERVATIONS
         if not set(raw['checks']) <= names or any(type(value) is not bool for value in raw['checks'].values()):
             raise ValueError()
         if 'changed_file_count' in raw and (type(raw['changed_file_count']) is not int or not 0 <= raw['changed_file_count'] <= 6):

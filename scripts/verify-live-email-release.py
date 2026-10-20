@@ -9,6 +9,7 @@ import re
 import sys
 from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.error import HTTPError
 
 ORIGIN = 'https://petish.biz'
 LOGO = '/wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png'
@@ -70,8 +71,18 @@ def verify(checks):
             if not checks['product_http_verified']:
                 raise ValueError()
     checks['approved_logo_http_verified'] = False
-    logo = fetch(LOGO)
-    checks['approved_logo_http_verified'] = logo.startswith(b'\x89PNG\r\n\x1a\n') and hashlib.sha256(logo).hexdigest() == LOGO_SHA
+    checks['logo_http_fetch_succeeded'] = False
+    try:
+        logo = fetch(LOGO)
+        checks['logo_http_fetch_succeeded'] = True
+    except HTTPError as error:
+        checks['logo_http_forbidden'] = error.code == 403
+        checks['logo_http_not_found'] = error.code == 404
+        checks['logo_http_server_error'] = 500 <= error.code <= 599
+        raise
+    checks['logo_http_is_png'] = logo.startswith(b'\x89PNG\r\n\x1a\n')
+    checks['logo_http_is_webp'] = logo.startswith(b'RIFF') and logo[8:12] == b'WEBP'
+    checks['approved_logo_http_verified'] = checks['logo_http_is_png'] and hashlib.sha256(logo).hexdigest() == LOGO_SHA
     if not checks['approved_logo_http_verified']:
         raise ValueError()
     return {'status':'success','category':'complete','checks':checks}

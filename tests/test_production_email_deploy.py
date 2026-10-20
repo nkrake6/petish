@@ -48,6 +48,9 @@ class ProductionEmailDeploymentTests(unittest.TestCase):
         logo = 'assets/brand/repaired/combined-light-v2.png'
         (self.theme / logo).parent.mkdir(parents=True)
         shutil.copyfile(SOURCE / logo, self.theme / logo)
+        (self.theme / logo).chmod(0o644)
+        for relative in ('assets', 'assets/brand', 'assets/brand/repaired'):
+            (self.theme / relative).chmod(0o755)
         self.payload = self.home / 'private-tools/payload'
         self.payload.mkdir(parents=True, mode=0o700)
         self.payload.chmod(0o700)
@@ -166,6 +169,20 @@ class ProductionEmailDeploymentTests(unittest.TestCase):
         result = self.execute('apply')
         self.assertEqual(result['category'], 'logo')
         self.assertEqual(before, self.snapshot())
+
+    def test_logo_permission_diagnostics_are_read_only_and_not_release_gates(self):
+        logo = self.theme / 'assets/brand/repaired/combined-light-v2.png'
+        self.assertTrue(self.execute('inspect')['checks']['logo_world_readable'])
+        self.assertTrue(self.execute('inspect')['checks']['logo_path_world_traversable'])
+        logo.chmod(0o600)
+        logo.parent.chmod(0o700)
+        report = self.execute('inspect')
+        self.assertEqual(report['status'], 'success')
+        self.assertTrue(report['checks']['logo_verified'])
+        self.assertFalse(report['checks']['logo_world_readable'])
+        self.assertFalse(report['checks']['logo_path_world_traversable'])
+        self.assertEqual(logo.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(logo.parent.stat().st_mode & 0o777, 0o700)
 
     def test_candidate_tamper_and_unexpected_payload_files_refuse(self):
         target = self.payload / FILES[0]

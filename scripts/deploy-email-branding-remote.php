@@ -189,6 +189,7 @@ function email_release_rollback($theme,$root,$release,$run) {
 
 $report=['status'=>'failure','category'=>'input','checks'=>array_fill_keys([
     'paths_verified','candidate_manifest_verified','candidate_syntax_verified','logo_verified',
+    'logo_world_readable','logo_path_world_traversable',
     'production_config_present','live_files_compatible','protected_state_unchanged',
     'rollback_snapshot_created','files_deployed','rollback_completed','release_committed','lock_owned'],false),'changed_file_count'=>0];
 $rollback_on_exit=false; $lock=null; $theme=null; $root=null; $release=null; $run=null;
@@ -217,6 +218,12 @@ try {
     $report['category']='payload'; email_release_payload($payload);
     $report['checks']['candidate_manifest_verified']=true; $report['checks']['candidate_syntax_verified']=true;
     $report['category']='logo'; email_release_logo($theme); $report['checks']['logo_verified']=true;
+    $report['checks']['logo_world_readable']=(fileperms($theme.'/assets/brand/repaired/combined-light-v2.png')&0004)!==0;
+    $traversable=true;
+    foreach(['assets','assets/brand','assets/brand/repaired'] as$relative) {
+        $traversable=$traversable&&(fileperms($theme.'/'.$relative)&0001)!==0;
+    }
+    $report['checks']['logo_path_world_traversable']=$traversable;
     $report['category']='drift'; [$live,$changed]=email_release_live($theme);
     $report['changed_file_count']=$changed; $report['checks']['live_files_compatible']=true;
     $base=$home.'/.petish-email-releases'; $release=$base.'/'.$run;
