@@ -1,0 +1,2233 @@
+{
+  "AUTOMATION_KIND": "rehearsal",
+  "AUTOMATION_RESULT": "success",
+  "GITHUB_RUN_ID": "39368487104",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "4cc648abbfddbac35a9dc434c1dc58bdccf72d77",
+  "generated_utc": "2026-10-20T04:14:20.333056+00:00",
+  "rehearsal": {
+    "status": "success",
+    "category": "complete",
+    "phase": "preflight",
+    "run_id": "39368487104-1",
+    "checks": {
+      "paths_verified": true,
+      "source_guard_sha_verified": true,
+      "database_separate": true,
+      "runtime_database_staging": true,
+      "environment_staging": true,
+      "woocommerce_test_mode": true,
+      "wcpay_dev_mode": true,
+      "account_is_live": false,
+      "guard_runtime_verified": true,
+      "suppliers_blocked": true,
+      "mail_capture_verified": true,
+      "webhooks_blocked": true,
+      "only_allowlisted_plugins": true,
+      "no_active_webhooks": true,
+      "all_http_forced_blocked": true,
+      "browser_input_written": true,
+      "loader_requires_private": true,
+      "source_environment_staging": true,
+      "source_wcpay_dev_mode": true,
+      "source_wp_cron_disabled": true,
+      "source_staging_database_literal": true,
+      "source_production_database_literal": false,
+      "source_production_database_read": true
+    },
+    "account": {
+      "cached_account_present": true,
+      "account_is_live": false,
+      "native_connected": true,
+      "payments_enabled": true,
+      "test_onboarding": true,
+      "dev_mode": true,
+      "test_mode": true,
+      "gateway_test_mode": null
+    },
+    "native": {
+      "mode_class": "WCPay\\Core\\Mode",
+      "mode_methods": [
+        "dev",
+        "get_dev_mode_triggers",
+        "is_dev",
+        "is_live",
+        "is_test",
+        "is_test_mode_onboarding",
+        "live",
+        "live_mode_onboarding",
+        "test",
+        "test_mode_onboarding"
+      ],
+      "account_service_class": "WC_Payments_Account",
+      "account_service_methods": [
+        "__construct",
+        "allowed_redirect_hosts",
+        "clear_cache",
+        "create_embedded_account_session",
+        "finalize_embedded_connection",
+        "get_account_country",
+        "get_account_customer_supported_currencies",
+        "get_account_default_currency",
+        "get_account_details",
+        "get_account_email",
+        "get_account_status_data",
+        "get_branding_icon",
+        "get_branding_logo",
+        "get_branding_primary_color",
+        "get_branding_secondary_color",
+        "get_business_name",
+        "get_business_support_address",
+        "get_business_support_email",
+        "get_business_support_phone",
+        "get_business_url",
+        "get_cached_account_data",
+        "get_capital",
+        "get_communications_email",
+        "get_connect_url",
+        "get_deposit_completed_waiting_period",
+        "get_deposit_delay_days",
+        "get_deposit_restrictions",
+        "get_deposit_schedule_interval",
+        "get_deposit_schedule_monthly_anchor",
+        "get_deposit_schedule_weekly_anchor",
+        "get_deposit_status",
+        "get_fees",
+        "get_is_live",
+        "get_latest_tos_agreement",
+        "get_lifetime_total_payment_volume",
+        "get_overview_page_url",
+        "get_payments_task_page_url",
+        "get_provider_onboarding_page_url",
+        "get_publishable_key",
+        "get_recommended_payment_methods",
+        "get_statement_descriptor",
+        "get_statement_descriptor_kana",
+        "get_statement_descriptor_kanji",
+        "get_stripe_account_id",
+        "get_supported_countries",
+        "get_tracking_info",
+        "get_wpcom_reconnect_url",
+        "handle_instant_deposits_inbox_note",
+        "handle_instant_deposits_inbox_reminder",
+        "handle_loan_approved_inbox_note",
+        "has_account_data",
+        "has_card_readers_available",
+        "has_working_jetpack_connection",
+        "init_hooks",
+        "is_account_rejected",
+        "is_account_under_review",
+        "is_card_present_eligible",
+        "is_card_testing_protection_eligible",
+        "is_details_submitted",
+        "is_on_boarding_disabled",
+        "is_overview_page",
+        "is_provider_connected",
+        "is_review_prompt_eligible",
+        "is_stripe_account_valid",
+        "is_stripe_connected",
+        "is_valid_cached_account",
+        "maybe_activate_woopay",
+        "maybe_add_instant_deposit_note_reminder",
+        "maybe_handle_onboarding",
+        "maybe_record_kyc_completion_date",
+        "maybe_redirect_after_plugin_activation",
+        "maybe_redirect_by_get_param",
+        "maybe_redirect_from_connect_page",
+        "maybe_redirect_from_onboarding_wizard_page",
+        "maybe_redirect_from_overview_page",
+        "maybe_redirect_from_payments_settings_to_onboarding",
+        "maybe_redirect_from_settings_page",
+        "maybe_redirect_onboarding_referral",
+        "overwrite_cache_with_no_account",
+        "possibly_update_wcpay_account_locale",
+        "redirect_to_onboarding_welcome_page",
+        "refresh_account_data",
+        "restore_test_drive_enabled_payment_methods",
+        "save_test_drive_settings",
+        "store_setup_sync",
+        "try_is_stripe_connected",
+        "update_account_data",
+        "update_stripe_account"
+      ],
+      "gateway_class": "WC_Payment_Gateway_WCPay",
+      "gateway_methods": [
+        "__construct",
+        "add_emails",
+        "add_error",
+        "add_order_actions",
+        "add_payment_method",
+        "add_payment_method_select_to_subscription_edit",
+        "add_subscription_payment_meta",
+        "add_token_to_order",
+        "admin_options",
+        "ajax_get_user_payment_tokens",
+        "append_payment_meta",
+        "attach_exchange_info_to_order",
+        "can_refund_order",
+        "cancel_authorization",
+        "capture_charge",
+        "cart_contains_renewal",
+        "create_and_confirm_setup_intent",
+        "create_setup_intent_ajax",
+        "create_token_from_setup_intent",
+        "credit_card_form",
+        "disable",
+        "display_errors",
+        "display_gateway_html",
+        "display_save_payment_method_checkbox",
+        "enable",
+        "ensure_payment_method_token_for_order",
+        "field_name",
+        "find_duplicates",
+        "form",
+        "format_settings",
+        "generate_checkbox_html",
+        "generate_color_html",
+        "generate_decimal_html",
+        "generate_multiselect_html",
+        "generate_password_html",
+        "generate_price_html",
+        "generate_safe_text_html",
+        "generate_select_html",
+        "generate_settings_html",
+        "generate_text_html",
+        "generate_textarea_html",
+        "generate_title_html",
+        "get_account_country",
+        "get_account_domestic_currency",
+        "get_account_statement_descriptor",
+        "get_account_statement_descriptor_kana",
+        "get_account_statement_descriptor_kanji",
+        "get_connection_url",
+        "get_custom_attribute_html",
+        "get_description",
+        "get_description_html",
+        "get_errors",
+        "get_field_default",
+        "get_field_key",
+        "get_field_type",
+        "get_field_value",
+        "get_form_fields",
+        "get_icon",
+        "get_icon_url",
+        "get_level3_data_from_order",
+        "get_mandate_param_for_renewal_order",
+        "get_mandate_params_for_order",
+        "get_method_description",
+        "get_method_title",
+        "get_new_payment_method_option_html",
+        "get_option",
+        "get_option_key",
+        "get_pay_button_id",
+        "get_payment_method",
+        "get_payment_method_capability_key_map",
+        "get_payment_method_ids_enabled_at_checkout",
+        "get_payment_method_ids_enabled_at_checkout_filtered_by_fees",
+        "get_payment_method_to_use_for_intent",
+        "get_payment_method_types",
+        "get_payment_methods",
+        "get_payment_methods_from_gateway_id",
+        "get_post_data",
+        "get_recommended_payment_methods",
+        "get_return_url",
+        "get_saved_payment_method_option_html",
+        "get_selected_payment_method",
+        "get_selected_stripe_payment_type_id",
+        "get_settings_url",
+        "get_setup_help_text",
+        "get_specific_new_payment_method_title",
+        "get_specific_old_payment_method_title",
+        "get_stripe_id",
+        "get_subscription_migrated_count",
+        "get_subscriptions_core_version",
+        "get_subscriptions_plugin_version",
+        "get_theme_icon",
+        "get_title",
+        "get_tokens",
+        "get_tooltip_html",
+        "get_transaction_url",
+        "get_upe_available_payment_methods",
+        "get_upe_enabled_payment_method_ids",
+        "get_upe_enabled_payment_method_ids_based_on_manual_capture",
+        "get_upe_enabled_payment_method_statuses",
+        "has_fields",
+        "has_refund_failed",
+        "init_form_fields",
+        "init_hooks",
+        "init_settings",
+        "is_account_partially_onboarded",
+        "is_available",
+        "is_available_for_current_currency",
+        "is_available_for_express_checkout",
+        "is_card_present_eligible",
+        "is_card_testing_protection_eligible",
+        "is_changing_payment_method_for_subscription",
+        "is_connected",
+        "is_enabled",
+        "is_enabled_for_saved_payments",
+        "is_express_checkout_in_payment_methods_enabled",
+        "is_link_card_wallet",
+        "is_mandate_data_required",
+        "is_payment_recurring",
+        "is_payment_request_enabled",
+        "is_proper_intent_used_with_order",
+        "is_saved_cards_enabled",
+        "is_setup_intent_success_creation_redirection",
+        "is_subscription_item_in_cart",
+        "is_subscriptions_enabled",
+        "is_subscriptions_plugin_active",
+        "is_woopay_global_theme_support_enabled",
+        "maybe_add_customer_notification_note",
+        "maybe_add_token_to_subscription_order",
+        "maybe_force_subscription_to_manual",
+        "maybe_hide_auto_renew_toggle_for_manual_subscriptions",
+        "maybe_hide_change_payment_for_manual_subscriptions",
+        "maybe_init_subscriptions",
+        "maybe_init_subscriptions_hooks",
+        "maybe_override_link_subscription_payment_method_display",
+        "maybe_process_upe_redirect",
+        "maybe_render_subscription_payment_method",
+        "maybe_schedule_subscription_order_tracking",
+        "maybe_update_properties_with_country",
+        "maybe_update_subscription_payment_method",
+        "needs_https_setup",
+        "needs_setup",
+        "output_payments_settings_screen",
+        "payment_fields",
+        "process_admin_options",
+        "process_payment",
+        "process_payment_for_order",
+        "process_redirect_payment",
+        "process_refund",
+        "refresh_cached_account_data",
+        "remove_all_actions_on_preflight_check"
+      ],
+      "api_client_class": "WC_Payments_API_Client",
+      "api_client_methods": [
+        "__construct",
+        "add_additional_info_to_charge",
+        "add_formatted_address_to_charge_object",
+        "build_order_info",
+        "cancel_subscription",
+        "charge_invoice",
+        "close_dispute",
+        "create_customer",
+        "create_embedded_account_session",
+        "create_product",
+        "create_subscription",
+        "create_terminal_location",
+        "create_token",
+        "delete_account",
+        "delete_terminal_location",
+        "deserialize_payment_intention_object_from_array",
+        "deserialize_setup_intention_object_from_array",
+        "detach_payment_method",
+        "finalize_onboarding_embedded_kyc",
+        "get_address_autocomplete_token",
+        "get_authorization",
+        "get_authorizations_summary",
+        "get_blog_id",
+        "get_charge",
+        "get_currency_minimum_recurring_amount",
+        "get_currency_rates",
+        "get_deposits_export",
+        "get_deposits_summary",
+        "get_dispute",
+        "get_dispute_summary",
+        "get_disputes",
+        "get_disputes_export",
+        "get_disputes_export_url",
+        "get_disputes_summary",
+        "get_document",
+        "get_documents_summary",
+        "get_failed_webhook_events",
+        "get_file",
+        "get_file_contents",
+        "get_fraud_outcome_transactions_export",
+        "get_fraud_outcome_transactions_search_autocomplete",
+        "get_intent",
+        "get_invoice",
+        "get_latest_fraud_outcome",
+        "get_latest_fraud_ruleset",
+        "get_link",
+        "get_onboarding_business_types",
+        "get_onboarding_data",
+        "get_onboarding_fields_data",
+        "get_payment_method",
+        "get_payment_methods",
+        "get_payouts_export_url",
+        "get_product_by_id",
+        "get_readers_charge_summary",
+        "get_recommended_payment_methods",
+        "get_subscription",
+        "get_timeline",
+        "get_tracking_info",
+        "get_transaction",
+        "get_transactions_export",
+        "get_transactions_export_url",
+        "get_transactions_search_autocomplete",
+        "get_transactions_summary",
+        "get_woopay_compatibility",
+        "get_woopay_eligibility",
+        "has_server_connection_owner",
+        "initialize_onboarding_embedded_kyc",
+        "is_server_connected",
+        "link_session_to_customer",
+        "list_fraud_outcome_transactions",
+        "list_fraud_outcome_transactions_summary",
+        "manual_deposit",
+        "register_domain",
+        "register_terminal_reader",
+        "request_capability",
+        "save_fraud_ruleset",
+        "save_vat_details",
+        "send_request",
+        "send_store_setup",
+        "start_server_connection",
+        "track_order",
+        "update_charge",
+        "update_compatibility_data",
+        "update_customer",
+        "update_dispute",
+        "update_invoice",
+        "update_payment_method",
+        "update_price",
+        "update_product",
+        "update_subscription",
+        "update_subscription_item",
+        "update_terminal_location",
+        "update_transaction",
+        "update_woopay",
+        "upload_evidence_file_contents",
+        "upload_file"
+      ],
+      "api_method_signatures": [
+        "add_additional_info_to_charge:0:charge:array:required",
+        "add_formatted_address_to_charge_object:0:charge:array:required",
+        "add_formatted_address_to_charge_object:1:separator:string:optional",
+        "charge_invoice:0:invoice_id:string:required",
+        "charge_invoice:1:data:array:optional",
+        "deserialize_payment_intention_object_from_array:0:intention_array:array:required",
+        "deserialize_setup_intention_object_from_array:0:intention_array:array:required",
+        "get_charge:0:charge_id:string:required",
+        "get_intent:0:intent_id:untyped:required",
+        "get_readers_charge_summary:0:charge_date:string:required",
+        "get_readers_charge_summary:1:transaction_id:nullable_string:optional",
+        "update_charge:0:charge_id:string:required",
+        "update_charge:1:data:array:optional"
+      ],
+      "helper_method_calls": [
+        "->getMessage",
+        "->getTimestamp",
+        "->get_amount",
+        "->get_charge",
+        "->get_charge_id_for_order",
+        "->get_currency",
+        "->get_current_class_name",
+        "->get_customer_id",
+        "->get_data_store",
+        "->get_date_created",
+        "->get_date_paid",
+        "->get_id",
+        "->get_items",
+        "->get_manage_stock",
+        "->get_meta",
+        "->get_parent_id",
+        "->get_payment_method",
+        "->get_product_id",
+        "->get_quantity",
+        "->get_refunded_payment",
+        "->get_refunds",
+        "->get_shipping_tax",
+        "->get_shipping_total",
+        "->get_status",
+        "->get_stock_managed_by_id",
+        "->get_stock_quantity",
+        "->get_stock_reduced",
+        "->get_total",
+        "->get_total_refunded",
+        "->get_total_tax",
+        "->get_transaction_id",
+        "->get_type",
+        "->get_var",
+        "->get_variation_id",
+        "->is_dev",
+        "->is_test",
+        "->is_test_mode_onboarding",
+        "->is_type",
+        "Jetpack_Options::get_option",
+        "WC_Data_Store::load",
+        "WC_Payments::get_order_service",
+        "WC_Payments::get_payments_api_client",
+        "WC_Payments::mode",
+        "WC_Payments_Onboarding_Service::is_test_mode_enabled",
+        "WP_CLI::error",
+        "WP_CLI::line"
+      ]
+    },
+    "structure": {
+      "credentials": [
+        {
+          "path": "database_name",
+          "type": "string"
+        },
+        {
+          "path": "database_user",
+          "type": "string"
+        },
+        {
+          "path": "database_password",
+          "type": "string"
+        },
+        {
+          "path": "admin_login",
+          "type": "string"
+        },
+        {
+          "path": "admin_password",
+          "type": "string"
+        },
+        {
+          "path": "checkout_customer",
+          "type": "array"
+        },
+        {
+          "path": "checkout_customer.id",
+          "type": "int"
+        },
+        {
+          "path": "checkout_customer.login",
+          "type": "string"
+        },
+        {
+          "path": "checkout_customer.email",
+          "type": "string"
+        },
+        {
+          "path": "checkout_customer.password",
+          "type": "string"
+        },
+        {
+          "path": "checkout_customer.purpose",
+          "type": "string"
+        }
+      ],
+      "checkout_fixture": [
+        {
+          "path": "schema_version",
+          "type": "int"
+        },
+        {
+          "path": "marker",
+          "type": "string"
+        },
+        {
+          "path": "prepared_at_utc",
+          "type": "string"
+        },
+        {
+          "path": "site",
+          "type": "string"
+        },
+        {
+          "path": "customer_id",
+          "type": "int"
+        },
+        {
+          "path": "customer_login",
+          "type": "string"
+        },
+        {
+          "path": "customer_email",
+          "type": "string"
+        },
+        {
+          "path": "address",
+          "type": "array"
+        },
+        {
+          "path": "address.first_name",
+          "type": "string"
+        },
+        {
+          "path": "address.last_name",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_first_name",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_last_name",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_company",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_address_1",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_address_2",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_city",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_state",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_postcode",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_country",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_email",
+          "type": "string"
+        },
+        {
+          "path": "address.billing_phone",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_first_name",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_last_name",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_company",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_address_1",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_address_2",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_city",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_state",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_postcode",
+          "type": "string"
+        },
+        {
+          "path": "address.shipping_country",
+          "type": "string"
+        },
+        {
+          "path": "product",
+          "type": "array"
+        },
+        {
+          "path": "product.product_id",
+          "type": "int"
+        },
+        {
+          "path": "product.variation_id",
+          "type": "int"
+        },
+        {
+          "path": "product.title",
+          "type": "string"
+        },
+        {
+          "path": "product.sku",
+          "type": "string"
+        },
+        {
+          "path": "product.attributes",
+          "type": "array"
+        },
+        {
+          "path": "product.attributes.color",
+          "type": "string"
+        },
+        {
+          "path": "product.supplier_source_url",
+          "type": "string"
+        },
+        {
+          "path": "product.stored_unit_price_aud",
+          "type": "string"
+        },
+        {
+          "path": "scope",
+          "type": "string"
+        }
+      ],
+      "captured_mail": [
+        {
+          "path": "captured_utc",
+          "type": "string"
+        },
+        {
+          "path": "to",
+          "type": "string"
+        },
+        {
+          "path": "subject",
+          "type": "string"
+        },
+        {
+          "path": "message",
+          "type": "string"
+        },
+        {
+          "path": "headers",
+          "type": "string"
+        },
+        {
+          "path": "attachments",
+          "type": "array"
+        },
+        {
+          "path": "embeds",
+          "type": "array"
+        }
+      ],
+      "cached_account": [
+        {
+          "path": "account_id",
+          "type": "string"
+        },
+        {
+          "path": "email",
+          "type": "string"
+        },
+        {
+          "path": "communications_email",
+          "type": "string"
+        },
+        {
+          "path": "live_publishable_key",
+          "type": "string"
+        },
+        {
+          "path": "test_publishable_key",
+          "type": "string"
+        },
+        {
+          "path": "is_live",
+          "type": "bool"
+        },
+        {
+          "path": "is_test_drive",
+          "type": "bool"
+        },
+        {
+          "path": "created",
+          "type": "string"
+        },
+        {
+          "path": "has_pending_requirements",
+          "type": "bool"
+        },
+        {
+          "path": "has_future_requirements",
+          "type": "bool"
+        },
+        {
+          "path": "has_overdue_requirements",
+          "type": "bool"
+        },
+        {
+          "path": "details_submitted",
+          "type": "bool"
+        },
+        {
+          "path": "current_deadline",
+          "type": "null"
+        },
+        {
+          "path": "status",
+          "type": "string"
+        },
+        {
+          "path": "capabilities",
+          "type": "array"
+        },
+        {
+          "path": "capabilities.afterpay_clearpay_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.alipay_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.bancontact_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.card_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.eps_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.ideal_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.klarna_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.transfers",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.wechat_pay_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.app_distribution",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.au_becs_debit_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.bacs_debit_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.bizum_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.blik_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.blik_recurring_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.cartes_bancaires_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.gb_bank_transfer_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.klarna",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.link_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.mb_way_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.p24_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.pay_by_bank_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.payto_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.pix_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.satispay_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.scalapay_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.sepa_debit_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.upi_payments",
+          "type": "string"
+        },
+        {
+          "path": "capabilities.zip_payments",
+          "type": "string"
+        },
+        {
+          "path": "capability_requirements",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.afterpay_clearpay_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.alipay_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.app_distribution",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.au_becs_debit_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.bacs_debit_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.bancontact_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.bizum_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.blik_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.blik_recurring_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.card_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.cartes_bancaires_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.eps_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.gb_bank_transfer_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.ideal_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.klarna",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.klarna_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.link_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.mb_way_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.p24_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.pay_by_bank_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.payto_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.pix_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.satispay_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.scalapay_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.sepa_debit_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.transfers",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.upi_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.wechat_pay_payments",
+          "type": "array"
+        },
+        {
+          "path": "capability_requirements.zip_payments",
+          "type": "array"
+        },
+        {
+          "path": "payments_enabled",
+          "type": "bool"
+        },
+        {
+          "path": "deposits",
+          "type": "array"
+        },
+        {
+          "path": "deposits.status",
+          "type": "string"
+        },
+        {
+          "path": "deposits.restrictions",
+          "type": "string"
+        },
+        {
+          "path": "deposits.interval",
+          "type": "string"
+        },
+        {
+          "path": "deposits.weekly_anchor",
+          "type": "string"
+        },
+        {
+          "path": "deposits.monthly_anchor",
+          "type": "null"
+        },
+        {
+          "path": "deposits.delay_days",
+          "type": "int"
+        },
+        {
+          "path": "deposits.completed_waiting_period",
+          "type": "bool"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts",
+          "type": "array"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.aud",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.bgn",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.cad",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.chf",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.czk",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.dkk",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.eur",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.gbp",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.hkd",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.huf",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.nok",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.nzd",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.jpy",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.sek",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.sgd",
+          "type": "int"
+        },
+        {
+          "path": "deposits.minimum_manual_deposit_amounts.usd",
+          "type": "int"
+        }
+      ],
+      "provider_charge": []
+    },
+    "guard_allowed_hosts": [
+      "api.wordpress.com",
+      "jetpack.wordpress.com",
+      "payments.woocommerce.com",
+      "public-api.wordpress.com"
+    ]
+  },
+  "rehearsal_mode": "preflight",
+  "rehearsal_phases": {
+    "preflight": {
+      "status": "success",
+      "category": "complete",
+      "phase": "preflight",
+      "run_id": "39368487104-1",
+      "checks": {
+        "paths_verified": true,
+        "source_guard_sha_verified": true,
+        "database_separate": true,
+        "runtime_database_staging": true,
+        "environment_staging": true,
+        "woocommerce_test_mode": true,
+        "wcpay_dev_mode": true,
+        "account_is_live": false,
+        "guard_runtime_verified": true,
+        "suppliers_blocked": true,
+        "mail_capture_verified": true,
+        "webhooks_blocked": true,
+        "only_allowlisted_plugins": true,
+        "no_active_webhooks": true,
+        "all_http_forced_blocked": true,
+        "browser_input_written": true,
+        "loader_requires_private": true,
+        "source_environment_staging": true,
+        "source_wcpay_dev_mode": true,
+        "source_wp_cron_disabled": true,
+        "source_staging_database_literal": true,
+        "source_production_database_literal": false,
+        "source_production_database_read": true
+      },
+      "account": {
+        "cached_account_present": true,
+        "account_is_live": false,
+        "native_connected": true,
+        "payments_enabled": true,
+        "test_onboarding": true,
+        "dev_mode": true,
+        "test_mode": true,
+        "gateway_test_mode": null
+      },
+      "native": {
+        "mode_class": "WCPay\\Core\\Mode",
+        "mode_methods": [
+          "dev",
+          "get_dev_mode_triggers",
+          "is_dev",
+          "is_live",
+          "is_test",
+          "is_test_mode_onboarding",
+          "live",
+          "live_mode_onboarding",
+          "test",
+          "test_mode_onboarding"
+        ],
+        "account_service_class": "WC_Payments_Account",
+        "account_service_methods": [
+          "__construct",
+          "allowed_redirect_hosts",
+          "clear_cache",
+          "create_embedded_account_session",
+          "finalize_embedded_connection",
+          "get_account_country",
+          "get_account_customer_supported_currencies",
+          "get_account_default_currency",
+          "get_account_details",
+          "get_account_email",
+          "get_account_status_data",
+          "get_branding_icon",
+          "get_branding_logo",
+          "get_branding_primary_color",
+          "get_branding_secondary_color",
+          "get_business_name",
+          "get_business_support_address",
+          "get_business_support_email",
+          "get_business_support_phone",
+          "get_business_url",
+          "get_cached_account_data",
+          "get_capital",
+          "get_communications_email",
+          "get_connect_url",
+          "get_deposit_completed_waiting_period",
+          "get_deposit_delay_days",
+          "get_deposit_restrictions",
+          "get_deposit_schedule_interval",
+          "get_deposit_schedule_monthly_anchor",
+          "get_deposit_schedule_weekly_anchor",
+          "get_deposit_status",
+          "get_fees",
+          "get_is_live",
+          "get_latest_tos_agreement",
+          "get_lifetime_total_payment_volume",
+          "get_overview_page_url",
+          "get_payments_task_page_url",
+          "get_provider_onboarding_page_url",
+          "get_publishable_key",
+          "get_recommended_payment_methods",
+          "get_statement_descriptor",
+          "get_statement_descriptor_kana",
+          "get_statement_descriptor_kanji",
+          "get_stripe_account_id",
+          "get_supported_countries",
+          "get_tracking_info",
+          "get_wpcom_reconnect_url",
+          "handle_instant_deposits_inbox_note",
+          "handle_instant_deposits_inbox_reminder",
+          "handle_loan_approved_inbox_note",
+          "has_account_data",
+          "has_card_readers_available",
+          "has_working_jetpack_connection",
+          "init_hooks",
+          "is_account_rejected",
+          "is_account_under_review",
+          "is_card_present_eligible",
+          "is_card_testing_protection_eligible",
+          "is_details_submitted",
+          "is_on_boarding_disabled",
+          "is_overview_page",
+          "is_provider_connected",
+          "is_review_prompt_eligible",
+          "is_stripe_account_valid",
+          "is_stripe_connected",
+          "is_valid_cached_account",
+          "maybe_activate_woopay",
+          "maybe_add_instant_deposit_note_reminder",
+          "maybe_handle_onboarding",
+          "maybe_record_kyc_completion_date",
+          "maybe_redirect_after_plugin_activation",
+          "maybe_redirect_by_get_param",
+          "maybe_redirect_from_connect_page",
+          "maybe_redirect_from_onboarding_wizard_page",
+          "maybe_redirect_from_overview_page",
+          "maybe_redirect_from_payments_settings_to_onboarding",
+          "maybe_redirect_from_settings_page",
+          "maybe_redirect_onboarding_referral",
+          "overwrite_cache_with_no_account",
+          "possibly_update_wcpay_account_locale",
+          "redirect_to_onboarding_welcome_page",
+          "refresh_account_data",
+          "restore_test_drive_enabled_payment_methods",
+          "save_test_drive_settings",
+          "store_setup_sync",
+          "try_is_stripe_connected",
+          "update_account_data",
+          "update_stripe_account"
+        ],
+        "gateway_class": "WC_Payment_Gateway_WCPay",
+        "gateway_methods": [
+          "__construct",
+          "add_emails",
+          "add_error",
+          "add_order_actions",
+          "add_payment_method",
+          "add_payment_method_select_to_subscription_edit",
+          "add_subscription_payment_meta",
+          "add_token_to_order",
+          "admin_options",
+          "ajax_get_user_payment_tokens",
+          "append_payment_meta",
+          "attach_exchange_info_to_order",
+          "can_refund_order",
+          "cancel_authorization",
+          "capture_charge",
+          "cart_contains_renewal",
+          "create_and_confirm_setup_intent",
+          "create_setup_intent_ajax",
+          "create_token_from_setup_intent",
+          "credit_card_form",
+          "disable",
+          "display_errors",
+          "display_gateway_html",
+          "display_save_payment_method_checkbox",
+          "enable",
+          "ensure_payment_method_token_for_order",
+          "field_name",
+          "find_duplicates",
+          "form",
+          "format_settings",
+          "generate_checkbox_html",
+          "generate_color_html",
+          "generate_decimal_html",
+          "generate_multiselect_html",
+          "generate_password_html",
+          "generate_price_html",
+          "generate_safe_text_html",
+          "generate_select_html",
+          "generate_settings_html",
+          "generate_text_html",
+          "generate_textarea_html",
+          "generate_title_html",
+          "get_account_country",
+          "get_account_domestic_currency",
+          "get_account_statement_descriptor",
+          "get_account_statement_descriptor_kana",
+          "get_account_statement_descriptor_kanji",
+          "get_connection_url",
+          "get_custom_attribute_html",
+          "get_description",
+          "get_description_html",
+          "get_errors",
+          "get_field_default",
+          "get_field_key",
+          "get_field_type",
+          "get_field_value",
+          "get_form_fields",
+          "get_icon",
+          "get_icon_url",
+          "get_level3_data_from_order",
+          "get_mandate_param_for_renewal_order",
+          "get_mandate_params_for_order",
+          "get_method_description",
+          "get_method_title",
+          "get_new_payment_method_option_html",
+          "get_option",
+          "get_option_key",
+          "get_pay_button_id",
+          "get_payment_method",
+          "get_payment_method_capability_key_map",
+          "get_payment_method_ids_enabled_at_checkout",
+          "get_payment_method_ids_enabled_at_checkout_filtered_by_fees",
+          "get_payment_method_to_use_for_intent",
+          "get_payment_method_types",
+          "get_payment_methods",
+          "get_payment_methods_from_gateway_id",
+          "get_post_data",
+          "get_recommended_payment_methods",
+          "get_return_url",
+          "get_saved_payment_method_option_html",
+          "get_selected_payment_method",
+          "get_selected_stripe_payment_type_id",
+          "get_settings_url",
+          "get_setup_help_text",
+          "get_specific_new_payment_method_title",
+          "get_specific_old_payment_method_title",
+          "get_stripe_id",
+          "get_subscription_migrated_count",
+          "get_subscriptions_core_version",
+          "get_subscriptions_plugin_version",
+          "get_theme_icon",
+          "get_title",
+          "get_tokens",
+          "get_tooltip_html",
+          "get_transaction_url",
+          "get_upe_available_payment_methods",
+          "get_upe_enabled_payment_method_ids",
+          "get_upe_enabled_payment_method_ids_based_on_manual_capture",
+          "get_upe_enabled_payment_method_statuses",
+          "has_fields",
+          "has_refund_failed",
+          "init_form_fields",
+          "init_hooks",
+          "init_settings",
+          "is_account_partially_onboarded",
+          "is_available",
+          "is_available_for_current_currency",
+          "is_available_for_express_checkout",
+          "is_card_present_eligible",
+          "is_card_testing_protection_eligible",
+          "is_changing_payment_method_for_subscription",
+          "is_connected",
+          "is_enabled",
+          "is_enabled_for_saved_payments",
+          "is_express_checkout_in_payment_methods_enabled",
+          "is_link_card_wallet",
+          "is_mandate_data_required",
+          "is_payment_recurring",
+          "is_payment_request_enabled",
+          "is_proper_intent_used_with_order",
+          "is_saved_cards_enabled",
+          "is_setup_intent_success_creation_redirection",
+          "is_subscription_item_in_cart",
+          "is_subscriptions_enabled",
+          "is_subscriptions_plugin_active",
+          "is_woopay_global_theme_support_enabled",
+          "maybe_add_customer_notification_note",
+          "maybe_add_token_to_subscription_order",
+          "maybe_force_subscription_to_manual",
+          "maybe_hide_auto_renew_toggle_for_manual_subscriptions",
+          "maybe_hide_change_payment_for_manual_subscriptions",
+          "maybe_init_subscriptions",
+          "maybe_init_subscriptions_hooks",
+          "maybe_override_link_subscription_payment_method_display",
+          "maybe_process_upe_redirect",
+          "maybe_render_subscription_payment_method",
+          "maybe_schedule_subscription_order_tracking",
+          "maybe_update_properties_with_country",
+          "maybe_update_subscription_payment_method",
+          "needs_https_setup",
+          "needs_setup",
+          "output_payments_settings_screen",
+          "payment_fields",
+          "process_admin_options",
+          "process_payment",
+          "process_payment_for_order",
+          "process_redirect_payment",
+          "process_refund",
+          "refresh_cached_account_data",
+          "remove_all_actions_on_preflight_check"
+        ],
+        "api_client_class": "WC_Payments_API_Client",
+        "api_client_methods": [
+          "__construct",
+          "add_additional_info_to_charge",
+          "add_formatted_address_to_charge_object",
+          "build_order_info",
+          "cancel_subscription",
+          "charge_invoice",
+          "close_dispute",
+          "create_customer",
+          "create_embedded_account_session",
+          "create_product",
+          "create_subscription",
+          "create_terminal_location",
+          "create_token",
+          "delete_account",
+          "delete_terminal_location",
+          "deserialize_payment_intention_object_from_array",
+          "deserialize_setup_intention_object_from_array",
+          "detach_payment_method",
+          "finalize_onboarding_embedded_kyc",
+          "get_address_autocomplete_token",
+          "get_authorization",
+          "get_authorizations_summary",
+          "get_blog_id",
+          "get_charge",
+          "get_currency_minimum_recurring_amount",
+          "get_currency_rates",
+          "get_deposits_export",
+          "get_deposits_summary",
+          "get_dispute",
+          "get_dispute_summary",
+          "get_disputes",
+          "get_disputes_export",
+          "get_disputes_export_url",
+          "get_disputes_summary",
+          "get_document",
+          "get_documents_summary",
+          "get_failed_webhook_events",
+          "get_file",
+          "get_file_contents",
+          "get_fraud_outcome_transactions_export",
+          "get_fraud_outcome_transactions_search_autocomplete",
+          "get_intent",
+          "get_invoice",
+          "get_latest_fraud_outcome",
+          "get_latest_fraud_ruleset",
+          "get_link",
+          "get_onboarding_business_types",
+          "get_onboarding_data",
+          "get_onboarding_fields_data",
+          "get_payment_method",
+          "get_payment_methods",
+          "get_payouts_export_url",
+          "get_product_by_id",
+          "get_readers_charge_summary",
+          "get_recommended_payment_methods",
+          "get_subscription",
+          "get_timeline",
+          "get_tracking_info",
+          "get_transaction",
+          "get_transactions_export",
+          "get_transactions_export_url",
+          "get_transactions_search_autocomplete",
+          "get_transactions_summary",
+          "get_woopay_compatibility",
+          "get_woopay_eligibility",
+          "has_server_connection_owner",
+          "initialize_onboarding_embedded_kyc",
+          "is_server_connected",
+          "link_session_to_customer",
+          "list_fraud_outcome_transactions",
+          "list_fraud_outcome_transactions_summary",
+          "manual_deposit",
+          "register_domain",
+          "register_terminal_reader",
+          "request_capability",
+          "save_fraud_ruleset",
+          "save_vat_details",
+          "send_request",
+          "send_store_setup",
+          "start_server_connection",
+          "track_order",
+          "update_charge",
+          "update_compatibility_data",
+          "update_customer",
+          "update_dispute",
+          "update_invoice",
+          "update_payment_method",
+          "update_price",
+          "update_product",
+          "update_subscription",
+          "update_subscription_item",
+          "update_terminal_location",
+          "update_transaction",
+          "update_woopay",
+          "upload_evidence_file_contents",
+          "upload_file"
+        ],
+        "api_method_signatures": [
+          "add_additional_info_to_charge:0:charge:array:required",
+          "add_formatted_address_to_charge_object:0:charge:array:required",
+          "add_formatted_address_to_charge_object:1:separator:string:optional",
+          "charge_invoice:0:invoice_id:string:required",
+          "charge_invoice:1:data:array:optional",
+          "deserialize_payment_intention_object_from_array:0:intention_array:array:required",
+          "deserialize_setup_intention_object_from_array:0:intention_array:array:required",
+          "get_charge:0:charge_id:string:required",
+          "get_intent:0:intent_id:untyped:required",
+          "get_readers_charge_summary:0:charge_date:string:required",
+          "get_readers_charge_summary:1:transaction_id:nullable_string:optional",
+          "update_charge:0:charge_id:string:required",
+          "update_charge:1:data:array:optional"
+        ],
+        "helper_method_calls": [
+          "->getMessage",
+          "->getTimestamp",
+          "->get_amount",
+          "->get_charge",
+          "->get_charge_id_for_order",
+          "->get_currency",
+          "->get_current_class_name",
+          "->get_customer_id",
+          "->get_data_store",
+          "->get_date_created",
+          "->get_date_paid",
+          "->get_id",
+          "->get_items",
+          "->get_manage_stock",
+          "->get_meta",
+          "->get_parent_id",
+          "->get_payment_method",
+          "->get_product_id",
+          "->get_quantity",
+          "->get_refunded_payment",
+          "->get_refunds",
+          "->get_shipping_tax",
+          "->get_shipping_total",
+          "->get_status",
+          "->get_stock_managed_by_id",
+          "->get_stock_quantity",
+          "->get_stock_reduced",
+          "->get_total",
+          "->get_total_refunded",
+          "->get_total_tax",
+          "->get_transaction_id",
+          "->get_type",
+          "->get_var",
+          "->get_variation_id",
+          "->is_dev",
+          "->is_test",
+          "->is_test_mode_onboarding",
+          "->is_type",
+          "Jetpack_Options::get_option",
+          "WC_Data_Store::load",
+          "WC_Payments::get_order_service",
+          "WC_Payments::get_payments_api_client",
+          "WC_Payments::mode",
+          "WC_Payments_Onboarding_Service::is_test_mode_enabled",
+          "WP_CLI::error",
+          "WP_CLI::line"
+        ]
+      },
+      "structure": {
+        "credentials": [
+          {
+            "path": "database_name",
+            "type": "string"
+          },
+          {
+            "path": "database_user",
+            "type": "string"
+          },
+          {
+            "path": "database_password",
+            "type": "string"
+          },
+          {
+            "path": "admin_login",
+            "type": "string"
+          },
+          {
+            "path": "admin_password",
+            "type": "string"
+          },
+          {
+            "path": "checkout_customer",
+            "type": "array"
+          },
+          {
+            "path": "checkout_customer.id",
+            "type": "int"
+          },
+          {
+            "path": "checkout_customer.login",
+            "type": "string"
+          },
+          {
+            "path": "checkout_customer.email",
+            "type": "string"
+          },
+          {
+            "path": "checkout_customer.password",
+            "type": "string"
+          },
+          {
+            "path": "checkout_customer.purpose",
+            "type": "string"
+          }
+        ],
+        "checkout_fixture": [
+          {
+            "path": "schema_version",
+            "type": "int"
+          },
+          {
+            "path": "marker",
+            "type": "string"
+          },
+          {
+            "path": "prepared_at_utc",
+            "type": "string"
+          },
+          {
+            "path": "site",
+            "type": "string"
+          },
+          {
+            "path": "customer_id",
+            "type": "int"
+          },
+          {
+            "path": "customer_login",
+            "type": "string"
+          },
+          {
+            "path": "customer_email",
+            "type": "string"
+          },
+          {
+            "path": "address",
+            "type": "array"
+          },
+          {
+            "path": "address.first_name",
+            "type": "string"
+          },
+          {
+            "path": "address.last_name",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_first_name",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_last_name",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_company",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_address_1",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_address_2",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_city",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_state",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_postcode",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_country",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_email",
+            "type": "string"
+          },
+          {
+            "path": "address.billing_phone",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_first_name",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_last_name",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_company",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_address_1",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_address_2",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_city",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_state",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_postcode",
+            "type": "string"
+          },
+          {
+            "path": "address.shipping_country",
+            "type": "string"
+          },
+          {
+            "path": "product",
+            "type": "array"
+          },
+          {
+            "path": "product.product_id",
+            "type": "int"
+          },
+          {
+            "path": "product.variation_id",
+            "type": "int"
+          },
+          {
+            "path": "product.title",
+            "type": "string"
+          },
+          {
+            "path": "product.sku",
+            "type": "string"
+          },
+          {
+            "path": "product.attributes",
+            "type": "array"
+          },
+          {
+            "path": "product.attributes.color",
+            "type": "string"
+          },
+          {
+            "path": "product.supplier_source_url",
+            "type": "string"
+          },
+          {
+            "path": "product.stored_unit_price_aud",
+            "type": "string"
+          },
+          {
+            "path": "scope",
+            "type": "string"
+          }
+        ],
+        "captured_mail": [
+          {
+            "path": "captured_utc",
+            "type": "string"
+          },
+          {
+            "path": "to",
+            "type": "string"
+          },
+          {
+            "path": "subject",
+            "type": "string"
+          },
+          {
+            "path": "message",
+            "type": "string"
+          },
+          {
+            "path": "headers",
+            "type": "string"
+          },
+          {
+            "path": "attachments",
+            "type": "array"
+          },
+          {
+            "path": "embeds",
+            "type": "array"
+          }
+        ],
+        "cached_account": [
+          {
+            "path": "account_id",
+            "type": "string"
+          },
+          {
+            "path": "email",
+            "type": "string"
+          },
+          {
+            "path": "communications_email",
+            "type": "string"
+          },
+          {
+            "path": "live_publishable_key",
+            "type": "string"
+          },
+          {
+            "path": "test_publishable_key",
+            "type": "string"
+          },
+          {
+            "path": "is_live",
+            "type": "bool"
+          },
+          {
+            "path": "is_test_drive",
+            "type": "bool"
+          },
+          {
+            "path": "created",
+            "type": "string"
+          },
+          {
+            "path": "has_pending_requirements",
+            "type": "bool"
+          },
+          {
+            "path": "has_future_requirements",
+            "type": "bool"
+          },
+          {
+            "path": "has_overdue_requirements",
+            "type": "bool"
+          },
+          {
+            "path": "details_submitted",
+            "type": "bool"
+          },
+          {
+            "path": "current_deadline",
+            "type": "null"
+          },
+          {
+            "path": "status",
+            "type": "string"
+          },
+          {
+            "path": "capabilities",
+            "type": "array"
+          },
+          {
+            "path": "capabilities.afterpay_clearpay_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.alipay_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.bancontact_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.card_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.eps_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.ideal_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.klarna_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.transfers",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.wechat_pay_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.app_distribution",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.au_becs_debit_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.bacs_debit_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.bizum_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.blik_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.blik_recurring_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.cartes_bancaires_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.gb_bank_transfer_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.klarna",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.link_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.mb_way_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.p24_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.pay_by_bank_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.payto_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.pix_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.satispay_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.scalapay_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.sepa_debit_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.upi_payments",
+            "type": "string"
+          },
+          {
+            "path": "capabilities.zip_payments",
+            "type": "string"
+          },
+          {
+            "path": "capability_requirements",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.afterpay_clearpay_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.alipay_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.app_distribution",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.au_becs_debit_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.bacs_debit_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.bancontact_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.bizum_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.blik_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.blik_recurring_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.card_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.cartes_bancaires_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.eps_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.gb_bank_transfer_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.ideal_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.klarna",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.klarna_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.link_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.mb_way_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.p24_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.pay_by_bank_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.payto_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.pix_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.satispay_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.scalapay_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.sepa_debit_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.transfers",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.upi_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.wechat_pay_payments",
+            "type": "array"
+          },
+          {
+            "path": "capability_requirements.zip_payments",
+            "type": "array"
+          },
+          {
+            "path": "payments_enabled",
+            "type": "bool"
+          },
+          {
+            "path": "deposits",
+            "type": "array"
+          },
+          {
+            "path": "deposits.status",
+            "type": "string"
+          },
+          {
+            "path": "deposits.restrictions",
+            "type": "string"
+          },
+          {
+            "path": "deposits.interval",
+            "type": "string"
+          },
+          {
+            "path": "deposits.weekly_anchor",
+            "type": "string"
+          },
+          {
+            "path": "deposits.monthly_anchor",
+            "type": "null"
+          },
+          {
+            "path": "deposits.delay_days",
+            "type": "int"
+          },
+          {
+            "path": "deposits.completed_waiting_period",
+            "type": "bool"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts",
+            "type": "array"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.aud",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.bgn",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.cad",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.chf",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.czk",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.dkk",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.eur",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.gbp",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.hkd",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.huf",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.nok",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.nzd",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.jpy",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.sek",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.sgd",
+            "type": "int"
+          },
+          {
+            "path": "deposits.minimum_manual_deposit_amounts.usd",
+            "type": "int"
+          }
+        ],
+        "provider_charge": []
+      },
+      "guard_allowed_hosts": [
+        "api.wordpress.com",
+        "jetpack.wordpress.com",
+        "payments.woocommerce.com",
+        "public-api.wordpress.com"
+      ]
+    }
+  }
+}
