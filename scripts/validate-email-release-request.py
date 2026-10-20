@@ -19,7 +19,7 @@ def git(*arguments):
 
 def report(branch, label):
     ref = 'refs/petish-email-evidence/' + label
-    git('fetch', '--no-tags', '--depth=1', 'origin', branch + ':' + ref)
+    git('fetch', '--no-tags', '--depth=1', 'origin', '+' + branch + ':' + ref)
     data = git('show', ref + ':status.json')
     if len(data) > 262144:
         raise ValueError()

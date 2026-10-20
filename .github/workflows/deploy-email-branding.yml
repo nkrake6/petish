@@ -25,7 +25,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: petish-production-backup-mail
+  group: ${{ (github.ref_name == 'deploy-email-branding' || inputs.mode == 'apply') && 'petish-production-backup-mail' || format('petish-email-inspection-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
