@@ -1,0 +1,8 @@
+{
+  "format": "petish-delivery-cost-sheet-v1",
+  "staging_source_commit": "ba45b438cb4f4139ed5fc890dd19ace1a8a15d78",
+  "staging_status_branch": "automation-status/delivery-cost-sheet-39442751242-1",
+  "backup_branch": "full-site-backup/39407370013-1",
+  "backup_result_branch": "automation-status/backup-39407370013-1",
+  "recovery_result_branch": "automation-status/recovery-39407722067-1"
+}
