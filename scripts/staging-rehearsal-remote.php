@@ -229,7 +229,7 @@ function rehearsal_provider_charge(array $charge, string $charge_id, int $expect
 }
 
 try {
-    if ($argc!==3 || !in_array($argv[1],['preflight','prepare','verify','refund','cleanup','email-preview'],true) || !preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[2])) rehearsal_fail();
+    if ($argc!==3 || !in_array($argv[1],['preflight','prepare','verify','refund','cleanup','email-preview','tracking-rehearsal'],true) || !preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[2])) rehearsal_fail();
     $operation=$argv[1];$run=$argv[2]; $report['run_id']=$run;$report['phase']=$operation;
     $home=getenv('HOME'); if (!is_string($home)||!rehearsal_path($home,true)) rehearsal_fail();
     $root=$home.'/domains/staging.petish.biz/public_html'; $production=$home.'/domains/petish.biz/public_html';
@@ -296,7 +296,7 @@ try {
     // is no allowlisted provider HTTP in this preflight phase.
     if (defined('WP_HTTP_BLOCK_EXTERNAL')||defined('WP_ACCESSIBLE_HOSTS')) rehearsal_fail();
     $provider_hosts=['api.wordpress.com','jetpack.wordpress.com','payments.woocommerce.com','public-api.wordpress.com'];
-    define('WP_HTTP_BLOCK_EXTERNAL',true); define('WP_ACCESSIBLE_HOSTS',in_array($operation,['preflight','email-preview'],true)?'':implode(',',$provider_hosts)); define('WP_USE_THEMES',false);
+    define('WP_HTTP_BLOCK_EXTERNAL',true); define('WP_ACCESSIBLE_HOSTS',in_array($operation,['preflight','email-preview','tracking-rehearsal'],true)?'':implode(',',$provider_hosts)); define('WP_USE_THEMES',false);
     $_SERVER['HTTP_HOST']='staging.petish.biz'; $_SERVER['SERVER_NAME']='staging.petish.biz';
     $_SERVER['HTTPS']='on'; $_SERVER['REQUEST_METHOD']='GET'; $_SERVER['REQUEST_URI']='/';
     $_SERVER['SERVER_PROTOCOL']='HTTP/1.1'; $_SERVER['REMOTE_ADDR']='127.0.0.1';
@@ -337,6 +337,18 @@ try {
             ||!is_string($user->user_email)||!filter_var($user->user_email,FILTER_VALIDATE_EMAIL)||!preg_match('/\.invalid\z/Di',$user->user_email)) rehearsal_fail();
         wp_set_current_user($user->ID); $synthetic_user=$user;
     },PHP_INT_MIN);
+    $tracking_cleanup=null;
+    $tracking_mark=static function($key,$value)use(&$report){
+        if(!is_string($key)||!preg_match('/\Atracking_[a-z_]+\z/D',$key)||!is_bool($value))rehearsal_fail();
+        $report['checks'][$key]=$value;
+    };
+    if($operation==='tracking-rehearsal'){
+        $report['category']='tracking_bootstrap';
+        $helper=__DIR__.'/tracking-rehearsal-bootstrap.php';
+        if(!rehearsal_path($helper)||filesize($helper)>1048576)rehearsal_fail();
+        require_once $helper;
+        $tracking_cleanup=petish_tracking_bootstrap($root,$private,$run,$tracking_mark,$definitions);
+    }
     require $root.'/wp-load.php';
     // Re-register last after all installed guard/plugin registrations.
     remove_filter('pre_http_request',$block_http,PHP_INT_MAX);add_filter('pre_http_request',$block_http,PHP_INT_MAX,3);
@@ -352,8 +364,17 @@ try {
     $report['category']='runtime_isolation';
     $slugs=[];foreach((array)get_option('active_plugins',[])as$plugin){if(!is_string($plugin)||!preg_match('/\A([a-z0-9][a-z0-9_-]*)\/[A-Za-z0-9_.-]+\.php\z/D',$plugin,$match))rehearsal_fail();$slugs[]=$match[1];}
     sort($slugs);$expected=['petish-fulfilment','petish-passport','woocommerce','woocommerce-payments'];sort($expected);
+    if($operation==='tracking-rehearsal'){$expected[]='woo-advanced-shipment-tracking';sort($expected);}
     $report['checks']['only_allowlisted_plugins']=$slugs===$expected;
     global $wpdb;
+    if($operation==='tracking-rehearsal'){
+        $stored=maybe_unserialize($wpdb->get_var($wpdb->prepare("SELECT option_value FROM `{$wpdb->options}` WHERE option_name=%s",'active_plugins')));
+        $stored_slugs=[];
+        foreach((array)$stored as$entry){if(!is_string($entry)||!preg_match('/\A([a-z0-9][a-z0-9_-]*)\/[A-Za-z0-9_.-]+\.php\z/D',$entry,$match))rehearsal_fail();$stored_slugs[]=$match[1];}
+        sort($stored_slugs);$baseline=['petish-fulfilment','petish-passport','woocommerce','woocommerce-payments'];sort($baseline);
+        $tracking_mark('tracking_stored_plugin_configuration_unchanged',$stored_slugs===$baseline);
+        if($stored_slugs!==$baseline||!class_exists('WC_Advanced_Shipment_Tracking_Actions'))rehearsal_fail();
+    }
     $table=$wpdb->prefix.'wc_webhooks';if(!preg_match('/\A[A-Za-z0-9_]+\z/D',$table))rehearsal_fail();
     $webhooks=$wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE status='active'");
     $report['checks']['no_active_webhooks']=is_numeric($webhooks)&&(int)$webhooks===0;
@@ -439,6 +460,27 @@ try {
     if($operation==='preflight'){
         rehearsal_write_private($work.'/browser-input.json',json_encode($input,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
         $report['checks']['browser_input_written']=true;
+    }elseif($operation==='tracking-rehearsal'){
+        $report['category']='tracking_rehearsal';
+        $helper=__DIR__.'/tracking-rehearsal-remote.php';
+        if(!rehearsal_path($helper)||filesize($helper)>1048576)rehearsal_fail();
+        require_once $helper;
+        $with_captured_mail=static function($callback)use(&$testing_native_mail,$block_mail){
+            if(!is_callable($callback)||$testing_native_mail)rehearsal_fail();
+            $testing_native_mail=true;remove_filter('pre_wp_mail',$block_mail,PHP_INT_MAX);
+            try{return $callback();}
+            finally{$testing_native_mail=false;add_filter('pre_wp_mail',$block_mail,PHP_INT_MAX,2);}
+        };
+        try{
+            $result=petish_tracking_rehearsal(['root'=>$root,'private'=>$private,'work'=>$work,'run_id'=>$run,
+                'customer_id'=>(int)$synthetic_user->ID,'customer_email'=>$synthetic_user->user_email,
+                'capture_file'=>$capture,'mark'=>$tracking_mark,'with_captured_mail'=>$with_captured_mail]);
+            foreach($result as$key=>$value)$tracking_mark($key,$value);
+            $after_stored=maybe_unserialize($wpdb->get_var($wpdb->prepare("SELECT option_value FROM `{$wpdb->options}` WHERE option_name=%s",'active_plugins')));
+            $tracking_mark('tracking_stored_plugin_configuration_unchanged',$after_stored===$stored);
+            if($after_stored!==$stored)rehearsal_fail();
+        }finally{if(is_callable($tracking_cleanup))$tracking_cleanup();}
+        unset($result,$with_captured_mail);
     }elseif($operation==='email-preview'){
         $report['category']='email_preview';
         $helper=__DIR__.'/email-branding-preview-remote.php';

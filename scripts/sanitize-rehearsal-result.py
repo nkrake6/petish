@@ -31,8 +31,20 @@ MODULE_CHECKS = {'prepared', 'shipping_simulated', 'paid_test_order_verified',
     'email_preview_no_user_records_created', 'email_preview_no_auth_tokens_generated',
     'email_preview_verification_available', 'email_preview_seven_types_rendered',
     'email_preview_verification_enabled', 'email_preview_guest_checkout_enabled',
-    'email_preview_core_account_branding'}
-PHASES = {'preflight', 'prepare', 'verify', 'refund', 'cleanup', 'email-preview'}
+    'email_preview_core_account_branding',
+    'tracking_reviewed_source_verified', 'tracking_direct_remote_files_blocked',
+    'tracking_carrier_fixture_created', 'tracking_carrier_fixture_removed',
+    'tracking_migrations_and_downloads_disabled', 'tracking_stored_plugin_configuration_unchanged',
+    'tracking_native_plugin_loaded', 'tracking_synthetic_order_created',
+    'tracking_native_rest_registered', 'tracking_anonymous_denied', 'tracking_customer_denied',
+    'tracking_first_parcel_partial', 'tracking_two_parcels_preserved', 'tracking_final_parcel_completed',
+    'tracking_partial_email_branded', 'tracking_completed_email_branded',
+    'tracking_account_widget_two_parcels', 'tracking_synthetic_carrier_link_preserved',
+    'tracking_replay_duplicates_observed', 'tracking_replay_email_repeated',
+    'tracking_blank_number_accepted', 'tracking_no_payment_performed',
+    'tracking_no_product_stock_used', 'tracking_synthetic_order_removed',
+    'tracking_supplier_actions_blocked', 'tracking_external_dsers_push_verified'}
+PHASES = {'preflight', 'prepare', 'verify', 'refund', 'cleanup', 'email-preview', 'tracking-rehearsal'}
 BROWSER_CHECKS = {'browser_started', 'customer_login_verified', 'cart_prepared',
     'checkout_rendered', 'shipping_verified', 'test_publishable_key_verified',
     'decline_verified', 'paid_receipt_verified', 'native_checkout_used',
@@ -79,7 +91,7 @@ CATEGORIES = {'complete', 'input', 'paths', 'source_guard', 'source_configuratio
     'verification', 'refund', 'cleanup', 'provider', 'guard_hash', 'protected_bootstrap',
     'runtime_isolation', 'native_capabilities', 'native_test_mode_unverified', 'sample_product',
     'prepare', 'verify', 'provider_identity', 'provider_order_reference',
-    'provider_request', 'native_provider_response', 'email_preview'}
+    'provider_request', 'native_provider_response', 'email_preview', 'tracking_bootstrap', 'tracking_rehearsal'}
 STRUCTURES = {'credentials', 'checkout_fixture', 'captured_mail', 'cached_account', 'provider_charge'}
 PRIVATE_STRUCTURE_ID = re.compile(
     r'(?:^|[.\[\]])(?:(?:acct|ch|pi|pm|cus|re|tok|src|seti|cs|txn|tr|po|dp|sub|in|il|ba|wc_order)_'

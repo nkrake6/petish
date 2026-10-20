@@ -106,6 +106,9 @@ separate `automation-status/mail-test-*` result and confirm inbox receipt.
 
 ## Tracking remains a separate integration
 
+The current receiver evaluation and remaining release checks are recorded in
+[TRACKING-READINESS.md](TRACKING-READINESS.md).
+
 WooCommerce handles order notifications; SMTP delivers those messages.
 Shipment updates still require tracking to return from DSers/suppliers and a
 compatible WooCommerce tracking integration. Test split parcels and partial

@@ -157,6 +157,18 @@ class RehearsalResultTests(unittest.TestCase):
                  'structure':{'provider_charge':[{'path':path,'type':'string'}]}}
             self.assert_unavailable(self.sanitize(raw),'structure')
 
+    def test_tracking_observations_remain_boolean_and_do_not_claim_dsers_push(self):
+        raw={'status':'success','category':'complete','phase':'tracking-rehearsal',
+             'checks':{'tracking_native_rest_registered':True,
+                       'tracking_carrier_fixture_removed':True,
+                       'tracking_replay_duplicates_observed':True,
+                       'tracking_blank_number_accepted':True,
+                       'tracking_external_dsers_push_verified':False}}
+        self.assertEqual(self.sanitize(raw),raw)
+        for value in (None,PRIVATE,1,{'tracking_number':PRIVATE}):
+            raw['checks']['tracking_blank_number_accepted']=value
+            self.assert_unavailable(self.sanitize(raw),'checks')
+
     def test_phase_enum_and_module_booleans_reject_custom_data_and_null(self):
         for phase in (PRIVATE,'payment_observed','browser',None,[],{}):
             raw=fixture();raw['phase']=phase

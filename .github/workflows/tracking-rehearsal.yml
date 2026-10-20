@@ -1,0 +1,60 @@
+name: Rehearse Petish shipment tracking on private staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/tracking-rehearsal.yml
+      - scripts/hostinger-tracking-rehearsal.sh
+      - scripts/tracking-rehearsal-bootstrap.php
+      - scripts/tracking-rehearsal-remote.php
+      - scripts/staging-rehearsal-remote.php
+      - scripts/sanitize-rehearsal-result.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-staging-code
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - name: Check out reviewed isolated tracking tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Prepare pinned SSH connection
+        id: prepare
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            if bash scripts/hostinger-connection-check.sh; then break; fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 2
+          done
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
+          fi
+      - name: Rehearse native tracking and publish screened checks
+        if: always()
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          TRACKING_REHEARSAL_PREREQUISITES: ${{ steps.prepare.outcome }}
+        run: bash scripts/hostinger-tracking-rehearsal.sh
+      - name: Remove private runner data
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/petish-tracking-rehearsal.*
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
