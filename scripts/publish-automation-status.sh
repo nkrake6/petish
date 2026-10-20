@@ -28,6 +28,11 @@ if data['AUTOMATION_KIND'] == 'rehearsal':
     data['rehearsal'] = sanitizer.sanitize(report)
     if os.environ.get('REHEARSAL_MODE') in {'preflight', 'rehearse'}:
         data['rehearsal_mode'] = os.environ['REHEARSAL_MODE']
+    data['rehearsal_runner_steps'] = {}
+    for step in ('checkout', 'prerequisites', 'execution'):
+        outcome = os.environ.get('REHEARSAL_' + step.upper() + '_RESULT')
+        if outcome in {'success', 'failure', 'cancelled', 'skipped'}:
+            data['rehearsal_runner_steps'][step] = outcome
     data['rehearsal_phases'] = {}
     for phase in ('preflight', 'prepare', 'verify', 'refund', 'cleanup'):
         source = Path(os.environ['RUNNER_TEMP']) / ('petish-rehearsal-' + phase + '.json')
@@ -136,6 +141,8 @@ if data['AUTOMATION_KIND'] == 'rehearsal' and not os.environ.get('AUTOMATION_PRO
     summary = ['## Private staging rehearsal', '',
                'Selected mode: ' + data.get('rehearsal_mode', 'unavailable'), '',
                '| Check | Result |', '| --- | --- |']
+    for step, outcome in data.get('rehearsal_runner_steps', {}).items():
+        summary.append('| runner ' + step + ' | ' + outcome + ' |')
     for phase, report in data.get('rehearsal_phases', {}).items():
         summary.append('| ' + phase + ' | ' + report.get('status', 'unavailable') +
                        ' (' + report.get('category', 'safe_result_unavailable') + ') |')
