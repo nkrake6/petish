@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "inspect",
   "run_id": "39418482359-1",
   "source_commit": "36c87b3aa03c9ffef0423e5847daef4ca9c45a92",
-  "generated_utc": "2026-10-20T11:56:01.360698+00:00",
+  "generated_utc": "2026-10-20T11:56:03.171442+00:00",
   "source_hashes": {
     "assets/css/home.css": "11aa02b5a3890e3023753bb2acfd024cf9e520a74737ee1d4ac8a9b1c2dca557",
     "assets/images/ui/free-delivery-van.png": "bfd1227330732cf1f1c56f2ef6b08794d15cd25221115e6de4baeefe0efa5972",
