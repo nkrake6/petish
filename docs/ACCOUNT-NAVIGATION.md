@@ -41,3 +41,9 @@ Staging proof: [39412424150](https://github.com/nkrake6/petish/actions/runs/3941
 source `2b3ef0790c1976825cbe3b8c6c15857d9f04f8c6`. All 21 authenticated browser
 checks passed after the staging directory permission correction. The production
 release request records matching source and the verified backup/recovery branches.
+
+Production released successfully in [39413368197](https://github.com/nkrake6/petish/actions/runs/39413368197),
+source `88d06f932922beef249496540b8ced28dd4dc45b`. Exactly three Passport files
+were deployed. All 23 native checks, public page checks and exact JS/CSS HTTP
+checks passed; the release was committed with protected files and customer/order
+state preserved. Private rollback copies were retained; no rollback was needed.
