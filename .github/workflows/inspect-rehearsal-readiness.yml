@@ -1,0 +1,89 @@
+name: Inspect Petish staging and tracking readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/inspect-rehearsal-readiness.yml
+      - scripts/inspect-staging-rehearsal-remote.sh
+      - scripts/inspect-tracking-readiness-remote.sh
+      - scripts/sanitize-readiness-report.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-rehearsal-readiness
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [staging, tracking]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+      AUDIT_KIND: ${{ matrix.kind }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Prepare verified SSH connection
+        id: prepare
+        continue-on-error: true
+        run: |
+          bash scripts/hostinger-connection-check.sh
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass
+          fi
+      - name: Read only selected configuration and catalogue metadata
+        id: lookup
+        if: steps.prepare.outcome == 'success'
+        continue-on-error: true
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: |
+          set +x
+          set -euo pipefail
+          umask 077
+          source scripts/hostinger-ssh-common.sh
+          petish_prepare_ssh
+          case "$AUDIT_KIND" in
+            staging) script=scripts/inspect-staging-rehearsal-remote.sh ;;
+            tracking) script=scripts/inspect-tracking-readiness-remote.sh ;;
+            *) exit 1 ;;
+          esac
+          "${petish_ssh[@]}" 'bash -s' < "$script" \
+            > "$RUNNER_TEMP/petish-readiness-private.json" \
+            2> "$RUNNER_TEMP/petish-readiness-private.stderr"
+      - name: Publish a validated nonsecret report
+        if: always()
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 scripts/sanitize-readiness-report.py "$AUDIT_KIND" \
+            "$RUNNER_TEMP/petish-readiness-private.json" "$RUNNER_TEMP/petish-readiness.json"
+          [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
+          blob=$(git hash-object -w "$RUNNER_TEMP/petish-readiness.json")
+          tree=$(printf '100644 blob %s\treadiness.json\n' "$blob" | git mktree)
+          export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
+          export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+          export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          commit=$(printf 'Read-only Petish %s readiness\n' "$AUDIT_KIND" | git commit-tree "$tree")
+          branch="$AUDIT_KIND-readiness/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git push origin "$commit:refs/heads/$branch"
+          printf '[Read-only %s report](https://github.com/%s/blob/%s/readiness.json)\n' "$AUDIT_KIND" "$GITHUB_REPOSITORY" "$branch" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove private runner output
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/petish-readiness-private.json" "$RUNNER_TEMP/petish-readiness-private.stderr" "$RUNNER_TEMP/petish-readiness.json"
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
