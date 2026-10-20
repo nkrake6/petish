@@ -151,6 +151,7 @@ function petish_tracking_rehearsal($context) {
     $order = null;
     $prior_user = get_current_user_id();
     $header_filter = null;
+    $receiver_guard = null;
     $capture = petish_tracking_capture_snapshot($context['capture_file']);
     $completed = false;
     $cleanup_needed = true;
@@ -198,6 +199,16 @@ function petish_tracking_rehearsal($context) {
         petish_tracking_scoped_order($context, $id);
         petish_tracking_check($context, $checks, 'tracking_synthetic_order_created', $id > 0);
 
+        $guard_path = __DIR__ . '/petish-tracking-receiver-guard.php';
+        $guard_stat = lstat($guard_path);
+        if (!$guard_stat || !is_file($guard_path) || is_link($guard_path)
+            || realpath($guard_path) !== $guard_path || $guard_stat['nlink'] !== 1
+            || ($guard_stat['mode'] & 07777) !== 0600) petish_tracking_fail();
+        require_once $guard_path;
+        $receiver_guard = Petish_Tracking_Receiver_Rehearsal_Guard::install($context, $id);
+        petish_tracking_check($context, $checks, 'tracking_receiver_guard_active',
+            has_filter('rest_dispatch_request', [$receiver_guard, 'dispatch']) === PHP_INT_MAX);
+
         $header_filter = static function($headers, $email_id, $email_order) use ($context, $id) {
             if (!$email_order instanceof WC_Order || (int)$email_order->get_id() !== $id
                 || $email_order->get_meta('_petish_tracking_rehearsal', true) !== $context['run_id']
@@ -229,8 +240,8 @@ function petish_tracking_rehearsal($context) {
         petish_tracking_check($context, $checks, 'tracking_partial_email_branded',
             count($partial) === 1 && petish_tracking_email_matches($partial[0], [$first['tracking_number']]));
 
-        // Characterize native replay behavior. Free AST may append and notify
-        // twice. A passing rehearsal records that risk; it does not endorse it.
+        // The protected receiver must return the existing native resource,
+        // without executing AST's append/status/email callback a second time.
         $before_items = petish_tracking_items($context, $id);
         $response = petish_tracking_request($context, $id, 'POST', $first);
         $after_items = petish_tracking_items($context, $id);
@@ -238,16 +249,45 @@ function petish_tracking_rehearsal($context) {
         petish_tracking_check($context, $checks, 'tracking_replay_duplicates_observed', $duplicates, false);
         $replayed = petish_tracking_captured($context, $capture, $id, 'customer_partial_shipped_order');
         petish_tracking_check($context, $checks, 'tracking_replay_email_repeated', count($replayed) > count($partial), false);
-        if ($response->get_status() !== 201) petish_tracking_fail();
-        if ($duplicates) {
-            $original_ids = array_column($before_items, 'tracking_id');
-            foreach ($after_items as $item) if (!in_array($item['tracking_id'], $original_ids, true)) {
-                $removed = petish_tracking_request($context, $id, 'DELETE', [], $item['tracking_id']);
-                if ($removed->get_status() !== 200) petish_tracking_fail();
-            }
-        }
+        petish_tracking_check($context, $checks, 'tracking_replay_idempotent',
+            $response->get_status() === 200 && $after_items === $before_items
+            && ($response->get_data()['tracking_id'] ?? null) === $before_items[0]['tracking_id']);
+        petish_tracking_check($context, $checks, 'tracking_replay_email_suppressed', count($replayed) === count($partial));
         if (count(petish_tracking_items($context, $id)) !== 1) petish_tracking_fail();
+
+        $before_blank = petish_tracking_items($context, $id);
+        $blank = petish_tracking_request($context, $id, 'POST', petish_tracking_payload('', 0));
+        $blank_accepted = $blank->get_status() === 201 && count(petish_tracking_items($context, $id)) > count($before_blank);
+        petish_tracking_check($context, $checks, 'tracking_blank_number_accepted', $blank_accepted, false);
+        petish_tracking_check($context, $checks, 'tracking_blank_number_rejected',
+            $blank->get_status() === 400 && petish_tracking_items($context, $id) === $before_blank);
+
         $second = petish_tracking_payload('PETISH-STAGING-PARCEL-TWO', 1);
+        $replacement = $second;
+        $replacement['replace_tracking'] = 1;
+        $replace = petish_tracking_request($context, $id, 'POST', $replacement);
+        petish_tracking_check($context, $checks, 'tracking_destructive_replace_rejected',
+            $replace->get_status() === 409 && petish_tracking_items($context, $id) === $before_items
+            && petish_tracking_scoped_order($context, $id)->has_status('partial-shipped'));
+
+        // A request asking for "shipped" cannot itself prove every order unit
+        // has been assigned to a parcel. No trusted allocation exists yet.
+        $premature = petish_tracking_request($context, $id, 'POST', $second);
+        petish_tracking_check($context, $checks, 'tracking_premature_completion_rejected',
+            $premature->get_status() === 409 && petish_tracking_items($context, $id) === $before_items
+            && petish_tracking_scoped_order($context, $id)->has_status('partial-shipped')
+            && count(petish_tracking_captured($context, $capture, $id, 'customer_completed_order')) === 0
+            && count(petish_tracking_captured($context, $capture, $id, 'customer_partial_shipped_order')) === 1);
+        $fixture_items = petish_tracking_scoped_order($context, $id)->get_items();
+        if (count($fixture_items) !== 1) petish_tracking_fail();
+        $fixture_line = reset($fixture_items);
+        $fixture_line_id = (int)$fixture_line->get_id();
+        $fixture_quantity = (int)$fixture_line->get_quantity();
+        if ($fixture_line_id < 1 || $fixture_quantity !== 2) petish_tracking_fail();
+        $receiver_guard->set_confirmed_fixture_allocations([
+            $first['tracking_number'] => [$fixture_line_id => 1],
+            $second['tracking_number'] => [$fixture_line_id => $fixture_quantity - 1],
+        ]);
         $response = petish_tracking_request($context, $id, 'POST', $second);
         $numbers = array_column(petish_tracking_items($context, $id), 'tracking_number'); sort($numbers);
         $expected = [$first['tracking_number'], $second['tracking_number']]; sort($expected);
@@ -257,6 +297,18 @@ function petish_tracking_rehearsal($context) {
         $completed_mail = petish_tracking_captured($context, $capture, $id, 'customer_completed_order');
         petish_tracking_check($context, $checks, 'tracking_completed_email_branded',
             count($completed_mail) === 1 && petish_tracking_email_matches($completed_mail[0], $expected));
+
+        $completed_items = petish_tracking_items($context, $id);
+        $final_replay = petish_tracking_request($context, $id, 'POST', $second);
+        petish_tracking_check($context, $checks, 'tracking_replay_idempotent',
+            $checks['tracking_replay_idempotent'] && $final_replay->get_status() === 200
+            && petish_tracking_items($context, $id) === $completed_items
+            && petish_tracking_scoped_order($context, $id)->has_status('completed'));
+        petish_tracking_check($context, $checks, 'tracking_replay_email_suppressed',
+            $checks['tracking_replay_email_suppressed']
+            && count(petish_tracking_captured($context, $capture, $id, 'customer_completed_order')) === 1
+            && count(petish_tracking_captured($context, $capture, $id, 'customer_partial_shipped_order')) === 1);
+        petish_tracking_check($context, $checks, 'tracking_guard_lock_released', $receiver_guard->locks_released());
 
         wp_set_current_user($context['customer_id']);
         ob_start();
@@ -269,10 +321,6 @@ function petish_tracking_rehearsal($context) {
         petish_tracking_check($context, $checks, 'tracking_synthetic_carrier_link_preserved', $widget_ok);
 
         wp_set_current_user($admin_id);
-        $before_blank = count(petish_tracking_items($context, $id));
-        $blank = petish_tracking_request($context, $id, 'POST', petish_tracking_payload('', 0));
-        $blank_accepted = $blank->get_status() === 201 && count(petish_tracking_items($context, $id)) > $before_blank;
-        petish_tracking_check($context, $checks, 'tracking_blank_number_accepted', $blank_accepted, false);
         $order = petish_tracking_scoped_order($context, $id);
         petish_tracking_check($context, $checks, 'tracking_no_payment_performed',
             $order->get_payment_method() === '' && $order->get_transaction_id() === '' && (float)$order->get_total_refunded() === 0.0);
@@ -284,10 +332,14 @@ function petish_tracking_rehearsal($context) {
         petish_tracking_check($context, $checks, 'tracking_external_dsers_push_verified', false, false);
         $completed = true;
     } finally {
-        if ($header_filter !== null) remove_filter('woocommerce_email_headers', $header_filter, PHP_INT_MAX);
-        wp_set_current_user($prior_user);
-        petish_tracking_cleanup_order($context, $id, $order, $checks);
-        $cleanup_needed = false;
+        try {
+            if ($receiver_guard !== null) $receiver_guard->uninstall();
+        } finally {
+            if ($header_filter !== null) remove_filter('woocommerce_email_headers', $header_filter, PHP_INT_MAX);
+            wp_set_current_user($prior_user);
+            petish_tracking_cleanup_order($context, $id, $order, $checks);
+            $cleanup_needed = false;
+        }
     }
     if (!$completed) petish_tracking_fail();
     return $checks;

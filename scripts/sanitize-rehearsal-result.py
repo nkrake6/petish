@@ -43,7 +43,35 @@ MODULE_CHECKS = {'prepared', 'shipping_simulated', 'paid_test_order_verified',
     'tracking_replay_duplicates_observed', 'tracking_replay_email_repeated',
     'tracking_blank_number_accepted', 'tracking_no_payment_performed',
     'tracking_no_product_stock_used', 'tracking_synthetic_order_removed',
-    'tracking_supplier_actions_blocked', 'tracking_external_dsers_push_verified'}
+    'tracking_supplier_actions_blocked', 'tracking_external_dsers_push_verified',
+    'tracking_receiver_guard_active', 'tracking_replay_idempotent',
+    'tracking_replay_email_suppressed', 'tracking_blank_number_rejected',
+    'tracking_destructive_replace_rejected', 'tracking_premature_completion_rejected',
+    'tracking_guard_lock_released'}
+TRACKING_REQUIRED = {
+    'environment_staging', 'woocommerce_test_mode', 'wcpay_dev_mode',
+    'guard_runtime_verified', 'suppliers_blocked', 'mail_capture_verified', 'webhooks_blocked',
+    'database_separate', 'runtime_database_staging', 'only_allowlisted_plugins', 'no_active_webhooks',
+    'all_http_forced_blocked', 'paths_verified', 'source_guard_sha_verified',
+    'tracking_native_rest_registered', 'tracking_anonymous_denied', 'tracking_customer_denied',
+    'tracking_first_parcel_partial', 'tracking_two_parcels_preserved', 'tracking_final_parcel_completed',
+    'tracking_partial_email_branded', 'tracking_completed_email_branded', 'tracking_account_widget_two_parcels',
+    'tracking_no_payment_performed', 'tracking_no_product_stock_used', 'tracking_synthetic_order_removed',
+    'tracking_supplier_actions_blocked', 'tracking_reviewed_source_verified',
+    'tracking_direct_remote_files_blocked', 'tracking_carrier_fixture_created',
+    'tracking_carrier_fixture_removed', 'tracking_migrations_and_downloads_disabled',
+    'tracking_stored_plugin_configuration_unchanged', 'tracking_native_plugin_loaded',
+    'tracking_synthetic_order_created', 'tracking_synthetic_carrier_link_preserved',
+    'tracking_receiver_guard_active', 'tracking_replay_idempotent',
+    'tracking_replay_email_suppressed', 'tracking_blank_number_rejected',
+    'tracking_destructive_replace_rejected', 'tracking_premature_completion_rejected',
+    'tracking_guard_lock_released',
+}
+TRACKING_REQUIRED_FALSE = {
+    'account_is_live', 'tracking_external_dsers_push_verified',
+    'tracking_replay_duplicates_observed', 'tracking_replay_email_repeated',
+    'tracking_blank_number_accepted',
+}
 PHASES = {'preflight', 'prepare', 'verify', 'refund', 'cleanup', 'email-preview', 'tracking-rehearsal'}
 BROWSER_CHECKS = {'browser_started', 'customer_login_verified', 'cart_prepared',
     'checkout_rendered', 'shipping_verified', 'test_publishable_key_verified',
@@ -210,6 +238,17 @@ def sanitize(source):
         return result
     except (OSError, ValueError, TypeError, KeyError, RecursionError):
         return {'status': 'unavailable', 'category': 'safe_result_unavailable', 'validation_stage': validation_stage}
+
+
+def tracking_rehearsal_passed(report):
+    """A protected rehearsal must prevent the previously observed receiver risks."""
+    if not isinstance(report, dict) or not isinstance(report.get('checks'), dict):
+        return False
+    checks = report['checks']
+    return (report.get('status') == 'success' and report.get('category') == 'complete'
+            and report.get('phase') == 'tracking-rehearsal'
+            and all(checks.get(key) is True for key in TRACKING_REQUIRED)
+            and all(checks.get(key) is False for key in TRACKING_REQUIRED_FALSE))
 
 
 def sanitize_browser(source):

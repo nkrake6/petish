@@ -165,9 +165,38 @@ class RehearsalResultTests(unittest.TestCase):
                        'tracking_blank_number_accepted':True,
                        'tracking_external_dsers_push_verified':False}}
         self.assertEqual(self.sanitize(raw),raw)
+        self.assertFalse(validator.tracking_rehearsal_passed(self.sanitize(raw)))
         for value in (None,PRIVATE,1,{'tracking_number':PRIVATE}):
             raw['checks']['tracking_blank_number_accepted']=value
             self.assert_unavailable(self.sanitize(raw),'checks')
+
+    def test_protected_tracking_requires_prevention_and_cleanup_before_success(self):
+        raw={'status':'success','category':'complete','phase':'tracking-rehearsal',
+             'checks':{**dict.fromkeys(validator.TRACKING_REQUIRED,True),
+                       **dict.fromkeys(validator.TRACKING_REQUIRED_FALSE,False)}}
+        safe=self.sanitize(raw)
+        self.assertEqual(safe,raw)
+        self.assertTrue(validator.tracking_rehearsal_passed(safe))
+        required_guards={'tracking_receiver_guard_active','tracking_replay_idempotent',
+                         'tracking_replay_email_suppressed','tracking_blank_number_rejected',
+                         'tracking_destructive_replace_rejected','tracking_premature_completion_rejected',
+                         'tracking_guard_lock_released'}
+        self.assertTrue(required_guards<=validator.TRACKING_REQUIRED)
+        for name in validator.TRACKING_REQUIRED:
+            with self.subTest(required=name):
+                unsafe=json.loads(json.dumps(raw));unsafe['checks'][name]=False
+                self.assertFalse(validator.tracking_rehearsal_passed(self.sanitize(unsafe)))
+                del unsafe['checks'][name]
+                self.assertFalse(validator.tracking_rehearsal_passed(self.sanitize(unsafe)))
+        for name in validator.TRACKING_REQUIRED_FALSE:
+            with self.subTest(risk=name):
+                unsafe=json.loads(json.dumps(raw));unsafe['checks'][name]=True
+                self.assertFalse(validator.tracking_rehearsal_passed(self.sanitize(unsafe)))
+                del unsafe['checks'][name]
+                self.assertFalse(validator.tracking_rehearsal_passed(self.sanitize(unsafe)))
+        for field,value in (('status','failure'),('category','tracking_rehearsal'),('phase','preflight')):
+            unsafe={**raw,field:value}
+            self.assertFalse(validator.tracking_rehearsal_passed(self.sanitize(unsafe)))
 
     def test_phase_enum_and_module_booleans_reject_custom_data_and_null(self):
         for phase in (PRIVATE,'payment_observed','browser',None,[],{}):

@@ -16,6 +16,18 @@ rehearsal_verified=0
 rehearsal_status=unavailable
 failure_category=prerequisites
 
+reviewed_file_digest() {
+    local file=$1 digest
+    [[ -f $file && ! -L $file && $(stat -c %h -- "$file") == 1 ]] || return 1
+    local size
+    size=$(stat -c %s -- "$file")
+    [[ $size =~ ^[0-9]+$ && $size -gt 0 && $size -le 1048576 ]] || return 1
+    digest=$(sha256sum -- "$file") || return 1
+    digest=${digest%% *}
+    [[ $digest =~ ^[a-f0-9]{64}$ ]] || return 1
+    printf '%s' "$digest"
+}
+
 remote_cleanup() {
     "${petish_ssh[@]}" 'set -eu; base="$HOME/.petish-staging"; tools="$base/tracking-rehearsal-tools-'"$run"'"; work="$base/rehearsal-'"$run"'"; plugins="$HOME/domains/staging.petish.biz/public_html/wp-content/plugins"; plugin="$plugins/woo-advanced-shipment-tracking";
       test -d "$base" && test ! -L "$base" && test "$(readlink -f -- "$base")" = "$base" || exit 1;
@@ -104,6 +116,8 @@ finish() {
 trap finish EXIT
 trap 'exit 1' HUP INT TERM
 [[ ${TRACKING_REHEARSAL_PREREQUISITES:-success} == success ]]
+failure_category=source
+[[ $(git rev-parse HEAD) == "$GITHUB_SHA" ]]
 
 # Only the immutable, reviewed official release is prepared for the server.
 curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --retry 3 \
@@ -154,16 +168,20 @@ source scripts/hostinger-ssh-common.sh
 petish_prepare_ssh
 ssh_ready=1
 failure_category=transport
+driver_digest=$(reviewed_file_digest scripts/staging-rehearsal-remote.php)
 "${petish_ssh[@]}" 'set -eu; umask 077; base="$HOME/.petish-staging"; tools="$base/tracking-rehearsal-tools-'"$run"'"; work="$base/rehearsal-'"$run"'"; plugins="$HOME/domains/staging.petish.biz/public_html/wp-content/plugins"; plugin="$plugins/woo-advanced-shipment-tracking";
   test -d "$base" && test ! -L "$base" && test "$(readlink -f -- "$base")" = "$base" && test "$(stat -c %a "$base")" = 700 || exit 1;
   test -d "$plugins" && test ! -L "$plugins" && test "$(readlink -f -- "$plugins")" = "$plugins" || exit 1;
   test ! -e "$tools" && test ! -L "$tools" && test ! -e "$work" && test ! -L "$work" && test ! -e "$plugin" && test ! -L "$plugin" || exit 1;
   mkdir -m 700 "$tools"; printf "%s\n" '"$run"' > "$tools/.tracking-rehearsal-owned";
-  cat > "$tools/driver.php"; chmod 600 "$tools/driver.php" "$tools/.tracking-rehearsal-owned"' \
+  cat > "$tools/driver.php"; chmod 600 "$tools/driver.php" "$tools/.tracking-rehearsal-owned";
+  actual=$(sha256sum -- "$tools/driver.php"); actual=${actual%% *}; test "$actual" = '"$driver_digest"' || exit 1' \
     < scripts/staging-rehearsal-remote.php > "$work/upload-driver.private.stdout" 2> "$work/upload-driver.private.stderr"
-for name in tracking-rehearsal-remote.php tracking-rehearsal-bootstrap.php ast-manifest.json; do
+for name in tracking-rehearsal-remote.php tracking-rehearsal-bootstrap.php petish-tracking-receiver-guard.php ast-manifest.json; do
     if [[ $name == ast-manifest.json ]]; then source_file="$work/$name"; else source_file="scripts/$name"; fi
-    "${petish_ssh[@]}" 'set -eu; umask 077; file="$HOME/.petish-staging/tracking-rehearsal-tools-'"$run"'/'"$name"'"; test ! -e "$file" && test ! -L "$file" || exit 1; cat > "$file"; chmod 600 "$file"' \
+    source_digest=$(reviewed_file_digest "$source_file")
+    "${petish_ssh[@]}" 'set -eu; umask 077; file="$HOME/.petish-staging/tracking-rehearsal-tools-'"$run"'/'"$name"'"; test ! -e "$file" && test ! -L "$file" || exit 1; cat > "$file"; chmod 600 "$file";
+      actual=$(sha256sum -- "$file"); actual=${actual%% *}; test "$actual" = '"$source_digest"' || exit 1' \
         < "$source_file" > "$work/upload-$name.private.stdout" 2> "$work/upload-$name.private.stderr"
 done
 "${petish_ssh[@]}" 'set -eu; umask 077; plugins="$HOME/domains/staging.petish.biz/public_html/wp-content/plugins"; plugin="$plugins/woo-advanced-shipment-tracking";
@@ -181,26 +199,8 @@ python3 - "$work/rehearsal.private.json" <<'PY' > "$work/validation.private.stdo
 import importlib.util,sys
 spec=importlib.util.spec_from_file_location('safe','scripts/sanitize-rehearsal-result.py')
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-report=module.sanitize(sys.argv[1]);checks=report.get('checks',{})
-required={'environment_staging','woocommerce_test_mode','wcpay_dev_mode',
- 'guard_runtime_verified','suppliers_blocked','mail_capture_verified','webhooks_blocked',
- 'database_separate','runtime_database_staging','only_allowlisted_plugins','no_active_webhooks',
- 'all_http_forced_blocked','paths_verified','source_guard_sha_verified',
- 'tracking_native_rest_registered','tracking_anonymous_denied','tracking_customer_denied',
- 'tracking_first_parcel_partial','tracking_two_parcels_preserved','tracking_final_parcel_completed',
- 'tracking_partial_email_branded','tracking_completed_email_branded','tracking_account_widget_two_parcels',
- 'tracking_no_payment_performed','tracking_no_product_stock_used','tracking_synthetic_order_removed',
- 'tracking_supplier_actions_blocked','tracking_reviewed_source_verified',
- 'tracking_direct_remote_files_blocked','tracking_carrier_fixture_created',
- 'tracking_carrier_fixture_removed','tracking_migrations_and_downloads_disabled',
- 'tracking_stored_plugin_configuration_unchanged','tracking_native_plugin_loaded',
- 'tracking_synthetic_order_created','tracking_synthetic_carrier_link_preserved'}
-observations={'tracking_replay_duplicates_observed','tracking_replay_email_repeated','tracking_blank_number_accepted'}
-if report.get('status')!='success' or report.get('category')!='complete' \
- or report.get('phase')!='tracking-rehearsal' or checks.get('account_is_live') is not False \
- or checks.get('tracking_external_dsers_push_verified') is not False \
- or any(checks.get(key) is not True for key in required) \
- or any(type(checks.get(key)) is not bool for key in observations):
+report=module.sanitize(sys.argv[1])
+if not module.tracking_rehearsal_passed(report):
  raise SystemExit('The isolated native tracking rehearsal did not pass its required checks.')
 PY
 rehearsal_verified=1
