@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read only the public homepage and two fixed reviewed theme assets."""
 import hashlib
+import io
 import importlib.util
 import json
 import os
@@ -10,6 +11,7 @@ import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPSHandler, Request, build_opener
 import zlib
+from PIL import Image
 
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('asset_http',ROOT/'scripts/verify-account-navigation-assets.py')
@@ -18,6 +20,18 @@ http.MAX_BYTES=8388608
 ASSETS={'home_stylesheet_http_verified':'assets/css/home.css',
     'free_delivery_badge_http_verified':'assets/images/ui/free-delivery-van.png'}
 CHECKS={'homepage_http_verified','hot_subtitle_absent',*ASSETS}
+
+
+def png_matches(expected,fetched):
+    """Allow lossless encoding changes only; dimensions and RGBA must agree."""
+    try:
+        with Image.open(io.BytesIO(expected)) as original,Image.open(io.BytesIO(fetched)) as public:
+            if original.format!='PNG' or public.format!='PNG' or original.size!=public.size \
+                or not 0<original.width<=4096 or not 0<original.height<=4096 \
+                or getattr(original,'n_frames',1)!=1 or getattr(public,'n_frames',1)!=1:return False
+            if hashlib.sha256(expected).digest()==hashlib.sha256(fetched).digest():return True
+            return original.convert('RGBA').tobytes()==public.convert('RGBA').tobytes()
+    except (OSError,ValueError,Image.DecompressionBombError):return False
 
 
 def verify(opener,expected):
@@ -31,7 +45,8 @@ def verify(opener,expected):
             with opener.open(request,timeout=15) as response:
                 if response.status!=200 or response.geturl()!=url:raise ValueError()
                 fetched=http.decoded_body(response)
-            if hashlib.sha256(fetched).digest()!=hashlib.sha256(body).digest():
+            matched=png_matches(body,fetched) if name.endswith('.png') else hashlib.sha256(fetched).digest()==hashlib.sha256(body).digest()
+            if not matched:
                 failures.append('assets');continue
             report['checks'][check]=True
         except (HTTPError,URLError,TimeoutError,OSError):failures.append('http')

@@ -2,11 +2,13 @@
 import copy
 from datetime import datetime,timezone,timedelta
 import hashlib
+import io
 import importlib.util
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from PIL import Image
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -121,8 +123,13 @@ class Response:
 
 
 class HomepagePublicAssetsTests(unittest.TestCase):
+    @staticmethod
+    def png(color=(123,45,67,128),level=0):
+        stream=io.BytesIO();Image.new('RGBA',(3,2),color).save(stream,format='PNG',compress_level=level)
+        return stream.getvalue()
+
     def fixture(self,changed=None,subtitle=False,redirect=False):
-        expected={name:('Reviewed '+name).encode() for name in assets.ASSETS.values()}
+        expected={name:self.png() if name.endswith('.png') else ('Reviewed '+name).encode() for name in assets.ASSETS.values()}
         class Opener:
             def open(self,request,timeout):
                 url=request.full_url
@@ -131,7 +138,7 @@ class HomepagePublicAssetsTests(unittest.TestCase):
                     if subtitle:body+=b'<p>Selected by supplier-reported orders.</p>'
                 else:
                     name=next(name for name in expected if name in url);body=expected[name]
-                    if changed==name:body+=b' unexpected bytes'
+                    if changed==name:body=HomepagePublicAssetsTests.png(color=(124,45,67,128)) if name.endswith('.png') else body+b' unexpected bytes'
                 return Response('https://other.invalid/' if redirect else url,body)
         return Opener(),expected
 
@@ -143,6 +150,14 @@ class HomepagePublicAssetsTests(unittest.TestCase):
         for arguments in ({'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},
                           {'subtitle':True},{'redirect':True}):
             opener,expected=self.fixture(**arguments);self.assertEqual(assets.verify(opener,expected)['status'],'failure')
+
+    def test_png_recompression_preserves_exact_pixels_but_pixel_changes_refuse(self):
+        original=self.png(level=0);compressed=self.png(level=9)
+        self.assertNotEqual(original,compressed);self.assertTrue(assets.png_matches(original,compressed))
+        self.assertFalse(assets.png_matches(original,self.png(color=(124,45,67,128),level=9)))
+        self.assertFalse(assets.png_matches(original,b'not a PNG'))
+        stream=io.BytesIO();Image.new('RGBA',(4,2),(123,45,67,128)).save(stream,format='PNG')
+        self.assertFalse(assets.png_matches(original,stream.getvalue()))
 
 
 if __name__=='__main__':unittest.main()

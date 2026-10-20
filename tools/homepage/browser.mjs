@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { inflateSync, deflateSync } from 'node:zlib';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { validateInput, allowedRequest } from '../account-navigation/browser.mjs';
@@ -14,7 +15,7 @@ const SECTION = '#petish-free-delivery';
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network']);
 export const CHECK_KEYS = Object.freeze(['browser_started', 'customer_login_verified',
   'homepage_http_ok', 'hot_subtitle_absent', 'home_css_http_ok', 'home_css_hash_matches',
-  'badge_png_http_ok', 'badge_png_hash_matches', 'conditional_section_valid',
+  'badge_png_http_ok', 'badge_png_image_matches', 'conditional_section_valid',
   'section_320_valid', 'section_390_valid', 'section_1280_valid',
   'badges_bottom_right', 'badges_nonoverlap_hot', 'readonly_requests_enforced']);
 
@@ -113,6 +114,71 @@ export async function inspectSectionGeometry(page) {
   }, SECTION);
 }
 
+/** Exact decoded dimensions and RGBA bytes; never perceptual or approximate. */
+export async function pngImagesMatch(page, expectedBytes, actualBytes) {
+  if (!expectedBytes?.length || !actualBytes?.length || expectedBytes.length > 16777216 || actualBytes.length > 16777216) return false;
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (!signature.every((value, index) => expectedBytes[index] === value && actualBytes[index] === value)) return false;
+  return page.evaluate(async ({ expected, actual }) => {
+    const decode = async bytes => {
+      const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }),
+        { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+      try {
+        if (bitmap.width < 1 || bitmap.height < 1 || bitmap.width * bitmap.height > 16777216) return null;
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const context = canvas.getContext('2d', { willReadFrequently: true, colorSpace: 'srgb' });
+        if (!context) return null;
+        context.drawImage(bitmap, 0, 0);
+        return { width: bitmap.width, height: bitmap.height,
+          rgba: context.getImageData(0, 0, bitmap.width, bitmap.height).data };
+      } finally { bitmap.close(); }
+    };
+    try {
+      const left = await decode(expected), right = await decode(actual);
+      if (!left || !right || left.width !== right.width || left.height !== right.height
+          || left.rgba.length !== right.rgba.length) return false;
+      // Bounded chunks keep exact-byte comparison explicit without returning
+      // either the pixels, images, hashes, or URLs to a report.
+      for (let offset = 0; offset < left.rgba.length; offset += 65536) {
+        const end = Math.min(offset + 65536, left.rgba.length);
+        for (let index = offset; index < end; index++) if (left.rgba[index] !== right.rgba[index]) return false;
+      }
+      return true;
+    } catch { return false; }
+  }, { expected: Array.from(expectedBytes), actual: Array.from(actualBytes) }).catch(() => false);
+}
+
+/** Recompress IDAT bytes in memory without touching decoded pixel/filter data. */
+function recompressPNG(bytes) {
+  const chunks = []; let idat = [], offset = 8;
+  while (offset + 12 <= bytes.length) {
+    const length = bytes.readUInt32BE(offset), end = offset + length + 12;
+    if (end > bytes.length) throw new Error('input');
+    const type = bytes.subarray(offset + 4, offset + 8).toString('ascii');
+    const chunk = bytes.subarray(offset, end);
+    chunks.push({ type, chunk });
+    if (type === 'IDAT') idat.push(bytes.subarray(offset + 8, offset + 8 + length));
+    offset = end;
+  }
+  if (!idat.length || offset !== bytes.length) throw new Error('input');
+  const compressed = deflateSync(inflateSync(Buffer.concat(idat)), { level: 1 });
+  const payload = Buffer.concat([Buffer.from('IDAT'), compressed]);
+  let crc = 0xffffffff;
+  for (const value of payload) {
+    crc ^= value;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+  }
+  const header = Buffer.alloc(4), trailer = Buffer.alloc(4);
+  header.writeUInt32BE(compressed.length); trailer.writeUInt32BE((crc ^ 0xffffffff) >>> 0);
+  const replacement = Buffer.concat([header, payload, trailer]);
+  let replaced = false;
+  return Buffer.concat([bytes.subarray(0, 8), ...chunks.flatMap(({ type, chunk }) => {
+    if (type !== 'IDAT') return [chunk];
+    if (replaced) return [];
+    replaced = true; return [replacement];
+  })]);
+}
+
 async function decodeSectionBadges(page) {
   await page.locator(`${SECTION} .petish-free-delivery-badge img`).evaluateAll(async images => {
     for (const image of images) { image.loading = 'eager'; await image.decode(); }
@@ -127,7 +193,8 @@ export async function run(input, chromium) {
     validateInput(input);
     if (input.expected_section_present !== undefined && typeof input.expected_section_present !== 'boolean') throw new Error('input');
     const expectedCSS = hash(fs.readFileSync(new URL('assets/css/home.css', THEME)));
-    const expectedBadge = hash(fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME)));
+    const expectedBadgeBytes = fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME));
+    const expectedBadge = hash(expectedBadgeBytes);
     category = 'browser';
     browser = await chromium.launch(launchOptions(chromium));
     checks.browser_started = true;
@@ -186,9 +253,10 @@ export async function run(input, chromium) {
       return { ok: response.ok, bytes: Array.from(new Uint8Array(await response.arrayBuffer())) };
     }, BADGE_PATH);
     checks.badge_png_http_ok = png.ok === true;
-    checks.badge_png_hash_matches = png.ok && hash(Buffer.from(png.bytes)) === expectedBadge;
+    checks.badge_png_image_matches = png.ok && (hash(Buffer.from(png.bytes)) === expectedBadge
+      || await pngImagesMatch(page, expectedBadgeBytes, Buffer.from(png.bytes)));
     requireCheck(checks.home_css_http_ok && checks.home_css_hash_matches
-      && checks.badge_png_http_ok && checks.badge_png_hash_matches, 'assets');
+      && checks.badge_png_http_ok && checks.badge_png_image_matches, 'assets');
     category = 'layout';
     const sections = page.locator(SECTION);
     sectionPresent = await sections.count() > 0;
@@ -224,7 +292,8 @@ export async function run(input, chromium) {
 export async function runLocalFixture(chromium) {
   let browser;
   const checks = { fixture_320_valid: false, fixture_390_valid: false, fixture_1280_valid: false,
-    badge_bottom_right: false, hot_nonoverlap: false, absence_valid: false };
+    badge_bottom_right: false, hot_nonoverlap: false, absence_valid: false,
+    lossless_recompression_accepted: false, altered_pixels_rejected: false, changed_dimensions_rejected: false };
   try {
     const css = ['assets/css/petish.css', 'assets/css/supplier-popularity.css', 'assets/css/home.css']
       .map(file => fs.readFileSync(new URL(file, THEME), 'utf8')).join('\n');
@@ -252,6 +321,27 @@ export async function runLocalFixture(chromium) {
     await page.locator(SECTION).evaluate(node => node.remove());
     const absent = await inspectSectionGeometry(page);
     checks.absence_valid = absent.valid && absent.bottom_right && absent.nonoverlap;
+    const reviewedPNG = fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME));
+    const recompressed = recompressPNG(reviewedPNG);
+    checks.lossless_recompression_accepted = hash(reviewedPNG) !== hash(recompressed)
+      && await pngImagesMatch(page, reviewedPNG, recompressed);
+    const tampered = await page.evaluate(async bytes => {
+      const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height), context = canvas.getContext('2d');
+      context.drawImage(bitmap, 0, 0); bitmap.close();
+      const point = context.getImageData(0, 0, 1, 1);
+      point.data[0] ^= 255; point.data[1] ^= 255; point.data[2] ^= 255; point.data[3] = 255;
+      context.putImageData(point, 0, 0);
+      const changed = await canvas.convertToBlob({ type: 'image/png' });
+      const tinyCanvas = new OffscreenCanvas(1, 1);
+      tinyCanvas.getContext('2d').fillRect(0, 0, 1, 1);
+      const tiny = await tinyCanvas.convertToBlob({ type: 'image/png' });
+      return { changed: Array.from(new Uint8Array(await changed.arrayBuffer())),
+        tiny: Array.from(new Uint8Array(await tiny.arrayBuffer())) };
+    }, Array.from(reviewedPNG));
+    checks.altered_pixels_rejected = !await pngImagesMatch(page, reviewedPNG, Buffer.from(tampered.changed));
+    checks.changed_dimensions_rejected = !await pngImagesMatch(page, reviewedPNG, Buffer.from(tampered.tiny));
+
     return { status: Object.values(checks).every(Boolean) ? 'success' : 'failure', category: 'fixture', checks };
   } catch { return { status: 'failure', category: 'fixture', checks }; }
   finally { if (browser) await browser.close().catch(() => {}); }

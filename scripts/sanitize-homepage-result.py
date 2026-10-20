@@ -15,7 +15,7 @@ def module(name):
 
 navigation=module('sanitize-account-navigation-result')
 BROWSER={'browser_started','customer_login_verified','homepage_http_ok','hot_subtitle_absent',
-    'home_css_http_ok','home_css_hash_matches','badge_png_http_ok','badge_png_hash_matches',
+    'home_css_http_ok','home_css_hash_matches','badge_png_http_ok','badge_png_image_matches',
     'conditional_section_valid','section_320_valid','section_390_valid','section_1280_valid',
     'badges_bottom_right','badges_nonoverlap_hot','readonly_requests_enforced'}
 VERIFY={'target_paths_verified','target_environment_verified','tested_theme_and_woocommerce_verified',
