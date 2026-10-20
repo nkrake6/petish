@@ -91,3 +91,5 @@ jobs:
         run: |
           rm -rf -- "$RUNNER_TEMP"/petish-account-navigation.* "$RUNNER_TEMP/petish-account-navigation-browsers"
           rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
+
+# Recheck the unchanged staging candidates after the native-login correction.
