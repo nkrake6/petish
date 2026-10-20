@@ -1,0 +1,29 @@
+/* Compact native-header control; its panel inherits both Petish themes. */
+.petish-site .petish-market-selector { position: relative; display: inline-flex; flex: 0 0 auto; margin-left: 14px; vertical-align: middle; }
+.petish-site .petish-market__trigger { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--color-text); font: 500 14px/1.4 var(--font-label); cursor: pointer; white-space: nowrap; box-shadow: none; }
+.petish-site .petish-market__trigger:hover, .petish-site .petish-market__trigger[aria-expanded="true"] { background: var(--color-lavender); color: var(--color-secondary-text); }
+.petish-site .petish-market__trigger:disabled { opacity: .65; cursor: progress; }
+.petish-site .petish-market__flag { font: 22px/1.1 system-ui, sans-serif; }
+.petish-site .petish-market__trigger:focus-visible, .petish-site .petish-market__panel :is(button,select):focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
+.petish-site .petish-market__panel { position: fixed; z-index: 100100; box-sizing: border-box; width: min(360px, calc(100vw - 24px)); padding: 22px; overflow-y: auto; border: 1px solid var(--color-control-border); border-radius: 18px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 12px 40px rgba(0,0,0,.2); font: 400 15px/1.5 var(--font-body); }
+.petish-site .petish-market__panel[hidden] { display: none !important; }
+.petish-site .petish-market__heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -5px -8px 14px 0; }
+.petish-site .petish-market__heading h2 { margin: 0; color: var(--color-text); font: 600 18px/1.4 var(--font-heading); letter-spacing: -.02em; }
+.petish-site .petish-market__close { display: inline-flex; flex: 0 0 44px; align-items: center; justify-content: center; min-height: 44px; width: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--color-text); font: 400 28px/1 system-ui, sans-serif; cursor: pointer; box-shadow: none; }
+.petish-site .petish-market__close:hover { background: var(--color-lavender); color: var(--color-secondary-text); }
+.petish-site .petish-market__form { display: grid; gap: 15px; margin: 0; }
+.petish-site .petish-market__form label { display: grid; gap: 6px; margin: 0; color: var(--color-text); font: 500 14px/1.5 var(--font-label); }
+.petish-site .petish-market__form select { display: block; width: 100%; min-height: 46px; margin: 0; background: var(--color-surface); color: var(--color-text); }
+.petish-site .petish-market__form .petish-market__help { margin: 0; color: var(--color-text-muted); font: 400 13px/1.5 var(--font-label); }
+.petish-site .petish-market__form .petish-market__status { margin: 0; color: var(--color-text); font: 400 14px/1.5 var(--font-body); }
+.petish-site .petish-market__status:empty { display: none; }
+.petish-site .petish-market__form .petish-market__apply { width: 100%; margin: 0; }
+.petish-site .petish-market__apply:disabled { opacity: .65; cursor: progress; }
+@media (max-width: 767px) {
+  body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets { flex-wrap: nowrap; align-items: center; gap: 4px; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets > :is(.mini-search,.petish-market-selector) { margin: 0; }
+  .petish-site .petish-market-selector { margin-left: 5px; }
+  .petish-site .petish-market__trigger { padding-inline: 6px; gap: 5px; font-size: 12px; }
+  .petish-site .petish-market__flag { font-size: 20px; }
+  .petish-site .petish-market__panel { padding: 18px; }
+}

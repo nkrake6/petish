@@ -1,0 +1,230 @@
+/* Public Petish landing page; all colour and type comes from the shared system. */
+body.home.petish-site #main { padding-top: 0; padding-bottom: 32px; overflow-x: clip; }
+body.home.petish-site .wf-container-main { display: block; }
+body.home.petish-site #content { width: 100%; float: none; grid-column: 1 / -1; min-width: 0; padding-right: 0; }
+body.home.petish-site .page-title { display: none; }
+.petish-home {
+  --ph-space: clamp(56px, 7vw, 104px);
+  --ph-cyan: #20C6F7;
+  color: var(--color-text);
+  min-width: 0;
+  padding-block: 0 16px;
+}
+.petish-home *, .petish-home *::before, .petish-home *::after { box-sizing: border-box; }
+.petish-home :is(h1, h2, h3, p, ul) { margin-top: 0; }
+.petish-home :is(h1, h2, h3) { text-wrap: balance; }
+.petish-home h2 { margin-bottom: 12px; }
+.petish-home p { margin-bottom: 0; }
+.petish-home svg { flex: 0 0 auto; }
+.petish-home :is(.petish-button, .petish-button-secondary) { display: inline-flex; justify-content: center; align-items: center; gap: 10px; text-align: center; }
+.petish-home .petish-button-secondary { padding: 11px 20px; font: 500 .875rem/1.5 var(--font-label); border-radius: var(--radius-control); min-height: 44px; }
+.petish-home .petish-button svg { width: 19px; height: 19px; }
+.petish-home .ph-overline { color: var(--color-primary); font: 500 .75rem/1.5 var(--font-label); letter-spacing: .09em; text-transform: uppercase; margin-bottom: 10px; }
+.petish-home .ph-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.petish-home .ph-mobile-label { display: none; }
+.petish-home .ph-text-link { display: inline-flex; align-items: center; gap: 9px; font: 500 .875rem/1.5 var(--font-label); }
+.petish-home .ph-text-link svg { width: 19px; height: 19px; }
+
+.petish-home .ph-hero { position: relative; isolation: isolate; width: 100vw; margin-inline: calc(50% - 50vw); background: var(--color-bg); overflow: hidden; }
+.petish-home .ph-hero-slides { position: absolute; inset: 0; z-index: -1; }
+.petish-home .ph-hero-slide { position: absolute; inset: 0; margin: 0; --ph-photo-position: 50% 45%; }
+.petish-home .ph-hero-slide img { position: absolute; inset: 0; display: block; width: 100%; max-width: none; height: 100%; object-fit: cover; object-position: var(--ph-photo-position); }
+.petish-home .ph-hero-slide-rabbit { --ph-photo-position: 50% 50%; }
+.petish-home .ph-hero-slide-rabbit img { transform: scaleX(-1); }
+.petish-home .ph-hero-slide-guinea-pig { --ph-photo-position: 50% 58%; }
+.petish-home .ph-hero-slide-hamster { --ph-photo-position: 50% 52%; }
+.petish-home .ph-hero-slide-chinchilla { --ph-photo-position: 50% 58%; }
+/* Preserve the hamster's ears and snack paws, with the same photo filling the backdrop. */
+@media (min-width: 701px) {
+  .petish-home .ph-hero-slide-hamster::before { content: ""; position: absolute; inset: -36px; background: url('../images/hero/hamster-v6.webp') center / cover; filter: blur(28px); }
+  .petish-home .ph-hero-slide-hamster img { left: auto; width: auto; max-width: 64%; object-fit: contain; object-position: right center; mask-image: linear-gradient(90deg, transparent, #000 20%); }
+}
+.petish-home .ph-hero-slides::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 48%, transparent), color-mix(in srgb, var(--color-bg) 16%, transparent) 42%, transparent 72%); pointer-events: none; }
+.petish-home .ph-hero-inner { position: relative; width: calc(100% - 64px); max-width: 1280px; min-height: clamp(560px, 33.333vw, 720px); margin-inline: auto; display: flex; align-items: center; padding-block: 36px; }
+.petish-home .ph-hero-copy { width: 40%; max-width: 480px; padding: clamp(24px, 2.5vw, 32px); border: 1px solid var(--color-border); border-radius: 24px; background: rgba(248, 249, 252, .88); background: color-mix(in srgb, var(--color-bg) 88%, transparent); box-shadow: 0 12px 40px rgba(11, 20, 38, .08); }
+html[data-theme="dark"] .petish-home .ph-hero-copy { background: rgba(11, 20, 38, .88); background: color-mix(in srgb, var(--color-bg) 88%, transparent); }
+.petish-home .ph-hero-controls { position: absolute; right: 0; bottom: 24px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; width: 50%; }
+.petish-home .ph-hero-controls button { position: relative; appearance: none; min-height: 44px; padding: 10px 15px; border: 2px solid rgba(11, 20, 38, .5); border-radius: var(--radius-control); color: #0B1426; background: var(--ph-pill-colour, #B580F5); font: 500 .8125rem/1.5 var(--font-label); cursor: pointer; text-transform: none; letter-spacing: 0; box-shadow: none; }
+.petish-home .ph-hero-controls button[aria-controls="petish-hero-rabbit"] { --ph-pill-colour: #20C6F7; }
+.petish-home .ph-hero-controls button[aria-controls="petish-hero-guinea-pig"] { --ph-pill-colour: #FF5BA7; }
+.petish-home .ph-hero-controls button[aria-controls="petish-hero-hamster"] { --ph-pill-colour: #FFD447; }
+.petish-home .ph-hero-controls button[aria-controls="petish-hero-chinchilla"] { --ph-pill-colour: #B580F5; }
+.petish-home .ph-hero-controls button:hover, .petish-home .ph-hero-controls button:active { color: #0B1426; background: var(--ph-pill-colour, #B580F5); border-color: #0B1426; }
+.petish-home .ph-hero-controls button[aria-pressed="true"] { color: #0B1426; background: var(--ph-pill-colour, #B580F5); border-color: #0B1426; box-shadow: 0 0 0 2px #F8F9FC; }
+.petish-home .ph-hero-controls button[aria-pressed="true"]::after { content: ""; position: absolute; bottom: 4px; left: calc(50% - 9px); width: 18px; height: 2px; border-radius: 1px; background: currentColor; }
+.petish-home .ph-hero-slide[hidden], .petish-home .ph-hero-controls[hidden] { display: none !important; }
+.petish-home .ph-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.petish-home .ph-eyebrow { display: inline-flex; align-items: center; gap: 9px; color: var(--color-text-muted); font: 500 .8125rem/1.5 var(--font-label); margin-bottom: 18px; }
+.petish-home .ph-eyebrow > span { width: 8px; height: 8px; border-radius: 50%; background: var(--color-pink); }
+.petish-home .ph-hero h1 { font-size: clamp(2.5rem, 3.5vw, 3rem); line-height: 1.13; letter-spacing: -.055em; margin-bottom: 24px; }
+.petish-home .ph-hero h1 > span { color: var(--color-primary); }
+.petish-home .ph-hero-intro { color: var(--color-text-muted); font-size: 1rem; line-height: 1.7; max-width: 45ch; }
+.petish-home .ph-hero-note { margin-top: 18px; color: var(--color-text-muted); font: 400 .8125rem/1.5 var(--font-label); }
+body.home.petish-site #footer .ph-photo-credits { box-sizing: border-box; clear: both; flex-basis: 100%; width: 100%; margin-top: 8px; color: var(--color-text-muted); font: 400 .75rem/1.5 var(--font-label); }
+body.home.petish-site #footer .ph-photo-credits summary { box-sizing: border-box; width: max-content; max-width: 100%; min-height: 44px; padding-block: 12px; cursor: pointer; }
+body.home.petish-site #footer .ph-photo-credits ul { display: grid; gap: 8px; padding: 0 0 12px 18px; margin: 0; }
+body.home.petish-site #footer .ph-photo-credits li { margin: 0; font: inherit; }
+.petish-home .ph-category-clean, .petish-home .ph-species-links a:nth-child(1) { --ph-accent: var(--ph-cyan); }
+.petish-home .ph-category-bedding, .petish-home .ph-species-links a:nth-child(2) { --ph-accent: var(--color-pink); }
+.petish-home .ph-category-bowl, .petish-home .ph-species-links a:nth-child(3) { --ph-accent: var(--color-orange); }
+.petish-home .ph-category-hide, .petish-home .ph-species-links a:nth-child(4) { --ph-accent: var(--color-purple); }
+.petish-home .ph-category-play { --ph-accent: var(--color-orange); --ph-accent: color-mix(in srgb, var(--ph-cyan) 55%, var(--color-orange)); }
+.petish-home .ph-category-bag { --ph-accent: var(--color-pink); }
+
+.petish-home .ph-species { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px 38px; align-items: center; margin-top: 24px; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding-block: 24px; }
+.petish-home .ph-species-intro .ph-overline { margin-bottom: 5px; font-size: .75rem; }
+.petish-home .ph-species h2 { margin: 0; font-size: 1.125rem; }
+.petish-home .ph-species-links { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.petish-home .ph-species-links a { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 12px 14px; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-left: 3px solid var(--ph-accent); border-radius: var(--radius-control); font: 500 .875rem/1.5 var(--font-label); }
+.petish-home .ph-species-links a:hover { color: var(--color-primary); border-color: var(--color-control-border); }
+.petish-home .ph-species-links svg { width: 16px; height: 16px; color: var(--color-primary); }
+.petish-home .ph-species-note { grid-column: 1 / -1; color: var(--color-text-muted); font: 400 .75rem/1.55 var(--font-label); }
+
+.petish-home .ph-section { margin-top: var(--ph-space); scroll-margin-top: 100px; }
+/* Keep the first category heading close to the Explore by pet divider. */
+.petish-home .ph-species + .ph-categories { margin-top: 32px; }
+.petish-home .ph-section-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; margin-bottom: 28px; }
+.petish-home .ph-section-heading h2 { margin-bottom: 0; }
+.petish-home .ph-section-heading > p { color: var(--color-text-muted); font-size: .9375rem; line-height: 1.7; max-width: 43ch; }
+.petish-home .ph-section-heading > .ph-text-link { flex: 0 0 auto; padding-bottom: 4px; }
+.petish-home .ph-category-grid, .petish-home .ph-product-grid { display: grid; gap: 20px; }
+.petish-home .ph-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.petish-home .ph-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.petish-home a.ph-category { display: flex; flex-direction: column; align-items: stretch; min-width: 0; padding: 0; overflow: hidden; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-top: 4px solid var(--ph-accent); border-radius: 20px; transition: border-color .18s ease, transform .18s ease; }
+.petish-home a.ph-category:hover { border-color: var(--ph-accent); transform: translateY(-3px); }
+.petish-home .ph-category-image { display: block; aspect-ratio: 4 / 3; overflow: hidden; }
+.petish-home .ph-category-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.petish-home .ph-category-body { display: flex; flex-direction: column; align-items: flex-start; flex: 1 1 auto; padding: 24px 22px 22px; background: color-mix(in srgb, var(--ph-accent) 5%, var(--color-surface)); }
+.petish-home .ph-category h3 { font: 600 2.125rem/1.2 var(--font-heading); margin-bottom: 10px; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.petish-home .ph-category-body > p { color: var(--color-text-muted); font-size: .9375rem; line-height: 1.65; margin-bottom: 23px; }
+.petish-home .ph-category-note { margin-top: 16px; color: var(--color-text-muted); font: 400 .75rem/1.6 var(--font-label); }
+.petish-home .ph-card-link { display: flex; align-items: center; gap: 9px; color: var(--color-primary); font: 500 .8125rem/1.5 var(--font-label); margin-top: auto; }
+.petish-home .ph-card-link svg { width: 18px; height: 18px; }
+
+.petish-home .ph-collection-empty { display: grid; grid-template-columns: minmax(150px, .75fr) minmax(0, 1.8fr); align-items: center; gap: 40px; padding: clamp(28px, 4vw, 48px); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); }
+.petish-home .ph-empty-art { position: relative; display: flex; justify-content: center; align-items: center; margin: 8px auto; width: 128px; height: 128px; border-radius: 36% 45% 39% 47%; background: var(--color-lavender); color: var(--color-secondary-text); transform: rotate(-6deg); }
+.petish-home .ph-empty-art > svg { width: 66px; height: 66px; transform: rotate(6deg); }
+.petish-home .ph-empty-art > span { position: absolute; width: 13px; height: 13px; border-radius: 50%; background: var(--color-orange); right: -8px; top: 18px; }
+.petish-home .ph-status { display: inline-block; padding: 5px 10px; margin-bottom: 16px; border-radius: 99px; background: var(--color-lavender); color: var(--color-secondary-text); font: 500 .75rem/1.5 var(--font-label); letter-spacing: .035em; }
+.petish-home .ph-empty-copy h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); margin-bottom: 12px; }
+.petish-home .ph-empty-copy > p { color: var(--color-text-muted); font-size: 1rem; max-width: 53ch; }
+.petish-home .ph-empty-copy > .ph-text-link { margin-top: 20px; }
+.petish-home .ph-product { min-width: 0; margin: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 20px; overflow: hidden; }
+.petish-home .ph-product-link { display: flex; height: 100%; min-inline-size: 0; flex-direction: column; color: var(--color-text); }
+.petish-home .ph-product:hover { border-color: var(--color-control-border); }
+.petish-home .ph-product:focus-within { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+.petish-home .ph-product-image { position: relative; display: block; inline-size: 100%; min-inline-size: 0; flex: 0 0 auto; aspect-ratio: 1; padding: 16px; background: var(--color-surface); }
+.petish-home .ph-product-image > img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
+.petish-home .ph-product-image > .petish-hot-badge { top: 12px; right: 12px; max-inline-size: calc(100% - 24px); white-space: nowrap; }
+.petish-home .ph-product-body { display: flex; flex-direction: column; flex: 1 1 auto; padding: 21px; border-top: 1px solid var(--color-border); }
+.petish-home .ph-product-review { color: var(--color-text-muted); font: 400 .75rem/1.5 var(--font-label); margin-bottom: 8px; }
+.petish-home .ph-product h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; min-block-size: 3em; max-block-size: 3em; font: 600 1rem/1.5 var(--font-heading); margin-bottom: 12px; letter-spacing: -.02em; text-wrap: wrap; }
+.petish-home .ph-product-price { color: var(--color-text); font: 700 1rem/1.5 var(--font-body); margin-bottom: 20px; }
+.petish-home .ph-product-price del { color: var(--color-text-muted); font-weight: 400; }
+.petish-home .ph-product-price ins { background: none; color: inherit; text-decoration: none; }
+.petish-home .ph-product-price .woocommerce-price-suffix { font-size: .75rem; font-weight: 400; }
+
+.petish-home .ph-passport { display: grid; grid-template-columns: minmax(180px, .75fr) minmax(0, 1.45fr); align-items: center; gap: clamp(28px, 5vw, 76px); padding: clamp(30px, 5vw, 62px); margin-top: var(--ph-space); background: var(--color-surface); background: color-mix(in srgb, var(--ph-cyan) 8%, var(--color-surface)); border: 1px solid var(--color-border); border-radius: var(--radius-card); scroll-margin-top: 100px; }
+.petish-home .ph-passport-emblem { position: relative; width: 172px; padding: 28px 24px; margin-inline: auto; border: 1px solid var(--color-control-border); border-radius: 16px 24px 24px 16px; color: var(--color-primary); background: var(--color-surface); box-shadow: 9px 9px 0 var(--color-bg); transform: rotate(-7deg); }
+.petish-home .ph-passport-emblem::before { content: ""; position: absolute; inset: 0 auto 0 11px; border-left: 1px solid var(--color-border); }
+.petish-home .ph-passport-emblem > span:first-child { display: block; margin-bottom: 19px; }
+.petish-home .ph-passport-emblem > span:first-child svg { width: 40px; height: 40px; }
+.petish-home .ph-passport-emblem p { color: var(--color-primary); font: 400 .875rem/1.4 var(--font-label); }
+.petish-home .ph-passport-emblem strong { font: 600 1.375rem/1.5 var(--font-heading); letter-spacing: -.03em; }
+.petish-home .ph-passport-stamp { position: absolute; right: -16px; bottom: 30px; width: 39px; height: 39px; border-radius: 50%; border: 1px solid var(--color-orange); background: var(--color-orange); color: #14213D; display: flex; justify-content: center; align-items: center; transform: rotate(7deg); }
+.petish-home .ph-passport-copy h2 { font-size: clamp(1.5rem, 2.5vw, 2.125rem); }
+.petish-home .ph-passport-copy > p:not(.ph-overline) { color: var(--color-text-muted); max-width: 56ch; }
+.petish-home .ph-passport-points { display: grid; gap: 9px; list-style: none; padding: 0; margin: 22px 0 0; }
+.petish-home .ph-passport-points li { display: flex; align-items: flex-start; gap: 9px; color: var(--color-text); font-size: .9375rem; line-height: 1.6; }
+.petish-home .ph-passport-points svg { width: 19px; height: 19px; color: var(--color-primary); margin-top: 3px; }
+.petish-home .ph-passport-note { color: var(--color-text-muted); font: 400 .75rem/1.6 var(--font-label); max-width: 22ch; }
+.petish-home .ph-about { max-width: 680px; text-align: center; margin: var(--ph-space) auto 0; padding-inline: 16px; scroll-margin-top: 100px; }
+.petish-home .ph-about h2 { font-size: clamp(1.375rem, 2.1vw, 1.75rem); }
+.petish-home .ph-about > p:last-child { color: var(--color-text-muted); font-size: .9375rem; line-height: 1.8; }
+
+@media (max-width: 1100px) {
+  .petish-home .ph-hero-copy { width: 50%; padding: 26px; }
+  .petish-home .ph-hero .ph-actions { gap: 10px; margin-top: 22px; }
+  .petish-home .ph-species { grid-template-columns: minmax(0, 1fr); gap: 17px; }
+  .petish-home .ph-species-intro { display: flex; gap: 20px; align-items: baseline; justify-content: space-between; }
+  .petish-home .ph-species-intro .ph-overline { margin: 0; }
+  .petish-home .ph-category-grid, .petish-home .ph-product-grid { gap: 14px; }
+  .petish-home .ph-category-body { padding: 23px 18px 20px; }
+}
+@media (max-width: 820px) {
+  .petish-home .ph-hero-inner { width: calc(100% - 40px); }
+  .petish-home .ph-hero-copy { width: 53%; padding: 24px; }
+  .petish-home .ph-hero h1 { font-size: clamp(2.25rem, 5.6vw, 3rem); }
+  .petish-home .ph-hero-intro { font-size: 1rem; }
+  .petish-home .ph-category-grid, .petish-home .ph-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .petish-home .ph-section-heading { gap: 22px; }
+  .petish-home .ph-section-heading > p { max-width: 36ch; font-size: .875rem; }
+  .petish-home .ph-collection-empty { grid-template-columns: 130px minmax(0, 1fr); gap: 30px; }
+  .petish-home .ph-passport { grid-template-columns: 150px minmax(0, 1fr); gap: 35px; padding: 32px; }
+  .petish-home .ph-passport-emblem { width: 145px; padding: 24px 20px; }
+  .petish-home .ph-passport-emblem strong { font-size: 1.125rem; }
+}
+@media (max-width: 600px) {
+  body.home.petish-site #main { padding-top: 0; padding-bottom: 20px; }
+  .petish-home { padding-top: 0; --ph-space: 56px; }
+  .petish-home .ph-eyebrow { margin-bottom: 19px; font-size: .75rem; }
+  .petish-home .ph-hero h1 { font-size: clamp(2.4rem, 9.8vw, 3.4rem); margin-bottom: 20px; }
+  .petish-home .ph-hero-intro { max-width: 38ch; }
+  .petish-home .ph-actions { align-items: stretch; gap: 10px; margin-top: 24px; }
+  .petish-home .ph-hero .ph-actions > a { width: 100%; }
+  .petish-home .ph-hero-note { text-align: center; margin-top: 14px; }
+  .petish-home .ph-species-intro { display: block; }
+  .petish-home .ph-species-intro .ph-overline { margin-bottom: 6px; }
+  .petish-home .ph-species-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .petish-home .ph-species-links a { padding-inline: 12px; }
+  .petish-home .ph-section-heading { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 23px; }
+  .petish-home .ph-section-heading > p { max-width: 46ch; }
+  .petish-home .ph-category-grid, .petish-home .ph-product-grid { gap: 12px; }
+  .petish-home .ph-category-grid { grid-template-columns: minmax(0, 1fr); }
+  .petish-home a.ph-category { border-radius: 17px; }
+  .petish-home .ph-category-body { padding: 19px 16px 17px; }
+  .petish-home .ph-category h3 { font-size: 1.875rem; }
+  .petish-home .ph-category-body > p { font-size: .8125rem; line-height: 1.6; margin-bottom: 18px; }
+  .petish-home .ph-card-link { font-size: .75rem; gap: 6px; }
+  .petish-home .ph-card-link svg { width: 16px; height: 16px; }
+  .petish-home .ph-collection-empty { grid-template-columns: minmax(0, 1fr); gap: 25px; padding: 30px 24px; text-align: center; }
+  .petish-home .ph-empty-art { width: 96px; height: 96px; margin-block: 4px; }
+  .petish-home .ph-empty-art > svg { width: 51px; height: 51px; }
+  .petish-home .ph-empty-copy > p { font-size: .9375rem; }
+  .petish-home .ph-product { border-radius: 17px; }
+  .petish-home .ph-product-image { padding: 10px; }
+  .petish-home .ph-product-body { padding: 15px; }
+  .petish-home .ph-product h3 { font-size: .875rem; }
+  .petish-home .ph-product-price { font-size: .9375rem; }
+  .petish-home .ph-passport { grid-template-columns: minmax(0, 1fr); gap: 34px; padding: 34px 24px; }
+  .petish-home .ph-passport-emblem { width: 145px; padding: 22px; margin-block: 7px; }
+  .petish-home .ph-passport-emblem > span:first-child { margin-bottom: 14px; }
+  .petish-home .ph-passport-copy > p:not(.ph-overline) { font-size: .9375rem; }
+  .petish-home .ph-passport-points li { font-size: .875rem; }
+  .petish-home .ph-passport .ph-actions { flex-direction: column; }
+  .petish-home .ph-passport-note { max-width: none; text-align: center; }
+  .petish-home .ph-about { padding-inline: 0; }
+}
+@media (max-width: 700px) {
+  .petish-home .ph-species { margin-top: 16px; padding-block: 16px; }
+  .petish-home .ph-species + .ph-categories { margin-top: 12px; }
+  .petish-home .ph-hero-inner { display: block; min-height: 0; width: calc(100% - 32px); padding-block: 356px 20px; }
+  .petish-home .ph-hero-copy { width: 100%; max-width: none; padding: 24px; border-radius: 20px; }
+  .petish-home .ph-hero-slide img { width: 100%; height: 340px; padding-bottom: 0; }
+  .petish-home .ph-hero-slide-guinea-pig { --ph-photo-position: 65% 52%; }
+  .petish-home .ph-hero-slide-chinchilla { --ph-photo-position: 72% 54%; }
+  .petish-home .ph-hero-slides::after { background: linear-gradient(180deg, transparent 300px, var(--color-bg) 360px); }
+  .petish-home .ph-hero-controls { display: none; }
+  .petish-home .ph-hero .ph-actions { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 8px; }
+  .petish-home .ph-hero .ph-actions > a { width: auto; min-width: 0; min-height: 44px; padding-inline: 10px; gap: 5px; font-size: .8125rem; white-space: nowrap; }
+  .petish-home .ph-hero .ph-mobile-label { display: inline; }
+  .petish-home .ph-hero .ph-desktop-label { display: none; }
+  .petish-home .ph-hero-controls button { min-width: 0; padding-inline: 10px; }
+}
+@media (max-width: 359px) {
+  .petish-home .ph-category-grid, .petish-home .ph-product-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .petish-home a.ph-category { transition: none; }
+  .petish-home a.ph-category:hover { transform: none; }
+}

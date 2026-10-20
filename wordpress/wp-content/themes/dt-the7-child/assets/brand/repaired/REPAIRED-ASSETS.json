@@ -1,0 +1,55 @@
+{
+  "tool": "built-in image_gen",
+  "source_jpeg_sha256": "85227e8f437890206814a5b5247ec61a8a69dfedf803fbd9b61d45ec114ed937",
+  "source_note": "Repaired raster derivatives, visually checked against supplied JPEG; not pixel-identical originals or vector masters. Original assets and ZIP manifest retained.",
+  "files": {
+    "combined-light-v2.png": {
+      "size": [
+        1536,
+        1024
+      ],
+      "sha256": "45b8ab50ef5fd0b4bc98fb7994d3a4583d0d013db1b253bf7f870496cd5cf615",
+      "generated_source": "exec-867a778b-4338-478c-9725-4bb3be408d20.png",
+      "alpha_extrema": [
+        0,
+        254
+      ]
+    },
+    "combined-dark-v2.png": {
+      "size": [
+        1536,
+        1024
+      ],
+      "sha256": "71ab2c06de0ab5a31576575710d03cf64034a694ff76bf05773b74e5f4a1792c",
+      "generated_source": "exec-99d74c47-390b-4925-963c-a0bac9452fbf.png",
+      "alpha_extrema": [
+        0,
+        254
+      ]
+    },
+    "lettering-light-v2.png": {
+      "size": [
+        1942,
+        809
+      ],
+      "sha256": "43d3a8e6aada27710cabc7cce4ee53c3f740d7118ac2e2d33ec248ee556ff316",
+      "generated_source": "exec-566f8813-ec5b-49c0-9568-4ce2c0a1f99b.png",
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    "lettering-dark-v2.png": {
+      "size": [
+        1944,
+        809
+      ],
+      "sha256": "b1b4212cf9564f9f4ff8583d8f6a1e35c729567b069a8a3058ce6b05762791df",
+      "generated_source": "exec-d9ea8dea-3653-4c29-b449-ab1ae287656f.png",
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    }
+  }
+}

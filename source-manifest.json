@@ -1,0 +1,632 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "source_site": "https://petish.biz",
+  "generated_utc": "2026-10-20T00:09:03Z",
+  "source_sha": "a1a2474e7135b1dad2c6605a3ed4b1c4b9b38ab762e6de668d741a0c993ccf5b",
+  "files": [
+    {
+      "path": "wordpress/wp-content/mu-plugins/petish-google-login.php",
+      "bytes": 4108,
+      "sha256": "b7eccf566b6b1dda07a1002cdc5fa89e80848769a2ddd41411c184c346a89b92"
+    },
+    {
+      "path": "wordpress/wp-content/mu-plugins/petish-google-login/guest-auth.css",
+      "bytes": 6260,
+      "sha256": "6b4eb5f0a1d9ef27b3bb339f014fc10dd41023d11b1060a9145ad10198686019"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/README.md",
+      "bytes": 9287,
+      "sha256": "6dfc2699d4ba2f8a002c25e2e28dd150ca6cd604f90d016c536297fd34cf6f9a"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/assets/shipping-quotes.css",
+      "bytes": 11827,
+      "sha256": "1d085c2efa41433b694da9444b8b824483085914661fdcb046bb0056694e4de3"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/assets/shipping-quotes.js",
+      "bytes": 2695,
+      "sha256": "c310810a94dc29bf9ee71a23671b5df06cd9ab3f62ff396c8238d0f0c020a732"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/includes/class-petish-automatic-shipping.php",
+      "bytes": 15491,
+      "sha256": "2b4682deecb4793f5499a1b7a5cc6b680d5673eebabd5b6e4960913de781a18b"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/includes/class-petish-quote-currency.php",
+      "bytes": 3364,
+      "sha256": "e551aa4444b0bf3b719a430287bd43818b17bd6e51b996dc887315f7f93f3ddd"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/includes/class-petish-shipping-quote-requests.php",
+      "bytes": 41352,
+      "sha256": "b5990b5862b569224b42b27eb86f6eae4a62fa4e530a6e35a7414d9ba0fc8336"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/includes/class-petish-supplier-quotes.php",
+      "bytes": 15693,
+      "sha256": "c93c77efe95a6c2af05d7d7dea50f0728552bfca5beae3f60f9170dca9abee8b"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/includes/class-petish-supplier-shipping.php",
+      "bytes": 2466,
+      "sha256": "150d867fd61db71a34662bebb4e53c885761cadfa9bfb340e39cf33ab9c3189b"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-fulfilment/petish-fulfilment.php",
+      "bytes": 2014,
+      "sha256": "45a68476d064eb51ff6d1329d305f7c1e8823f9b57cccf672c4e8017270d30c4"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/assets/catalogue.css",
+      "bytes": 8932,
+      "sha256": "a91c6e4bb0972b5da98d16566011330deba0390dbc9b5c95daabac8733f06b99"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/assets/catalogue.js",
+      "bytes": 1151,
+      "sha256": "fca16a24f624cf64ceec5f582fc82cf712b92a00ecfa223ef83d5aedb4a3d20c"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/assets/passport.css",
+      "bytes": 18231,
+      "sha256": "c5de4283709cfe6a923db4e8fbefca53a341d21c8e9cad0dcbea18bbe5f98ec1"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/assets/passport.js",
+      "bytes": 1158,
+      "sha256": "7deabb5cc00a265322b20ed6ff267125f8faa9bddb521a8a246c0109201b4cda"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/assets/reviews-admin.css",
+      "bytes": 1299,
+      "sha256": "6956b842501900a07e2989cee0954fa7073d8ce4e9fea178965fe85937afcf84"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/includes/class-petish-catalogue.php",
+      "bytes": 12252,
+      "sha256": "6a4e863a162fc4a0e9417b0af3ea5aaa3a5f5d20d0343eda87267ae1b3a2e2b4"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/includes/class-petish-passport-media.php",
+      "bytes": 6646,
+      "sha256": "675099fbdd2bb2e8899de9f9fc7f82ca1613c033e10a1b2023a8510ef38da782"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/includes/class-petish-passport-store.php",
+      "bytes": 10829,
+      "sha256": "cf55dddcd3394783ca1b9bcccb25ae1682eea130c01139088a6b0a0b94955b46"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/includes/class-petish-passport-ui.php",
+      "bytes": 10280,
+      "sha256": "018af0b525df449bfb11c959cd319c5c90b65c6e0f04cf2e283489d16c53cf26"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/includes/class-petish-product-review.php",
+      "bytes": 17664,
+      "sha256": "59307680539e8f2dab90058578930bc6d7765beb2c963200e896219a78f630fd"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/includes/class-petish-supplier-intake.php",
+      "bytes": 1160,
+      "sha256": "aff1ecc522ab947ecda41987b5835859ba6126ff07ac8f8bc16c7f55652f846d"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/petish-passport.php",
+      "bytes": 3336,
+      "sha256": "e74a310a1fc9bfc8d56ae62de973a75eb8f728885d585b8ba78bca488bb4c8bb"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/templates/account-collection.php",
+      "bytes": 3837,
+      "sha256": "b1c0689eafcaf2832d52330f13f21edf2af621ee1735922e0fc82e8c9ec4303a"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/templates/catalogue-banner.php",
+      "bytes": 5462,
+      "sha256": "07ead54706a1694281577c05de983e6af5a98408660199d05aca04d141221e0e"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/templates/dashboard.php",
+      "bytes": 5892,
+      "sha256": "3bcd60132cbcad98accc599eaa9956b93a052fd4ecaef742bc504fa4ae77f34d"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/templates/delete.php",
+      "bytes": 1670,
+      "sha256": "75653acccfa39af742480405b377ae7b4887643a27e369d93dba6069a8074c3a"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/templates/form.php",
+      "bytes": 5301,
+      "sha256": "2c07cf4eac8e9ca31c0c6a497ddfe5d498ec3c61a0ede3d757a81dcbb2cd2381"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/templates/product-review-summary.php",
+      "bytes": 1620,
+      "sha256": "29cfaa6a2a88a2669094dff0dcf845af1284e6ac0caca399e876fe5a946a22b7"
+    },
+    {
+      "path": "wordpress/wp-content/plugins/petish-passport/templates/product-reviews-admin.php",
+      "bytes": 4079,
+      "sha256": "ac3efd939390adfd7716c8eb993360183fd2fa5be3849df7242a786d631f4ce5"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/BRAND-SYSTEM.md",
+      "bytes": 12513,
+      "sha256": "d0fd717cb444d19b67114cfe228fa812ac72f4f05f921a0fed52b70372a57ab7"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/SOURCE-SHA256.json",
+      "bytes": 1761,
+      "sha256": "7fdc913582112edbb3e2797388b0927dec0afb778a82855d5fc6946e62b502af"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/animals_dark_landscape.png",
+      "bytes": 260278,
+      "sha256": "f6cdfa0f225d20f32c0eadaa6e13b2e18cfe67c77fa563920486801fd958e3a2"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/animals_dark_square.png",
+      "bytes": 263395,
+      "sha256": "e16c89898e2b17b84327ee4de348091cdc7adb6c50030b25423f57d2ed7dc353"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/animals_light_landscape.png",
+      "bytes": 299509,
+      "sha256": "678d5eda146391aae6fd4bc9c96426f05a7a8c33484901137971875f99328f1d"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/animals_light_square.png",
+      "bytes": 303424,
+      "sha256": "7d5a9d7327201ac1c963dcd78fddef28a4352934bd22f97963beb739b557f675"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/combined_dark_landscape.png",
+      "bytes": 1095816,
+      "sha256": "040337ab76605c08ed0f7d02b4d631ee7d383f51b4b22faef6e29c5f5be8452a"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/combined_dark_square.png",
+      "bytes": 1100681,
+      "sha256": "97b049d175cc189e0509b796cdeff15e6fd3430c05edec79dbc6930f0338957e"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/combined_light_landscape.png",
+      "bytes": 1061567,
+      "sha256": "0e825c09e67a17ae5ed977500a5fda182dacec44204ea54ef8661804c348312c"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/combined_light_square.png",
+      "bytes": 1066752,
+      "sha256": "129fc8f0b1dbcd56a11f409795c698329a0d604d04fecef1c245e08bfc2aaa55"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/favicon.ico",
+      "bytes": 1540,
+      "sha256": "b693b73d41e058f06918551221028d1f268af622c8eaeac500da5aaecfe3fb99"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/icon_P_dark_180.png",
+      "bytes": 2030,
+      "sha256": "74cc2665ba94010bc662d5268d34f7fafcfc2835435313d2111ed7819fad19d3"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/icon_P_dark_32.png",
+      "bytes": 1645,
+      "sha256": "7393760c64ab44e16da4e9495ad38a5610adc94fe6f265876caeceaeae0cd8e1"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/icon_P_dark_512.png",
+      "bytes": 3036,
+      "sha256": "61c227e817f780a6d59e7082db0bc83053df34065e7f7fc46d5584dcbe6ec061"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/icon_P_light_180.png",
+      "bytes": 2136,
+      "sha256": "9a5e6230219cdbb40a2b939316a0ee14541e94852eba00c6167bdc17509bf7a4"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/icon_P_light_32.png",
+      "bytes": 1768,
+      "sha256": "c61199040b77cf58c4e688ae664c9d2acbd246d473b255f69109282f61247a95"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/icon_P_light_512.png",
+      "bytes": 3161,
+      "sha256": "3a242704bfe837b3232937645f3e1b782ac4943d7f3e06371e07d45b8c6951d1"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/lettering_dark_landscape.png",
+      "bytes": 186914,
+      "sha256": "c513cbb2a839e2fa7f21e8b2946512743ec45299c9661e4290f9f25210b3044c"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/lettering_dark_square.png",
+      "bytes": 190019,
+      "sha256": "daa7b1ae7e9b3f7e32e3ac327921b30061a5eed1b2dcb7e5a854817f0dfabaf8"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/lettering_light_landscape.png",
+      "bytes": 201754,
+      "sha256": "08f8c3c5cf68dbdbeb9ab07611c75ec73aa55112d68d0098f8858fb4563ac6dc"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/lettering_light_square.png",
+      "bytes": 204752,
+      "sha256": "fad6df653befca37000362976abbfc309129687c17e84c422c7d9888b2856ed2"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/repaired/REPAIRED-ASSETS.json",
+      "bytes": 1542,
+      "sha256": "bbeeb023efd5c2e2354b7d1907a8270ed7084bcbf50419e77655be4e05f6b957"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/repaired/combined-dark-v2.png",
+      "bytes": 1959199,
+      "sha256": "71ab2c06de0ab5a31576575710d03cf64034a694ff76bf05773b74e5f4a1792c"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png",
+      "bytes": 1961412,
+      "sha256": "45b8ab50ef5fd0b4bc98fb7994d3a4583d0d013db1b253bf7f870496cd5cf615"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/repaired/lettering-dark-v2.png",
+      "bytes": 1222763,
+      "sha256": "b1b4212cf9564f9f4ff8583d8f6a1e35c729567b069a8a3058ce6b05762791df"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/repaired/lettering-light-v2.png",
+      "bytes": 1229293,
+      "sha256": "43d3a8e6aada27710cabc7cce4ee53c3f740d7118ac2e2d33ec248ee556ff316"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/brand/webapp-icon.png",
+      "bytes": 205466,
+      "sha256": "83fad23e7e1fec8a00d4c15a86ef2ac6e49404ca79792bb9a8555f5a0e03b0c4"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/css/collection-header.css",
+      "bytes": 3144,
+      "sha256": "8c5b00c19fa702ec07623e6c04c914543be71dbbc92984c2313346af1209b423"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/css/home.css",
+      "bytes": 23154,
+      "sha256": "81139fc111d1cdc85c412b9ecfe86dbf32cc1a2b4658ffb14088c0b9ab9e026a"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/css/market-selector.css",
+      "bytes": 3699,
+      "sha256": "1e249766d92352f414922d6a6c99227edef4b35cf7a76797cf563937425fea0a"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/css/petish.css",
+      "bytes": 36599,
+      "sha256": "6091293d48b3e11d93764abb702e6f4c766abd7d569f674e62dc8a3a85e566ae"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/css/product-purchase.css",
+      "bytes": 797,
+      "sha256": "47301666b26012ce470484d6f81150367d855cab8702e0bb625c746119393562"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/css/supplier-popularity.css",
+      "bytes": 457,
+      "sha256": "4433e529b21bee40302d3660fd7d514e856770ae73a867cdc4e16d33873068d3"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/fonts/DM-Sans-OFL.txt",
+      "bytes": 4482,
+      "sha256": "9af36190332437f5ecd09974de43c1f7c77a310a996cdd8ceb25628b458840e1"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/fonts/Nunito-Sans-OFL.txt",
+      "bytes": 4393,
+      "sha256": "efbb0c9e864cef973982d9a17567e6be5c3d1759695574586f3f18c7ecca064b"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/fonts/Poppins-OFL.txt",
+      "bytes": 4385,
+      "sha256": "6be04893d770899a015649c7aa3b582f871b272f8747a92b78b17c3e5c8b2573"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/fonts/dm-sans-400-latin.woff2",
+      "bytes": 36980,
+      "sha256": "468d56b6b25b05b70190b6c233d773f6f1770e8579827ce022a57f03fa8002fb"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/fonts/fonts.css",
+      "bytes": 2215,
+      "sha256": "ea65023c16f8e86db7d41451cfec697bcfce7b9f53a08839f3accef950098f8e"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/fonts/nunito-sans-400-latin.woff2",
+      "bytes": 30948,
+      "sha256": "39184f4d011106f5bfbe3813d3a8c3673663f04a45a9c9f55b1ed15f4d5b1cc9"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/fonts/poppins-600-latin.woff2",
+      "bytes": 7992,
+      "sha256": "872e862918591a9e824dc03ed92f05729435ffbb8ebbb10eff7eda26592b1798"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/fonts/poppins-700-latin.woff2",
+      "bytes": 7848,
+      "sha256": "197a3cbd7290c242c5c765268cdd69a9a39867fdc80cd13071f243a81c56fb76"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/categories/bedding-liners-v2.webp",
+      "bytes": 57070,
+      "sha256": "84c9298bc1fca69a0ca928149d6ba258a216436aede27d5a0baeb6c94f3eef00"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/categories/cleaning-care-v2.webp",
+      "bytes": 24308,
+      "sha256": "cd6abbabcc2ae956ae10186f5f7e83c4f2896b60a56fd68614d647688159548c"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/categories/enrichment-play-v1.webp",
+      "bytes": 34940,
+      "sha256": "a78fd24c079a3f4cfb04ffe8df6db96ef103d020b513919d5fa8e901d8e1aba4"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/categories/feeding-hay-v2.webp",
+      "bytes": 74462,
+      "sha256": "ed34e1315856ce5a902daabee2d0c964b5573c26bb665c05c5043ead2e7add34"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/categories/hides-tunnels-v1.webp",
+      "bytes": 57998,
+      "sha256": "ff1686e20f4efacd6a7bfa6d4d78f69a565c3ed28d520f44d8b778bd22ef7f8a"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/PHOTO-SOURCES.json",
+      "bytes": 9686,
+      "sha256": "44af5125595d760ce86bb507c5f62a98e26d45923b46067a0ebefd5e7256056f"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/chinchilla-v1.webp",
+      "bytes": 54072,
+      "sha256": "94a0e25f990e2b5fd018343cf74ae6114f10f0d5b5c817979fffe25367ad4d70"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/chinchilla-v2.webp",
+      "bytes": 168574,
+      "sha256": "2bd4c9cb14b0fcab4b1fbac8833541623bf07e1e0e1dd15c5ef0ad17d8831c4b"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/chinchilla-v4.webp",
+      "bytes": 91120,
+      "sha256": "25011b879b15f78d991ae92774b47f5f4b6786fc6933ef2e548a9042c1e219a7"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/chinchilla-v4.webp.license.json",
+      "bytes": 1042,
+      "sha256": "e8c7c0c153532e5b9cecb1dc51b2737a21f91d3f4e05e81a73e5915677ecb224"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/chinchilla-v6.webp",
+      "bytes": 123072,
+      "sha256": "4c69cf5b817c5fc1b7a68cafb27d96b759ffc71774313f71906a155cf7f343ef"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/chinchilla-v6.webp.license.json",
+      "bytes": 2297,
+      "sha256": "44014180608a8ad11acf3ebcafec09af8c89bc5fbe09bbd8c63bbbc9d267c51b"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/guinea-pig-v1.webp",
+      "bytes": 63296,
+      "sha256": "aced1f58a9f3f7890193972865060873f92bd5dd2515f7d5c10b81870f26e813"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/guinea-pig-v2.webp",
+      "bytes": 223560,
+      "sha256": "0c286b84de02b527e96acd05b6f1e234fb8f5a98b398764a3234d70b90aca4cb"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/guinea-pig-v3.webp",
+      "bytes": 571442,
+      "sha256": "e9d521406670ede25caafb44bed1a85f7b1ccfc43f463efbffec6e22af720bfa"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/guinea-pig-v4.webp",
+      "bytes": 126202,
+      "sha256": "4f3144d6dafb5a76598964c388b45010b7eaec78a5102687847acfa167d2060e"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/guinea-pig-v4.webp.license.json",
+      "bytes": 1494,
+      "sha256": "6f3aaf267d9f18a93dc0cf83d94b29534ec614c175e0bf5f4e4d25abd210b208"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/guinea-pig-v6.webp",
+      "bytes": 107970,
+      "sha256": "183a84781385b8a0310ded4910374517ff4cb8a0ada878016accacae9b542a23"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/guinea-pig-v6.webp.license.json",
+      "bytes": 2298,
+      "sha256": "a17256da4a4d9488a8c24f8d204081c5ccbb21ef6b87c08ced8c5d2cd904c252"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/hamster-v1.webp",
+      "bytes": 32760,
+      "sha256": "66d4a213ee4fe9aeb68cbdfb79191dd0b4aef95ed6180f7b6413718fcf0e7483"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/hamster-v2.webp",
+      "bytes": 100522,
+      "sha256": "0a6fef149fdfd08a677b0d724c2bfe229be7ed26a8fe4fd50175fb4f3ad3ce67"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/hamster-v3.webp",
+      "bytes": 201566,
+      "sha256": "25f7c58bc2a6564c522eb6113f1ddfa6cbf0664aa3ed53c584c645f8f5adef05"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/hamster-v4.webp",
+      "bytes": 434882,
+      "sha256": "1d5c3625bdb63f02a83d4fb42719ae7b17c8d8845b966269426cdf5250e586b1"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/hamster-v4.webp.license.json",
+      "bytes": 1551,
+      "sha256": "fa63471bbfbbe5ff0fd348c74584ec01c3bceb56680c3119aa01787ad70cbf4b"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/hamster-v6.webp",
+      "bytes": 135002,
+      "sha256": "0884d8a4dff7c262aa6ab3a5cd09712ef9c023bb1017dab0b8b71419036ac433"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/hamster-v6.webp.license.json",
+      "bytes": 2283,
+      "sha256": "f63bef4926ba3a009b644b9f8f6697d793f2b555326a20930586261d3c1b822c"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/rabbit-v1.webp",
+      "bytes": 117526,
+      "sha256": "0349e39bac6d06dcbc151b993ac1273658851ebaf060aa65d9e96fcae1b6904f"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/rabbit-v2.webp",
+      "bytes": 94032,
+      "sha256": "5424b88fc03f299888b8ebf151a83f124fbb4f97cdc9ac52ab25af58a54ecc9e"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/rabbit-v6.webp",
+      "bytes": 297024,
+      "sha256": "84e702ce23c2264929b03beac1ea18eefcb8ab129c9c7c63d496fd7279f92d6e"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/hero/rabbit-v6.webp.license.json",
+      "bytes": 2567,
+      "sha256": "7b2ef7eed535fe20f8d166b5619fb931124b8b04d63215b5227a4223845ec89c"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/images/ui/hot-flame.png",
+      "bytes": 188676,
+      "sha256": "4c4dc1d42c12061fb507da24dabc7014fca9dd493e36d2c18682b6a177c615e5"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/js/cart-origin.js",
+      "bytes": 869,
+      "sha256": "9ba56ac7199533fb155f836cb9664538d4e5593de7c986489dec44432c76e914"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/js/home.js",
+      "bytes": 1606,
+      "sha256": "f8f64ccf5477ab9f0a468a4066b3cb0fa19553f628c616c1f53aefae90ccf21b"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/js/market-selector.js",
+      "bytes": 7291,
+      "sha256": "5a88571111e6ce13d9bc0060f7750c4114dc62b5fbdaffde9ab1f5864788c1e9"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/js/product-origin.js",
+      "bytes": 5558,
+      "sha256": "ef48e078eb806856590d3c43bbbc8944fedc49e41a89df0ea143ca73fbc64801"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/assets/js/theme.js",
+      "bytes": 3698,
+      "sha256": "c2a6aa6a1861d5d953a231206946ae6fb1873e7a65ab30d72f7674e36d00e31e"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/front-page.php",
+      "bytes": 22868,
+      "sha256": "ee5c1425f0bf746471886a88bf185e176b12f8fdf3827831e51a947417dee863"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/functions.php",
+      "bytes": 14316,
+      "sha256": "301c05283071be0df26d0f428134ca794c2f480520e2835efa20203b3f2e1fb9"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/includes/collection-header.php",
+      "bytes": 4011,
+      "sha256": "cae70c13abf74ab56f2a650465e497e7077be52e76d0c2882fda72d7bc6c9c08"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/includes/header-navigation.php",
+      "bytes": 531,
+      "sha256": "a25e2f4cbab70beb05d8a495dca151e3a6e6b2b73fa3659b88e726673bc00bba"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/includes/market-selector.php",
+      "bytes": 14204,
+      "sha256": "5f442d161f3d9d7ade7f5bedee4e52c337896b777f073017fa67f5e86684c294"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/includes/product-option-labels.php",
+      "bytes": 12369,
+      "sha256": "616081cb30805fe344f3e203580f4306d8641ca00696a21e24cb490f683f6b37"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/includes/product-origin.php",
+      "bytes": 7867,
+      "sha256": "989646c022a796fb2845abb34c07f9a60470dae13d660cf7487b6b3370ab23fa"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/includes/product-retail-rounding.php",
+      "bytes": 11059,
+      "sha256": "b7204939855f548eab2eacfd2a56c0149bd7e2bd603dcc9f07d01c3c5597562b"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/includes/supplier-popularity.php",
+      "bytes": 3783,
+      "sha256": "74b02a8407b64f407f69cc776a500d5e68872d5acf5382ef09bae3de4ee403f2"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/languages/the7mk2.pot",
+      "bytes": 378936,
+      "sha256": "8197dfc4e1cb33e367f30823d9e932f97d01b073e8e2ef32c142b975fde52c32"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/page-brand-preview.php",
+      "bytes": 6035,
+      "sha256": "f71bcc67ef2d6f8bf45bfdd343c6c21ad334c986c4ba4dc908bba8d939b4cdf6"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/screenshot.jpg",
+      "bytes": 258552,
+      "sha256": "04c404cdbd6c32756c8f1c18cba452c3a81e09ea6d96afbc0cf63ded6d2723c9"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/style.css",
+      "bytes": 927,
+      "sha256": "9ed6723ae1ec79bbbeb4e92c34c91bcf144a63d5451c67b85180a224c24ee0ef"
+    },
+    {
+      "path": "wordpress/wp-content/themes/dt-the7-child/wpml-config.xml",
+      "bytes": 34427,
+      "sha256": "53b9977019a5e35636964b767b0d3d527f1669fdd1066022a55f250b6c21410b"
+    }
+  ],
+  "findings": [],
+  "excluded_counts": {
+    "links": 0,
+    "metadata": 6,
+    "private_payload": 0,
+    "special": 0,
+    "staging_guard": 0
+  },
+  "missing_roots": [],
+  "diagnostics": [],
+  "workflow_sha": "0520f656f39d582d68b3af1842641d8a2e07f8b6",
+  "source_archive_bytes": 16390975,
+  "source_generated_utc": "2026-10-20T00:09:02Z",
+  "file_count": 121,
+  "source_bytes": 17438776,
+  "quarantined_file_count": 0,
+  "complete": true,
+  "external_secret_screen": "gitleaks"
+}

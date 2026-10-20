@@ -1,0 +1,250 @@
+/* Quote pages reuse the existing Petish design tokens and native Woo fields. */
+.petish-shipping-quote,
+.petish-quote-notice {
+  box-sizing: border-box;
+  max-width: 100%;
+  color: var(--color-text);
+  font-family: var(--font-body, "Nunito Sans", system-ui, sans-serif);
+  overflow-wrap: anywhere;
+}
+.petish-shipping-quote *,
+.petish-quote-notice * { box-sizing: border-box; }
+.petish-shipping-quote [hidden] { display: none !important; }
+.petish-shipping-quote :is(h2, h3, h4) {
+  color: var(--color-text);
+  font-family: var(--font-heading, Poppins, system-ui, sans-serif);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0 0 16px;
+}
+.petish-shipping-quote h2 { font-size: clamp(1.375rem, 1.15rem + .6vw, 1.75rem); }
+.petish-shipping-quote :is(h3, h4) { font-size: 1.125rem; }
+.petish-shipping-quote :is(p, ul, dl) { margin: 0 0 16px; }
+.petish-shipping-quote :is(a, a:hover, a:focus),
+.petish-quote-notice :is(a, a:hover, a:focus) { text-decoration: none; }
+.petish-shipping-quote a:not(.button):not(.petish-button):not(.petish-button-secondary),
+.petish-quote-notice a:not(.button):not(.petish-button):not(.petish-button-secondary) { color: var(--color-primary); }
+.petish-quote-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, .8fr);
+  gap: 24px;
+  align-items: start;
+}
+.petish-quote-layout > * { min-width: 0; }
+.petish-shipping-quote :is(.petish-quote-card, .petish-quote-summary, .petish-quote-empty) {
+  padding: clamp(20px, 3vw, 28px);
+  margin-bottom: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card, 24px);
+}
+.petish-shipping-quote :is(.petish-quote-card, .petish-quote-summary, .petish-quote-empty) > :last-child { margin-bottom: 0; }
+.petish-quote-notice {
+  clear: both;
+  padding: 20px 24px;
+  margin: 0 0 24px;
+  border: 1px solid var(--color-border);
+  border-inline-start: 4px solid var(--color-primary);
+  border-radius: var(--radius-control, 12px);
+  background: var(--color-surface);
+}
+.petish-quote-notice > :last-child { margin-bottom: 0; }
+.petish-quote-form { margin: 0; }
+.petish-quote-form :is(.petish-quote-fields, .woocommerce-shipping-fields__field-wrapper) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+}
+.petish-quote-form .form-row {
+  float: none;
+  clear: none;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+}
+.petish-quote-form .form-row-wide { grid-column: 1 / -1; }
+.petish-quote-form .clear { display: none; }
+.petish-quote-form :is(label, legend) {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--color-text);
+  font: 500 .875rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif);
+}
+.petish-quote-form :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-control, 12px);
+  font: 400 1rem/1.5 var(--font-body, "Nunito Sans", system-ui, sans-serif);
+  box-shadow: none;
+}
+.petish-quote-form textarea { min-height: 104px; resize: vertical; }
+.petish-quote-form :is(input, textarea)::placeholder { color: var(--color-text-muted); opacity: 1; }
+.petish-quote-form :is(.description, .optional, .petish-quote-help) {
+  color: var(--color-text-muted);
+  font: 400 .8125rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif);
+}
+.petish-quote-form .required { color: var(--color-error); }
+.petish-quote-form :is([aria-invalid="true"], .woocommerce-invalid input, .woocommerce-invalid select) { border-color: var(--color-error); }
+.petish-quote-form .select2-container { width: 100% !important; min-width: 0; }
+.petish-quote-form .select2-container .select2-selection--single {
+  min-height: 46px;
+  height: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-control, 12px);
+}
+.petish-quote-form .select2-container .select2-selection--single .select2-selection__rendered {
+  padding: 10px 34px 10px 12px;
+  color: var(--color-text);
+  font: 400 1rem/1.5 var(--font-body, "Nunito Sans", system-ui, sans-serif);
+}
+.petish-quote-form .select2-container .select2-selection__placeholder { color: var(--color-text-muted); }
+.petish-quote-form .select2-container .select2-selection__arrow { height: 100%; inset-inline-end: 8px; }
+.petish-quote-form .select2-container .select2-selection__arrow b { border-top-color: var(--color-text-muted); }
+.petish-quote-select-dropdown {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-control-border);
+  font: 400 1rem/1.5 var(--font-body, "Nunito Sans", system-ui, sans-serif);
+}
+.petish-quote-select-dropdown .select2-search__field {
+  min-height: 44px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-control-border);
+  border-radius: 6px;
+  font: inherit;
+}
+.petish-quote-select-dropdown .select2-results__option {
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.petish-quote-select-dropdown .select2-results__option--highlighted[aria-selected] {
+  background: var(--color-lavender);
+  color: var(--color-secondary-text);
+}
+.petish-quote-select-dropdown .select2-results__option[aria-selected="true"] {
+  background: var(--color-button-primary);
+  color: var(--color-button-primary-on);
+}
+.petish-quote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 0;
+}
+.petish-quote-form > .petish-quote-actions { grid-column: 1 / -1; }
+.petish-shipping-quote :is(.button, .petish-button, .petish-button-secondary, button[type="submit"]),
+.petish-quote-notice :is(.button, .petish-button, .petish-button-secondary) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 11px 20px;
+  border: 1px solid var(--color-button-primary-border);
+  border-radius: var(--radius-control, 12px);
+  background: var(--color-button-primary);
+  background-image: none;
+  color: var(--color-button-primary-on);
+  font: 500 .875rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif);
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  box-shadow: none;
+}
+.petish-shipping-quote :is(.button, .petish-button, button[type="submit"]):hover,
+.petish-quote-notice :is(.button, .petish-button):hover {
+  background: var(--color-button-primary-hover);
+  color: var(--color-button-primary-on);
+}
+.petish-shipping-quote :is(.button-secondary, .petish-button-secondary),
+.petish-quote-notice :is(.button-secondary, .petish-button-secondary) {
+  background: var(--color-lavender);
+  color: var(--color-secondary-text);
+  border-color: var(--color-control-border);
+}
+.petish-shipping-quote :is(.button-secondary, .petish-button-secondary):hover,
+.petish-quote-notice :is(.button-secondary, .petish-button-secondary):hover {
+  background: var(--color-secondary-hover);
+  color: var(--color-secondary-text);
+}
+.petish-quote-form button:disabled {
+  background: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  border-color: var(--color-control-border);
+  opacity: 1;
+  cursor: wait;
+}
+.petish-shipping-quote :focus-visible,
+.petish-quote-notice :focus-visible,
+.petish-quote-select-dropdown :focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 4px;
+}
+.petish-quote-status {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 99px;
+  background: var(--color-lavender);
+  color: var(--color-secondary-text);
+  font: 500 .8125rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif);
+}
+.petish-quote-status[data-status="approved"] { background: var(--color-success-bg); color: var(--color-success); }
+.petish-quote-status:is([data-status="declined"], [data-status="expired"], [data-status="changed"]) { background: var(--color-error-bg); color: var(--color-error); }
+.petish-shipping-quote dl.petish-quote-meta {
+  display: grid;
+  grid-template-columns: minmax(100px, .65fr) minmax(0, 1.35fr);
+  gap: 10px 20px;
+}
+.petish-quote-meta dt { color: var(--color-text-muted); font-family: var(--font-label, "DM Sans", system-ui, sans-serif); font-weight: 500; }
+.petish-quote-meta dd { margin: 0; }
+.petish-shipping-quote .petish-quote-items { list-style: none; padding: 0; margin: 0; }
+.petish-quote-items > li,
+.petish-quote-item { padding: 14px 0; border-bottom: 1px solid var(--color-border); }
+.petish-quote-items > li:last-child { border-bottom: 0; }
+.petish-quote-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.petish-quote-item > * { min-width: 0; }
+.petish-quote-item img { flex: 0 0 64px; width: 64px; max-width: 64px; height: 64px; object-fit: contain; }
+.petish-quote-submit-status { color: var(--color-text-muted); font: 400 .875rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif); }
+.petish-shipping-quote :is(.petish-quote-table, .shop_table) { width: 100%; margin: 0 0 24px; border-collapse: collapse; background: var(--color-surface); }
+.petish-shipping-quote :is(.petish-quote-table, .shop_table) :is(th, td) { padding: 16px 14px; border-bottom: 1px solid var(--color-border); text-align: start; vertical-align: top; }
+.petish-shipping-quote :is(.petish-quote-table, .shop_table) th { color: var(--color-text-muted); font: 500 .875rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif); }
+.petish-shipping-quote :is(.petish-quote-table, .shop_table) .petish-quote-actions { margin: 0; }
+.petish-shipping-quote :is(.petish-quote-table, .shop_table) td[data-title="Actions"] > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+@media (max-width: 800px) {
+  .petish-quote-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .petish-quote-form :is(.petish-quote-fields, .woocommerce-shipping-fields__field-wrapper) { grid-template-columns: minmax(0, 1fr); }
+  .petish-quote-notice { padding: 18px; }
+  .petish-shipping-quote :is(.petish-quote-card, .petish-quote-summary, .petish-quote-empty) { padding: 20px; }
+  .petish-shipping-quote :is(.petish-quote-table, .shop_table) thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .petish-shipping-quote :is(.petish-quote-table, .shop_table) tbody { display: block; }
+  .petish-shipping-quote :is(.petish-quote-table, .shop_table) tr { display: block; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-control, 12px); }
+  .petish-shipping-quote :is(.petish-quote-table, .shop_table) td { display: grid; grid-template-columns: minmax(80px, .75fr) minmax(0, 1.25fr); gap: 8px 12px; padding: 10px 0; text-align: start !important; }
+  .petish-shipping-quote :is(.petish-quote-table, .shop_table) td::before { content: attr(data-title); float: none; font: 500 .8125rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif); color: var(--color-text-muted); }
+  .petish-shipping-quote :is(.petish-quote-table, .shop_table) td:not([data-title]) { grid-template-columns: minmax(0, 1fr); }
+  .petish-shipping-quote :is(.petish-quote-table, .shop_table) td:not([data-title])::before { display: none; }
+  .petish-shipping-quote :is(.petish-quote-table, .shop_table) td:last-child { border-bottom: 0; }
+}
+@media (max-width: 420px) {
+  .petish-shipping-quote dl.petish-quote-meta { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .petish-quote-meta dd { margin-bottom: 12px; }
+  .petish-quote-actions > :is(.button, .petish-button, .petish-button-secondary, button) { width: 100%; }
+}
