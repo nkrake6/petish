@@ -1,0 +1,67 @@
+{
+  "status": "failure",
+  "category": "browser",
+  "mode": "staging",
+  "run_id": "39410047154-1",
+  "source_commit": "f9dfb4eb487ad4dd33a3b641c1958cbad5d0659f",
+  "generated_utc": "2026-10-20T10:45:26.091547+00:00",
+  "source_hashes": {
+    "assets/account-navigation.js": "5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75",
+    "assets/passport.css": "5afea46cec5eb11e35048180b00b934b1130439e5928f997769feb5d04155882",
+    "includes/class-petish-passport-ui.php": "d5abfc66c9735470b7ed7e3dae728221bb28c78636b06e4bba5efa56dbfe58d5"
+  },
+  "staging_source_verified": true,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "preflight": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "runtime_database_staging": true,
+        "database_separate": true,
+        "wcpay_dev_mode": true,
+        "woocommerce_test_mode": true,
+        "paths_verified": true,
+        "webhooks_blocked": true,
+        "environment_staging": true,
+        "browser_input_written": true,
+        "mail_capture_verified": true,
+        "guard_runtime_verified": true,
+        "suppliers_blocked": true,
+        "all_http_forced_blocked": true,
+        "source_guard_sha_verified": true,
+        "source_wp_cron_disabled": true,
+        "only_allowlisted_plugins": true,
+        "no_active_webhooks": true
+      }
+    },
+    "browser": {
+      "status": "failure",
+      "category": "login",
+      "checks": {
+        "browser_started": true,
+        "customer_login_verified": false,
+        "native_navigation_links_present": false,
+        "native_hrefs_unchanged": false,
+        "my_pets_390_verified": false,
+        "my_pets_320_verified": false,
+        "orders_390_verified": false,
+        "orders_320_verified": false,
+        "edit_account_390_verified": false,
+        "edit_account_320_verified": false,
+        "current_label_verified": false,
+        "mobile_compact_closed": false,
+        "toggle_opens": false,
+        "escape_closes_focus_returns": false,
+        "outside_closes": false,
+        "focusout_closes": false,
+        "desktop_visible": false,
+        "resize_visible": false,
+        "no_js_fallback_visible": false,
+        "dark_mode_readable": false,
+        "unsafe_requests_blocked": true
+      }
+    }
+  }
+}
