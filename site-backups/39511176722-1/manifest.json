@@ -1,0 +1,72 @@
+{
+  "format": "petish-full-wordpress-backup-v3",
+  "site": "https://petish.biz/",
+  "created_utc": "2026-10-20T22:53:44.806022+00:00",
+  "scope": "complete document-root tree, private Passport storage, private SMTP configuration, and site SQL database; symlinks preserved without following targets",
+  "private_archive_root": "private-files/petish-passport",
+  "private_restore_location": "domain-private-directory-outside-document-root",
+  "encryption": "OpenPGP symmetric AES256 with integrity protection",
+  "encrypted_bytes": 404595568,
+  "encrypted_sha256": "ad734bbdd6b74831adc7b99bdd4afd0446eeef628f60aa4c614acb0d0e52ed6d",
+  "parts": [
+    {
+      "file": "site-backup.tar.gz.gpg.part-00000",
+      "bytes": 50331648,
+      "sha256": "1212ad1edc68f215547c8488b6b8764a1e82d5ade02a17d989b73381dcdea7e6"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00001",
+      "bytes": 50331648,
+      "sha256": "9f52e9cc7707a739c745b0f6661d476422a4e295a42fdec489395d5142495a7c"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00002",
+      "bytes": 50331648,
+      "sha256": "c73f6ef3f7dd7656b6613912d27e669b4037b87c6ad54346d3e726f5cc9e02d3"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00003",
+      "bytes": 50331648,
+      "sha256": "7badfec4119f136378614a3925cd4b94b88bd595cfd096197bcdfe37d168e347"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00004",
+      "bytes": 50331648,
+      "sha256": "87c10eec96f993d910b8e7768d3c36afb3cf1f8b98c1fbfabb3bd563ab0f8ce9"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00005",
+      "bytes": 50331648,
+      "sha256": "862e7f715236468726a47718e4e2ecb3ec1eaf0a27b998aa8d6cd5112b178f9c"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00006",
+      "bytes": 50331648,
+      "sha256": "0be2b274b7cc919220ced574cc75259800399f8ad9d6bdb4933caaca651925b1"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00007",
+      "bytes": 50331648,
+      "sha256": "f9ee9884f006747fac0ff5ee699d5e108a44453957af3cf0b16a2438170d04b7"
+    },
+    {
+      "file": "site-backup.tar.gz.gpg.part-00008",
+      "bytes": 1942384,
+      "sha256": "21d98412dd03255ce8f730b6fcda04d8778558d7d788a1acdf7191a73214a634"
+    }
+  ],
+  "verification": {
+    "archive_verified": true,
+    "archive_entries": 45248,
+    "uncompressed_bytes": 725838193,
+    "symbolic_links_preserved": 1,
+    "private_passport_root_verified": true,
+    "private_regular_files": 1,
+    "private_regular_bytes": 488186,
+    "private_smtp_config_verified": true,
+    "private_smtp_regular_files": 1,
+    "private_smtp_regular_bytes": 138
+  },
+  "private_smtp_archive_root": "private-files/petish-mailer",
+  "private_smtp_restore_location": "domain-private-directory-outside-document-root"
+}
