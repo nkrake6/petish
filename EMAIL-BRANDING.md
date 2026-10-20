@@ -6,9 +6,16 @@ from child-theme commit `f62346a`. Native rendering and independent publication
 screening passed in
 [`39378452234`](https://github.com/nkrake6/petish/actions/runs/39378452234)
 using preview tools `01354e1`. All four types rendered with the animal logo;
-order-record counts and stock were unchanged. Live branding is unchanged.
+order-record counts and stock were unchanged. Chromium checks passed for every
+type at 900px, 390px and inside the 326px mobile gallery. Tabs, keyboard controls,
+direct links and image loading passed with no overflow or JavaScript errors.
+Live branding is unchanged.
 
 Review gallery: <https://nkrake6.github.io/petish/email-preview/>.
+Public availability passed in
+[`39378623819`](https://github.com/nkrake6/petish/actions/runs/39378623819):
+the served gallery, CSS, JavaScript, all four emails and the animal logo matched
+the reviewed Git files byte for byte.
 
 The shared HTML email header and footer live in the The7 child theme at
 `woocommerce/emails/`. Styling is appended through
