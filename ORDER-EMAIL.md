@@ -16,6 +16,14 @@ includes the private SMTP configuration. Application recovery run
 passed with that backup, all 14 active plugins, 104 published products, the main
 store pages and mail/network blocking in the disposable sandbox.
 
+The newer backup `full-site-backup/39360505612-1` also passed full application
+recovery in run `39360965357`. At 02:50 UTC, delivery-test run
+[`39361096109`](https://github.com/nkrake6/petish/actions/runs/39361096109)
+submitted the owner's single requested message successfully. The one-use key
+was consumed and its private directory removed; the encrypted request was
+removed from `main`. This confirms SMTP acceptance of the orders alias.
+Recipient inbox placement and authentication headers await the owner's check.
+
 ## Secure setup
 
 Add the `administrator@petish.biz` mailbox password as the GitHub Actions repository secret
