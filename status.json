@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "apply",
   "run_id": "39413368197-1",
   "source_commit": "88d06f932922beef249496540b8ced28dd4dc45b",
-  "generated_utc": "2026-10-20T11:13:15.355973+00:00",
+  "generated_utc": "2026-10-20T11:13:28.707645+00:00",
   "source_hashes": {
     "assets/account-navigation.js": "5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75",
     "assets/passport.css": "5afea46cec5eb11e35048180b00b934b1130439e5928f997769feb5d04155882",
@@ -31,6 +31,97 @@
         "lock_owned": false
       },
       "changed_file_count": 3
+    },
+    "apply": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": true
+      },
+      "changed_file_count": 3
+    },
+    "verify": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "production_paths_verified": true,
+        "navigation_assets_present": true,
+        "production_environment_verified": true,
+        "tested_theme_and_woocommerce_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "production_data_snapshot_verified": true,
+        "anonymous_render_context_verified": true,
+        "account_assets_enqueued": true,
+        "asset_versions_match_files": true,
+        "navigation_strings_localized": true,
+        "native_account_menu_items_preserved": true,
+        "passport_menu_items_present": true,
+        "native_navigation_rendered": true,
+        "current_endpoint_labels_verified": true,
+        "logout_link_preserved": true,
+        "order_counts_unchanged": true,
+        "user_counts_unchanged": true,
+        "authentication_state_unchanged": true,
+        "product_stock_unchanged": true,
+        "account_settings_unchanged": true
+      }
+    },
+    "health": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "homepage_http_verified": true,
+        "shop_http_verified": true,
+        "product_http_verified": true,
+        "cart_http_verified": true,
+        "account_http_verified": true,
+        "approved_logo_http_verified": true,
+        "logo_http_fetch_succeeded": true,
+        "logo_http_is_png": true,
+        "logo_http_is_webp": false,
+        "logo_http_file_bytes_match": false,
+        "logo_http_dimensions_match": true,
+        "logo_http_pixels_match": true
+      }
+    },
+    "assets": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "navigation_script_http_verified": true,
+        "navigation_stylesheet_http_verified": true
+      }
+    },
+    "commit": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": true,
+        "lock_owned": true
+      },
+      "changed_file_count": 0
     }
   },
   "preparation_stage": "complete",
