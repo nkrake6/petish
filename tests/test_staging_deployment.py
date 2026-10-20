@@ -20,6 +20,7 @@ SPEC = importlib.util.spec_from_file_location("staging_package", ROOT / "scripts
 PACKAGE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PACKAGE)
 SHA = "a" * 40
+PHP = shutil.which("php") or "/workspace/.petish-dev/bin/php"
 
 
 def make_source(root, version="new"):
@@ -73,7 +74,7 @@ class PackagingTests(unittest.TestCase):
                 path.unlink()
 
 
-@unittest.skipUnless(shutil.which("php"), "php CLI required for standalone validation")
+@unittest.skipUnless(Path(PHP).is_file(), "php CLI required for standalone validation")
 class RemoteTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -98,6 +99,7 @@ class RemoteTests(unittest.TestCase):
         self.archive = self.home / "payload.tar.gz"
         PACKAGE.package(self.source, self.archive, SHA)
         self.env = dict(os.environ, HOME=str(self.home))
+        self.env["PATH"] = str(Path(PHP).parent) + os.pathsep + self.env["PATH"]
 
     def deploy(self, mode="check", sha=SHA):
         return subprocess.run(["bash", str(ROOT / "scripts/deploy-staging-remote.sh"), str(self.archive), mode, sha],
@@ -131,6 +133,36 @@ class RemoteTests(unittest.TestCase):
             self.private.write_text(text)
             self.assertNotEqual(self.deploy("apply").returncode, 0)
         self.assertEqual(before, hashes(self.target))
+
+    def test_public_component_directories_override_private_umask_without_exposing_backups(self):
+        for component in PACKAGE.COMPONENTS:
+            asset = self.source / component / "assets/deep/nested/example.css"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("/* Public static asset. */\n")
+        self.archive.unlink()
+        PACKAGE.package(self.source, self.archive, SHA)
+        self.private.parent.chmod(0o700)
+        self.private.chmod(0o600)
+        protected_before = hashes(self.live)
+        previous_umask = os.umask(0o077)
+        try:
+            applied = self.deploy("apply")
+        finally:
+            os.umask(previous_umask)
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        for component in PACKAGE.COMPONENTS:
+            public = self.target / component
+            for path in (public, *public.rglob("*")):
+                self.assertEqual(path.stat().st_mode & 0o777, 0o755 if path.is_dir() else 0o644, str(path))
+        releases = self.home / ".petish-staging-releases"
+        release = next(path for path in releases.iterdir() if path.is_dir())
+        self.assertEqual(releases.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(release.stat().st_mode & 0o777, 0o700)
+        self.assertEqual((release / "backup").stat().st_mode & 0o777, 0o700)
+        self.assertEqual((release / "protected-state.json").stat().st_mode & 0o777, 0o600)
+        self.assertEqual(self.private.parent.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(self.private.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(protected_before, hashes(self.live))
 
     def test_comment_does_not_prove_config_loader(self):
         (self.target / "wp-config.php").write_text("<?php // require '" + str(self.private) + "';\n")

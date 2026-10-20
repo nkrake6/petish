@@ -219,6 +219,18 @@ function prepare_archive($archive,$work,$source,$components) {
     }
     ksort($actual); ksort($expected); if($actual!==$expected) reject_deploy();
     foreach([$components[0].'/style.css',$components[0].'/functions.php',$components[1].'/petish-passport.php',$components[2].'/petish-fulfilment.php'] as $required) if(!isset($actual[$required])) reject_deploy();
+    // The private release workspace uses umask 077. Public component directories
+    // need explicit traversal permissions after validation and before the swap.
+    // Keep the workspace, configuration and rollback parents private.
+    foreach($components as $component) {
+        $public=$work.'/new/'.$component; plain_path($public);
+        if(!is_dir($public)||!chmod($public,0755)) reject_deploy();
+        $directories=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($public,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::SELF_FIRST);
+        foreach($directories as$item) if($item->isDir()) {
+            plain_path($item->getPathname());
+            if(!chmod($item->getPathname(),0755)) reject_deploy();
+        }
+    }
     file_put_contents($work.'/php-files',implode("\0",$php).(count($php)?"\0":""));
 }
 try {
