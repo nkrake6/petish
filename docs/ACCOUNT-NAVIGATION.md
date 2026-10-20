@@ -29,6 +29,10 @@ on main. Staging checks follow the existing staging deployment and email preview
 sequentially. The `deploy-account-navigation` branch applies only the three
 Passport files after matching staging evidence and a recent full backup with
 successful application recovery. It retains private rollback copies and verifies
-native navigation, asset loading, public pages and unchanged customer, order,
+native navigation, exact public script/stylesheet bytes, public pages and unchanged customer, order,
 authentication, stock and account configuration before committing the release.
 The existing email theme and all other Passport files are protected.
+
+Staging public component directories explicitly use mode `0755` and files `0644`.
+The private release workspace, configuration and rollback parents stay private.
+This avoids the release process's private `umask 077` blocking static assets.

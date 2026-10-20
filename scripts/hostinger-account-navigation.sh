@@ -79,7 +79,7 @@ result={'status':os.environ['PETISH_ACCOUNT_STATUS'],'category':os.environ['PETI
  'rollback_verified':os.environ['PETISH_ACCOUNT_ROLLBACK_VERIFIED']=='1','phases':{}}
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
-for phase in ('inspect','preflight','browser','apply','verify','health','commit','rollback'):
+for phase in ('inspect','preflight','browser','apply','verify','health','assets','commit','rollback'):
  path=root/(phase+'.safe.json')
  try:
   info=path.lstat()
@@ -268,6 +268,13 @@ python3 scripts/verify-live-email-release.py "$work/health.private.json" \
 health_validation=0
 screen_phase health || health_validation=$?
 [[ $health_status == 0 && $health_validation == 0 ]]
+failure_category=assets
+assets_status=0
+python3 scripts/verify-account-navigation-assets.py "$work/assets.private.json" \
+    > "$work/assets.private.stdout" 2> "$work/assets.private.stderr" || assets_status=$?
+assets_validation=0
+screen_phase assets || assets_validation=$?
+[[ $assets_status == 0 && $assets_validation == 0 ]]
 failure_category=commit
 remote_phase commit
 rollback_needed=0

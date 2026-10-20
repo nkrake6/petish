@@ -21,6 +21,7 @@ on:
       - scripts/hostinger-account-navigation.sh
       - scripts/deploy-account-navigation-remote.php
       - scripts/verify-account-navigation.php
+      - scripts/verify-account-navigation-assets.py
       - scripts/sanitize-account-navigation-result.py
       - scripts/validate-account-navigation-release.py
       - tools/account-navigation/browser.mjs

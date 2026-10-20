@@ -44,6 +44,7 @@ VERIFY = {'production_paths_verified','production_environment_verified',
     'passport_menu_items_present','native_navigation_rendered','current_endpoint_labels_verified',
     'logout_link_preserved','order_counts_unchanged','user_counts_unchanged',
     'authentication_state_unchanged','product_stock_unchanged','account_settings_unchanged'}
+ASSETS = {'navigation_script_http_verified','navigation_stylesheet_http_verified'}
 PREFLIGHT = {'paths_verified','source_guard_sha_verified','database_separate',
     'runtime_database_staging','environment_staging','woocommerce_test_mode',
     'wcpay_dev_mode','guard_runtime_verified','suppliers_blocked','mail_capture_verified',
@@ -52,7 +53,8 @@ PREFLIGHT = {'paths_verified','source_guard_sha_verified','database_separate',
 REQUIRED = {'inspect': BASE, 'apply': BASE | {'protected_state_unchanged',
     'rollback_snapshot_created','files_deployed','lock_owned'},
     'rollback': {'rollback_completed'}, 'commit': {'protected_state_unchanged','release_committed'},
-    'browser': BROWSER, 'verify': VERIFY, 'preflight': PREFLIGHT, 'health': email.HEALTH_CHECKS}
+    'browser': BROWSER, 'verify': VERIFY, 'preflight': PREFLIGHT, 'health': email.HEALTH_CHECKS,
+    'assets': ASSETS}
 CATEGORIES = email.CATEGORIES | {'browser','login','navigation','links','mobile','keyboard',
     'desktop','resize','no_js','dark_mode','network','assets','enqueue','menu'} | rehearsal.CATEGORIES
 
@@ -84,7 +86,8 @@ def screen(phase, path):
                 or raw['category'] not in CATEGORIES or not isinstance(raw['checks'],dict):
             raise ValueError()
         names = DEPLOY if deploy else BROWSER if phase == 'browser' else VERIFY if phase == 'verify' \
-            else PREFLIGHT if phase == 'preflight' else email.HEALTH_CHECKS | email.HEALTH_OBSERVATIONS
+            else PREFLIGHT if phase == 'preflight' else ASSETS if phase == 'assets' \
+            else email.HEALTH_CHECKS | email.HEALTH_OBSERVATIONS
         if not set(raw['checks']) <= names or any(type(value) is not bool for value in raw['checks'].values()):
             raise ValueError()
         if deploy and (type(raw['changed_file_count']) is not int or not 0 <= raw['changed_file_count'] <= 3):
