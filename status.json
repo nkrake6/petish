@@ -1,0 +1,37 @@
+{
+  "status": "in_progress",
+  "category": "inspect",
+  "mode": "inspect",
+  "run_id": "39414738614-1",
+  "source_commit": "b467d1a5bafd19e8c31e232f86e6fbac0515cea1",
+  "generated_utc": "2026-10-20T11:24:46.176480+00:00",
+  "source_hashes": {
+    "assets/account-navigation.js": "5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75",
+    "assets/passport.css": "e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076",
+    "includes/class-petish-passport-ui.php": "d5abfc66c9735470b7ed7e3dae728221bb28c78636b06e4bba5efa56dbfe58d5"
+  },
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false
+      },
+      "changed_file_count": 1
+    }
+  },
+  "preparation_stage": "complete"
+}
