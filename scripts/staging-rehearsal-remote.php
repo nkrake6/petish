@@ -301,6 +301,7 @@ try {
     if(function_exists('WC')&&WC()&&is_callable([WC(),'payment_gateways'])){$gateways=WC()->payment_gateways()->payment_gateways();$gateway=$gateways['woocommerce_payments']??null;}
     $report['native']['gateway_class']=is_object($gateway)?get_class($gateway):null;$report['native']['gateway_methods']=rehearsal_public_methods($gateway);
     if(is_callable([$gateway,'is_in_test_mode'])){$value=$gateway->is_in_test_mode();if(is_bool($value))$report['account']['gateway_test_mode']=$value;}
+    if($report['account']['native_connected']===null&&is_callable([$gateway,'is_connected'])){$value=$gateway->is_connected();if(is_bool($value))$report['account']['native_connected']=$value;}
     $report['checks']['wcpay_dev_mode']=$report['account']['dev_mode']===true&&WCPAY_DEV_MODE===true;
     $report['checks']['woocommerce_test_mode']=$report['account']['test_mode']===true&&$report['account']['gateway_test_mode']!==false;
     $report['checks']['account_is_live']=$report['account']['account_is_live'];
@@ -310,7 +311,10 @@ try {
     $safe=$safe&&$report['account']['native_connected']===true&&$report['account']['test_onboarding']===true&&$report['account']['payments_enabled']===true;
     $report['category']='native_test_mode_unverified';if(!$safe)rehearsal_fail();
     $report['category']='sample_product';$product=wc_get_product(246);
-    if(!$product||!$product->is_type('variation')||$product->get_parent_id()!==242||$product->get_status()!=='publish'||($product->get_attributes()['pa_color']??null)!=='blue')rehearsal_fail();
+    if(!$product||!$product->is_type('variation')||(int)$product->get_parent_id()!==242||$product->get_status()!=='publish')rehearsal_fail();
+    $color_verified=false;
+    foreach($product->get_attributes()as$key=>$value)if(in_array($key,['color','pa_color','colour','pa_colour'],true)&&is_string($value)&&strtolower(trim($value))==='blue')$color_verified=true;
+    if(!$color_verified)rehearsal_fail();
     $report['category']='browser_input';
     $input=['safety'=>$safety,'url'=>'https://staging.petish.biz','login'=>$login,'password'=>$password,
         'variation_id'=>246,'parent_id'=>242,'attribute_pa_color'=>'blue','run_id'=>$run,
