@@ -56,6 +56,11 @@ def screen(phase,path):
             fields.add('diagnostics')
             if not isinstance(raw['diagnostics'],dict) or set(raw['diagnostics'])!=BROWSER_DIAGNOSTICS \
                 or any(type(value) is not bool for value in raw['diagnostics'].values()):raise ValueError()
+        if phase=='browser' and 'image_dimensions' in raw:
+            fields.add('image_dimensions')
+            dimensions=raw['image_dimensions']
+            if not isinstance(dimensions,dict) or set(dimensions)!= {'expected_width','expected_height','response_width','response_height'} \
+                or any(type(value) is not int or not 0<=value<=4096 for value in dimensions.values()):raise ValueError()
         if not isinstance(raw,dict) or set(raw)!=fields or raw['status'] not in {'success','failure'} \
             or raw['category'] not in CATEGORIES or not isinstance(raw['checks'],dict):raise ValueError()
         names=DEPLOY if deploy else BROWSER if phase=='browser' else VERIFY|OBSERVATIONS if phase=='verify' \

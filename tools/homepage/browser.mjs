@@ -12,6 +12,7 @@ const THEME = new URL('../../wordpress/wp-content/themes/dt-the7-child/', import
 const CSS_PATH = '/wp-content/themes/dt-the7-child/assets/css/home.css';
 const BADGE_PATH = '/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png';
 const SECTION = '#petish-free-delivery';
+export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
@@ -32,6 +33,9 @@ export function publicReport(value) {
   return { status: success ? 'success' : 'failure',
     category: success ? 'complete' : (CATEGORIES.has(value?.category) && value.category !== 'complete' ? value.category : 'input'),
     section_present: value?.section_present === true,
+    image_dimensions: Object.fromEntries(IMAGE_DIMENSION_KEYS.map(key => [key,
+      Number.isInteger(value?.image_dimensions?.[key]) && value.image_dimensions[key] >= 0
+        && value.image_dimensions[key] <= 4096 ? value.image_dimensions[key] : 0])),
     diagnostics: Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, value?.diagnostics?.[key] === true])), checks };
 }
 
@@ -48,6 +52,29 @@ function writeReport(filename, value) {
   const fd = fs.openSync(resolved, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, 0o600);
   try { fs.writeFileSync(fd, JSON.stringify(publicReport(value), null, 2) + '\n'); }
   finally { fs.closeSync(fd); }
+}
+
+function pngDimensions(bytes) {
+  const unknown = { width: 0, height: 0 };
+  if (bytes.length < 33 || bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a'
+      || bytes.readUInt32BE(8) !== 13 || bytes.subarray(12, 16).toString('ascii') !== 'IHDR') return unknown;
+  const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
+  return width >= 1 && width <= 4096 && height >= 1 && height <= 4096 ? { width, height } : unknown;
+}
+
+/** Save only an explicitly authorised fixed badge diagnostic, never page data. */
+export function saveBadgeResponse(filename, bytes, mime, decoded) {
+  if (decoded !== true || !/^image\/png(?:;|$)/i.test(mime) || bytes.length > 8388608) return false;
+  const size = pngDimensions(bytes);
+  if (!size.width || !size.height) return false;
+  const resolved = path.resolve(filename);
+  if (path.basename(resolved) !== 'badge-response.png'
+      || fs.realpathSync(path.dirname(resolved)) !== path.dirname(resolved)) return false;
+  const fd = fs.openSync(resolved, fs.constants.O_WRONLY | fs.constants.O_CREAT
+    | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, 0o600);
+  try { fs.writeFileSync(fd, bytes); }
+  finally { fs.closeSync(fd); }
+  return true;
 }
 
 function requireCheck(condition, category) { if (!condition) throw new Error(category); }
@@ -224,17 +251,22 @@ async function decodeSectionBadges(page) {
   });
 }
 
-export async function run(input, chromium) {
+export async function run(input, chromium, options = {}) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false]));
   const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
+  const imageDimensions = Object.fromEntries(IMAGE_DIMENSION_KEYS.map(key => [key, 0]));
   let browser, category = 'input', sectionPresent = false;
-  const report = (status, category) => publicReport({ status, category, section_present: sectionPresent, diagnostics, checks });
+  const report = (status, category) => publicReport({ status, category, section_present: sectionPresent, image_dimensions: imageDimensions, diagnostics, checks });
   try {
     validateInput(input);
     if (input.expected_section_present !== undefined && typeof input.expected_section_present !== 'boolean') throw new Error('input');
+    if (input.capture_badge_response !== undefined && typeof input.capture_badge_response !== 'boolean') throw new Error('input');
     const expectedCSS = hash(fs.readFileSync(new URL('assets/css/home.css', THEME)));
     const expectedBadgeBytes = fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME));
     const expectedBadge = hash(expectedBadgeBytes);
+    const expectedDimensions = pngDimensions(expectedBadgeBytes);
+    imageDimensions.expected_width = expectedDimensions.width;
+    imageDimensions.expected_height = expectedDimensions.height;
     category = 'browser';
     browser = await chromium.launch(launchOptions(chromium));
     checks.browser_started = true;
@@ -294,7 +326,11 @@ export async function run(input, chromium) {
         bytes: Array.from(new Uint8Array(await response.arrayBuffer())) };
     }, pathname);
     const png = await fetchBadge(BADGE_PATH);
-    const primary = await inspectPNGImages(page, expectedBadgeBytes, Buffer.from(png.bytes));
+    const responseBytes = Buffer.from(png.bytes);
+    const responseDimensions = pngDimensions(responseBytes);
+    imageDimensions.response_width = responseDimensions.width;
+    imageDimensions.response_height = responseDimensions.height;
+    const primary = await inspectPNGImages(page, expectedBadgeBytes, responseBytes);
     Object.assign(diagnostics, primary.diagnostics);
     diagnostics.badge_response_content_type_png = /^image\/png(?:;|$)/i.test(png.type);
     diagnostics.badge_response_content_type_webp = /^image\/webp(?:;|$)/i.test(png.type);
@@ -302,6 +338,10 @@ export async function run(input, chromium) {
     diagnostics.badge_response_content_type_html = /^(?:text\/html|application\/xhtml\+xml)(?:;|$)/i.test(png.type);
     checks.badge_png_http_ok = png.ok === true;
     checks.badge_png_image_matches = png.ok && primary.matches;
+    if (input.capture_badge_response === true && options.badgeResponsePath
+        && !checks.badge_png_image_matches) {
+      saveBadgeResponse(options.badgeResponsePath, responseBytes, png.type, diagnostics.badge_response_decode_ok);
+    }
     if (!checks.badge_png_image_matches) {
       // Diagnostic only: this cannot certify the unversioned customer URL.
       // A successful alternate requires an app-source version change/review.
@@ -411,7 +451,8 @@ async function main() {
     const input = privateInput(process.argv[2]);
     const require = createRequire(new URL('../staging-rehearsal/package.json', import.meta.url));
     const { chromium } = require('playwright');
-    result = await run(input, chromium);
+    result = await run(input, chromium, { badgeResponsePath: input.capture_badge_response === true
+      ? path.join(path.dirname(path.resolve(process.argv[3])), 'badge-response.png') : null });
   } catch {}
   try {
     if (process.argv.length !== 4) throw new Error('input');

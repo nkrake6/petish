@@ -55,6 +55,7 @@ class HomepageReleaseTests(unittest.TestCase):
         value['checks']['badge_png_image_matches']=False
         value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,False)
         value['diagnostics']['badge_response_signature_png']=True
+        value['image_dimensions']={'expected_width':2061,'expected_height':763,'response_width':1,'response_height':1}
         report,passed=self.screen('browser',value)
         self.assertFalse(passed);self.assertEqual(report,value)
         for key,extra in [('private_response','private-sentinel'),('badge_response_decode_ok','private-sentinel')]:
@@ -62,6 +63,9 @@ class HomepageReleaseTests(unittest.TestCase):
             report,passed=self.screen('browser',invalid)
             self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
             self.assertNotIn('private-sentinel',json.dumps(report))
+        invalid=copy.deepcopy(value);invalid['image_dimensions']['response_width']=4097
+        report,passed=self.screen('browser',invalid)
+        self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
 
     def test_private_extras_invalid_flags_or_file_counts_refuse(self):
         bad=[]

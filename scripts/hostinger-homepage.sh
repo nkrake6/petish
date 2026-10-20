@@ -127,6 +127,54 @@ PY
     fi
 }
 
+publish_badge_diagnostic() {
+    # Only a decoded image from the fixed public badge URL may leave private work.
+    python3 - "$work/badge-response.png" "$work/badge-dimensions.json" "$run" <<'PY' \
+        > "$work/badge-validation.private.stdout" 2> "$work/badge-validation.private.stderr"
+import json,stat,struct,sys,zlib
+from pathlib import Path
+source=Path(sys.argv[1]);info=source.lstat()
+if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or stat.S_IMODE(info.st_mode)!=0o600 \
+ or not 33<=info.st_size<=8388608:raise ValueError()
+data=source.read_bytes()
+if data[:8]!=b'\x89PNG\r\n\x1a\n':raise ValueError()
+offset=8;width=height=None;idat=False;ended=False
+while offset+12<=len(data):
+ size=struct.unpack('>I',data[offset:offset+4])[0];kind=data[offset+4:offset+8];end=offset+12+size
+ if end>len(data) or zlib.crc32(data[offset+4:end-4])&0xffffffff!=struct.unpack('>I',data[end-4:end])[0]:raise ValueError()
+ if offset==8:
+  if kind!=b'IHDR' or size!=13:raise ValueError()
+  width,height=struct.unpack('>II',data[offset+8:offset+16])
+  if not 1<=width<=4096 or not 1<=height<=4096:raise ValueError()
+ elif kind==b'IHDR':raise ValueError()
+ if kind==b'IDAT':idat=True
+ if kind in {b'acTL',b'fcTL',b'fdAT'}:raise ValueError()
+ if kind==b'IEND':
+  if size!=0 or end!=len(data):raise ValueError()
+  ended=True
+ offset=end
+ if ended:break
+if not ended or not idat or offset!=len(data):raise ValueError()
+Path(sys.argv[2]).write_text(json.dumps({'format':'petish-homepage-badge-diagnostic-v1',
+ 'run_id':sys.argv[3],'width':width,'height':height},indent=2)+'\n')
+PY
+    local blob tree commit name
+    export GIT_INDEX_FILE="$work/badge-publication.index"
+    git read-tree --empty || return 1
+    for name in badge-response.png badge-dimensions.json; do
+        blob=$(git hash-object -w "$work/$name") || return 1
+        git update-index --add --cacheinfo "100644,$blob,$name" || return 1
+    done
+    tree=$(git write-tree) || return 1
+    export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
+    export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+    export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+    commit=$(printf 'Inspect fixed public homepage badge %s\n' "$run" | git commit-tree "$tree") || return 1
+    git push origin "$commit:refs/heads/homepage-badge-diagnostic-$run" \
+        > "$work/badge-publication.private.stdout" 2> "$work/badge-publication.private.stderr" || return 1
+    unset GIT_INDEX_FILE
+}
+
 finish() {
     outcome=$?
     trap - EXIT HUP INT TERM
@@ -257,6 +305,7 @@ path=Path(sys.argv[1]);value=json.loads(path.read_text())
 available=json.loads(Path(sys.argv[2]).read_text()).get('checks',{}).get('free_delivery_products_available')
 if type(available) is not bool:raise SystemExit(1)
 value['expected_section_present']=available
+value['capture_badge_response']=True
 path.write_text(json.dumps(value)+'\n')
 PY
     failure_category=browser
@@ -265,6 +314,9 @@ PY
         > "$work/browser.private.stdout" 2> "$work/browser.private.stderr" || browser_status=$?
     browser_validation=0
     screen_phase browser || browser_validation=$?
+    if [[ -e "$work/badge-response.png" || -L "$work/badge-response.png" ]]; then
+        publish_badge_diagnostic
+    fi
     [[ $browser_status == 0 && $browser_validation == 0 ]]
     operation_verified=1
     exit 0
