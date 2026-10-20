@@ -80,10 +80,24 @@ jobs:
         run: |
           set +x
           set -euo pipefail
-          task_status=0
-          bash scripts/hostinger-full-backup.sh > "$RUNNER_TEMP/petish-task.stdout" 2> "$RUNNER_TEMP/petish-task.stderr" || task_status=$?
-          python3 scripts/record-task-result.py backup-export "$task_status" "$RUNNER_TEMP/petish-task.stdout" "$RUNNER_TEMP/petish-task.stderr" "$RUNNER_TEMP/petish-task-diagnostics.json"
-          cat "$RUNNER_TEMP/petish-task-diagnostics.json"
+          for attempt in 1 2 3; do
+            task_status=0
+            bash scripts/hostinger-full-backup.sh > "$RUNNER_TEMP/petish-task.stdout" 2> "$RUNNER_TEMP/petish-task.stderr" || task_status=$?
+            python3 scripts/record-task-result.py backup-export "$task_status" "$RUNNER_TEMP/petish-task.stdout" "$RUNNER_TEMP/petish-task.stderr" "$RUNNER_TEMP/petish-task-diagnostics.json"
+            cat "$RUNNER_TEMP/petish-task-diagnostics.json"
+            if [[ "$task_status" == 0 || "$attempt" == 3 ]]; then break; fi
+            if ! python3 - "$RUNNER_TEMP/petish-task-diagnostics.json" <<'PY'
+          import json,sys
+          report=json.load(open(sys.argv[1]))
+          raise SystemExit(0 if 'archive_changed' in report.get('categories',[]) else 1)
+          PY
+            then break; fi
+            if command -v gpgconf >/dev/null 2>&1 && [[ -d "$RUNNER_TEMP/petish-full-backup/gnupg" ]]; then
+              gpgconf --homedir "$RUNNER_TEMP/petish-full-backup/gnupg" --kill gpg-agent || true
+            fi
+            rm -rf -- "$RUNNER_TEMP/petish-full-backup"
+            sleep 2
+          done
           exit "$task_status"
 
       - name: Commit only encrypted backup parts to a new branch
