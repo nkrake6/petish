@@ -13,6 +13,12 @@ const CSS_PATH = '/wp-content/themes/dt-the7-child/assets/css/home.css';
 const BADGE_PATH = '/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png';
 const SECTION = '#petish-free-delivery';
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network']);
+export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
+  'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
+  'badge_response_signature_png', 'badge_response_signature_webp', 'badge_response_signature_avif',
+  'badge_response_bytes_match', 'badge_response_size_bounded', 'badge_fetch_versioned',
+  'badge_expected_decode_ok', 'badge_response_decode_ok', 'badge_canvas_context_available',
+  'badge_dimensions_match', 'badge_pixels_match', 'badge_comparison_completed', 'badge_versioned_image_matches']);
 export const CHECK_KEYS = Object.freeze(['browser_started', 'customer_login_verified',
   'homepage_http_ok', 'hot_subtitle_absent', 'home_css_http_ok', 'home_css_hash_matches',
   'badge_png_http_ok', 'badge_png_image_matches', 'conditional_section_valid',
@@ -25,7 +31,8 @@ export function publicReport(value) {
     && Object.values(checks).every(Boolean);
   return { status: success ? 'success' : 'failure',
     category: success ? 'complete' : (CATEGORIES.has(value?.category) && value.category !== 'complete' ? value.category : 'input'),
-    section_present: value?.section_present === true, checks };
+    section_present: value?.section_present === true,
+    diagnostics: Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, value?.diagnostics?.[key] === true])), checks };
 }
 
 function privateInput(filename) {
@@ -115,37 +122,69 @@ export async function inspectSectionGeometry(page) {
 }
 
 /** Exact decoded dimensions and RGBA bytes; never perceptual or approximate. */
-export async function pngImagesMatch(page, expectedBytes, actualBytes) {
-  if (!expectedBytes?.length || !actualBytes?.length || expectedBytes.length > 16777216 || actualBytes.length > 16777216) return false;
+async function inspectPNGImages(page, expectedBytes, actualBytes) {
+  const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
+  diagnostics.badge_response_size_bounded = !!expectedBytes?.length && !!actualBytes?.length
+    && expectedBytes.length <= 16777216 && actualBytes.length <= 16777216;
+  if (!diagnostics.badge_response_size_bounded) return { matches: false, diagnostics };
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-  if (!signature.every((value, index) => expectedBytes[index] === value && actualBytes[index] === value)) return false;
-  return page.evaluate(async ({ expected, actual }) => {
-    const decode = async bytes => {
-      const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }),
-        { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
-      try {
-        if (bitmap.width < 1 || bitmap.height < 1 || bitmap.width * bitmap.height > 16777216) return null;
-        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-        const context = canvas.getContext('2d', { willReadFrequently: true, colorSpace: 'srgb' });
-        if (!context) return null;
-        context.drawImage(bitmap, 0, 0);
-        return { width: bitmap.width, height: bitmap.height,
-          rgba: context.getImageData(0, 0, bitmap.width, bitmap.height).data };
-      } finally { bitmap.close(); }
-    };
+  const expectedPNG = signature.every((value, index) => expectedBytes[index] === value);
+  diagnostics.badge_response_signature_png = signature.every((value, index) => actualBytes[index] === value);
+  diagnostics.badge_response_signature_webp = actualBytes.subarray(0, 4).toString('ascii') === 'RIFF'
+    && actualBytes.subarray(8, 12).toString('ascii') === 'WEBP';
+  diagnostics.badge_response_signature_avif = actualBytes.subarray(4, 8).toString('ascii') === 'ftyp'
+    && /^(?:avif|avis)$/.test(actualBytes.subarray(8, 12).toString('ascii'));
+  diagnostics.badge_response_bytes_match = hash(expectedBytes) === hash(actualBytes);
+  if (!expectedPNG || !diagnostics.badge_response_signature_png) return { matches: false, diagnostics };
+  if (diagnostics.badge_response_bytes_match) {
+    diagnostics.badge_comparison_completed = true;
+    return { matches: true, diagnostics };
+  }
+  const outcome = await page.evaluate(async ({ expected, actual }) => {
+    const result = { badge_expected_decode_ok: false, badge_response_decode_ok: false,
+      badge_canvas_context_available: false, badge_dimensions_match: false,
+      badge_pixels_match: false, badge_comparison_completed: false };
     try {
-      const left = await decode(expected), right = await decode(actual);
-      if (!left || !right || left.width !== right.width || left.height !== right.height
-          || left.rgba.length !== right.rgba.length) return false;
-      // Bounded chunks keep exact-byte comparison explicit without returning
-      // either the pixels, images, hashes, or URLs to a report.
+      result.badge_canvas_context_available = typeof OffscreenCanvas === 'function'
+        && !!new OffscreenCanvas(1, 1).getContext('2d', { willReadFrequently: true, colorSpace: 'srgb' });
+      if (!result.badge_canvas_context_available) return result;
+      const decode = async (bytes, key) => {
+        let bitmap;
+        try {
+          bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }),
+            { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+          result[key] = true;
+          if (bitmap.width < 1 || bitmap.height < 1 || bitmap.width * bitmap.height > 16777216) return null;
+          const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+          const context = canvas.getContext('2d', { willReadFrequently: true, colorSpace: 'srgb' });
+          if (!context) { result.badge_canvas_context_available = false; return null; }
+          context.drawImage(bitmap, 0, 0);
+          return { width: bitmap.width, height: bitmap.height,
+            rgba: context.getImageData(0, 0, bitmap.width, bitmap.height).data };
+        } catch { return null; }
+        finally { bitmap?.close(); }
+      };
+      const left = await decode(expected, 'badge_expected_decode_ok');
+      const right = await decode(actual, 'badge_response_decode_ok');
+      if (!left || !right) return result;
+      result.badge_dimensions_match = left.width === right.width && left.height === right.height
+        && left.rgba.length === right.rgba.length;
+      result.badge_comparison_completed = true;
+      if (!result.badge_dimensions_match) return result;
       for (let offset = 0; offset < left.rgba.length; offset += 65536) {
         const end = Math.min(offset + 65536, left.rgba.length);
-        for (let index = offset; index < end; index++) if (left.rgba[index] !== right.rgba[index]) return false;
+        for (let index = offset; index < end; index++) if (left.rgba[index] !== right.rgba[index]) return result;
       }
-      return true;
-    } catch { return false; }
-  }, { expected: Array.from(expectedBytes), actual: Array.from(actualBytes) }).catch(() => false);
+      result.badge_pixels_match = true;
+      return result;
+    } catch { return result; }
+  }, { expected: Array.from(expectedBytes), actual: Array.from(actualBytes) }).catch(() => null);
+  if (outcome) Object.assign(diagnostics, outcome);
+  return { matches: !!outcome?.badge_dimensions_match && !!outcome?.badge_pixels_match, diagnostics };
+}
+
+export async function pngImagesMatch(page, expectedBytes, actualBytes) {
+  return (await inspectPNGImages(page, expectedBytes, actualBytes)).matches;
 }
 
 /** Recompress IDAT bytes in memory without touching decoded pixel/filter data. */
@@ -187,8 +226,9 @@ async function decodeSectionBadges(page) {
 
 export async function run(input, chromium) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false]));
+  const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
   let browser, category = 'input', sectionPresent = false;
-  const report = (status, category) => publicReport({ status, category, section_present: sectionPresent, checks });
+  const report = (status, category) => publicReport({ status, category, section_present: sectionPresent, diagnostics, checks });
   try {
     validateInput(input);
     if (input.expected_section_present !== undefined && typeof input.expected_section_present !== 'boolean') throw new Error('input');
@@ -248,13 +288,30 @@ export async function run(input, chromium) {
     checks.home_css_hash_matches = cssEnqueued && css?.hash === expectedCSS;
     // Request the reviewed PNG even when no supplier products qualify, so an
     // intentionally absent section cannot hide an unreadable deployment asset.
-    const png = await page.evaluate(async pathname => {
-      const response = await fetch(pathname, { credentials: 'same-origin', cache: 'reload' });
-      return { ok: response.ok, bytes: Array.from(new Uint8Array(await response.arrayBuffer())) };
-    }, BADGE_PATH);
+    const fetchBadge = pathname => page.evaluate(async target => {
+      const response = await fetch(target, { credentials: 'same-origin', cache: 'reload' });
+      return { ok: response.ok, type: response.headers.get('content-type') ?? '',
+        bytes: Array.from(new Uint8Array(await response.arrayBuffer())) };
+    }, pathname);
+    const png = await fetchBadge(BADGE_PATH);
+    const primary = await inspectPNGImages(page, expectedBadgeBytes, Buffer.from(png.bytes));
+    Object.assign(diagnostics, primary.diagnostics);
+    diagnostics.badge_response_content_type_png = /^image\/png(?:;|$)/i.test(png.type);
+    diagnostics.badge_response_content_type_webp = /^image\/webp(?:;|$)/i.test(png.type);
+    diagnostics.badge_response_content_type_avif = /^image\/avif(?:;|$)/i.test(png.type);
+    diagnostics.badge_response_content_type_html = /^(?:text\/html|application\/xhtml\+xml)(?:;|$)/i.test(png.type);
     checks.badge_png_http_ok = png.ok === true;
-    checks.badge_png_image_matches = png.ok && (hash(Buffer.from(png.bytes)) === expectedBadge
-      || await pngImagesMatch(page, expectedBadgeBytes, Buffer.from(png.bytes)));
+    checks.badge_png_image_matches = png.ok && primary.matches;
+    if (!checks.badge_png_image_matches) {
+      // Diagnostic only: this cannot certify the unversioned customer URL.
+      // A successful alternate requires an app-source version change/review.
+      diagnostics.badge_fetch_versioned = true;
+      try {
+        const alternate = await fetchBadge(BADGE_PATH + '?ver=' + expectedBadge);
+        diagnostics.badge_versioned_image_matches = alternate.ok
+          && await pngImagesMatch(page, expectedBadgeBytes, Buffer.from(alternate.bytes));
+      } catch {}
+    }
     requireCheck(checks.home_css_http_ok && checks.home_css_hash_matches
       && checks.badge_png_http_ok && checks.badge_png_image_matches, 'assets');
     category = 'layout';

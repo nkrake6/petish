@@ -18,6 +18,12 @@ BROWSER={'browser_started','customer_login_verified','homepage_http_ok','hot_sub
     'home_css_http_ok','home_css_hash_matches','badge_png_http_ok','badge_png_image_matches',
     'conditional_section_valid','section_320_valid','section_390_valid','section_1280_valid',
     'badges_bottom_right','badges_nonoverlap_hot','readonly_requests_enforced'}
+BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_type_webp',
+    'badge_response_content_type_avif','badge_response_content_type_html','badge_response_signature_png',
+    'badge_response_signature_webp','badge_response_signature_avif','badge_response_bytes_match',
+    'badge_response_size_bounded','badge_fetch_versioned','badge_expected_decode_ok',
+    'badge_response_decode_ok','badge_canvas_context_available','badge_dimensions_match',
+    'badge_pixels_match','badge_comparison_completed','badge_versioned_image_matches'}
 VERIFY={'target_paths_verified','target_environment_verified','tested_theme_and_woocommerce_verified',
     'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled',
     'cron_and_async_runner_disabled','production_data_snapshot_verified','anonymous_render_context_verified',
@@ -46,6 +52,10 @@ def screen(phase,path):
         raw=navigation.rehearsal.read_report(path)
         deploy=phase in {'inspect','apply','rollback','commit'}
         fields={'status','category','checks'}|({'changed_file_count'} if deploy else {'section_present'} if phase=='browser' else set())
+        if phase=='browser' and 'diagnostics' in raw:
+            fields.add('diagnostics')
+            if not isinstance(raw['diagnostics'],dict) or set(raw['diagnostics'])!=BROWSER_DIAGNOSTICS \
+                or any(type(value) is not bool for value in raw['diagnostics'].values()):raise ValueError()
         if not isinstance(raw,dict) or set(raw)!=fields or raw['status'] not in {'success','failure'} \
             or raw['category'] not in CATEGORIES or not isinstance(raw['checks'],dict):raise ValueError()
         names=DEPLOY if deploy else BROWSER if phase=='browser' else VERIFY|OBSERVATIONS if phase=='verify' \

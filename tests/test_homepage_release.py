@@ -50,6 +50,19 @@ class HomepageReleaseTests(unittest.TestCase):
         report,passed=self.screen('verify',value)
         self.assertFalse(passed);self.assertEqual(report,value)
 
+    def test_browser_diagnostics_preserve_only_fixed_boolean_observations(self):
+        value=self.raw('browser');value['status']='failure';value['category']='assets'
+        value['checks']['badge_png_image_matches']=False
+        value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,False)
+        value['diagnostics']['badge_response_signature_png']=True
+        report,passed=self.screen('browser',value)
+        self.assertFalse(passed);self.assertEqual(report,value)
+        for key,extra in [('private_response','private-sentinel'),('badge_response_decode_ok','private-sentinel')]:
+            invalid=copy.deepcopy(value);invalid['diagnostics'][key]=extra
+            report,passed=self.screen('browser',invalid)
+            self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+            self.assertNotIn('private-sentinel',json.dumps(report))
+
     def test_private_extras_invalid_flags_or_file_counts_refuse(self):
         bad=[]
         value=self.raw('verify');value['customer_email']='private-sentinel@petish.invalid';bad.append(('verify',value))
