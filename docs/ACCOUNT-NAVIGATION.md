@@ -51,3 +51,13 @@ source `88d06f932922beef249496540b8ced28dd4dc45b`. Exactly three Passport files
 were deployed. All 23 native checks, public page checks and exact JS/CSS HTTP
 checks passed; the release was committed with protected files and customer/order
 state preserved. Private rollback copies were retained; no rollback was needed.
+
+The mobile spacing follow-up passed staging in
+[39414884957](https://github.com/nkrake6/petish/actions/runs/39414884957),
+source `b467d1a5bafd19e8c31e232f86e6fbac0515cea1`. Browser checks measured
+24px of content padding and a 23–26px banner-to-menu gap on My Pets, Orders and
+Account details at both 320px and 390px widths.
+Production release [39415196242](https://github.com/nkrake6/petish/actions/runs/39415196242),
+source `42361ab34f42bc628c0e3625716730033c49188a`, changed only the stylesheet
+content. Native account checks, public pages and exact public asset checks
+passed; the release was committed with rollback copies retained.
