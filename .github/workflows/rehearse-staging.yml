@@ -41,6 +41,9 @@ jobs:
         with:
           ref: main
           persist-credentials: true
+      - name: Record selected mode
+        run: |
+          printf 'Petish private staging mode: %s\n' "$REHEARSAL_MODE"
       - name: Prepare pinned SSH connection
         run: |
           bash scripts/hostinger-connection-check.sh

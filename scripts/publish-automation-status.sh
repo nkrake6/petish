@@ -26,6 +26,8 @@ if data['AUTOMATION_KIND'] == 'rehearsal':
     spec.loader.exec_module(sanitizer)
     report = Path(os.environ['RUNNER_TEMP']) / 'petish-rehearsal-preflight.json'
     data['rehearsal'] = sanitizer.sanitize(report)
+    if os.environ.get('REHEARSAL_MODE') in {'preflight', 'rehearse'}:
+        data['rehearsal_mode'] = os.environ['REHEARSAL_MODE']
     data['rehearsal_phases'] = {}
     for phase in ('preflight', 'prepare', 'verify', 'refund', 'cleanup'):
         source = Path(os.environ['RUNNER_TEMP']) / ('petish-rehearsal-' + phase + '.json')
