@@ -1,6 +1,6 @@
 {
-  "status": "in_progress",
-  "category": "health",
+  "status": "success",
+  "category": "complete",
   "mode": "inspect",
   "run_id": "39407370022-1",
   "source_commit": "66384c48a67f0281aab3e8ad1c3d4f589d04fc17",
