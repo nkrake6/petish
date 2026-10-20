@@ -1,0 +1,25 @@
+{
+  "status": "success",
+  "products": [
+    {
+      "variation_id": 153,
+      "url": "https://petish.biz/product/cage-mounted-hay-feeder/"
+    },
+    {
+      "variation_id": 246,
+      "url": "https://petish.biz/product/corner-gap-cleaning-brush/"
+    },
+    {
+      "variation_id": 858,
+      "url": "https://petish.biz/product/wooden-foraging-puzzle-board/"
+    },
+    {
+      "variation_id": 1546,
+      "url": "https://petish.biz/product/hard-sided-small-pet-travel-box/"
+    },
+    {
+      "variation_id": 2137,
+      "url": "https://petish.biz/product/handheld-fur-removal-brush/"
+    }
+  ]
+}
