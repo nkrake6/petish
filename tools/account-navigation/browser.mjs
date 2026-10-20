@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const ORIGIN = 'https://staging.petish.biz';
@@ -25,9 +26,15 @@ export const CHECK_KEYS = Object.freeze([
 ]);
 export const DIAGNOSTIC_KEYS = Object.freeze(['login_page_http_ok', 'login_form_present',
   'login_submit_clicked', 'login_post_permitted', 'login_post_blocked', 'login_cookie_present',
-  'login_redirect_account', 'account_email_field_present', 'qa_email_matches']);
+  'login_redirect_account', 'account_email_field_present', 'qa_email_matches',
+  'endpoint_page_http_ok', 'native_navigation_present', 'script_tag_present',
+  'script_origin_staging', 'script_request_seen', 'script_request_blocked', 'script_http_ok',
+  'expected_script_hash_available', 'script_body_matches_expected_hash', 'script_pageerror_seen',
+  'toggle_present', 'enhanced_class_present', 'actual_native_hrefs_match',
+  'script_type_executable', 'script_deferred', 'script_delay_attribute_present']);
 const FAILURE_STAGES = new Set(['input', 'browser', 'login_page', 'login_form', 'login_submit',
-  'login_cookie', 'qa_identity', 'no_js', 'navigation', 'mobile', 'desktop', 'dark_mode', 'complete']);
+  'login_cookie', 'qa_identity', 'no_js', 'navigation', 'nav_load', 'nav_visible',
+  'toggle_wait', 'links', 'mobile', 'desktop', 'dark_mode', 'complete']);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'navigation',
   'links', 'mobile', 'keyboard', 'desktop', 'resize', 'no_js', 'dark_mode', 'network']);
 
@@ -99,12 +106,38 @@ function writeReport(filename, result) {
 
 function requireCheck(condition, category) { if (!condition) throw new Error(category); }
 
-async function installReadOnlyGuard(context, loginState) {
+function isNavigationScript(raw) {
+  try { return /\/petish-passport\/assets\/account-navigation\.js$/.test(new URL(raw).pathname); }
+  catch { return false; }
+}
+
+async function collectPageDiagnostics(page, diagnostics) {
+  if (!page || page.isClosed()) return;
+  const current = await page.evaluate(({ navigation, toggle, origin }) => {
+    const nav = document.querySelector(navigation);
+    const scripts = [...document.querySelectorAll('script')].filter(script =>
+      script.id === 'petish-account-navigation-js' || /account-navigation\.js(?:[?#]|$)/.test(script.src));
+    return { native_navigation_present: !!nav, toggle_present: !!nav?.querySelector(toggle),
+      enhanced_class_present: nav?.classList.contains('pp-account-navigation') ?? false,
+      script_tag_present: scripts.length > 0, script_origin_staging: scripts.length > 0
+        && scripts.every(script => { try { return new URL(script.src || script.getAttribute('data-src')
+          || script.getAttribute('data-rocket-src'), location.href).origin === origin; } catch { return false; } }),
+      script_type_executable: scripts.length > 0 && scripts.every(script =>
+        ['', 'module', 'text/javascript', 'application/javascript', 'text/ecmascript', 'application/ecmascript'].includes(script.type.toLowerCase())),
+      script_deferred: scripts.some(script => script.defer),
+      script_delay_attribute_present: scripts.some(script => script.hasAttribute('data-src')
+        || script.hasAttribute('data-rocket-src') || /(?:javascript-delayed|rocketlazyloadscript|text\/(?:plain|delay))/.test(script.type.toLowerCase())) };
+  }, { navigation: NAV, toggle: TOGGLE, origin: ORIGIN }).catch(() => null);
+  if (current) Object.assign(diagnostics, current);
+}
+
+async function installReadOnlyGuard(context, loginState, diagnostics = null) {
   await context.route('**/*', async route => {
     const request = route.request();
     const allowed = allowedRequest(request.url(), request.method(), loginState.allowed && !loginState.used,
       request.postData() ?? '', request.resourceType());
     if (!allowed) {
+      if (diagnostics && isNavigationScript(request.url())) diagnostics.script_request_blocked = true;
       if (request.method() === 'POST' && ['/wp-login.php', '/my-account/', '/my-account'].includes(new URL(request.url()).pathname)) loginState.postBlocked = true;
       await route.abort('blockedbyclient'); return;
     }
@@ -116,10 +149,13 @@ async function installReadOnlyGuard(context, loginState) {
   }
 }
 
-async function goAccount(page, endpoint) {
+async function goAccount(page, endpoint, diagnostics = null, stage = () => {}) {
+  stage('nav_load');
   const response = await page.goto(`${ORIGIN}/my-account/${endpoint}/`, { waitUntil: 'domcontentloaded' });
+  if (diagnostics) diagnostics.endpoint_page_http_ok = response?.ok() ?? false;
   requireCheck(response?.ok() && new URL(page.url()).origin === ORIGIN
     && new URL(page.url()).pathname === `/my-account/${endpoint}/`, 'navigation');
+  stage('nav_visible');
   await page.locator(NAV).waitFor({ state: 'visible' });
 }
 
@@ -243,7 +279,14 @@ export async function run(input, chromium) {
     diagnostics.login_post_blocked = loginState.postBlocked;
     return publicReport({ status, category, failure_stage, diagnostics, checks });
   };
-  let category = 'input', failureStage = 'input', browser;
+  let category = 'input', failureStage = 'input', browser, page;
+  const scriptTasks = [];
+  let expectedScriptHash = null;
+  try {
+    expectedScriptHash = createHash('sha256').update(fs.readFileSync(new URL(
+      '../../wordpress/wp-content/plugins/petish-passport/assets/account-navigation.js', import.meta.url))).digest('hex');
+    diagnostics.expected_script_hash_available = true;
+  } catch {}
   try {
     validateInput(input);
     category = 'browser'; failureStage = 'browser';
@@ -255,12 +298,25 @@ export async function run(input, chromium) {
     const context = await browser.newContext({ viewport: { width: 390, height: 900 },
       ignoreHTTPSErrors: false, locale: 'en-AU', timezoneId: 'Australia/Sydney',
       reducedMotion: 'reduce', serviceWorkers: 'block', acceptDownloads: false });
-    await installReadOnlyGuard(context, loginState);
+    await installReadOnlyGuard(context, loginState, diagnostics);
     checks.unsafe_requests_blocked = !allowedRequest('https://example.invalid/', 'GET')
       && !allowedRequest(`${ORIGIN}/checkout/`, 'GET')
       && !allowedRequest(`${ORIGIN}/my-account/edit-account/`, 'POST', true)
       && !allowedRequest(`${ORIGIN}/?add-to-cart=1`, 'GET');
-    const page = await context.newPage();
+    page = await context.newPage();
+    page.on('request', request => {
+      if (isNavigationScript(request.url())) diagnostics.script_request_seen = true;
+    });
+    page.on('pageerror', () => { diagnostics.script_pageerror_seen = true; });
+    page.on('response', response => {
+      if (!isNavigationScript(response.url())) return;
+      diagnostics.script_http_ok = response.ok();
+      const task = response.body().then(body => {
+        diagnostics.script_body_matches_expected_hash = !!expectedScriptHash
+          && createHash('sha256').update(body).digest('hex') === expectedScriptHash;
+      }).catch(() => {});
+      scriptTasks.push(task);
+    });
     page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(45000);
     category = 'login'; failureStage = 'login_page';
     // Anonymous staging front pages may be protected by the staging guard.
@@ -281,8 +337,8 @@ export async function run(input, chromium) {
     loginState.allowed = true;
     failureStage = 'login_submit';
     diagnostics.login_submit_clicked = true;
-    await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-      page.locator('#wp-submit').click()]);
+    await Promise.all([page.waitForURL(url => url.origin === ORIGIN && url.pathname.startsWith('/my-account/'),
+      { waitUntil: 'domcontentloaded', timeout: 45000 }), page.locator('#wp-submit').click()]);
     loginState.allowed = false;
     failureStage = 'login_cookie';
     diagnostics.login_cookie_present = (await context.cookies(ORIGIN)).some(cookie => cookie.name.startsWith('wordpress_logged_in_'));
@@ -322,10 +378,17 @@ export async function run(input, chromium) {
     checks.native_navigation_links_present = true;
     category = 'navigation'; failureStage = 'navigation';
     for (const endpoint of ENDPOINTS) {
+      for (const key of ['script_request_seen', 'script_request_blocked', 'script_http_ok',
+        'script_body_matches_expected_hash', 'script_pageerror_seen']) diagnostics[key] = false;
       await page.setViewportSize({ width: 390, height: 900 });
-      await goAccount(page, endpoint);
+      await goAccount(page, endpoint, diagnostics, stage => { failureStage = stage; });
+      await collectPageDiagnostics(page, diagnostics);
+      failureStage = 'links';
+      diagnostics.actual_native_hrefs_match = sameLinks(baselines.get(endpoint), await linkSnapshot(page));
+      requireCheck(diagnostics.actual_native_hrefs_match, 'links');
+      failureStage = 'toggle_wait';
       await page.locator(`${NAV}.pp-account-navigation ${TOGGLE}`).waitFor({ state: 'visible' });
-      requireCheck(sameLinks(baselines.get(endpoint), await linkSnapshot(page)), 'links');
+      await collectPageDiagnostics(page, diagnostics);
       for (const width of [390, 320]) {
         category = 'mobile'; failureStage = 'mobile';
         await verifyMobile(page, width, baselines.get(endpoint));
@@ -338,8 +401,11 @@ export async function run(input, chromium) {
       'toggle_opens', 'escape_closes_focus_returns', 'outside_closes', 'focusout_closes',
       'desktop_visible', 'resize_visible', 'dark_mode_readable']) checks[name] = true;
     requireCheck(Object.values(checks).every(Boolean), 'navigation');
+    await Promise.allSettled(scriptTasks);
     return report('success', 'complete', 'complete');
   } catch (error) {
+    await collectPageDiagnostics(page, diagnostics);
+    await Promise.allSettled(scriptTasks);
     return report('failure', CATEGORIES.has(error?.message) ? error.message : category, failureStage);
   } finally { if (browser) await browser.close().catch(() => {}); }
 }

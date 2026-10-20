@@ -26,10 +26,16 @@ BROWSER = {'browser_started', 'customer_login_verified', 'native_navigation_link
     'desktop_visible', 'resize_visible', 'no_js_fallback_visible', 'dark_mode_readable',
     'unsafe_requests_blocked'}
 BROWSER_STAGES = {'input','browser','login_page','login_form','login_submit','login_cookie',
-    'qa_identity','no_js','navigation','mobile','desktop','dark_mode','complete'}
+    'qa_identity','no_js','navigation','nav_load','nav_visible','toggle_wait','links',
+    'mobile','desktop','dark_mode','complete'}
 BROWSER_DIAGNOSTICS = {'login_page_http_ok','login_form_present','login_submit_clicked',
     'login_post_permitted','login_post_blocked','login_cookie_present','login_redirect_account',
-    'account_email_field_present','qa_email_matches'}
+    'account_email_field_present','qa_email_matches','endpoint_page_http_ok',
+    'native_navigation_present','script_tag_present','script_origin_staging',
+    'script_request_seen','script_request_blocked','script_http_ok',
+    'expected_script_hash_available','script_body_matches_expected_hash',
+    'script_pageerror_seen','toggle_present','enhanced_class_present','actual_native_hrefs_match',
+    'script_type_executable','script_deferred','script_delay_attribute_present'}
 VERIFY = {'production_paths_verified','production_environment_verified',
     'tested_theme_and_woocommerce_verified','all_outbound_http_blocked','mail_calls_blocked',
     'remote_file_access_disabled','cron_and_async_runner_disabled','production_data_snapshot_verified',
