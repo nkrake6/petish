@@ -11,6 +11,18 @@ The first attempt rolled back successfully when the verifier rejected NULL
 stock metadata; the verifier was corrected and passed a read-only production
 preflight before the successful retry.
 
+The post-release backup
+[`full-site-backup/39407370013-1`](https://github.com/nkrake6/petish/tree/full-site-backup/39407370013-1)
+passed encrypted integrity checks and isolated file/database restoration. It
+contains 40,045 regular files (the five new helpers/templates are included),
+103 database tables and the private Passport/SMTP storage. A separate live
+inspection `39407370022` found zero files requiring deployment and passed
+native preflight plus public health checks.
+Application recovery
+[`39407722067`](https://github.com/nkrake6/petish/actions/runs/39407722067)
+also passed for that updated backup: all 14 active plugins booted, 104 published
+products were present, and homepage/shop/product/cart/account checks passed.
+
 The release contains only six The7 child-theme PHP files tested together on
 staging commit `86e315f3daf172e1c9faee9a62d768b48f634bca`: `functions.php`,
 `inc/petish-email-branding.php`, `inc/petish-account-email-branding.php`, and the shared WooCommerce
@@ -58,8 +70,10 @@ request. Public store pages and the logo are checked again. Verification
 failure invokes the scoped rollback; raw output and message bodies remain
 private. Only finite checks reach `production-email-release/<run>-<attempt>`.
 
-A successful workflow triggers another encrypted full-site backup and isolated
-application recovery. Deployment does not change SMTP credentials, native
+A successful apply on `deploy-email-branding` triggers another encrypted
+full-site backup and isolated application recovery. Read-only inspections do
+not start backups. A manual apply from `main` needs a separate manual backup run.
+Deployment does not change SMTP credentials, native
 email enabled flags, account-verification policy, payment/shipping settings or
 DSers configuration. No actual test message is sent. The tracking receiver
 remains excluded because its duplicate and blank-input gaps are unresolved.

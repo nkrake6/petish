@@ -10,6 +10,8 @@ passed. Order/user counts, authentication state, stock and email/account setting
 were unchanged; verification dispatched no message. The private rollback copy
 and a verified pre-release full backup were retained. See
 [PRODUCTION-EMAIL-RELEASE.md](PRODUCTION-EMAIL-RELEASE.md) for release evidence.
+Post-release backup `39407370013-1` and restored-application check `39407722067`
+also passed with the new email files in place.
 
 Shared branding was deployed to private staging in
 [`39383134509`](https://github.com/nkrake6/petish/actions/runs/39383134509)
