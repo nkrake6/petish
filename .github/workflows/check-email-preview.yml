@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Verify the published gallery, four emails and animal logo
+      - name: Verify the published gallery, seven emails and animal logo
         id: public
         continue-on-error: true
         run: |
@@ -29,7 +29,8 @@ jobs:
           import hashlib, json, os, time, urllib.request
           from pathlib import Path
           names = ['index.html', 'preview.css', 'preview.js', 'processing.html',
-                   'completed.html', 'refunded.html', 'note.html', 'petish-logo-v2.png']
+                   'completed.html', 'refunded.html', 'note.html', 'new-account.html',
+                   'verify-email.html', 'reset-password.html', 'petish-logo-v2.png']
           root = Path('docs/email-preview')
           expected = {name: hashlib.sha256((root/name).read_bytes()).digest()
                       for name in names if (root/name).is_file()}
@@ -51,7 +52,7 @@ jobs:
                       if attempt < 15: time.sleep(12)
           report = {'status':'success' if verified else 'unavailable',
                     'scope':'public-static-preview-only', 'source_sha':os.environ['GITHUB_SHA'],
-                    'gallery_and_four_emails_match_git':verified,
+                    'gallery_and_seven_emails_match_git':verified,
                     'animal_logo_matches_git':verified}
           (Path(os.environ['RUNNER_TEMP'])/'email-preview-site-status.json').write_text(json.dumps(report,indent=2)+'\n')
           raise SystemExit(0 if verified else 1)

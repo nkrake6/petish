@@ -1,13 +1,17 @@
 (() => {
   'use strict';
   const emails = {
-    processing: { file: 'processing.html?v=2', label: 'Processing order' },
-    completed: { file: 'completed.html?v=2', label: 'Completed order' },
-    refunded: { file: 'refunded.html?v=2', label: 'Refund confirmation' },
-    note: { file: 'note.html?v=2', label: 'Order update' },
+    processing: { file: 'processing.html?v=3', label: 'Processing order' },
+    completed: { file: 'completed.html?v=3', label: 'Completed order' },
+    refunded: { file: 'refunded.html?v=3', label: 'Refund confirmation' },
+    note: { file: 'note.html?v=3', label: 'Order update' },
+    'new-account': { file: 'new-account.html?v=3', label: 'New account' },
+    'verify-email': { file: 'verify-email.html?v=3', label: 'Email verification', description: 'Confirms email ownership before linking previous guest orders.' },
+    'reset-password': { file: 'reset-password.html?v=3', label: 'Password reset' },
   };
   const frame = document.querySelector('#email-frame');
   const title = document.querySelector('#email-title');
+  const description = document.querySelector('#email-description');
   const panel = document.querySelector('#email-panel');
   const status = document.querySelector('#preview-status');
   const directLink = document.querySelector('#open-email');
@@ -45,6 +49,8 @@
     }
     panel.setAttribute('aria-labelledby', `tab-${key}`);
     title.textContent = email.label;
+    description.textContent = email.description || '';
+    description.hidden = !email.description;
     frame.title = `Petish ${email.label.toLowerCase()} email preview`;
     frame.src = email.file;
     directLink.href = email.file;

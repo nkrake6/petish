@@ -63,9 +63,13 @@ the staged tracking note was explicitly synthetic.
 
 The owner requested Petish-branded customer emails with the full animal logo.
 Shared child-theme email branding was applied to private staging in run
-`39379561684` (theme source `238d7dc`). Native processing/completed/refund/note
-preview rendering and publication screening passed in `39379634749` using
-unsaved fictional orders; order counts and stock were unchanged. Generated
+`39383134509` (theme source `86e315f`). Native processing/completed/refund/note
+and new-account/verify-email/password-reset previews passed rendering and
+publication screening in `39383213374` using unsaved fictional orders/users;
+order/user counts, authentication state and stock were unchanged. Scoped core
+WordPress welcome/reset presentation also passed native filter/link checks.
+Verification retains WooCommerce’s inbox-ownership/past-guest-order behavior;
+mandatory signup activation was not added. Generated
 review copies and the desktop/mobile gallery are in `docs/email-preview/`.
 Use `assets/brand/repaired/combined-light-v2.png` (1536×1024) for the full animal
 logo. The older `combined_light_landscape.png` has damaged lettering transparency
