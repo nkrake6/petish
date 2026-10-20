@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "inspect",
   "run_id": "39518326712-1",
   "source_commit": "b8ff03fac9e0e198b9708e9e45ef155bbf2d06ad",
-  "generated_utc": "2026-10-20T23:57:47.448227+00:00",
+  "generated_utc": "2026-10-20T23:57:49.418107+00:00",
   "source_hashes": {
     "assets/passport.js": "97e0a4ecaddfd555ca779edec6a01685da268e9ee39e8a4555908d9becc26f49",
     "assets/pet-club.css": "6871a9d7d2a87f7bc47be1d179e2cdb816228f70249379ff2adbd5c3b364be0f",
