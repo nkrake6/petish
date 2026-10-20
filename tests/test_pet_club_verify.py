@@ -165,6 +165,10 @@ echo json_encode($out);
         self.assertNotIn("delete_option(", diagnostic)
         self.assertIn("petish_club_verify_single_added_option", diagnostic)
         self.assertIn("$mode==='diagnose'", fixture)
+        main = source[source.index("function petish_club_verify_main"):]
+        self.assertIn("petish_club_verify_bootstrap($target,$target==='production')", main)
+        self.assertNotIn("remove_filter('query'", main)
+        self.assertNotIn("$GLOBALS['petish_club_write_attempted']=false", main)
 
     def test_private_files_reject_links_modes_and_replacement(self):
         result = self.php("$base=" + repr(str(self.directory)) + ";\n" + r"""
@@ -202,6 +206,92 @@ foreach(['wrong-run','wrong-kind','wrong-email','wrong-password','foreign-id','f
 echo json_encode($out);
 """)
         self.assertEqual(result, [True] * 7)
+
+    def test_sync_queue_ownership_is_exact_and_deserialization_is_inert(self):
+        result = self.php(r"""
+class WP_User { public $ID; public $data; }
+class WP_Post { public $ID; public $post_author; public $post_type; public $post_status; }
+class UnexpectedQueueClass { function __wakeup(){ $GLOBALS['awoken']=true; } }
+$state=['created'=>time()-10,'users'=>[
+ 'owner'=>['id'=>51,'login'=>'petish-club-owner-'.str_repeat('a',18),'email'=>'owner@petish.invalid'],
+ 'member'=>['id'=>52,'login'=>'petish-club-member-'.str_repeat('a',18),'email'=>'member@petish.invalid']],
+ 'pet_id'=>61,'moments'=>['photo'=>62,'journal'=>63]];
+$user=new WP_User;$user->ID=51;$user->data=(object)['ID'=>'51','user_login'=>$state['users']['owner']['login'],
+ 'user_email'=>$state['users']['owner']['email']];
+$event=['jetpack_sync_register_user',[$user,[]],0,microtime(true),false];
+$valid=fn($v)=>petish_club_verify_sync_owned(serialize($v),$state);
+$out=[$valid($event)];
+foreach(['jetpack_sync_save_user','jetpack_sync_add_user']as$hook){$copy=$event;$copy[0]=$hook;$out[]=$valid($copy);}
+$delete=['jetpack_deleted_user',[52,null,false],52,microtime(true),false,
+ ['external_user_id'=>52,'user_email'=>'member@petish.invalid','wpcom_user_id'=>null]];
+$out[]=$valid($delete);
+foreach(['foreign-subject','foreign-email','foreign-login','foreign-actor','foreign-actor-email',
+ 'reassignment','multisite','unknown-hook','object-in-flags','stale','importing','password']as$mode){
+ $copy=unserialize(serialize($event));
+ if($mode==='foreign-subject')$copy[1][0]->ID=999;
+ if($mode==='foreign-email')$copy[1][0]->data->user_email='customer@example.invalid';
+ if($mode==='foreign-login')$copy[1][0]->data->user_login='someone-else';
+ if($mode==='foreign-actor')$copy[2]=999;
+ if($mode==='foreign-actor-email'){$copy=$delete;$copy[5]['user_email']='customer@example.invalid';}
+ if($mode==='reassignment'){$copy=$delete;$copy[1][1]=999;}
+ if($mode==='multisite'){$copy=$delete;$copy[1][2]=true;}
+ if($mode==='unknown-hook')$copy[0]='updated_option';
+ if($mode==='object-in-flags')$copy[1][1]=[new UnexpectedQueueClass];
+ if($mode==='stale')$copy[3]=$state['created']-20;
+ if($mode==='importing')$copy[4]=true;
+ if($mode==='password')$copy[1][0]->data->user_pass='must-not-exist';
+ $out[]=!$valid($copy);
+}
+$post=new WP_Post;$post->ID=62;$post->post_author='51';$post->post_type='petish_pet_moment';$post->post_status='private';
+$post_event=['jetpack_sync_save_post',[62,$post,false,[]],51,microtime(true),false];
+$out[]=$valid($post_event);$post->post_author=999;$out[]=!$valid($post_event);
+$out[]=$valid(['deleted_post',[61],51,microtime(true),false]);
+$out[]=!$valid(['deleted_post',[999],51,microtime(true),false]);
+$out[]=empty($GLOBALS['awoken']);
+$recursive=[];$recursive['cycle']=&$recursive;$copy=$event;$copy[1][1]=$recursive;$out[]=!$valid($copy);
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 22)
+
+    def test_queue_removal_requires_exact_full_baseline_and_supports_retry(self):
+        result = self.php(r"""
+$base=[['option_name'=>'existing_setting','value_state'=>hash('sha256','original')]];
+$before=['settings'=>hash('sha256',json_encode($base,JSON_THROW_ON_ERROR)),'settings_rows'=>$base];
+$first=['option_name'=>'jpsq_sync-1792538716.123456-437686-1','value_state'=>hash('sha256','owned1')];
+$second=['option_name'=>'jpsq_sync-1792538716.123456-437686-2','value_state'=>hash('sha256','owned2')];
+$rows=[$base[0],$first,$second];$out=[];
+$out[]=petish_club_verify_sync_removal_proof($before,$rows,[$first,$second]);
+unset($before['settings_rows']);$out[]=petish_club_verify_sync_removal_proof($before,$rows,[$first,$second]);
+$out[]=petish_club_verify_sync_removal_proof($before,[$base[0],$second],[$second]);
+$out[]=!petish_club_verify_sync_removal_proof($before,$rows,[$first]);
+$changed=$rows;$changed[0]['value_state']=hash('sha256','changed');
+$out[]=!petish_club_verify_sync_removal_proof($before,$changed,[$first,$second]);
+$changed=$first;$changed['value_state']=hash('sha256','raced');
+$out[]=!petish_club_verify_sync_removal_proof($before,$rows,[$changed,$second]);
+$out[]=!petish_club_verify_sync_removal_proof($before,$rows,[$first,$first,$second]);
+$before['settings_rows']=[];$out[]=!petish_club_verify_sync_removal_proof($before,$rows,[$first,$second]);
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 8)
+
+    def test_sync_isolation_precedes_bootstrap_and_cleanup_is_conditional(self):
+        source = VERIFY.read_text()
+        self.assertLess(source.index("add_filter('jetpack_sync_listener_should_load'"),
+                        source.index("require$root.'/wp-load.php'"))
+        self.assertLess(source.index("add_filter('pre_option_jetpack_sync_settings_disable'"),
+                        source.index("require$root.'/wp-load.php'"))
+        self.assertIn("$sync::$listener===null&&$sync::$sender===null", source)
+        self.assertIn("WHERE BINARY option_name=%s AND SHA2(option_value,256)=%s", source)
+        self.assertNotIn("Settings::update_settings", source)
+        self.assertNotIn("delete_all", source)
+        cleanup = source[source.index("function petish_club_verify_fixture_cleanup"):
+                         source.index("function petish_club_verify_staging")]
+        self.assertLess(cleanup.index("petish_club_verify_sync_cleanup"), cleanup.index("unlink($path)"))
+        self.assertIn("!$retain_journal&&!unlink($path)", cleanup)
+        fixture = FIXTURE.read_text()
+        self.assertIn("petish_club_verify_fixture_cleanup($root,$run,$kind,true)", fixture)
+        self.assertLess(fixture.index("petish_club_jetpack_guard_remove($run)"),
+                        fixture.index("if(!unlink($path))"))
 
     def test_native_and_fixture_fail_without_fixed_host_and_never_leak(self):
         for script, args in [(VERIFY, ["123-1", "production"]), (VERIFY, ["123-1", "staging"]),

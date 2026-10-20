@@ -10,7 +10,7 @@ const PETISH_CLUB_VERIFY_COMMON = [
  'product_prices_and_stock_unchanged','settings_unchanged','existing_passports_unchanged','private_photo_files_unchanged',
 ];
 const PETISH_CLUB_VERIFY_STAGING = [
- 'staging_database_separate','staging_guard_verified','owned_fixture_users_created','owned_fixture_pet_created',
+ 'staging_database_separate','staging_guard_verified','jetpack_sync_isolated','owned_fixture_users_created','owned_fixture_pet_created',
  'legacy_defaults_preserved','biography_and_traits_saved','foreign_owner_denied','private_media_owner_scoped',
  'private_moments_owner_scoped','unshared_pet_not_discoverable','explicit_public_snapshot_created',
  'public_projection_allowlisted','public_photos_are_separate','only_selected_moments_shared',
@@ -22,16 +22,16 @@ const PETISH_CLUB_VERIFY_STAGING = [
 const PETISH_CLUB_VERIFY_PRODUCTION = ['production_read_only_verified'];
 const PETISH_CLUB_FIXTURE_PREPARE = ['target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
  'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled','cron_and_async_runner_disabled',
- 'staging_database_separate','staging_guard_verified','owned_fixture_users_created','owned_fixture_pet_created',
+ 'staging_database_separate','staging_guard_verified','jetpack_sync_isolated','owned_fixture_users_created','owned_fixture_pet_created',
  'browser_input_written'];
 const PETISH_CLUB_FIXTURE_CLEANUP = ['target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
  'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled','cron_and_async_runner_disabled',
- 'staging_database_separate','staging_guard_verified','fixture_cleanup_verified','orders_unchanged',
+ 'staging_database_separate','staging_guard_verified','jetpack_sync_isolated','fixture_cleanup_verified','orders_unchanged',
  'users_and_authentication_unchanged','product_prices_and_stock_unchanged','settings_unchanged',
  'existing_passports_unchanged','private_photo_files_unchanged'];
 const PETISH_CLUB_FIXTURE_DIAGNOSE = ['target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
  'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled','cron_and_async_runner_disabled',
- 'staging_database_separate','staging_guard_verified','diagnostic_completed','diagnostic_read_only',
+ 'staging_database_separate','staging_guard_verified','jetpack_sync_isolated','diagnostic_completed','diagnostic_read_only',
  'fixture_journal_valid','owned_users_absent','orders_unchanged','users_and_authentication_unchanged',
  'product_prices_and_stock_unchanged','existing_passports_unchanged','private_photo_files_unchanged'];
 const PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS = ['settings_unchanged','single_added_option_identified',
@@ -323,11 +323,18 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
  $http=static fn()=>new WP_Error('petish_club_verify_http_blocked','Pet Club verification blocks outbound requests.');
  $mail=static fn()=>true;$stop=static function(){throw new \PHPMailer\PHPMailer\Exception('Pet Club verification blocks delivery.');};
  $false=static fn()=>false;$zero=static fn()=>0;
+ // WooPayments bundles Jetpack Sync. These documented request-local hooks
+ // stop its queue listener/sender without changing settings or clearing queues.
+ if($target==='staging'){
+  add_filter('jetpack_sync_listener_should_load',$false,PHP_INT_MAX);
+  add_filter('jetpack_sync_sender_should_load',$false,PHP_INT_MAX);
+  add_filter('pre_option_jetpack_sync_settings_disable',$mail,PHP_INT_MAX);
+ }
  add_filter('pre_http_request',$http,PHP_INT_MAX,3);add_filter('pre_wp_mail',$mail,PHP_INT_MAX,2);
  add_action('phpmailer_init',$stop,PHP_INT_MAX);add_filter('action_scheduler_allow_async_request_runner',$false,PHP_INT_MAX);
  add_filter('action_scheduler_queue_runner_concurrent_batches',$zero,PHP_INT_MAX);
  add_action('wp_loaded',static function(){remove_all_actions('action_scheduler_run_queue');},PHP_INT_MAX);
- add_action('all',static function($hook)use($http,$mail,$stop,$false,$zero,$read_only){
+ add_action('all',static function($hook)use($http,$mail,$stop,$false,$zero,$read_only,$target){
   if($read_only&&$hook==='query'){
    remove_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
    add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
@@ -335,6 +342,9 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
   foreach(['pre_http_request'=>[$http,3],'pre_wp_mail'=>[$mail,2],'phpmailer_init'=>[$stop,1],
    'action_scheduler_allow_async_request_runner'=>[$false,1],'action_scheduler_queue_runner_concurrent_batches'=>[$zero,1]]as$name=>$entry)
    if($hook===$name){remove_filter($name,$entry[0],PHP_INT_MAX);add_filter($name,$entry[0],PHP_INT_MAX,$entry[1]);}
+  if($target==='staging')foreach(['jetpack_sync_listener_should_load'=>$false,
+   'jetpack_sync_sender_should_load'=>$false,'pre_option_jetpack_sync_settings_disable'=>$mail]as$name=>$callback)
+   if($hook===$name){remove_filter($name,$callback,PHP_INT_MAX);add_filter($name,$callback,PHP_INT_MAX);}
  },PHP_INT_MAX,1);
  require$root.'/wp-load.php';$report['category']='runtime';
  petish_club_verify_mark('target_environment_verified',wp_get_environment_type()===$target
@@ -346,6 +356,10 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
   $production=getenv('PETISH_REHEARSAL_PRODUCTION_DB_NAME');
   petish_club_verify_mark('staging_database_separate',is_string($production)&&$production!==''&&defined('DB_NAME')&&DB_NAME!==$production);
   petish_club_verify_mark('staging_guard_verified',defined('WCPAY_DEV_MODE')&&WCPAY_DEV_MODE===true&&defined('PETISH_STAGING_GUARD_ACTIVE')&&PETISH_STAGING_GUARD_ACTIVE===true);
+  $sync='Automattic\\Jetpack\\Sync\\Actions';
+  petish_club_verify_mark('jetpack_sync_isolated',apply_filters('jetpack_sync_listener_should_load',true)===false
+   &&apply_filters('jetpack_sync_sender_should_load',true)===false&&get_option('jetpack_sync_settings_disable')===true
+   &&(!class_exists($sync)||($sync::$listener===null&&$sync::$sender===null)));
  }
  $blocked=apply_filters('pre_http_request',false,['method'=>'POST'],'https://www.dsers.com/petish-club-verification');
  petish_club_verify_mark('all_outbound_http_blocked',is_wp_error($blocked)&&$blocked->get_error_code()==='petish_club_verify_http_blocked');
@@ -469,8 +483,117 @@ function petish_club_verify_fixture_owned($state,$run,$kind) {
  }
  return true;
 }
+/** Inspect inert serialized queue records; never instantiate their PHP classes. */
+function petish_club_verify_sync_tree($value,$depth=0,&$nodes=0) {
+ if($depth>16||++$nodes>10000)return false;
+ if(is_object($value)){
+  if(get_class($value)!=='__PHP_Incomplete_Class')return false;
+  $value=(array)$value;
+  if(!in_array($value['__PHP_Incomplete_Class_Name']??'', ['WP_User','WP_Post','stdClass'],true))return false;
+ }
+ if(is_array($value)){foreach($value as$key=>$item)
+  if((!is_int($key)&&(!is_string($key)||strlen($key)>255))||!petish_club_verify_sync_tree($item,$depth+1,$nodes))return false;
+  return true;}
+ return $value===null||is_bool($value)||is_int($value)||(is_float($value)&&is_finite($value))
+  ||(is_string($value)&&strlen($value)<=262144);
+}
+function petish_club_verify_sync_object($value,$class) {
+ if(!is_object($value)||get_class($value)!=='__PHP_Incomplete_Class')return null;
+ $fields=(array)$value;return ($fields['__PHP_Incomplete_Class_Name']??'')===$class?$fields:null;
+}
+function petish_club_verify_sync_id($value) {
+ return is_int($value)&&$value>=0?$value:(is_string($value)&&preg_match('/\A(?:0|[1-9][0-9]{0,15})\z/D',$value)?(int)$value:null);
+}
+function petish_club_verify_sync_user($value,$users) {
+ $user=petish_club_verify_sync_object($value,'WP_User');if($user===null)return false;
+ $data=petish_club_verify_sync_object($user['data']??null,'stdClass');
+ $id=petish_club_verify_sync_id($user['ID']??null);
+ if($data===null||!$id||!isset($users[$id])||petish_club_verify_sync_id($data['ID']??null)!==$id)return false;
+ return ($data['user_login']??null)===$users[$id]['login']&&($data['user_email']??null)===$users[$id]['email']
+  &&!array_key_exists('user_pass',$data);
+}
+/** Known Jetpack events must name only the exact journal-owned subject/actor. */
+function petish_club_verify_sync_owned($raw,$state) {
+ if(!is_string($raw)||strlen($raw)>524288)return false;
+ $event=@unserialize($raw,['allowed_classes'=>false,'max_depth'=>16]);$nodes=0;
+ if(!is_array($event)||!array_is_list($event)||!in_array(count($event),[5,6],true)
+  ||!petish_club_verify_sync_tree($event,0,$nodes)||!is_string($event[0])
+  ||!is_array($event[1])||!array_is_list($event[1])||!is_int($event[2])
+  ||(!is_int($event[3])&&!is_float($event[3]))||$event[3]<$state['created']-5||$event[3]>time()+60
+  ||$event[4]!==false)return false;
+ $users=[];foreach($state['users']as$user){if(!is_int($user['id'])||$user['id']<1)return false;$users[$user['id']]=$user;}
+ if($event[2]!==0&&!isset($users[$event[2]]))return false;
+ if(count($event)===6){$actor=$event[5];if(!is_array($actor)||array_is_list($actor))return false;
+  $id=petish_club_verify_sync_id($actor['external_user_id']??0);
+  if($id===null||$id!==$event[2]||(!empty($actor['wpcom_user_id'])))return false;
+  if($id&&($actor['user_email']??null)!==$users[$id]['email'])return false;
+  if(!$id&&!in_array($actor['user_email']??null,[null,''],true))return false;
+ }
+ [$hook,$args]=$event;
+ if(in_array($hook,['jetpack_sync_register_user','jetpack_sync_save_user','jetpack_sync_add_user'],true))
+  return count($args)===2&&is_array($args[1])&&petish_club_verify_sync_user($args[0],$users);
+ if($hook==='jetpack_deleted_user')return count($args)===3&&isset($users[petish_club_verify_sync_id($args[0])??0])
+  &&in_array($args[1],[null,'',0],true)&&$args[2]===false;
+ $posts=[];if(is_int($state['pet_id']??null)&&$state['pet_id']>0)$posts[$state['pet_id']]='petish_pet';
+ foreach($state['moments']??[]as$id)if(is_int($id)&&$id>0)$posts[$id]='petish_pet_moment';
+ if($hook==='deleted_post')return count($args)===1&&isset($posts[petish_club_verify_sync_id($args[0])??0]);
+ if($hook==='jetpack_sync_save_post'&&count($args)===4&&is_bool($args[2])&&is_array($args[3])){
+  $id=petish_club_verify_sync_id($args[0]);$post=petish_club_verify_sync_object($args[1],'WP_Post');
+  return isset($posts[$id??0])&&$post!==null&&petish_club_verify_sync_id($post['ID']??null)===$id
+   &&petish_club_verify_sync_id($post['post_author']??null)===$state['users']['owner']['id']
+   &&($post['post_type']??null)===$posts[$id]&&($post['post_status']??null)==='private';
+ }
+ return false;
+}
+/** Virtual omission must restore the original full settings digest exactly. */
+function petish_club_verify_sync_removal_proof($before,$rows,$candidates) {
+ if(!is_array($candidates)||count($candidates)>64)return false;
+ if(isset($before['settings_rows'])&&!hash_equals($before['settings'],hash('sha256',json_encode($before['settings_rows'],JSON_THROW_ON_ERROR))))return false;
+ $names=[];foreach($candidates as$row){
+  if(!is_array($row)||array_keys($row)!==['option_name','value_state']||isset($names[$row['option_name']]))return false;
+  $names[$row['option_name']]=$row['value_state'];
+ }
+ $remaining=[];$found=0;foreach($rows as$row){
+  if(isset($names[$row['option_name']])){if(!hash_equals($names[$row['option_name']],$row['value_state']))return false;++$found;}
+  else$remaining[]=$row;
+ }
+ return $found===count($candidates)&&hash_equals($before['settings'],hash('sha256',json_encode($remaining,JSON_THROW_ON_ERROR)));
+}
+/** Recover only queued synthetic events, including older aggregate-only journals. */
+function petish_club_verify_sync_cleanup($root,$state) {
+ global $wpdb;
+ if(wp_get_environment_type()!=='staging'||get_option('jetpack_sync_settings_disable')!==true)petish_club_verify_fail();
+ $current=petish_club_verify_state($root);$before=$state['before'];
+ foreach(['orders','accounts','products','passports','photos']as$key)if($before[$key]!==$current[$key])petish_club_verify_fail();
+ if(hash_equals($before['settings'],$current['settings']))return;
+ $rows=$current['settings_rows'];$possible=[];
+ if(isset($before['settings_rows'])){
+  $delta=petish_club_verify_option_delta($before['settings_rows'],$rows);
+  if($delta['removed']||$delta['modified'])petish_club_verify_fail();
+  foreach($delta['added']as$row)$possible[$row['option_name']]=$row['after_hash'];
+ }else foreach($rows as$row)$possible[$row['option_name']]=$row['value_state'];
+ $candidates=[];$total=0;$seen=0;
+ foreach($possible as$name=>$hash){
+  if(!preg_match('/\Ajpsq_sync-[0-9]{10}\.[0-9]{1,8}-[0-9]{1,7}-[0-9]{1,5}\z/D',$name))continue;
+  if(++$seen>256)petish_club_verify_fail();
+  $size=$wpdb->get_var($wpdb->prepare("SELECT OCTET_LENGTH(option_value) FROM `{$wpdb->options}` WHERE BINARY option_name=%s",$name));
+  if(!is_numeric($size)||(int)$size>524288||($total+=(int)$size)>16777216)petish_club_verify_fail();
+  $raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM `{$wpdb->options}` WHERE BINARY option_name=%s",$name));
+  if(!is_string($raw)||!hash_equals($hash,hash('sha256',$raw)))petish_club_verify_fail();
+  if(petish_club_verify_sync_owned($raw,$state))$candidates[]=['option_name'=>$name,'value_state'=>$hash];
+ }
+ if(!$candidates||!petish_club_verify_sync_removal_proof($before,$rows,$candidates))petish_club_verify_fail();
+ // Recheck every conditional DELETE: concurrent writes fail without discarding
+ // a changed value. The original journal remains for safe partial-delete retry.
+ foreach($candidates as$row){
+  $deleted=$wpdb->query($wpdb->prepare("DELETE FROM `{$wpdb->options}` WHERE BINARY option_name=%s AND SHA2(option_value,256)=%s",
+   $row['option_name'],$row['value_state']));
+  if($deleted!==1)petish_club_verify_fail();
+ }
+ if(!hash_equals($before['settings'],hash('sha256',json_encode(petish_club_verify_settings_rows(),JSON_THROW_ON_ERROR))))petish_club_verify_fail();
+}
 /** Deletes only the users whose private write-ahead identities and passwords match. */
-function petish_club_verify_fixture_cleanup($root,$run,$kind) {
+function petish_club_verify_fixture_cleanup($root,$run,$kind,$retain_journal=false) {
  global $report,$wpdb;
  $path=petish_club_verify_fixture_state_path($kind);
  if(!file_exists($path)&&!is_link($path))return false;
@@ -491,9 +614,10 @@ function petish_club_verify_fixture_cleanup($root,$run,$kind) {
  }
  wp_set_current_user(0);
  foreach($state['users']as$u)if(get_user_by('login',$u['login']))petish_club_verify_fail();
+ petish_club_verify_sync_cleanup($root,$state);
  petish_club_verify_state_equal($state['before'],petish_club_verify_state($root));
  petish_club_verify_mark('fixture_cleanup_verified',true);
- if(!unlink($path))petish_club_verify_fail();
+ if(!$retain_journal&&!unlink($path))petish_club_verify_fail();
  return true;
 }
 function petish_club_verify_staging($root,$run) {
@@ -583,12 +707,14 @@ function petish_club_verify_main($argv) {
  petish_club_verify_report_start();$root=null;$target=null;
  try{
   if(count($argv)!==3||!petish_club_verify_run($argv[1])||!in_array($argv[2],['production','staging'],true))petish_club_verify_fail();
-  $run=$argv[1];$target=$argv[2];$root=petish_club_verify_bootstrap($target);
+  $run=$argv[1];$target=$argv[2];$root=petish_club_verify_bootstrap($target,$target==='production');
   $report['category']='snapshot';$before=petish_club_verify_state($root);
   if($target==='production'){
-   $GLOBALS['petish_club_write_attempted']=false;add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
-   try{petish_club_verify_contracts($root);}finally{remove_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);}
-   petish_club_verify_mark('production_read_only_verified',!$GLOBALS['petish_club_write_attempted']);
+   // The guard was installed before wp-load and remains through the final
+   // snapshot and shutdown, including WordPress/plugin lazy bootstrap writes.
+   petish_club_verify_contracts($root);
+   petish_club_verify_mark('production_read_only_verified',!$GLOBALS['petish_club_write_attempted']
+    &&has_filter('query','petish_club_verify_query_guard')===PHP_INT_MAX);
   }else{petish_club_verify_contracts($root);petish_club_verify_staging($root,$run);}
   $report['category']='snapshot';petish_club_verify_state_equal($before,petish_club_verify_state($root));
   $expected=array_merge(PETISH_CLUB_VERIFY_COMMON,$target==='staging'?PETISH_CLUB_VERIFY_STAGING:PETISH_CLUB_VERIFY_PRODUCTION);

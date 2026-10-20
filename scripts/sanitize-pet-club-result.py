@@ -32,7 +32,7 @@ STAGING = {
     'product_prices_and_stock_unchanged', 'public_photos_are_separate', 'public_projection_allowlisted',
     'public_routes_registered', 'remote_file_access_disabled', 'report_deduplicated',
     'request_nonce_and_method_verified', 'self_heart_denied', 'settings_unchanged',
-    'staging_database_separate', 'staging_guard_verified', 'synthetic_public_render_verified',
+    'jetpack_sync_isolated', 'staging_database_separate', 'staging_guard_verified', 'synthetic_public_render_verified',
     'target_environment_verified', 'target_paths_verified', 'unpublish_revokes_public_media',
     'unshared_pet_not_discoverable', 'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
 }
@@ -49,14 +49,14 @@ VERIFY = {
 FIXTURE = {
     'all_outbound_http_blocked', 'browser_input_written', 'cron_and_async_runner_disabled',
     'mail_calls_blocked', 'owned_fixture_pet_created', 'owned_fixture_users_created',
-    'remote_file_access_disabled', 'staging_database_separate', 'staging_guard_verified',
+    'remote_file_access_disabled', 'jetpack_sync_isolated', 'staging_database_separate', 'staging_guard_verified',
     'target_environment_verified', 'target_paths_verified', 'woocommerce_runtime_verified',
 }
 CLEANUP = {
     'all_outbound_http_blocked', 'cron_and_async_runner_disabled', 'existing_passports_unchanged',
     'fixture_cleanup_verified', 'mail_calls_blocked', 'orders_unchanged',
     'private_photo_files_unchanged', 'product_prices_and_stock_unchanged', 'remote_file_access_disabled',
-    'settings_unchanged', 'staging_database_separate', 'staging_guard_verified',
+    'settings_unchanged', 'jetpack_sync_isolated', 'staging_database_separate', 'staging_guard_verified',
     'target_environment_verified', 'target_paths_verified', 'users_and_authentication_unchanged',
     'woocommerce_runtime_verified',
 }
@@ -65,7 +65,7 @@ DIAGNOSE = {
     'diagnostic_read_only', 'existing_passports_unchanged', 'fixture_journal_valid',
     'mail_calls_blocked', 'orders_unchanged', 'owned_users_absent',
     'private_photo_files_unchanged', 'product_prices_and_stock_unchanged', 'remote_file_access_disabled',
-    'staging_database_separate', 'staging_guard_verified', 'target_environment_verified',
+    'jetpack_sync_isolated', 'staging_database_separate', 'staging_guard_verified', 'target_environment_verified',
     'target_paths_verified', 'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
 }
 DIAGNOSTIC_OBSERVATIONS = {

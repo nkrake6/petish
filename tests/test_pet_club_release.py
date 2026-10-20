@@ -257,7 +257,7 @@ class PetClubReleaseTests(unittest.TestCase):
         start = wrapper.index('    "${petish_ssh[@]}"', wrapper.index('# Do not mark SSH cleanup-ready'))
         end = wrapper.index('\n    if [[ $recovery_operation == cleanup ]]; then', start)
         command = wrapper[start:end]
-        for scenario in ('success', 'success_private', 'wrong_marker', 'linked_journal', 'tampered_payload', 'tampered_private'):
+        for scenario in ('success', 'success_private', 'wrong_marker', 'linked_journal', 'tampered_payload', 'tampered_private', 'tampered_guard'):
             with self.subTest(scenario=scenario):
                 home = self.directory / scenario
                 home.mkdir()
@@ -280,29 +280,32 @@ class PetClubReleaseTests(unittest.TestCase):
                     target.unlink()
                     target.symlink_to(home / 'outside-state')
                 candidate = {'verify-pet-club.php': b'new-reviewed-verifier',
-                             'pet-club-fixture.php': b'new-reviewed-fixture'}
+                             'pet-club-fixture.php': b'new-reviewed-fixture',
+                             'pet-club-jetpack-guard.php': b'new-reviewed-guard'}
                 private = scenario in {'success_private', 'tampered_private'}
                 if private:
                     candidate['pet-club-private-option-names.php'] = b'new-reviewed-extractor'
                 with tarfile.open(work / 'recovery.tar', 'w') as archive:
                     for name, body in candidate.items():
                         payload = body + (b'tampered' if (scenario == 'tampered_payload' and name == 'pet-club-fixture.php')
-                            or (scenario == 'tampered_private' and name == 'pet-club-private-option-names.php') else b'')
+                            or (scenario == 'tampered_private' and name == 'pet-club-private-option-names.php')
+                            or (scenario == 'tampered_guard' and name == 'pet-club-jetpack-guard.php') else b'')
                         member = tarfile.TarInfo(name)
                         member.size = len(payload)
                         member.mode = 0o600
                         archive.addfile(member, io.BytesIO(payload))
-                preamble = 'work=$1; target_run=39513159248-1; run=99999-1; verify_digest=$2; fixture_digest=$3; encrypted_option_names=$4; private_digest=$5; petish_ssh=(bash -c)\n'
+                preamble = 'work=$1; target_run=39513159248-1; run=99999-1; verify_digest=$2; fixture_digest=$3; encrypted_option_names=$4; private_digest=$5; guard_digest=$6; petish_ssh=(bash -c)\n'
                 environment = os.environ.copy()
                 environment['HOME'] = str(home)
                 result = subprocess.run(['bash', '-euc', preamble + command, 'fixture', str(work),
                     hashlib.sha256(candidate['verify-pet-club.php']).hexdigest(),
                     hashlib.sha256(candidate['pet-club-fixture.php']).hexdigest(), str(int(private)),
-                    hashlib.sha256(candidate.get('pet-club-private-option-names.php', b'')).hexdigest()], env=environment, capture_output=True)
+                    hashlib.sha256(candidate.get('pet-club-private-option-names.php', b'')).hexdigest(),
+                    hashlib.sha256(candidate['pet-club-jetpack-guard.php']).hexdigest()], env=environment, capture_output=True)
                 success = scenario in {'success', 'success_private'}
                 self.assertEqual(result.returncode == 0, success)
                 for name, body in candidate.items():
-                    if name == 'pet-club-private-option-names.php' and not success:
+                    if name in {'pet-club-private-option-names.php', 'pet-club-jetpack-guard.php'} and not success:
                         self.assertFalse((tools / name).exists())
                         continue
                     self.assertEqual((tools / name).read_bytes(), body if success

@@ -281,7 +281,7 @@ PY_RECOVERY
     read -r target_run recovery_operation encrypted_option_names < "$work/recovery-request.private.txt"
     [[ $target_run =~ ^[1-9][0-9]*-[1-9][0-9]*$ && $target_run != "$run" && ( $recovery_operation == diagnose || $recovery_operation == cleanup ) ]]
     retain_remote_tools=1
-    recovery_helpers=(verify-pet-club.php pet-club-fixture.php)
+    recovery_helpers=(verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php)
     if [[ $encrypted_option_names == 1 ]]; then recovery_helpers+=(pet-club-private-option-names.php); fi
     for name in "${recovery_helpers[@]}"; do
         cp -- "scripts/$name" "$work/bundle/$name"
@@ -290,6 +290,8 @@ PY_RECOVERY
     verify_digest=$(sha256sum "$work/bundle/verify-pet-club.php"); verify_digest=${verify_digest%% *}
     fixture_digest=$(sha256sum "$work/bundle/pet-club-fixture.php"); fixture_digest=${fixture_digest%% *}
     [[ $verify_digest =~ ^[a-f0-9]{64}$ && $fixture_digest =~ ^[a-f0-9]{64}$ ]]
+    guard_digest=$(sha256sum "$work/bundle/pet-club-jetpack-guard.php"); guard_digest=${guard_digest%% *}
+    [[ $guard_digest =~ ^[a-f0-9]{64}$ ]]
     private_digest=
     if [[ $encrypted_option_names == 1 ]]; then
         private_digest=$(sha256sum "$work/bundle/pet-club-private-option-names.php"); private_digest=${private_digest%% *}
@@ -310,12 +312,12 @@ PY_RECOVERY
       done;
       update="$tools/recovery-'"$run"'"; test ! -e "$update" && test ! -L "$update" || exit 1;
       mkdir -m 700 "$update"; tar --extract --no-same-owner --no-same-permissions --directory "$update";
-      names="verify-pet-club.php pet-club-fixture.php";
+      names="verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php";
       if test '"$encrypted_option_names"' = 1; then names="$names pet-club-private-option-names.php"; fi;
       for name in $names; do
         file="$update/$name"; test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %a "$file")" = 600 && test "$(stat -c %h "$file")" = 1 || exit 1;
         actual=$(sha256sum "$file"); actual=${actual%% *};
-        case "$name" in verify-pet-club.php) expected='"$verify_digest"';; pet-club-fixture.php) expected='"$fixture_digest"';; pet-club-private-option-names.php) expected='"$private_digest"';; *) exit 1;; esac;
+        case "$name" in verify-pet-club.php) expected='"$verify_digest"';; pet-club-fixture.php) expected='"$fixture_digest"';; pet-club-jetpack-guard.php) expected='"$guard_digest"';; pet-club-private-option-names.php) expected='"$private_digest"';; *) exit 1;; esac;
         test "$actual" = "$expected" || exit 1;
         if test -e "$tools/$name" || test -L "$tools/$name"; then
           test -f "$tools/$name" && test ! -L "$tools/$name" && test "$(stat -c %h "$tools/$name")" = 1 && test "$(stat -c %a "$tools/$name")" = 600 || exit 1;
@@ -358,11 +360,11 @@ fi
 if [[ $mode == staging ]]; then
     cp -- scripts/staging-rehearsal-remote.php "$work/bundle/driver.php"
     chmod 600 "$work/bundle/driver.php"
-    for name in verify-pet-club.php pet-club-fixture.php email-branding-preview-remote.php; do
+    for name in verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php email-branding-preview-remote.php; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
-    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-pet-club.php pet-club-fixture.php email-branding-preview-remote.php payload \
+    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php email-branding-preview-remote.php payload \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 else
     for name in deploy-pet-club-remote.php verify-pet-club.php email-branding-preview-remote.php; do

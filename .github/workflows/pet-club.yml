@@ -17,6 +17,7 @@ on:
       - scripts/deploy-pet-club-remote.php
       - scripts/verify-pet-club.php
       - scripts/pet-club-fixture.php
+      - scripts/pet-club-jetpack-guard.php
       - scripts/pet-club-private-option-names.php
       - scripts/encrypt-pet-club-option-names.py
       - scripts/sanitize-pet-club-result.py

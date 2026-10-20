@@ -3,6 +3,7 @@
 if (PHP_SAPI !== 'cli') exit(1);
 define('PETISH_CLUB_VERIFY_LIBRARY',true);
 require __DIR__.'/verify-pet-club.php';
+require __DIR__.'/pet-club-jetpack-guard.php';
 function petish_club_fixture_diagnose($root,$run) {
  global $report;
  $report['category']='diagnose';$states=[];
@@ -84,7 +85,10 @@ function petish_club_fixture_main($argv) {
  petish_club_verify_report_start();
  try {
   if(count($argv)!==3||!in_array($argv[1],['prepare','cleanup','diagnose'],true)||!petish_club_verify_run($argv[2]))petish_club_verify_fail();
-  $mode=$argv[1];$run=$argv[2];$root=petish_club_verify_bootstrap('staging',$mode==='diagnose');
+  $mode=$argv[1];$run=$argv[2];
+  if($mode==='prepare')petish_club_jetpack_guard_install($run);
+  $root=petish_club_verify_bootstrap('staging',$mode==='diagnose');
+  if($mode==='prepare'&&(!defined('PETISH_PET_CLUB_JETPACK_GUARD_RUN')||PETISH_PET_CLUB_JETPACK_GUARD_RUN!==$run))petish_club_verify_fail();
   $input=__DIR__.'/pet-club-browser-input.json';
   if($mode==='diagnose') {
    petish_club_fixture_diagnose($root,$run);$expected=PETISH_CLUB_FIXTURE_DIAGNOSE;
@@ -110,11 +114,20 @@ function petish_club_fixture_main($argv) {
    $expected=PETISH_CLUB_FIXTURE_PREPARE;
   } else {
    $report['category']='cleanup';$before=petish_club_verify_state($root);$found=false;
-   foreach(['browser','native']as$kind)$found=petish_club_verify_fixture_cleanup($root,$run,$kind)||$found;
+   foreach(['browser','native']as$kind)$found=petish_club_verify_fixture_cleanup($root,$run,$kind,true)||$found;
    if(!$found){petish_club_verify_state_equal($before,petish_club_verify_state($root));petish_club_verify_mark('fixture_cleanup_verified',true);}
+   petish_club_jetpack_guard_remove($run);
    if(file_exists($input)||is_link($input)){
     $value=petish_club_verify_read_json($input);
     if(($value['format']??'')!=='petish-club-browser-v1'||($value['run']??'')!==$run||!unlink($input))petish_club_verify_fail();
+   }
+   // Keep original baseline evidence until every owned browser artifact has
+   // been removed; a failed guard/input cleanup must remain retryable.
+   foreach(['browser','native']as$kind){$path=petish_club_verify_fixture_state_path($kind);
+    if(file_exists($path)||is_link($path)){
+     $state=petish_club_verify_read_json($path);petish_club_verify_fixture_owned($state,$run,$kind);
+     if(!unlink($path))petish_club_verify_fail();
+    }
    }
    $expected=PETISH_CLUB_FIXTURE_CLEANUP;
   }
