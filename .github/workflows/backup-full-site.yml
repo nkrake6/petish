@@ -1,4 +1,5 @@
 name: Back up the full Petish site to Git
+# Restore-check existing private passports before the opt-in Pet Club upgrade.
 
 on:
   workflow_dispatch:
