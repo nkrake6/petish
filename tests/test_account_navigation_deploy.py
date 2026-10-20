@@ -1,4 +1,4 @@
-"""Exercise a CSS-only Passport release against the current live navigation."""
+"""Exercise the archived CSS-only release against its original navigation files."""
 
 import hashlib
 import json
@@ -12,7 +12,9 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / 'scripts/deploy-account-navigation-remote.php'
-SOURCE = ROOT / 'wordpress/wp-content/plugins/petish-passport'
+# Pet Club now owns the evolving UI class. Keep this historical release fixture
+# tied to the reviewed candidate accepted by its intentionally fixed manifest.
+CANDIDATE = '5a0255b96591df8840f19b0371938b5ef87f1661'
 PHP = shutil.which('php') or '/workspace/.petish-dev/bin/php'
 FILES = ['assets/account-navigation.js', 'assets/passport.css', 'includes/class-petish-passport-ui.php']
 BASELINE = '88d06f9'
@@ -51,7 +53,10 @@ class AccountNavigationDeploymentTests(unittest.TestCase):
         for name in FILES:
             target = self.payload / name
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes((SOURCE / name).read_bytes())
+            candidate = subprocess.run(
+                ['git', 'show', CANDIDATE + ':wordpress/wp-content/plugins/petish-passport/' + name],
+                cwd=ROOT, capture_output=True, check=True)
+            target.write_bytes(candidate.stdout)
             target.chmod(0o600)
             manifest[name] = hashlib.sha256(target.read_bytes()).hexdigest()
         (self.payload / 'manifest.json').write_text(json.dumps(manifest))
@@ -100,7 +105,7 @@ class AccountNavigationDeploymentTests(unittest.TestCase):
         differences = {name for name in set(before) | set(after) if before.get(name) != after.get(name)}
         self.assertEqual(differences, {'wp-content/plugins/petish-passport/assets/passport.css'})
         for name in FILES:
-            self.assertEqual((self.plugin / name).read_bytes(), (SOURCE / name).read_bytes())
+            self.assertEqual((self.plugin / name).read_bytes(), (self.payload / name).read_bytes())
         committed = self.execute('commit')
         self.assertEqual(committed['status'], 'success')
         self.assertTrue(committed['checks']['release_committed'])

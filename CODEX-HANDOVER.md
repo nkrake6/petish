@@ -5,12 +5,14 @@ for the current cloud workflow. The Mac setup below is archived history.
 
 ## Current site and code
 
-- Three interactive Pet Passport redesign concepts are in
-  [the comparison gallery](https://nkrake6.github.io/petish/passport-concepts/):
-  Pet Club, Passport Studio and Little World. See
-  [design notes](docs/PET-PASSPORT-DESIGNS.md). These use fictional sample pets;
-  production passports/photos remain owner-only. The owner is choosing a
-  direction before optional public profiles and member hearts are implemented.
+- The owner selected **Pet Club** from
+  [the comparison gallery](https://nkrake6.github.io/petish/passport-concepts/).
+  Passport 0.3.0 implements that direction with bios, personality tags, private
+  photo moments/journals and optional shared profiles with member hearts.
+  Existing pets remain private; sharing requires explicit per-pet consent.
+  See [Pet Club implementation and release status](docs/PET-CLUB.md) and
+  [design notes](docs/PET-PASSPORT-DESIGNS.md). The three original concepts
+  remain fictional demonstrations.
 - Production: `https://petish.biz/`, hosted on Hostinger.
 - Existing private staging: `https://staging.petish.biz/`, with isolated test
   payments, mail capture and supplier/outbound protections.

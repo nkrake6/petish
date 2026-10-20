@@ -15,8 +15,9 @@ on:
     branches: [main]
     types: [completed]
   push:
-    # Main inspects; the dedicated release branch applies reviewed candidates.
-    branches: [main, verify-account-navigation, deploy-account-navigation]
+    # Pet Club now owns releases of the shared UI class. Keep this workflow's
+    # staging regression chain and explicit historical navigation release path.
+    branches: [verify-account-navigation, deploy-account-navigation]
     paths:
       - .github/workflows/account-navigation.yml
       - scripts/hostinger-account-navigation.sh
@@ -27,7 +28,6 @@ on:
       - scripts/validate-account-navigation-release.py
       - tools/account-navigation/browser.mjs
       - operations/account-navigation-release.json
-      - wordpress/wp-content/plugins/petish-passport/includes/class-petish-passport-ui.php
       - wordpress/wp-content/plugins/petish-passport/assets/passport.css
       - wordpress/wp-content/plugins/petish-passport/assets/account-navigation.js
 
