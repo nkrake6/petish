@@ -84,6 +84,24 @@ echo json_encode($out);
 """)
         self.assertEqual(result, [True] * 8)
 
+    def test_nonce_pair_proof_requires_exact_aggregate_baseline(self):
+        result = self.php(r"""
+$before=[['option_name'=>'existing_setting','value_state'=>hash('sha256','unchanged')]];
+$hash=hash('sha256',json_encode($before,JSON_THROW_ON_ERROR));
+$pair=[['option_name'=>'nonce_key','value_state'=>hash('sha256','never report this')],
+ ['option_name'=>'nonce_salt','value_state'=>hash('sha256','never report this either')]];
+$current=array_merge($before,$pair);$copy=$current;
+$out=[petish_club_verify_new_nonce_options($hash,$current),$current===$copy,
+ !petish_club_verify_new_nonce_options($hash,array_merge($before,[$pair[0]]))];
+$current[0]['value_state']=hash('sha256','modified-setting');
+$out[]=!petish_club_verify_new_nonce_options($hash,$current);
+$delta=petish_club_verify_option_delta($before,$current);
+$out[]=count($delta['added'])===2&&count($delta['modified'])===1&&$delta['removed']===[];
+$out[]=!str_contains(json_encode($delta),'never report this');
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 6)
+
     def test_diagnosis_blocks_bootstrap_writes_and_preserves_journal(self):
         source = VERIFY.read_text()
         self.assertLess(source.index("add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);"),

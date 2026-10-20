@@ -270,7 +270,7 @@ class PetClubReleaseTests(unittest.TestCase):
         function = source[start:end]
         for scenario, rollback, fixture, expected in (
                 ('failed_rollback', 1, 0, ['rollback', 'publish:failure:rollback']),
-                ('failed_fixture', 0, 1, ['fixture_cleanup', 'publish:failure:cleanup']),
+                ('failed_fixture', 0, 1, ['fixture_cleanup', 'fixture_diagnose', 'publish:failure:cleanup']),
                 ('successful_rollback', 1, 0, ['rollback', 'remote_cleanup', 'publish:failure:prerequisites']),
                 ('successful_fixture', 0, 1, ['fixture_cleanup', 'stage_source', 'remote_cleanup', 'publish:success:complete']),
                 ('stale_staging_source', 0, 1, ['fixture_cleanup', 'stage_source', 'remote_cleanup', 'publish:failure:staging_source']),
@@ -284,7 +284,7 @@ class PetClubReleaseTests(unittest.TestCase):
                     'mode=staging; ssh_ready=1; fixture_cleanup_verified=0; operation_verified=1; failure_category=prerequisites',
                     'retain_remote_tools=0; if [[ "$scenario" == diagnostic_only ]]; then retain_remote_tools=1; fi',
                     'remote_phase() { printf "rollback\\n" >> "$log"; [[ "$scenario" != failed_rollback ]]; }',
-                    'fixture_phase() { printf "fixture_cleanup\\n" >> "$log"; [[ "$scenario" != failed_fixture ]]; }',
+                    'fixture_phase() { printf "fixture_%s\\n" "$1" >> "$log"; [[ "$scenario" != failed_fixture ]]; }',
                     'verify_staging_source() { printf "stage_source\\n" >> "$log"; [[ "$scenario" != stale_staging_source ]]; }',
                     'remote_cleanup() { printf "remote_cleanup\\n" >> "$log"; }',
                     'publish_result() { printf "publish:%s:%s\\n" "$result_status" "$failure_category" >> "$log"; }',
@@ -301,14 +301,16 @@ class PetClubReleaseTests(unittest.TestCase):
         def names(name):
             match = re.search(r'const ' + name + r' = \[(.*?)\];', source, re.S)
             self.assertIsNotNone(match)
-            return set(re.findall(r"'([a-z0-9_]+)'", match.group(1)))
+            return set(re.findall(r"'([A-Za-z0-9_.-]+)'", match.group(1)))
         common = names('PETISH_CLUB_VERIFY_COMMON')
         self.assertEqual(safe.STAGING, common | names('PETISH_CLUB_VERIFY_STAGING'))
         self.assertEqual(safe.VERIFY, common | names('PETISH_CLUB_VERIFY_PRODUCTION'))
         self.assertEqual(safe.FIXTURE, names('PETISH_CLUB_FIXTURE_PREPARE'))
         self.assertEqual(safe.CLEANUP, names('PETISH_CLUB_FIXTURE_CLEANUP'))
         self.assertEqual(safe.DIAGNOSE, names('PETISH_CLUB_FIXTURE_DIAGNOSE'))
-        self.assertEqual(safe.DIAGNOSTIC_OBSERVATIONS, names('PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS'))
+        known = {'changed_known_option_' + key.replace('.', '_').replace('-', '_')
+                 for key in names('PETISH_CLUB_KNOWN_OPTION_KEYS')}
+        self.assertEqual(safe.DIAGNOSTIC_OBSERVATIONS, names('PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS') | known)
         self.assertEqual(safe.FILE_COUNT, len(evidence.FILES))
         browser = (ROOT / 'tools/pet-club/browser.mjs').read_text()
         contract = re.search(r'CHECK_KEYS = Object.freeze\(\[(.*?)\]\)', browser, re.S)

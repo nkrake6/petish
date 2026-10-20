@@ -19,13 +19,40 @@ function petish_club_fixture_diagnose($root,$run) {
    'product_prices_and_stock_unchanged'=>'products','existing_passports_unchanged'=>'passports',
    'private_photo_files_unchanged'=>'photos']as$check=>$key)petish_club_verify_mark($check,$before[$key]===$current[$key]);
   $rows=$current['settings_rows'];$added=petish_club_verify_single_added_option($before['settings'],$rows);
-  foreach(PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS as$key)$report['checks'][$key]=false;
+  foreach(array_merge(PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS,petish_club_verify_known_option_checks())as$key)$report['checks'][$key]=false;
   $report['checks']['settings_unchanged']=hash_equals($before['settings'],$current['settings']);
   $report['checks']['single_added_option_identified']=$added!==null;
+  $report['checks']['only_new_nonce_key_and_salt_identified']=petish_club_verify_new_nonce_options($before['settings'],$rows);
   if($added!==null)$report['checks']['added_option_'.petish_club_verify_option_category($added['option_name'])]=true;
+  $delta=null;
+  if(isset($before['settings_rows'])){
+   if(!hash_equals($before['settings'],hash('sha256',json_encode($before['settings_rows'],JSON_THROW_ON_ERROR))))petish_club_verify_fail();
+   $delta=petish_club_verify_option_delta($before['settings_rows'],$rows);
+   $report['checks']['option_rows_baseline_available']=true;$report['checks']['option_delta_identified']=true;
+   foreach($delta as$operation=>$changes){$report['checks']['options_'.$operation]=count($changes)>0;
+    foreach($changes as$change){$name=$change['option_name'];
+     $report['checks']['changed_option_'.petish_club_verify_option_category($name)]=true;
+     if(in_array($name,PETISH_CLUB_KNOWN_OPTION_KEYS,true))$report['checks']['changed_known_option_'.str_replace(['.','-'],'_',$name)]=true;
+    }
+   }
+  }
+  $events=[];$event_file=__DIR__.'/pet-club-'.$state['kind'].'-option-events.json';
+  if(file_exists($event_file)||is_link($event_file)){
+   $trace=petish_club_verify_read_json($event_file);
+   if(($trace['format']??'')!=='petish-club-option-events-v1'||($trace['run']??'')!==$run
+    ||($trace['kind']??'')!==$state['kind']||!is_array($trace['events']??null)||count($trace['events'])>500)petish_club_verify_fail();
+   $names=[];foreach($delta??[]as$changes)foreach($changes as$change)$names[]=$change['option_name'];
+   foreach($trace['events']as$event){
+    if(!is_array($event)||!is_string($event['option_name']??null)||strlen($event['option_name'])>191
+     ||!in_array($event['operation']??'',['added_option','updated_option','deleted_option'],true)
+     ||!in_array($event['phase']??'',['fixture','user_creation','pet_creation','moments','sharing','hearts','moderation','cleanup'],true))petish_club_verify_fail();
+    if(!in_array($event['option_name'],$names,true))continue;$events[]=$event;
+    if($event['phase']!=='fixture')$report['checks']['option_change_'.$event['phase']]=true;
+   }
+  }
   $details=['format'=>'petish-club-diagnostic-v1','run'=>$run,'kind'=>$state['kind'],
    'baseline_settings_hash'=>$before['settings'],'current_settings_hash'=>$current['settings'],
-   'single_added_option'=>$added];
+   'single_added_option'=>$added,'option_delta'=>$delta,'option_events'=>$events];
   // Only option names and SHA-256 values go into this 0600 private file. Nothing
   // here restores, deletes or accepts a changed WordPress setting.
   petish_club_verify_write_json(__DIR__.'/pet-club-diagnostic.json',$details,

@@ -198,6 +198,8 @@ finish() {
         else
             outcome=1
             failure_category=cleanup
+            # Keep the failed journal and explain bounded state differences without writes.
+            if ! fixture_phase diagnose; then :; fi
         fi
     fi
     # Preserve exact helpers/payload and owned journals whenever recovery is incomplete.
