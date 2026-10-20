@@ -3,11 +3,11 @@
 if (PHP_SAPI !== 'cli') exit(1);
 ini_set('display_errors','0'); ini_set('log_errors','0'); error_reporting(0);
 
-// Exact reviewed homepage source and the unchanged generated delivery badge.
+// Exact reviewed homepage source and the canonical hosted delivery badge bytes.
 const PETISH_HOMEPAGE_FILES = [
-    'assets/images/ui/free-delivery-van.png'=>'bfd1227330732cf1f1c56f2ef6b08794d15cd25221115e6de4baeefe0efa5972',
+    'assets/images/ui/free-delivery-van.png'=>'4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af',
     'assets/css/home.css'=>'11aa02b5a3890e3023753bb2acfd024cf9e520a74737ee1d4ac8a9b1c2dca557',
-    'includes/supplier-popularity.php'=>'389c1079f59f7a81882914561be69ef737d361d02b1b3ee4fdb80177b6c35145',
+    'includes/supplier-popularity.php'=>'54ef94d249292953c41a81291a5b5eb3f0760ef290f6ee19de79c691747b2e2b',
     'front-page.php'=>'50828b31df5a89a5a31308f3fb4bac6d01412afcab379d4b53bbecb45c46280c',
 ];
 const PETISH_HOMEPAGE_BASELINES = [

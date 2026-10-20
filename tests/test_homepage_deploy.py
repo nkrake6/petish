@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -219,6 +220,7 @@ class HomepageDeploymentTests(unittest.TestCase):
             target = self.payload / name
             target.write_bytes((ROOT / PREFIX / name).read_bytes())
             manifest[name] = hashlib.sha256(target.read_bytes()).hexdigest()
+        self.assertEqual(struct.unpack('>II', (self.payload / FILES[0]).read_bytes()[16:24]), (1600, 592))
         (self.payload / 'manifest.json').write_text(json.dumps(manifest))
         before = self.snapshot()
         inspected = self.execute('inspect', script=SCRIPT)

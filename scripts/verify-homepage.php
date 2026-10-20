@@ -22,6 +22,7 @@ const PETISH_HOMEPAGE_PREVIOUS_FILES = [
     'wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png'=>'45b8ab50ef5fd0b4bc98fb7994d3a4583d0d013db1b253bf7f870496cd5cf615',
 ];
 const PETISH_HOMEPAGE_HOT_RULE_SHA256 = '159367b9eaf4e4ec6173568ad612182ab2800b70df1fd37185ebe4488d30b09c';
+const PETISH_HOMEPAGE_BADGE_SHA256 = '4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af';
 
 function petish_homepage_verify_fail() { throw new RuntimeException(); }
 function petish_homepage_verify_path($path,$directory=false) {
@@ -200,7 +201,8 @@ try {
     $badge=$root.'/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png';
     if(!petish_homepage_verify_path($badge))petish_homepage_verify_fail();
     $dimensions=getimagesize($badge);
-    petish_homepage_verify_mark('free_delivery_badge_asset_verified',is_array($dimensions)&&$dimensions[0]===2061&&$dimensions[1]===763);
+    petish_homepage_verify_mark('free_delivery_badge_asset_verified',is_array($dimensions)&&$dimensions[0]===1600&&$dimensions[1]===592
+        &&hash_equals(PETISH_HOMEPAGE_BADGE_SHA256,hash_file('sha256',$badge)));
     $report['category']='bootstrap';
     foreach(['WP_HTTP_BLOCK_EXTERNAL'=>true,'WP_ACCESSIBLE_HOSTS'=>'','DISABLE_WP_CRON'=>true,
         'AUTOMATIC_UPDATER_DISABLED'=>true,'DISALLOW_FILE_MODS'=>true,'WP_USE_THEMES'=>false]as$name=>$value){

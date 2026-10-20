@@ -55,7 +55,7 @@ class HomepageReleaseTests(unittest.TestCase):
         value['checks']['badge_png_image_matches']=False
         value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,False)
         value['diagnostics']['badge_response_signature_png']=True
-        value['image_dimensions']={'expected_width':2061,'expected_height':763,'response_width':1,'response_height':1}
+        value['image_dimensions']={'expected_width':1600,'expected_height':592,'response_width':1,'response_height':1}
         report,passed=self.screen('browser',value)
         self.assertFalse(passed);self.assertEqual(report,value)
         for key,extra in [('private_response','private-sentinel'),('badge_response_decode_ok','private-sentinel')]:

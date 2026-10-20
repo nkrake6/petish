@@ -244,5 +244,5 @@ function petish_supplier_free_delivery_badge( $product ) {
     if ( ! petish_supplier_free_delivery_eligible( $product ) ) { return ''; }
     return '<span class="petish-free-delivery-badge" title="' . esc_attr( petish_supplier_free_delivery_destination_label() ) . '">'
         . '<img src="' . esc_url( get_stylesheet_directory_uri() . '/assets/images/ui/free-delivery-van.png' )
-        . '" width="2061" height="763" alt="' . esc_attr__( 'Free delivery', 'petish' ) . '" loading="lazy" decoding="async"></span>';
+        . '" width="1600" height="592" alt="' . esc_attr__( 'Free delivery', 'petish' ) . '" loading="lazy" decoding="async"></span>';
 }

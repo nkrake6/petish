@@ -136,7 +136,7 @@ check('free_product_does_not_become_hot',petish_supplier_hot_badge($product)==='
 $product->meta['_petish_supplier_order_count']='1';
 $product->meta['_petish_supplier_order_observed']=gmdate('Y-m-d');
 check('low_hot_count_still_allows_free',petish_supplier_free_delivery_eligible($product)&&petish_supplier_hot_badge($product)==='');
-check('badge_asset_dimensions_and_destination',str_contains(petish_supplier_free_delivery_badge($product),'width="2061" height="763"')&&str_contains(petish_supplier_free_delivery_badge($product),'free-delivery-van.png')&&str_contains(petish_supplier_free_delivery_destination_label(),'Australia (one item)'));
+check('badge_asset_dimensions_and_destination',str_contains(petish_supplier_free_delivery_badge($product),'width="1600" height="592"')&&str_contains(petish_supplier_free_delivery_badge($product),'free-delivery-van.png')&&str_contains(petish_supplier_free_delivery_destination_label(),'Australia (one item)'));
 check('package_is_one_item_without_cart_session',($last_package['contents'][0]['quantity']??0)===1&&!isset(WC()->cart)&&!isset(WC()->session));
 
 $valid=proof($product);

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -40,6 +41,10 @@ class HomepageVerifierTests(unittest.TestCase):
         rule = re.search(r'^function petish_supplier_hot_badge\b.*?^\}\n', helper, re.M | re.S).group(0)
         expected = re.search(r"PETISH_HOMEPAGE_HOT_RULE_SHA256 = '([a-f0-9]{64})'", self.source).group(1)
         self.assertEqual(hashlib.sha256(rule.encode()).hexdigest(), expected)
+        badge = (ROOT / 'wordpress/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png').read_bytes()
+        expected_badge = re.search(r"PETISH_HOMEPAGE_BADGE_SHA256 = '([a-f0-9]{64})'", self.source).group(1)
+        self.assertEqual(hashlib.sha256(badge).hexdigest(), expected_badge)
+        self.assertEqual(struct.unpack('>II', badge[16:24]), (1600, 592))
 
     def test_rendered_cards_must_resolve_to_known_public_products_in_native_order(self):
         result = self.execute(r'''
