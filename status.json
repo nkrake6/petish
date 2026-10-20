@@ -1,0 +1,14 @@
+{
+  "AUTOMATION_KIND": "mail-test",
+  "AUTOMATION_RESULT": "success",
+  "GITHUB_RUN_ID": "39360961651",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "f7b929be82a0ccdf0a5b380ef43f3f2247ba4e25",
+  "generated_utc": "2026-10-20T02:49:15.079793+00:00",
+  "mail_test": {
+    "test_message_submitted": false,
+    "request_key_prepared": true,
+    "request_token": "e29299e45587bd5641cafe99e0db2195",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyrGnjxe1OCDWi3lECe1M\nxQoCuS2kHZB+mOuY2igP4g0yQSvXccCA6VreSlqf/wk5irM5sobLnIiqeD5B+nxb\niLcN/b4+mnwsUDEakvzljiixklMvNIU9jT44hcV8ui8ykBrZGN+xktrcJVXrhe1z\nZgdjD7g0BEhVCsZvUnCBQyOAnnCDx+NpUiUlJqUOvAMg9y8YYgTuUJ4oVaXw6Hdn\n56AKXi8aZMnSBGIuD/9N0WsT85gRMO2OFhhlqoShupHfCS3ETtMsyoIx4cGCiUoo\nUzE+7xvIpR9ItLg+NoaklpGyGFWL0wCfL6TfcS+WZ7nFViUnia0hTri9gakcBWQI\ngwIDAQAB\n-----END PUBLIC KEY-----\n"
+  }
+}
