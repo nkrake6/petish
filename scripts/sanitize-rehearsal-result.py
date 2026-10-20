@@ -12,11 +12,13 @@ CHECKS = {'environment_staging', 'woocommerce_test_mode', 'wcpay_dev_mode',
     'mail_capture_verified', 'webhooks_blocked', 'paths_verified',
     'source_guard_sha_verified', 'database_separate', 'runtime_database_staging',
     'only_allowlisted_plugins', 'no_active_webhooks', 'all_http_forced_blocked',
-    'browser_input_written', 'wp_cron_disabled', 'async_runner_disabled'}
+    'browser_input_written', 'wp_cron_disabled', 'async_runner_disabled',
+    'loader_requires_private', 'source_environment_staging', 'source_wcpay_dev_mode',
+    'source_wp_cron_disabled', 'source_staging_database_literal', 'source_production_database_literal'}
 ACCOUNT = {'cached_account_present', 'account_is_live', 'native_connected',
     'test_onboarding', 'dev_mode', 'test_mode', 'gateway_test_mode', 'payments_enabled'}
 NATIVE = {'mode_class', 'mode_methods', 'account_service_class', 'account_service_methods',
-    'gateway_class', 'gateway_methods', 'helper_method_calls', 'api_client_class', 'api_client_methods'}
+    'gateway_class', 'gateway_methods', 'helper_method_calls', 'api_client_class', 'api_client_methods', 'api_method_signatures'}
 HOSTS = {'public-api.wordpress.com', 'api.wordpress.com', 'wordpress.com',
     'pay.wordpress.com', 'api.stripe.com', 'js.stripe.com', 'r.stripe.com',
     'm.stripe.com', 'm.stripe.network', 'woocommerce.com', 'connect.woocommerce.com',

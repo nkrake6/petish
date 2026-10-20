@@ -13,9 +13,11 @@ $report = [
         'suppliers_blocked'=>false, 'mail_capture_verified'=>false, 'webhooks_blocked'=>false,
         'only_allowlisted_plugins'=>false, 'no_active_webhooks'=>false,
         'all_http_forced_blocked'=>false, 'browser_input_written'=>false,
+        'loader_requires_private'=>false,'source_environment_staging'=>false,'source_wcpay_dev_mode'=>false,
+        'source_wp_cron_disabled'=>false,'source_staging_database_literal'=>false,'source_production_database_literal'=>false,
     ],
     'native'=>['mode_class'=>null,'mode_methods'=>[], 'account_service_class'=>null,'account_service_methods'=>[],
-               'gateway_class'=>null,'gateway_methods'=>[], 'api_client_class'=>null,'api_client_methods'=>[], 'helper_method_calls'=>[]],
+               'gateway_class'=>null,'gateway_methods'=>[], 'api_client_class'=>null,'api_client_methods'=>[], 'api_method_signatures'=>[], 'helper_method_calls'=>[]],
     'account'=>['cached_account_present'=>false,'account_is_live'=>null,'native_connected'=>null,
                 'payments_enabled'=>null,'test_onboarding'=>null,'dev_mode'=>null,'test_mode'=>null,'gateway_test_mode'=>null],
     'structure'=>['credentials'=>[],'checkout_fixture'=>[],'captured_mail'=>[]], 'guard_allowed_hosts'=>[],
@@ -143,10 +145,15 @@ try {
     $report['checks']['source_guard_sha_verified']=true;
     $report['category']='source_configuration';
     $private_tokens=rehearsal_tokens(file_get_contents($config)); $loader_tokens=rehearsal_tokens(file_get_contents($loader));
-    $definitions=rehearsal_literal_defines($private_tokens,['DB_NAME','DB_HOST','WP_ENVIRONMENT_TYPE','WCPAY_DEV_MODE','DISABLE_WP_CRON']);
+    $definitions=rehearsal_literal_defines(array_merge($loader_tokens,$private_tokens),['DB_NAME','DB_HOST','WP_ENVIRONMENT_TYPE','WCPAY_DEV_MODE','DISABLE_WP_CRON']);
     $production_definitions=rehearsal_literal_defines(rehearsal_tokens(file_get_contents($production.'/wp-config.php')),['DB_NAME','DB_HOST']);
-    if (!rehearsal_loader_requires($loader_tokens,$config) || ($definitions['WP_ENVIRONMENT_TYPE']??null)!=='staging'
-        || ($definitions['WCPAY_DEV_MODE']??null)!==true || ($definitions['DISABLE_WP_CRON']??null)!==true) rehearsal_fail();
+    $report['checks']['loader_requires_private']=rehearsal_loader_requires($loader_tokens,$config);
+    $report['checks']['source_environment_staging']=($definitions['WP_ENVIRONMENT_TYPE']??null)==='staging';
+    $report['checks']['source_wcpay_dev_mode']=($definitions['WCPAY_DEV_MODE']??null)===true;
+    $report['checks']['source_wp_cron_disabled']=($definitions['DISABLE_WP_CRON']??null)===true;
+    $report['checks']['source_staging_database_literal']=is_string($definitions['DB_NAME']??null)&&is_string($definitions['DB_HOST']??null);
+    $report['checks']['source_production_database_literal']=is_string($production_definitions['DB_NAME']??null)&&is_string($production_definitions['DB_HOST']??null);
+    foreach(['loader_requires_private','source_environment_staging','source_wcpay_dev_mode','source_wp_cron_disabled']as$key)if(!$report['checks'][$key])rehearsal_fail();
     foreach (['DB_NAME','DB_HOST'] as $name) if (!is_string($definitions[$name]??null)||!is_string($production_definitions[$name]??null)||$definitions[$name]==='') rehearsal_fail();
     if ($definitions['DB_NAME']===$production_definitions['DB_NAME']) rehearsal_fail();
     $report['checks']['database_separate']=true;
@@ -251,9 +258,21 @@ try {
     $mode=WC_Payments::mode();$service=WC_Payments::get_account_service();
     $report['native']['mode_class']=is_object($mode)?get_class($mode):null;$report['native']['mode_methods']=rehearsal_public_methods($mode);
     $report['native']['account_service_class']=is_object($service)?get_class($service):null;$report['native']['account_service_methods']=rehearsal_public_methods($service);
-    if(is_callable(['WC_Payments','get_api_client'])){
-        $client=WC_Payments::get_api_client();$report['native']['api_client_class']=is_object($client)?get_class($client):null;
-        $report['native']['api_client_methods']=rehearsal_public_methods($client);unset($client);
+    $client_getter=is_callable(['WC_Payments','get_payments_api_client'])?'get_payments_api_client':(is_callable(['WC_Payments','get_api_client'])?'get_api_client':null);
+    if($client_getter!==null){
+        $client=WC_Payments::$client_getter();$report['native']['api_client_class']=is_object($client)?get_class($client):null;
+        $report['native']['api_client_methods']=rehearsal_public_methods($client);
+        foreach($report['native']['api_client_methods']as$method){
+            if(!preg_match('/charge|intent|refund/i',$method))continue;
+            $reflection=new ReflectionMethod($client,$method);
+            foreach($reflection->getParameters()as$index=>$parameter){
+                $type=$parameter->hasType()?(string)$parameter->getType():'untyped';
+                $type=str_replace(['?','|','&'],['nullable_','_or_','_and_'],$type);
+                $signature=$method.':'.$index.':'.$parameter->getName().':'.$type.':'.($parameter->isOptional()?'optional':'required');
+                if(strlen($signature)<=150&&preg_match('/\A[A-Za-z_\\\\][A-Za-z0-9_\\\\:>\-]{0,149}\z/D',$signature))$report['native']['api_method_signatures'][]=$signature;
+            }
+        }
+        $report['native']['api_method_signatures']=array_slice($report['native']['api_method_signatures'],0,150);unset($client);
     }
     foreach(['is_dev'=>'dev_mode','is_test'=>'test_mode']as$method=>$field)if(is_callable([$mode,$method])){$value=$mode->$method();if(is_bool($value))$report['account'][$field]=$value;}
     if(is_callable([$service,'is_connected'])){$value=$service->is_connected();if(is_bool($value))$report['account']['native_connected']=$value;}

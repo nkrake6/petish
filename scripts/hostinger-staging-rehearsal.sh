@@ -27,6 +27,19 @@ result=0
     > "$RUNNER_TEMP/petish-rehearsal-preflight.json" 2> "$work/preflight.private.stderr" || result=$?
 python3 scripts/sanitize-rehearsal-result.py "$RUNNER_TEMP/petish-rehearsal-preflight.json" "$RUNNER_TEMP/petish-rehearsal-result.json"
 [[ $result == 0 ]] || exit "$result"
+python3 - "$RUNNER_TEMP/petish-rehearsal-result.json" <<'PY'
+import json,sys
+from pathlib import Path
+report=json.loads(Path(sys.argv[1]).read_text())
+required={'environment_staging','woocommerce_test_mode','wcpay_dev_mode',
+    'guard_runtime_verified','suppliers_blocked','mail_capture_verified',
+    'webhooks_blocked','database_separate','runtime_database_staging',
+    'only_allowlisted_plugins','no_active_webhooks','browser_input_written'}
+checks=report.get('checks',{})
+if report.get('status')!='success' or report.get('category')!='complete' \
+        or checks.get('account_is_live') is not False or any(checks.get(key) is not True for key in required):
+    raise SystemExit('Staging runtime isolation and native test-payment mode must be verified before continuing.')
+PY
 if [[ $REHEARSAL_MODE == rehearse ]]; then
     printf '%s\n' 'The checkout driver must be prepared and validated before applying the rehearsal.' >&2
     exit 1
