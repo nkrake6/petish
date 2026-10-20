@@ -29,6 +29,7 @@ VERIFY = {
     'order_counts_unchanged', 'user_counts_unchanged', 'authentication_state_unchanged',
     'product_stock_unchanged', 'email_and_account_settings_unchanged',
     'seven_native_emails_rendered_without_dispatch',
+    'production_data_snapshot_verified',
 }
 BASE = {'paths_verified', 'candidate_manifest_verified', 'candidate_syntax_verified',
         'logo_verified', 'production_config_present', 'live_files_compatible'}
@@ -39,6 +40,10 @@ PHASES = {
     'commit':{'protected_state_unchanged', 'release_committed'},
     'rollback':{'rollback_completed'},
     'verify':VERIFY,
+    'preflight':{'production_paths_verified','approved_full_animal_logo_verified',
+                 'production_environment_verified','tested_theme_and_woocommerce_verified',
+                 'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled',
+                 'cron_and_async_runner_disabled','production_data_snapshot_verified'},
     'health':{'homepage_http_verified', 'shop_http_verified', 'product_http_verified',
               'cart_http_verified', 'account_http_verified', 'approved_logo_http_verified'},
 }
@@ -78,8 +83,8 @@ class EmailReleaseReportTests(unittest.TestCase):
         self.assertNotIn(PRIVATE, json.dumps(result))
         return result, passed
 
-    def test_all_six_phase_contracts_and_22_native_checks_pass(self):
-        self.assertEqual(len(VERIFY), 22)
+    def test_all_seven_phase_contracts_and_23_native_checks_pass(self):
+        self.assertEqual(len(VERIFY), 23)
         self.assertEqual(screening.VERIFY_CHECKS, VERIFY)
         for phase in PHASES:
             with self.subTest(phase=phase):

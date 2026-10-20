@@ -19,19 +19,24 @@ VERIFY_CHECKS = {'production_paths_verified','approved_full_animal_logo_verified
     'three_account_types_rendered','core_welcome_and_reset_filters_verified',
     'order_counts_unchanged','user_counts_unchanged','authentication_state_unchanged',
     'product_stock_unchanged','email_and_account_settings_unchanged',
-    'seven_native_emails_rendered_without_dispatch'}
+    'seven_native_emails_rendered_without_dispatch','production_data_snapshot_verified'}
 HEALTH_CHECKS = {'homepage_http_verified','shop_http_verified','product_http_verified',
                  'cart_http_verified','account_http_verified','approved_logo_http_verified'}
 HEALTH_OBSERVATIONS = {'logo_http_fetch_succeeded','logo_http_is_png','logo_http_is_webp',
                       'logo_http_forbidden','logo_http_not_found','logo_http_server_error',
                       'logo_http_file_bytes_match','logo_http_dimensions_match','logo_http_pixels_match'}
 CATEGORIES = {'input','paths','payload','logo','drift','protected_state','lock','snapshot',
+              'snapshot_stock','snapshot_orders','snapshot_accounts','snapshot_settings',
               'deployment','rollback','commit','complete','bootstrap','runtime','renderer','verification','http'}
 BASE = {'paths_verified','candidate_manifest_verified','candidate_syntax_verified',
         'logo_verified','production_config_present','live_files_compatible'}
+PREFLIGHT_CHECKS = {'production_paths_verified','approved_full_animal_logo_verified',
+    'production_environment_verified','tested_theme_and_woocommerce_verified',
+    'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled',
+    'cron_and_async_runner_disabled','production_data_snapshot_verified'}
 REQUIRED = {'inspect':BASE, 'apply':BASE|{'protected_state_unchanged','rollback_snapshot_created','files_deployed','lock_owned'},
             'rollback':{'rollback_completed'}, 'commit':{'protected_state_unchanged','release_committed'},
-            'verify':VERIFY_CHECKS, 'health':HEALTH_CHECKS}
+            'verify':VERIFY_CHECKS, 'preflight':PREFLIGHT_CHECKS, 'health':HEALTH_CHECKS}
 
 
 def screen(phase, path):
@@ -55,7 +60,7 @@ def screen(phase, path):
         if not isinstance(raw, dict) or set(raw) != allowed or raw['status'] not in {'success','failure'} \
                 or raw['category'] not in CATEGORIES or not isinstance(raw['checks'], dict):
             raise ValueError()
-        names = DEPLOY_CHECKS if phase in {'inspect','apply','rollback','commit'} else VERIFY_CHECKS if phase == 'verify' else HEALTH_CHECKS | HEALTH_OBSERVATIONS
+        names = DEPLOY_CHECKS if phase in {'inspect','apply','rollback','commit'} else VERIFY_CHECKS if phase in {'verify','preflight'} else HEALTH_CHECKS | HEALTH_OBSERVATIONS
         if not set(raw['checks']) <= names or any(type(value) is not bool for value in raw['checks'].values()):
             raise ValueError()
         if 'changed_file_count' in raw and (type(raw['changed_file_count']) is not int or not 0 <= raw['changed_file_count'] <= 6):

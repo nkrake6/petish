@@ -21,14 +21,14 @@ class ProductionEmailVerifierTests(unittest.TestCase):
         source = VERIFIER.read_text()
         self.source = source
         self.functions = self.directory / 'functions.php'
-        self.functions.write_text('<?php\n' + source[source.index('function petish_production_verify_fail()'):source.index('\ntry {\n    if($argc')])
+        self.functions.write_text('<?php\n' + source[source.index('function petish_production_verify_fail()'):source.index('\ntry {\n')])
 
     def tearDown(self):
         self.temporary.cleanup()
 
     def execute(self, body):
         fixture = self.directory / 'fixture.php'
-        fixture.write_text('<?php\nrequire ' + repr(str(self.functions)) + ';\n' + body)
+        fixture.write_text("<?php\n$report=['status'=>'failure','category'=>'snapshot','checks'=>[]];\nrequire " + repr(str(self.functions)) + ';\n' + body)
         result = subprocess.run([PHP, str(fixture)], capture_output=True, timeout=20)
         self.assertEqual(result.returncode, 0, 'Production verification fixture failed; private diagnostics suppressed')
         self.assertFalse(result.stderr)
@@ -111,7 +111,10 @@ define('ARRAY_A','ARRAY_A');
 $GLOBALS['queries']=[];$GLOBALS['changed']=false;
 class Database{
  public $prefix='wp_';public $postmeta='wp_postmeta';
- function get_results($sql,$format){$GLOBALS['queries'][]=$sql;return [['meta_id'=>'1','post_id'=>'5','meta_key'=>'_stock','value_state'=>hash('sha256',$GLOBALS['changed']?'24':'25')]];}
+ function get_results($sql,$format){$GLOBALS['queries'][]=$sql;
+  if(!str_contains($sql,"SHA2(CONCAT(IF(meta_value IS NULL,'null:','value:'),COALESCE(meta_value,'')),256)"))return [['value_state'=>null]];
+  return [['meta_id'=>'1','post_id'=>'5','meta_key'=>'_stock','value_state'=>hash('sha256',$GLOBALS['changed']?'value:':'null:')]];
+ }
 }
 $wpdb=new Database();
 function get_option($name,$default){return $name==='woocommerce_email_from_address'?'private-inbox@example.invalid':$default;}
@@ -131,6 +134,38 @@ echo json_encode($out);
         self.assertFalse(result.stderr)
         self.assertEqual(json.loads(result.stdout), {'status':'failure','category':'input','checks':{}})
         self.assertNotIn(b'PRIVATE_INVALID_REQUEST', result.stdout)
+
+    def test_preflight_mode_is_accepted_but_unsafe_missing_site_refuses_before_bootstrap(self):
+        env = dict(os.environ, HOME=str(self.directory))
+        result = subprocess.run([PHP, '-d', 'allow_url_fopen=0', str(VERIFIER), '123-1', 'preflight'],
+                                env=env, capture_output=True, timeout=20)
+        self.assertEqual(result.returncode, 1)
+        self.assertFalse(result.stderr)
+        self.assertEqual(json.loads(result.stdout), {'status':'failure','category':'paths','checks':{}})
+        for mode in ('render', 'PRIVATE_MODE', ''):
+            result = subprocess.run([PHP, '-d', 'allow_url_fopen=0', str(VERIFIER), '123-1', mode],
+                                    env=env, capture_output=True, timeout=20)
+            self.assertEqual(json.loads(result.stdout)['category'], 'input')
+
+    def test_snapshot_failures_identify_the_finite_component_without_dumping_data(self):
+        result = self.execute(r'''
+define('ARRAY_A','ARRAY_A');
+$GLOBALS['where']='stock';
+class Database{
+ public $prefix='wp_';public $postmeta='wp_postmeta';
+ function get_results($sql,$format){return $GLOBALS['where']==='stock'?null:[];}
+}
+$wpdb=new Database();
+function petish_email_preview_order_counts(){if($GLOBALS['where']==='orders')throw new RuntimeException('private detail');return [];}
+function petish_email_preview_account_state(){if($GLOBALS['where']==='accounts')throw new RuntimeException('private detail');return [];}
+function get_option($name,$default){throw new RuntimeException('private detail');}
+$out=[];foreach(['stock','orders','accounts','settings']as$where){
+ $GLOBALS['where']=$where;$report['category']='snapshot';
+ try{petish_production_verify_state();$out[]=false;}catch(RuntimeException$ignored){$out[]=$report['category']==='snapshot_'.$where;}
+}
+echo json_encode($out);
+''')
+        self.assertEqual(result, [True] * 4)
 
 
 if __name__ == '__main__':

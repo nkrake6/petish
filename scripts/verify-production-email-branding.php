@@ -29,14 +29,17 @@ function petish_production_verify_mark($name,$value) {
 }
 /** State only; no stock values, private settings or account digests enter the report. */
 function petish_production_verify_state() {
-    global $wpdb;
+    global $wpdb,$report;
+    $previous_category=$report['category'];$report['category']='snapshot_stock';
     if(!is_object($wpdb)||!preg_match('/\A[A-Za-z0-9_]+\z/D',$wpdb->prefix)
         ||!preg_match('/\A[A-Za-z0-9_]+\z/D',$wpdb->postmeta))petish_production_verify_fail();
-    $stock=$wpdb->get_results("SELECT meta_id,post_id,meta_key,SHA2(meta_value,256) AS value_state FROM `{$wpdb->postmeta}`"
+    $stock=$wpdb->get_results("SELECT meta_id,post_id,meta_key,SHA2(CONCAT(IF(meta_value IS NULL,'null:','value:'),COALESCE(meta_value,'')),256) AS value_state FROM `{$wpdb->postmeta}`"
         ." WHERE meta_key IN ('_stock','_stock_status') ORDER BY meta_id",ARRAY_A);
     if(!is_array($stock))petish_production_verify_fail();
     foreach($stock as$row)if(!is_array($row)||!preg_match('/\A[a-f0-9]{64}\z/Di',$row['value_state']??''))petish_production_verify_fail();
-    $options=[];
+    $report['category']='snapshot_orders';$orders=petish_email_preview_order_counts();
+    $report['category']='snapshot_accounts';$accounts=petish_email_preview_account_state();
+    $report['category']='snapshot_settings';$options=[];
     foreach(['active_plugins','stylesheet','template','woocommerce_enable_guest_checkout',
         'woocommerce_enable_myaccount_registration','woocommerce_enable_signup_and_login_from_checkout',
         'woocommerce_registration_generate_username','woocommerce_registration_generate_password',
@@ -45,7 +48,8 @@ function petish_production_verify_state() {
         'woocommerce_customer_new_account_settings','woocommerce_customer_verify_email_settings',
         'woocommerce_customer_reset_password_settings','woocommerce_email_from_name','woocommerce_email_from_address',
         'woocommerce_email_footer_text']as$name)$options[$name]=get_option($name,null);
-    return ['orders'=>petish_email_preview_order_counts(),'accounts'=>petish_email_preview_account_state(),
+    $report['category']=$previous_category;
+    return ['orders'=>$orders,'accounts'=>$accounts,
         'stock'=>hash('sha256',json_encode($stock,JSON_THROW_ON_ERROR)),
         'settings'=>hash('sha256',serialize($options))];
 }
@@ -128,7 +132,9 @@ function petish_production_verify_render() {
 }
 
 try {
-    if($argc!==2||!preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[1])||ini_get('allow_url_fopen'))petish_production_verify_fail();
+    if(!in_array($argc,[2,3],true)||($argc===3&&$argv[2]!=='preflight')
+        ||!preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[1])||ini_get('allow_url_fopen'))petish_production_verify_fail();
+    $preflight=$argc===3;
     $report['category']='paths';
     $home=getenv('HOME');if(!petish_production_verify_path($home,true))petish_production_verify_fail();
     $root=$home.'/domains/petish.biz/public_html';
@@ -181,6 +187,8 @@ try {
         &&apply_filters('action_scheduler_queue_runner_concurrent_batches',1)===0);
     require_once __DIR__.'/email-branding-preview-remote.php';
     $report['category']='snapshot';$before=petish_production_verify_state();
+    petish_production_verify_mark('production_data_snapshot_verified',true);
+    if($preflight){$report['status']='success';$report['category']='complete';exit(0);}
     $report['category']='renderer';petish_production_verify_render();
     $report['category']='verification';$after=petish_production_verify_state();
     petish_production_verify_mark('order_counts_unchanged',$after['orders']===$before['orders']);

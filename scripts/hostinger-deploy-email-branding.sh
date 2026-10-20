@@ -42,6 +42,17 @@ public_health() {
     [[ $status == 0 && $validation == 0 ]]
 }
 
+native_verification() {
+    local phase=$1 status=0 validation=0 argument=
+    if [[ $phase == preflight ]]; then argument=preflight; else [[ $phase == verify ]]; fi
+    "${petish_ssh[@]}" 'set -eu; tools="$HOME/.petish-email-deploy-'"$run"'";
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/verify-production-email-branding.php" '"$run $argument" \
+        > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
+    python3 scripts/sanitize-email-release-result.py "$phase" "$work/$phase.private.json" "$work/$phase.safe.json" \
+        > "$work/$phase-validation.private.stdout" 2> "$work/$phase-validation.private.stderr" || validation=$?
+    [[ $status == 0 && $validation == 0 ]]
+}
+
 remote_cleanup() {
     "${petish_ssh[@]}" 'set -eu; tools="$HOME/.petish-email-deploy-'"$run"'";
       if test ! -e "$tools" && test ! -L "$tools"; then exit 0; fi;
@@ -70,7 +81,7 @@ result={'status':os.environ['PETISH_EMAIL_RELEASE_STATUS'],
  'tested_source_commit':'86e315f3daf172e1c9faee9a62d768b48f634bca',
  'rollback_attempted':os.environ['PETISH_EMAIL_RELEASE_ROLLBACK_ATTEMPTED']=='1',
  'rollback_verified':os.environ['PETISH_EMAIL_RELEASE_ROLLBACK_VERIFIED']=='1','phases':{}}
-for phase in ('inspect','apply','verify','health','commit','rollback'):
+for phase in ('inspect','preflight','apply','verify','health','commit','rollback'):
  path=root/(phase+'.safe.json')
  try:
   info=path.lstat()
@@ -193,6 +204,8 @@ ssh_ready=1
     > "$work/upload.private.stdout" 2> "$work/upload.private.stderr"
 failure_category=inspect
 remote_phase inspect
+failure_category=preflight
+native_verification preflight
 failure_category=health
 public_health
 release_status=in_progress
@@ -207,14 +220,7 @@ failure_category=apply
 rollback_needed=1
 remote_phase apply
 failure_category=verify
-verify_status=0
-"${petish_ssh[@]}" 'set -eu; tools="$HOME/.petish-email-deploy-'"$run"'";
-  php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/verify-production-email-branding.php" '"$run" \
-    > "$work/verify.private.json" 2> "$work/verify.private.stderr" || verify_status=$?
-verify_validation=0
-python3 scripts/sanitize-email-release-result.py verify "$work/verify.private.json" "$work/verify.safe.json" \
-    > "$work/verify-validation.private.stdout" 2> "$work/verify-validation.private.stderr" || verify_validation=$?
-[[ $verify_status == 0 && $verify_validation == 0 ]]
+native_verification verify
 failure_category=health
 public_health
 failure_category=commit
