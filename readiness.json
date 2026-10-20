@@ -1,0 +1,39 @@
+{
+  "status": "success",
+  "tracking_plugins": [],
+  "dsers_api_keys": {
+    "table_present": true,
+    "count": 1,
+    "permissions": [
+      "read_write"
+    ],
+    "last_access_present": true
+  },
+  "webhooks": {
+    "table_present": true,
+    "total": 5,
+    "dsers_active_count": 5,
+    "dsers_topics": [
+      "order.created",
+      "order.deleted",
+      "order.updated",
+      "product.deleted",
+      "product.updated"
+    ],
+    "callback_classifiers": [
+      "dsers"
+    ]
+  },
+  "tracking_metadata": {
+    "legacy_table_present": true,
+    "hpos_table_present": true,
+    "legacy": [],
+    "hpos": []
+  },
+  "tracking_settings": [
+    {
+      "flag": "hpos_enabled",
+      "enabled": false
+    }
+  ]
+}
