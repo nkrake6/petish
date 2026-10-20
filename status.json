@@ -1,0 +1,12 @@
+{
+  "AUTOMATION_KIND": "rehearsal",
+  "AUTOMATION_RESULT": "failure",
+  "GITHUB_RUN_ID": "39364114590",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "9a801a03f57a37f67a3a501d866d5046c263c3a5",
+  "generated_utc": "2026-10-20T03:24:43.716297+00:00",
+  "rehearsal": {
+    "status": "unavailable",
+    "category": "safe_result_unavailable"
+  }
+}
