@@ -121,7 +121,15 @@ class RehearsalResultTests(unittest.TestCase):
                              'email_preview_branding_logo_present':True,
                              'email_preview_branding_palette_present':True,
                              'email_preview_native_order_details_present':True,
-                             'email_preview_four_types_rendered':True},
+                             'email_preview_four_types_rendered':True,
+                             'email_preview_account_types_rendered':True,
+                             'email_preview_no_user_records_created':True,
+                             'email_preview_no_auth_tokens_generated':True,
+                             'email_preview_verification_available':True,
+                             'email_preview_seven_types_rendered':True,
+                             'email_preview_core_account_branding':True,
+                             'email_preview_verification_enabled':False,
+                             'email_preview_guest_checkout_enabled':False},
         }
         for phase,checks in phase_checks.items():
             with self.subTest(phase=phase):

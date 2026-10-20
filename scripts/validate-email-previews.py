@@ -14,7 +14,9 @@ import stat
 import sys
 from urllib.parse import unquote
 
-FILES = ('processing.html', 'completed.html', 'refunded.html', 'note.html')
+ORDER_FILES = ('processing.html', 'completed.html', 'refunded.html', 'note.html')
+ACCOUNT_FILES = ('new-account.html', 'verify-email.html', 'reset-password.html')
+FILES = ORDER_FILES + ACCOUNT_FILES
 MAX_BYTES = 1024 * 1024
 ALLOWED_LINKS = {
     'https://petish.biz/', 'https://petish.biz/shop/',
@@ -39,7 +41,7 @@ GLOBAL_ATTRIBUTES = {
 EMAIL = re.compile(r"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,63}", re.I)
 SENSITIVE = re.compile(
     r'(?:/home/|/workspace/|/tmp/|wp-config(?:\.php)?|\.petish-staging|'
-    r'staging\.petish\.biz|wc_order_|_wpnonce|\bnonce\s*=|'
+    r'staging\.petish\.biz|wc_order_|_wpnonce|\bnonce\s*=|PETISH_PREVIEW_NO_AUTH_TOKEN|'
     r'-----BEGIN[^\r\n]*PRIVATE KEY-----|\bAKIA[A-Z0-9]{16}\b|'
     r'\b(?:sk_live_|sk_test_|pk_live_|gh[pousr]_|github_pat_|GOCSPX-)[A-Za-z0-9_-]{8,}|'
     r'\b(?:DB_PASSWORD|client_secret|api_secret|secret_key|refresh_token|access_token)\b|'
@@ -161,7 +163,9 @@ class PreviewParser(HTMLParser):
             reject('html_structure')
 
 
-def validate_html(html):
+def validate_html(html, filename='processing.html'):
+    if filename not in FILES:
+        reject('input')
     if not isinstance(html, str) or not html or len(html.encode('utf-8')) > MAX_BYTES:
         reject('size')
     plain = decoded(html)
@@ -183,11 +187,21 @@ def validate_html(html):
         reject('html_structure')
     text = ' '.join(unescape(' '.join(parser.text)).split())
     folded = text.casefold()
+    display_text = EMAIL.sub('', text)
     if parser.images < 1 or not parser.counts.get('table') or 'petish' not in folded \
-            or not re.search(r'\bP-1042\b', text) or not re.search(r'\bAlex\b', text) \
-            or 'corner & gap cleaning brush' not in folded \
-            or not re.search(r'(?<![0-9])[1][4][.,]60(?![0-9])', text):
+            or not re.search(r'\bAlex\b', display_text, re.I):
         reject('synthetic_content')
+    if filename in ORDER_FILES:
+        if not re.search(r'\bP-1042\b', text) or 'corner & gap cleaning brush' not in folded \
+                or not re.search(r'(?<![0-9])[1][4][.,]60(?![0-9])', text):
+            reject('synthetic_content')
+    else:
+        required = {'new-account.html': ('account',),
+                    'verify-email.html': ('email',),
+                    'reset-password.html': ('password',)}[filename]
+        if any(word not in folded for word in required) or not parser.counts.get('a') \
+                or 'p-1042' in folded or 'corner & gap cleaning brush' in folded:
+            reject('synthetic_content')
     css = '\n'.join(parser.styles).casefold()
     if '#6532a1' not in css or '#ede7ff' not in css:
         reject('synthetic_content')
@@ -229,9 +243,9 @@ def validate_directory(directory):
     except OSError:
         reject('filesystem')
     for filename in FILES:
-        validate_html(read_html(root / filename))
+        validate_html(read_html(root / filename), filename)
     return {'status': 'success', 'files': list(FILES), 'checks': {
-        'four_native_previews_validated': True, 'synthetic_content_verified': True,
+        'seven_native_previews_validated': True, 'synthetic_content_verified': True,
         'approved_branding_verified': True, 'only_allowlisted_links': True,
         'only_local_logo': True, 'no_active_content': True, 'no_secret_markers': True,
     }}

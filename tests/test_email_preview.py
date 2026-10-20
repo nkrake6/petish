@@ -41,6 +41,7 @@ class EmailPreviewTests(unittest.TestCase):
             '<script>unsafe()</script>',
             '<iframe src="https://example.com"></iframe>',
             '<form></form>',
+            '<a href="https://petish.biz/?key=PETISH_PREVIEW_NO_AUTH_TOKEN">fake key</a>',
         ]
         encoded = base64.b64encode(json.dumps(samples).encode()).decode()
         actual = self.run_php("$samples=json_decode(base64_decode('" + encoded + "'),true);$result=[];"
@@ -109,6 +110,7 @@ echo json_encode($checks);
             body = "$work=" + json.dumps(str(work)) + ";$out=[];"
             body += "petish_email_preview_write($work,'processing.html','safe synthetic preview');"
             body += "$out[]=(fileperms($work.'/processing.html')&07777)===0600;"
+            body += "foreach(['new-account.html','verify-email.html','reset-password.html'] as $name){petish_email_preview_write($work,$name,'safe synthetic account preview');}"
             attempts = [(str(work), 'processing.html'), (str(work), '../escape.html'),
                         (str(other), 'completed.html'), (str(link), 'completed.html')]
             body += "$attempts=json_decode(" + json.dumps(json.dumps(attempts)) + ",true);"
@@ -118,6 +120,100 @@ echo json_encode($checks);
             self.assertEqual(self.run_php(body), [True] * 6)
             self.assertEqual((work / 'processing.html').read_text(), 'safe synthetic preview')
             self.assertFalse((Path(directory) / 'escape.html').exists())
+
+    def test_account_previews_use_only_unsaved_users_and_fixed_display_fields(self):
+        actual = self.run_php("""
+class WP_User {
+ public $ID=0;public $data;
+ public function __construct($id=0){if($id!==0)throw new RuntimeException('Real user lookup forbidden.');$this->data=new stdClass();}
+ public function __get($name){return $this->data->$name??'';}
+ public function exists(){return $this->ID!==0;}
+ public function set_role($role){throw new RuntimeException('Persistence forbidden.');}
+}
+class Native_Account_Email extends stdClass {
+ public $id;public $settings=[];public $placeholders=[];
+ public function __construct($id){$this->id=$id;}
+ public function get_default_heading(){return 'Petish sample heading';}
+ public function get_content_html(){throw new RuntimeException('Rendering not needed in factory fixture.');}
+ public function style_inline($html){return $html;}
+ public function trigger(){throw new RuntimeException('Sending forbidden.');}
+ public function generate_set_password_url(){throw new RuntimeException('Token generation forbidden.');}
+}
+function get_password_reset_key($user){throw new RuntimeException('Token generation forbidden.');}
+function wp_create_user(...$args){throw new RuntimeException('Creation forbidden.');}
+$user=petish_email_preview_user();$result=[];
+foreach(['customer_new_account','customer_verify_email','customer_reset_password'] as $id){
+ $native=new Native_Account_Email($id);$email=petish_email_preview_account_email($native,$user);
+ $result[]=['id'=>$email->object->ID,'exists'=>$email->object->exists(),'login'=>$email->user_login,
+ 'name'=>$email->user_display_name,'email'=>$email->recipient,'password'=>$email->object->user_pass,
+ 'activation'=>$email->object->user_activation_key,'reset'=>$email->reset_key??null,
+ 'set'=>$email->set_password_url??null,'verify'=>$email->verify_url??null,
+ 'original_unchanged'=>!isset($native->object)];
+}
+echo json_encode($result);
+""")
+        self.assertEqual(len(actual), 3)
+        for item in actual:
+            self.assertEqual((item['id'], item['exists'], item['login']), (0, False, 'alex'))
+            self.assertEqual((item['name'], item['email']), ('Alex', 'alex@petish.invalid'))
+            self.assertEqual((item['password'], item['activation']), ('', ''))
+            self.assertTrue(item['original_unchanged'])
+        self.assertEqual(actual[0]['set'], 'https://petish.biz/my-account/')
+        self.assertEqual(actual[1]['verify'], 'https://petish.biz/my-account/')
+        self.assertEqual(actual[2]['reset'], 'PETISH_PREVIEW_NO_AUTH_TOKEN')
+
+    def test_account_state_checks_auth_metadata_changes_without_returning_tokens(self):
+        actual = self.run_php("""
+define('ARRAY_A','ARRAY_A');
+class PreviewDB {
+ public $users='wp_users';public $usermeta='wp_usermeta';public $changed=false;public $queries=[];
+ public function get_var($sql){$this->queries[]=$sql;return '2';}
+ public function esc_like($value){return addcslashes($value,'_%');}
+ public function prepare($sql,...$values){return $sql;}
+ public function get_results($sql,$format){
+  $this->queries[]=$sql;
+  if(str_contains($sql,'FROM `wp_users`'))return [['ID'=>'1','token_state'=>hash('sha256','')],['ID'=>'2','token_state'=>hash('sha256','')]];
+  return [['umeta_id'=>'1','user_id'=>'1','meta_key'=>'_wc_email_verification_key_wp','token_state'=>hash('sha256',$this->changed?'changed-private-token':'old-private-token')]];
+ }
+}
+$wpdb=new PreviewDB();$first=petish_email_preview_account_state();$same=petish_email_preview_account_state();
+$wpdb->changed=true;$after=petish_email_preview_account_state();
+$result=[$first['users']===2,$first===$same,$first['auth_state']!==$after['auth_state'],
+ !str_contains(json_encode($first),'private-token'),count($first)===2];
+foreach($wpdb->queries as $query)$result[]=str_starts_with($query,'SELECT ');
+echo json_encode($result);
+""")
+        self.assertTrue(all(actual))
+
+    def test_core_filter_proof_requires_branding_and_preserved_native_routing_and_link(self):
+        actual = self.run_php("""
+$fixture_mode='good';$calls=[];
+class WP_HTML_Tag_Processor {
+ private $html;private $visited=false;
+ public function __construct($html){$this->html=$html;}
+ public function next_tag($query=[]){if($this->visited)return false;$this->visited=true;return true;}
+ public function get_attribute($name){preg_match('/<a href="([^"]+)"/',$this->html,$match);return html_entity_decode($match[1]??'',ENT_QUOTES|ENT_HTML5,'UTF-8');}
+}
+function apply_filters($hook,$mail,...$args){
+ $GLOBALS['calls'][]=[$hook,count($args)];
+ if($GLOBALS['fixture_mode']==='plain')return $mail;
+ $body=htmlspecialchars($mail['message'],ENT_QUOTES,'UTF-8');
+ preg_match('~https://[^\\s]+~',$mail['message'],$url);
+ $href=htmlspecialchars($url[0],ENT_QUOTES,'UTF-8');
+ $mail['message']='<html><head></head><body><table style="color:#6532A1;background:#EDE7FF"><tr><td><img src="https://staging.petish.biz/wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png"><p class="petish-core-account-message"><a href="'.$href.'">'.$body.'</a></p></td></tr></table></body></html>';
+ $mail['headers']='Content-Type: text/html; charset=UTF-8';
+ if($GLOBALS['fixture_mode']==='routing')$mail['to']='real@example.com';
+ if($GLOBALS['fixture_mode']==='subject')$mail['subject']='changed';
+ if($GLOBALS['fixture_mode']==='link')$mail['message']=str_replace('account-preview','changed-path',$mail['message']);
+ if($GLOBALS['fixture_mode']==='href')$mail['message']=str_replace('href="'.$href.'"','href="https://petish.invalid/changed"',$mail['message']);
+ if($GLOBALS['fixture_mode']==='header')$mail['headers']='Content-Type: text/plain; charset=UTF-8';
+ return $mail;
+}
+$result=[];foreach(['good','plain','routing','subject','link','href','header'] as $fixture_mode){$result[]=petish_email_preview_core_account_branding(new stdClass());}
+echo json_encode([$result,array_slice($calls,0,2)]);
+""")
+        self.assertEqual(actual[0], [True, False, False, False, False, False, False])
+        self.assertEqual(actual[1], [['wp_new_user_notification_email', 2], ['retrieve_password_notification_email', 3]])
 
     def test_synthetic_factory_has_no_saved_order_or_customer_identity(self):
         actual = self.run_php("""

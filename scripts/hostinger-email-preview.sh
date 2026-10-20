@@ -37,7 +37,10 @@ preview_names={
  'email_preview_synthetic_content_only','email_preview_no_order_records_created',
  'email_preview_stock_unchanged','email_preview_html_sanitized','email_preview_branding_logo_present',
  'email_preview_branding_palette_present','email_preview_native_order_details_present',
- 'email_preview_four_types_rendered'}
+ 'email_preview_four_types_rendered','email_preview_account_types_rendered',
+ 'email_preview_no_user_records_created','email_preview_no_auth_tokens_generated',
+ 'email_preview_verification_available','email_preview_seven_types_rendered','email_preview_core_account_branding',
+ 'email_preview_verification_enabled','email_preview_guest_checkout_enabled'}
 safety_names={'environment_staging','woocommerce_test_mode','wcpay_dev_mode','account_is_live',
  'guard_runtime_verified','suppliers_blocked','mail_capture_verified','webhooks_blocked',
  'database_separate','runtime_database_staging','only_allowlisted_plugins','no_active_webhooks',
@@ -63,7 +66,7 @@ PY
     local name blob tree commit
     names=(status.json)
     if [[ $preview_status == success ]]; then
-        names+=(processing.html completed.html refunded.html note.html petish-logo-v2.png)
+        names+=(processing.html completed.html refunded.html note.html new-account.html verify-email.html reset-password.html petish-logo-v2.png)
     fi
     for name in "${names[@]}"; do
         blob=$(git hash-object -w "$work/public/$name") || return 1
@@ -131,7 +134,10 @@ required={'environment_staging','woocommerce_test_mode','wcpay_dev_mode',
  'email_preview_unsaved_synthetic_order','email_preview_synthetic_content_only',
  'email_preview_no_order_records_created','email_preview_stock_unchanged',
  'email_preview_html_sanitized','email_preview_branding_logo_present','email_preview_branding_palette_present',
- 'email_preview_native_order_details_present','email_preview_four_types_rendered'}
+ 'email_preview_native_order_details_present','email_preview_four_types_rendered',
+ 'email_preview_account_types_rendered','email_preview_no_user_records_created',
+ 'email_preview_no_auth_tokens_generated','email_preview_verification_available',
+ 'email_preview_seven_types_rendered','email_preview_core_account_branding'}
 if report.get('status')!='success' or report.get('category')!='complete' \
  or report.get('phase')!='email-preview' or checks.get('account_is_live') is not False \
  or any(checks.get(key) is not True for key in required):
@@ -139,7 +145,7 @@ if report.get('status')!='success' or report.get('category')!='complete' \
 PY
 render_verified=1
 failure_category=transport
-for name in processing completed refunded note; do
+for name in processing completed refunded note new-account verify-email reset-password; do
     "${petish_ssh[@]}" 'set -eu; file="$HOME/.petish-staging/rehearsal-'"$run"'/'"$name"'.html"; test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %h "$file")" = 1 && test "$(stat -c %a "$file")" = 600 || exit 1; size=$(stat -c %s "$file"); test "$size" -gt 0 && test "$size" -le 1048576 || exit 1; cat "$file"' \
         > "$work/public/$name.html" 2> "$work/fetch-$name.private.stderr"
 done

@@ -26,6 +26,18 @@ HTML = '''<!doctype html><html><head><meta charset="utf-8">
 <a href="mailto:orders@petish.biz">orders@petish.biz</a>
 </td></tr></table></body></html>'''
 
+ACCOUNT_COPY = {
+    'new-account.html': 'Your Petish account is ready. Set your password to sign in.',
+    'verify-email.html': 'Verify your email address to find your previous orders.',
+    'reset-password.html': 'A password reset was requested for your Petish account.',
+}
+
+
+def account_html(filename):
+    start = HTML.index('<h1>')
+    end = HTML.index('<p>alex@')
+    return HTML[:start] + '<h1>Petish</h1><p>Hello Alex, ' + ACCOUNT_COPY[filename] + '</p>' + HTML[end:]
+
 
 class PreviewValidationTests(unittest.TestCase):
     def rejected(self, html, category=None):
@@ -39,6 +51,26 @@ class PreviewValidationTests(unittest.TestCase):
         for link in validator.ALLOWED_LINKS:
             with self.subTest(link=link):
                 validator.validate_html(HTML.replace('https://petish.biz/shop/', link))
+
+    def test_account_previews_require_synthetic_account_content_without_order_details(self):
+        for filename in validator.ACCOUNT_FILES:
+            with self.subTest(filename=filename):
+                validator.validate_html(account_html(filename), filename)
+                with self.assertRaises(validator.PreviewRejected):
+                    validator.validate_html(HTML, filename)
+                with self.assertRaises(validator.PreviewRejected):
+                    validator.validate_html(account_html(filename).replace('Alex', 'Someone'), filename)
+
+    def test_account_authentication_links_tokens_and_foreign_addresses_never_publish(self):
+        for filename in validator.ACCOUNT_FILES:
+            for marker in ('PETISH_PREVIEW_NO_AUTH_TOKEN', 'person@example.com',
+                           '<script>unsafe()</script>'):
+                with self.subTest(filename=filename, marker=marker):
+                    with self.assertRaises(validator.PreviewRejected):
+                        validator.validate_html(account_html(filename).replace('</h1>', '</h1>' + marker), filename)
+            with self.assertRaises(validator.PreviewRejected):
+                validator.validate_html(account_html(filename).replace('https://petish.biz/shop/',
+                    'https://petish.biz/my-account/?key=secret&login=alex'), filename)
 
     def test_active_markup_and_unexpected_attributes_are_rejected(self):
         for payload in (
@@ -132,9 +164,9 @@ class PublicationDirectoryTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.directory = Path(self.temp.name)
         for name in validator.FILES:
-            (self.directory / name).write_text(HTML, encoding='utf-8')
+            (self.directory / name).write_text(account_html(name) if name in validator.ACCOUNT_FILES else HTML, encoding='utf-8')
 
-    def test_only_four_required_files_are_checked_and_logo_can_follow(self):
+    def test_all_seven_required_files_are_checked_and_logo_can_follow(self):
         (self.directory / 'index.html').write_text('Gallery placeholder')
         (self.directory / 'preview.js').write_text('Gallery placeholder')
         result = validator.validate_directory(self.directory)

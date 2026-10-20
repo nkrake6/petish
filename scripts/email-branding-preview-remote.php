@@ -16,7 +16,7 @@ function petish_email_preview_css($css) {
 function petish_email_preview_public_content($html) {
     if (!is_string($html)) petish_email_preview_fail();
     $decoded = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    if (preg_match('~(?:staging\.petish\.biz|/home/|\.petish-staging|wc_order_|_wpnonce|nonce=|<script\b|<iframe\b|<form\b|\son[a-z]+\s*=)~i', $decoded)) petish_email_preview_fail();
+    if (preg_match('~(?:staging\.petish\.biz|/home/|\.petish-staging|wc_order_|_wpnonce|nonce=|PETISH_PREVIEW_NO_AUTH_TOKEN|<script\b|<iframe\b|<form\b|\son[a-z]+\s*=)~i', $decoded)) petish_email_preview_fail();
     $matched = preg_match_all('~[A-Z0-9.!#$%&\'*+/=?^_`{|}\~-]+@[A-Z0-9.-]+\.[A-Z]{2,63}~i', $decoded, $addresses);
     if ($matched === false) petish_email_preview_fail();
     foreach ($addresses[0] as $address) if (!in_array(strtolower($address), ['orders@petish.biz','alex@petish.invalid'],true)) petish_email_preview_fail();
@@ -104,7 +104,8 @@ function petish_email_preview_sanitize($html) {
 }
 
 function petish_email_preview_write($work,$name,$html) {
-    if (!in_array($name,['processing.html','completed.html','refunded.html','note.html'],true)
+    if (!in_array($name,['processing.html','completed.html','refunded.html','note.html',
+        'new-account.html','verify-email.html','reset-password.html'],true)
         || realpath($work) !== $work || is_link($work) || !is_dir($work) || (fileperms($work)&07777)!==0700) petish_email_preview_fail();
     $path = $work . '/' . $name;
     if (file_exists($path) || is_link($path)) petish_email_preview_fail();
@@ -177,13 +178,101 @@ function petish_email_preview_order_counts() {
     return $counts;
 }
 
+/** Synthetic account data follows WooCommerce's own unsaved EmailPreview contract. */
+function petish_email_preview_user() {
+    $user = new WP_User(0);
+    $user->data = (object)['ID'=>0,'user_login'=>'alex','user_email'=>'alex@petish.invalid',
+        'display_name'=>'Alex Taylor','first_name'=>'Alex','last_name'=>'Taylor',
+        'user_pass'=>'','user_activation_key'=>''];
+    if ((int)$user->ID!==0 || $user->exists()) petish_email_preview_fail();
+    return $user;
+}
+
+/** Populate only display fields. No account creation or authentication generators. */
+function petish_email_preview_account_email($native,$user) {
+    if (!$user instanceof WP_User || (int)$user->ID!==0 || $user->exists()) petish_email_preview_fail();
+    $email = clone $native;
+    if (!in_array($email->id??'', ['customer_new_account','customer_verify_email','customer_reset_password'],true)
+        || !is_callable([$email,'get_content_html']) || !is_callable([$email,'style_inline'])) petish_email_preview_fail();
+    $email->object = clone $user;
+    $email->recipient = 'alex@petish.invalid';
+    $email->user_login = 'alex';
+    $email->user_email = 'alex@petish.invalid';
+    $email->user_display_name = 'Alex';
+    $email->placeholders['{site_title}'] = 'Petish';
+    $email->settings['heading'] = $email->get_default_heading();
+    if ($email->id==='customer_new_account') {
+        $email->user_pass = '';
+        $email->password_generated = true;
+        $email->set_password_url = 'https://petish.biz/my-account/';
+    } elseif ($email->id==='customer_reset_password') {
+        $email->user_id = 0;
+        // The native template requires a key argument. This fixed marker is not
+        // generated, stored or usable; the public-copy link sanitizer removes it.
+        $email->reset_key = 'PETISH_PREVIEW_NO_AUTH_TOKEN';
+    } else {
+        $email->verify_url = 'https://petish.biz/my-account/';
+    }
+    return $email;
+}
+
+/** Read only SQL digests: raw credentials and tokens never enter the report. */
+function petish_email_preview_account_state() {
+    global $wpdb;
+    foreach (['users','usermeta'] as $table) if (!isset($wpdb->$table)
+        || !preg_match('/\A[A-Za-z0-9_]+\z/D',$wpdb->$table)) petish_email_preview_fail();
+    $users = $wpdb->users; $meta = $wpdb->usermeta;
+    $count = $wpdb->get_var("SELECT COUNT(*) FROM `{$users}`");
+    $keys = $wpdb->get_results("SELECT ID, SHA2(user_activation_key,256) AS token_state FROM `{$users}` ORDER BY ID",ARRAY_A);
+    $query = $wpdb->prepare("SELECT umeta_id,user_id,meta_key,SHA2(meta_value,256) AS token_state FROM `{$meta}`"
+        . " WHERE meta_key IN ('session_tokens','default_password_nag') OR meta_key LIKE %s OR meta_key LIKE %s ORDER BY umeta_id",
+        $wpdb->esc_like('_wc_email_verification_key').'%', $wpdb->esc_like('_wc_email_verified').'%');
+    $metadata = $wpdb->get_results($query,ARRAY_A);
+    if (!is_numeric($count) || !is_array($keys) || !is_array($metadata) || (int)$count!==count($keys)) petish_email_preview_fail();
+    foreach (array_merge($keys,$metadata) as $row) if (!is_array($row)
+        || !preg_match('/\A[0-9a-f]{64}\z/Di',$row['token_state']??'')) petish_email_preview_fail();
+    return ['users'=>(int)$count,'auth_state'=>hash('sha256',json_encode([$keys,$metadata],JSON_THROW_ON_ERROR))];
+}
+
+/** Exercise the deployed core notification filters without dispatch or token creation. */
+function petish_email_preview_core_account_branding($user) {
+    $url = 'https://petish.invalid/account-preview/?action=rp&key=PETISH_PREVIEW_NO_AUTH_TOKEN&login=alex';
+    $mail = ['to'=>'alex@petish.invalid','subject'=>'[Petish] Sample account message',
+        'message'=>"Hi Alex,\n\nYour Petish sample account details.\n".$url,'headers'=>''];
+    $results = [
+        apply_filters('wp_new_user_notification_email',$mail,$user,'Petish'),
+        apply_filters('retrieve_password_notification_email',$mail,'PETISH_PREVIEW_NO_AUTH_TOKEN','alex',$user),
+    ];
+    foreach ($results as $result) {
+        if (!is_array($result) || ($result['to']??null)!==$mail['to'] || ($result['subject']??null)!==$mail['subject']
+            || !is_string($result['message']??null)) return false;
+        $body = html_entity_decode($result['message'],ENT_QUOTES | ENT_HTML5,'UTF-8');
+        $headers = $result['headers']??'';
+        if (is_array($headers)) $headers = implode("\n",$headers);
+        $links = new WP_HTML_Tag_Processor($result['message']);
+        $native_link = false;
+        while ($links->next_tag(['tag_name'=>'A'])) if ($links->get_attribute('href')===$url) $native_link = true;
+        if (!is_string($headers) || stripos($headers,'Content-Type: text/html; charset=UTF-8')===false
+            || !$native_link || !str_contains($body,$url) || !str_contains($body,'Your Petish sample account details.')
+            || !str_contains($body,'<html') || !str_contains($body,'<table')
+            || !str_contains($body,'petish-core-account-message')
+            || !str_contains($body,'/assets/brand/repaired/combined-light-v2.png')
+            || stripos($body,'#6532a1')===false || stripos($body,'#ede7ff')===false) return false;
+    }
+    return true;
+}
+
 /** Caller has already verified the fixed staging paths, DB and guard runtime. */
 function petish_email_preview_render($context) {
     $checks = array_fill_keys(['email_preview_rendered','email_preview_native_renderer',
         'email_preview_unsaved_synthetic_order','email_preview_synthetic_content_only',
         'email_preview_no_order_records_created','email_preview_stock_unchanged',
         'email_preview_html_sanitized','email_preview_branding_logo_present','email_preview_branding_palette_present',
-        'email_preview_native_order_details_present','email_preview_four_types_rendered'],false);
+        'email_preview_native_order_details_present','email_preview_four_types_rendered',
+        'email_preview_account_types_rendered','email_preview_no_user_records_created',
+        'email_preview_no_auth_tokens_generated','email_preview_verification_available',
+        'email_preview_seven_types_rendered','email_preview_core_account_branding','email_preview_verification_enabled',
+        'email_preview_guest_checkout_enabled'],false);
     $mark = static function($name,$value) use (&$checks,$context) {
         if (!array_key_exists($name,$checks) || !is_bool($value)) petish_email_preview_fail();
         $checks[$name] = $value;
@@ -196,12 +285,18 @@ function petish_email_preview_render($context) {
         || parse_url(home_url(),PHP_URL_HOST)!=='staging.petish.biz'
         || !is_string($context['work']??null) || realpath($context['work'])!==$context['work']
         || (fileperms($context['work'])&07777)!==0700 || !function_exists('WC')) petish_email_preview_fail();
-    foreach (['WC_Order','WC_Order_Item_Product','WC_Order_Item_Shipping','WC_Order_Item_Tax','WC_Order_Refund','WP_HTML_Tag_Processor'] as $class) if (!class_exists($class)) petish_email_preview_fail();
+    foreach (['WC_Order','WC_Order_Item_Product','WC_Order_Item_Shipping','WC_Order_Item_Tax','WC_Order_Refund','WP_User','WP_HTML_Tag_Processor'] as $class) if (!class_exists($class)) petish_email_preview_fail();
     $counts = petish_email_preview_order_counts();
+    $account_state = petish_email_preview_account_state();
+    $settings = get_option('woocommerce_customer_verify_email_settings',[]);
+    if (!is_array($settings)) petish_email_preview_fail();
+    $mark('email_preview_verification_enabled',($settings['enabled']??'yes')==='yes');
+    $mark('email_preview_guest_checkout_enabled',wc_string_to_bool(get_option('woocommerce_enable_guest_checkout')));
     $product = wc_get_product(246);
     if (!$product || !$product->managing_stock()) petish_email_preview_fail();
     $stock = $product->get_stock_quantity();
     $order = petish_email_preview_order();
+    $user = petish_email_preview_user();
     $mark('email_preview_unsaved_synthetic_order',(int)$order->get_id()===0);
     $footer = static function() { return '© Petish.'; };
     $additional = static function() { return 'Thank you for choosing Petish.'; };
@@ -210,23 +305,31 @@ function petish_email_preview_render($context) {
     $item_args = static function($args) { $args['show_image']=false; return $args; };
     $html_type = static function() { return 'text/html'; };
     $site_title = static function() { return 'Petish'; };
+    $account_url = static function() { return 'https://petish.biz/my-account/'; };
     add_filter('pre_option_blogname',$site_title,PHP_INT_MAX);
     add_filter('pre_option_woocommerce_email_footer_text',$footer,PHP_INT_MAX);
     add_filter('woocommerce_email_footer_text',$footer,PHP_INT_MAX);
     add_filter('woocommerce_email_content_type',$html_type,PHP_INT_MAX);
     add_filter('woocommerce_email_order_items_args',$item_args,PHP_INT_MAX);
+    add_filter('woocommerce_get_myaccount_page_permalink',$account_url,PHP_INT_MAX);
     $definitions = [
         'customer_processing_order'=>['processing.html','processing'],
         'customer_completed_order'=>['completed.html','completed'],
         'customer_refunded_order'=>['refunded.html','refunded'],
         'customer_note'=>['note.html','processing'],
     ];
-    foreach ($definitions as $id=>$unused) add_filter('woocommerce_email_additional_content_'.$id,$additional,PHP_INT_MAX);
+    $account_definitions = ['customer_new_account'=>'new-account.html',
+        'customer_verify_email'=>'verify-email.html','customer_reset_password'=>'reset-password.html'];
+    $all_ids = array_merge(array_keys($definitions),array_keys($account_definitions));
+    foreach ($all_ids as $id) add_filter('woocommerce_email_additional_content_'.$id,$additional,PHP_INT_MAX);
     try {
         $emails = WC()->mailer()->get_emails();
         $found = [];
-        foreach ($emails as $native) if (is_object($native) && isset($definitions[$native->id??''])) $found[$native->id] = $native;
-        if (count($found)!==4) petish_email_preview_fail();
+        foreach ($emails as $native) if (is_object($native) && in_array($native->id??'',$all_ids,true)) $found[$native->id] = $native;
+        $verify_class = 'Automattic\\WooCommerce\\Internal\\CustomerEmailVerification\\Emails\\CustomerVerifyEmail';
+        $available = isset($found['customer_verify_email']) && is_a($found['customer_verify_email'],$verify_class);
+        $mark('email_preview_verification_available',$available);
+        if (count($found)!==7 || !$available) petish_email_preview_fail();
         foreach ($definitions as $id=>[$name,$status]) {
             $email = clone $found[$id];
             if (!is_callable([$email,'get_content_html']) || !is_callable([$email,'style_inline'])) petish_email_preview_fail();
@@ -262,21 +365,40 @@ function petish_email_preview_render($context) {
             if (!$logo || !$palette || !$details) petish_email_preview_fail();
             petish_email_preview_write($context['work'],$name,$safe);
         }
+        $mark('email_preview_four_types_rendered',true);
+        foreach ($account_definitions as $id=>$name) {
+            $email = petish_email_preview_account_email($found[$id],$user);
+            $raw = $email->style_inline($email->get_content_html());
+            $safe = petish_email_preview_sanitize($raw);
+            $logo = str_contains($safe,'petish-logo-v2.png');
+            $palette = stripos($safe,'#6532a1')!==false && stripos($safe,'#ede7ff')!==false;
+            $text = html_entity_decode(strip_tags($safe),ENT_QUOTES | ENT_HTML5,'UTF-8');
+            if (!$logo || !$palette || !str_contains($text,'Alex') || !str_contains($text,'Petish')
+                || ($id==='customer_verify_email' && !str_contains($text,'alex@petish.invalid'))
+                || (int)$email->object->ID!==0 || $email->object->exists()) petish_email_preview_fail();
+            petish_email_preview_write($context['work'],$name,$safe);
+        }
+        $mark('email_preview_account_types_rendered',true);
+        $mark('email_preview_seven_types_rendered',true);
+        $mark('email_preview_core_account_branding',petish_email_preview_core_account_branding($user));
     } finally {
         remove_filter('pre_option_blogname',$site_title,PHP_INT_MAX);
         remove_filter('pre_option_woocommerce_email_footer_text',$footer,PHP_INT_MAX);
         remove_filter('woocommerce_email_footer_text',$footer,PHP_INT_MAX);
         remove_filter('woocommerce_email_content_type',$html_type,PHP_INT_MAX);
         remove_filter('woocommerce_email_order_items_args',$item_args,PHP_INT_MAX);
-        foreach ($definitions as $id=>$unused) remove_filter('woocommerce_email_additional_content_'.$id,$additional,PHP_INT_MAX);
+        remove_filter('woocommerce_get_myaccount_page_permalink',$account_url,PHP_INT_MAX);
+        foreach ($all_ids as $id) remove_filter('woocommerce_email_additional_content_'.$id,$additional,PHP_INT_MAX);
     }
     $mark('email_preview_html_sanitized',true);
     $mark('email_preview_synthetic_content_only',true);
-    $mark('email_preview_four_types_rendered',true);
     $mark('email_preview_no_order_records_created',petish_email_preview_order_counts()===$counts);
     $mark('email_preview_stock_unchanged',wc_get_product(246)->get_stock_quantity()===$stock);
-    foreach ($checks as $name=>$value) if ($name!=='email_preview_rendered' && $value!==true) petish_email_preview_fail();
+    $after_accounts = petish_email_preview_account_state();
+    $mark('email_preview_no_user_records_created',$after_accounts['users']===$account_state['users']);
+    $mark('email_preview_no_auth_tokens_generated',hash_equals($after_accounts['auth_state'],$account_state['auth_state']));
+    $descriptive = ['email_preview_verification_enabled','email_preview_guest_checkout_enabled'];
+    foreach ($checks as $name=>$value) if ($name!=='email_preview_rendered' && !in_array($name,$descriptive,true) && $value!==true) petish_email_preview_fail();
     $mark('email_preview_rendered',true);
-    foreach ($checks as $value) if ($value!==true) petish_email_preview_fail();
     return $checks;
 }

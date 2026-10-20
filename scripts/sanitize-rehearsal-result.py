@@ -27,7 +27,11 @@ MODULE_CHECKS = {'prepared', 'shipping_simulated', 'paid_test_order_verified',
     'email_preview_no_order_records_created', 'email_preview_stock_unchanged',
     'email_preview_html_sanitized', 'email_preview_branding_logo_present',
     'email_preview_branding_palette_present', 'email_preview_native_order_details_present',
-    'email_preview_four_types_rendered'}
+    'email_preview_four_types_rendered', 'email_preview_account_types_rendered',
+    'email_preview_no_user_records_created', 'email_preview_no_auth_tokens_generated',
+    'email_preview_verification_available', 'email_preview_seven_types_rendered',
+    'email_preview_verification_enabled', 'email_preview_guest_checkout_enabled',
+    'email_preview_core_account_branding'}
 PHASES = {'preflight', 'prepare', 'verify', 'refund', 'cleanup', 'email-preview'}
 BROWSER_CHECKS = {'browser_started', 'customer_login_verified', 'cart_prepared',
     'checkout_rendered', 'shipping_verified', 'test_publishable_key_verified',
