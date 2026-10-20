@@ -1,0 +1,94 @@
+name: Verify and release Petish Pet Club
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Verify staging, inspect production, or apply the verified Pet Club application
+        required: true
+        default: staging
+        type: choice
+        options: [staging, inspect, apply]
+  push:
+    branches: [main, verify-pet-club, deploy-pet-club]
+    paths:
+      - .github/workflows/pet-club.yml
+      - scripts/hostinger-pet-club.sh
+      - scripts/deploy-pet-club-remote.php
+      - scripts/verify-pet-club.php
+      - scripts/pet-club-fixture.php
+      - scripts/sanitize-pet-club-result.py
+      - scripts/validate-pet-club-release.py
+      - tools/pet-club/browser.mjs
+      - operations/pet-club-release.json
+      - wordpress/wp-content/plugins/petish-passport/**
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ (inputs.mode == 'staging' || github.ref_name == 'verify-pet-club') && 'petish-staging-code' || ((github.ref_name == 'deploy-pet-club' || inputs.mode == 'apply') && 'petish-production-backup-mail' || format('petish-pet-club-inspection-{0}', github.run_id)) }}
+  cancel-in-progress: false
+
+jobs:
+  pet-club:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+      PET_CLUB_MODE: ${{ (github.ref_name == 'verify-pet-club') && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref_name == 'deploy-pet-club' && 'apply' || 'inspect')) }}
+      PET_CLUB_SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - name: Check out reviewed Pet Club tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Prepare pinned SSH connection and verification tools
+        id: prepare
+        continue-on-error: true
+        run: |
+          preparation_stage=connection
+          trap 'printf "stage=%s\n" "$preparation_stage" >> "$GITHUB_OUTPUT"' EXIT
+          for attempt in 1 2 3; do
+            if bash scripts/hostinger-connection-check.sh; then break; fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 2
+          done
+          preparation_stage=ssh_tools
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
+          fi
+          if [[ "$PET_CLUB_MODE" == staging ]]; then
+            preparation_stage=browser_tools
+            export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/petish-pet-club-browsers"
+            printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+            npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
+            node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium
+          fi
+          if [[ "$PET_CLUB_MODE" == apply ]]; then
+            preparation_stage=health_dependencies
+            for attempt in 1 2 3; do
+              if python3 -m pip install --disable-pip-version-check --no-input Pillow==12.0.0; then break; fi
+              if [ "$attempt" = 3 ]; then exit 1; fi
+              sleep 2
+            done
+          fi
+          preparation_stage=complete
+      - name: Verify staging or inspect and release the Pet Club
+        if: always()
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          PET_CLUB_PREREQUISITES: ${{ steps.prepare.outcome }}
+          PET_CLUB_PREPARATION_STAGE: ${{ steps.prepare.outputs.stage }}
+        run: bash scripts/hostinger-pet-club.sh
+      - name: Remove private runner data
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/petish-pet-club.* "$RUNNER_TEMP/petish-pet-club-browsers"
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
+

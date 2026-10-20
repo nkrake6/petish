@@ -69,4 +69,10 @@ read-only and checks that existing pet records/photos, users, orders, product
 stock/prices and settings are preserved. A short, owned WordPress maintenance
 guard covers the dependent file swaps, followed by public page and asset checks.
 
+If an interrupted release cannot restore a complete application, its verified
+maintenance guard, exact deployment helper, payload and private journal remain
+available for recovery. A retry for the same run checks the persisted guard
+receipt before adopting it. Unrelated guards and concurrent customer photo
+changes are preserved. Normal apply and rollback remove the owned guard.
+
 Release evidence will be recorded here after the hosted checks complete.
