@@ -36,3 +36,8 @@ The existing email theme and all other Passport files are protected.
 Staging public component directories explicitly use mode `0755` and files `0644`.
 The private release workspace, configuration and rollback parents stay private.
 This avoids the release process's private `umask 077` blocking static assets.
+
+Staging proof: [39412424150](https://github.com/nkrake6/petish/actions/runs/39412424150),
+source `2b3ef0790c1976825cbe3b8c6c15857d9f04f8c6`. All 21 authenticated browser
+checks passed after the staging directory permission correction. The production
+release request records matching source and the verified backup/recovery branches.
