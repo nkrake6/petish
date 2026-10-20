@@ -1,0 +1,16 @@
+{
+  "AUTOMATION_KIND": "backup",
+  "AUTOMATION_RESULT": "failure",
+  "GITHUB_RUN_ID": "39404215843",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "842ab8ef164032a24abdebb8debacebe34120306",
+  "generated_utc": "2026-10-20T09:56:44.738773+00:00",
+  "task": {
+    "phase": "backup-export",
+    "categories": [
+      "archive_changed",
+      "archive_error"
+    ],
+    "exit_code": 1
+  }
+}
