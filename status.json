@@ -1,12 +1,12 @@
 {
-  "status": "in_progress",
-  "category": "health",
+  "status": "failure",
+  "category": "verify",
   "mode": "apply",
   "run_id": "39406613999-1",
   "source_commit": "f563487afd4fb07d98b233c5277b369e9114b774",
   "tested_source_commit": "86e315f3daf172e1c9faee9a62d768b48f634bca",
-  "rollback_attempted": false,
-  "rollback_verified": false,
+  "rollback_attempted": true,
+  "rollback_verified": true,
   "phases": {
     "inspect": {
       "status": "success",
@@ -29,6 +29,41 @@
       },
       "changed_file_count": 6
     },
+    "apply": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "logo_verified": true,
+        "logo_world_readable": true,
+        "logo_path_world_traversable": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": true
+      },
+      "changed_file_count": 6
+    },
+    "verify": {
+      "status": "failure",
+      "category": "snapshot",
+      "checks": {
+        "production_paths_verified": true,
+        "approved_full_animal_logo_verified": true,
+        "production_environment_verified": true,
+        "tested_theme_and_woocommerce_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true
+      }
+    },
     "health": {
       "status": "success",
       "category": "complete",
@@ -46,6 +81,27 @@
         "logo_http_dimensions_match": true,
         "logo_http_pixels_match": true
       }
+    },
+    "rollback": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "logo_verified": true,
+        "logo_world_readable": true,
+        "logo_path_world_traversable": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": false,
+        "rollback_completed": true,
+        "release_committed": false,
+        "lock_owned": true
+      },
+      "changed_file_count": 0
     }
   },
   "verified_backup_branch": "full-site-backup/39405728869-1"
