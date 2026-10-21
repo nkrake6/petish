@@ -1,0 +1,43 @@
+{
+  "active_plugins": {
+    "afterpay_plugin": false,
+    "woocommerce_payments": true,
+    "woocommerce_paypal_payments": true,
+    "woocommerce_stripe": false
+  },
+  "cached_account": {
+    "afterpay_capability": "active",
+    "afterpay_requirements_present": false,
+    "age_seconds": 1905,
+    "country": "AU",
+    "default_currency": "AUD",
+    "errored": false,
+    "payments_enabled": true,
+    "present": true
+  },
+  "source_matches_11_2_0": {
+    "definition": true,
+    "gateway": true,
+    "messaging": true,
+    "method": true
+  },
+  "status": "success",
+  "store_country": "AU",
+  "store_currency": "AUD",
+  "wcpay": {
+    "afterpay_gateway_enabled": "yes",
+    "afterpay_gateway_method_selected": "yes",
+    "afterpay_gateway_setting_present": true,
+    "enabled": "yes",
+    "enabled_methods": [
+      "afterpay_clearpay",
+      "card"
+    ],
+    "enabled_methods_setting_present": true,
+    "installed_version": "11.2.0",
+    "manual_capture": "no",
+    "settings_present": true,
+    "test_mode": "no",
+    "unknown_method_present": false
+  }
+}
