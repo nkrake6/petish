@@ -5,7 +5,7 @@ This upgrades the existing Passport plugin and its My Pets endpoint, retaining
 the existing pet records, private photos, active-pet selection, account menu,
 and reviewed product collections.
 
-**Passport 0.3.0 is live**, released on 21 October 2026 at 00:32 UTC.
+**Passport 0.3.1 is live**, released on 21 October 2026.
 Sign in at [My Pets](https://petish.biz/my-account/my-pets/) to use the upgraded
 Passport. [Pet Club](https://petish.biz/?petish_club=1) lists only profiles their
 owners explicitly publish; existing pets were not made public by this release.
@@ -17,7 +17,7 @@ hero, biography and personality tags, Moments/About/Journal sections, and a
 community sidebar. Existing pets need no re-entry. Empty sections invite the
 owner to add their own content; no sample pets or fabricated hearts are used.
 
-Each pet can have an optional biography of up to 400 characters, up to three
+Each pet can have an optional species-specific breed or variety (including a custom Other choice), an optional biography of up to 400 characters, up to three
 personality tags, and up to twelve photo moments or journal entries. Photos use
 the existing validated, re-encoded private storage. Creating or editing a pet
 does not publish it.
@@ -124,3 +124,21 @@ private pre-release code snapshot retained. No rollback was needed.
 The production check made no test accounts, purchases, supplier orders or email
 deliveries. Upload, publication, hearts and unpublication were exercised through
 real browser requests on isolated staging; production verification was read-only.
+
+## Follow-up release 0.3.1
+
+Release `a58472a724b3f26b2eb53ef65cbd0092f5659d02` adds optional breeds and
+varieties, corrects the photo-removal checkbox spacing, hides the tab strip’s
+scrollbar while retaining scrolling, and restores the 28px gap above the For My
+Pet collection button. Existing breed values remain blank until the owner sets
+one; publication includes only the explicitly saved snapshot value.
+
+[Staging 39526008899-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39526008899-1)
+passed all 123 checks on source `4c18a28498273fcdeedd653dc37e6d1b369fb5ac`.
+[Production 39526422172-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39526422172-1)
+passed the 15-file transaction, 22 read-only native checks, public health and
+three exact asset checks, then committed and removed its maintenance guard.
+The existing encrypted backup/recovery evidence above was still fresh.
+
+Favourites, directory filters, short videos and a personalised homepage section
+are subsequent work in progress; this release does not enable them.

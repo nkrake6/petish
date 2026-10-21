@@ -7,9 +7,9 @@ for the current cloud workflow. The Mac setup below is archived history.
 
 - The owner selected **Pet Club** from
   [the comparison gallery](https://nkrake6.github.io/petish/passport-concepts/).
-  Passport **0.3.0 is live**, released in
-  [production run 39521901384-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39521901384-1)
-  from source `076f942`. It implements that direction with bios, personality tags, private
+  Passport **0.3.1 is live**, released in
+  [production run 39526422172-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39526422172-1)
+  from source `a58472a`. It adds optional species-specific breeds/varieties and fixes form, tab and collection spacing. It implements the Pet Club direction with bios, personality tags, private
   photo moments/journals and optional shared profiles with member hearts.
   Existing pets remain private; sharing requires explicit per-pet consent.
   Existing pets, photos and store data were preserved. All 123 staging checks,
