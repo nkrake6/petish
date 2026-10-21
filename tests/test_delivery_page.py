@@ -39,6 +39,13 @@ class DeliveryPageReportTests(unittest.TestCase):
         self.assertEqual(workflow['concurrency'],{'group':'petish-production-backup-mail','cancel-in-progress':'false'})
         checkout=workflow['jobs']['delivery']['steps'][0]
         self.assertEqual(checkout['with']['ref'],'${{ github.sha }}')
+        self.assertEqual(checkout['id'],'checkout')
+        tools=workflow['jobs']['delivery']['steps'][1]
+        self.assertEqual(tools['id'],'tools')
+        self.assertNotIn('hostinger-connection-check.sh',tools['run'])
+        self.assertIn('timeout 60 apt-get',tools['run'])
+        runner=workflow['jobs']['delivery']['steps'][2]
+        self.assertEqual(runner['env']['DELIVERY_PAGE_TOOLS_OUTCOME'],'${{ steps.tools.outcome }}')
 
     def test_native_failure_diagnostics_reveal_only_fixed_observations(self):
         value={'status':'failure','category':'native_update','checks':{'rehearsal_rolled_back':True},

@@ -11,6 +11,8 @@ mkdir -m 700 "$work/bundle" "$work/public"
 connected=0
 apply_armed=0
 rollback_verified=0
+discovery_attempts=0
+host_key_verified=0
 category=prerequisites
 native() {
     local operation=$1
@@ -23,13 +25,17 @@ cache_inspect() {
     [[ $outcome == 0 ]]
 }
 purge() {
-    local phase=$1 operation
+    local phase=$1 operation outcome
     for operation in queue verify; do
-        "${petish_ssh[@]}" 'php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-delivery-page-'"$run"'/litespeed-html-purge.php" '"$operation"' delivery '"$run $phase" > "$work/purge-$phase-$operation.json" 2> "$work/purge-$phase-$operation.stderr" || return 1
+        outcome=0
+        "${petish_ssh[@]}" 'php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-delivery-page-'"$run"'/litespeed-html-purge.php" '"$operation"' delivery '"$run $phase" > "$work/purge-$phase-$operation.json" 2> "$work/purge-$phase-$operation.stderr" || outcome=1
         python3 scripts/sanitize-litespeed-html-purge.py "$operation" "$work/purge-$phase-$operation.json" "$work/purge-$phase-$operation-safe.json" > "$work/purge-$phase-$operation.stdout" 2> "$work/purge-$phase-$operation-screen.stderr" || return 1
+        [[ $outcome == 0 ]] || return 1
         if [[ $operation == queue ]]; then
-            python3 scripts/consume-litespeed-html-purge.py "$work/purge-$phase-consume.json" > "$work/purge-$phase-kick.stdout" 2> "$work/purge-$phase-kick.stderr" || return 1
+            outcome=0
+            python3 scripts/consume-litespeed-html-purge.py "$work/purge-$phase-consume.json" > "$work/purge-$phase-kick.stdout" 2> "$work/purge-$phase-kick.stderr" || outcome=1
             python3 scripts/sanitize-litespeed-html-purge.py consume "$work/purge-$phase-consume.json" "$work/purge-$phase-consume-safe.json" > "$work/purge-$phase-consume.stdout" 2> "$work/purge-$phase-consume.stderr" || return 1
+            [[ $outcome == 0 ]] || return 1
         fi
     done
 }
@@ -54,14 +60,26 @@ finish() {
           bad=$(find "$dir" -xdev \( -type l -o \( -type f -links +1 \) -o \( ! -type f ! -type d \) \) -print -quit);
           test -z "$bad" || exit 1; rm -rf -- "$dir"' > "$work/cleanup.stdout" 2> "$work/cleanup.stderr" || { outcome=1; category=cleanup; }
     fi
-    python3 - "$work" "$outcome" "$category" "$run" "$GITHUB_SHA" "$mode" "$rollback_verified" "$retain" <<'PY'
-import json,sys,importlib.util
+    python3 - "$work" "$outcome" "$category" "$run" "$GITHUB_SHA" "$mode" "$rollback_verified" "$retain" "$discovery_attempts" "$host_key_verified" <<'PY'
+import json,sys,importlib.util,os
 from pathlib import Path
 from datetime import datetime,timezone
 root=Path(sys.argv[1]);out={'status':'success' if sys.argv[2]=='0' else 'failure','category':sys.argv[3],
  'mode':sys.argv[6],'run_id':sys.argv[4],'source_commit':sys.argv[5],'generated_utc':datetime.now(timezone.utc).isoformat()}
+allowed={'success','failure','cancelled','skipped'}
+out['preparation']={}
+for key,variable in [('checkout','DELIVERY_PAGE_CHECKOUT_OUTCOME'),('ssh_tools','DELIVERY_PAGE_TOOLS_OUTCOME')]:
+ value=os.environ.get(variable);out['preparation'][key]=value if value in allowed else 'unknown'
+out['preparation']['key_discovery_attempts']=int(sys.argv[9]) if sys.argv[9] in {'0','1','2','3'} else 0
+out['preparation']['host_key_verified']=sys.argv[10]=='1'
 if (root/'safe.json').exists():out['inspection' if sys.argv[6]=='inspect' else 'operation']=json.loads((root/'safe.json').read_text())
 if (root/'cache-inspect-safe.json').exists():out['cache_preflight']=json.loads((root/'cache-inspect-safe.json').read_text())
+purge={}
+for phase in ['apply','rollback']:
+ for step in ['queue','consume','verify']:
+  path=root/f'purge-{phase}-{step}-safe.json'
+  if path.exists():purge[phase+'_'+step]=json.loads(path.read_text())
+if purge:out['cache_purge']=purge
 if sys.argv[2]!='0':
  try:
   spec=importlib.util.spec_from_file_location('delivery_report','scripts/delivery-page-report.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
@@ -89,7 +107,11 @@ PY
 }
 trap finish EXIT
 trap 'exit 1' HUP INT TERM
-[[ ${DELIVERY_PAGE_PREREQUISITES:-success} == success && $(git rev-parse HEAD) == "$GITHUB_SHA" ]]
+category=source_checkout
+[[ ${DELIVERY_PAGE_CHECKOUT_OUTCOME:-unknown} == success && $(git rev-parse HEAD) == "$GITHUB_SHA" ]]
+category=ssh_tools
+[[ ${DELIVERY_PAGE_TOOLS_OUTCOME:-unknown} == success ]]
+command -v sshpass ssh ssh-keyscan ssh-keygen >/dev/null
 if [[ $mode == apply ]]; then
     category=rehearsal_evidence
     git ls-remote --heads origin 'refs/heads/automation-status/delivery-page-*' > "$work/reports.txt" 2> "$work/reports.stderr"
@@ -124,9 +146,19 @@ PY
     done < "$work/candidates.txt"
     [[ $evidence == 1 ]]
 fi
-category=transport
+category=ssh_key_discovery
+for discovery_attempts in 1 2 3; do
+    # The verified server identity is its ED25519 key; avoid three parallel algorithm probes.
+    if ssh-keyscan -T 15 -p "$SSH_PORT" -t ed25519 "$SSH_HOST" > "$RUNNER_TEMP/petish-candidate-host-keys" 2> "$work/key-discovery.stderr" \
+        && [[ -s "$RUNNER_TEMP/petish-candidate-host-keys" ]]; then break;fi
+    if [[ $discovery_attempts == 3 ]]; then exit 1;fi
+    sleep 2
+done
+category=ssh_fingerprint
 source scripts/hostinger-ssh-common.sh
-petish_prepare_ssh
+petish_prepare_ssh > "$work/pin.stdout" 2> "$work/pin.stderr"
+host_key_verified=1
+category=transport
 connected=1
 for file in delivery-page-remote.php delivery-page-update.php verify-pet-club.php email-branding-preview-remote.php; do
     cp -- "scripts/$file" "$work/bundle/$file"
