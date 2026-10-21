@@ -9,6 +9,9 @@ final class Petish_Passport_Community {
     const BLOCKED = '_petish_club_moderated';
     const HEART = 'petish_club_heart_';
     const REPORT = 'petish_club_report_';
+    const INDEX_NAME = '_petish_club_find_name';
+    const INDEX_SPECIES = '_petish_club_find_species';
+    const INDEX_VARIETY = '_petish_club_find_variety';
 
     public static function boot() {
         add_action('init', array(__CLASS__, 'early_cache'), 0);
@@ -20,6 +23,8 @@ final class Petish_Passport_Community {
         }
         add_action('admin_post_petish_club_photo', array(__CLASS__, 'serve_photo'));
         add_action('admin_post_nopriv_petish_club_photo', array(__CLASS__, 'serve_photo'));
+        add_action('admin_post_petish_club_video', array(__CLASS__, 'serve_video'));
+        add_action('admin_post_nopriv_petish_club_video', array(__CLASS__, 'serve_video'));
         add_action('admin_menu', array(__CLASS__, 'moderation_menu'));
         add_filter('wp_privacy_personal_data_exporters', array(__CLASS__, 'exporters'));
         add_filter('wp_privacy_personal_data_erasers', array(__CLASS__, 'erasers'));
@@ -38,8 +43,51 @@ final class Petish_Passport_Community {
     private static function file_key_valid($key, $uid) {
         return is_string($key) && 1 === preg_match('#\A' . preg_quote((string) absint($uid), '#') . '/[a-f0-9]{48}\.(?:jpg|png|webp)\z#D', $key);
     }
+    private static function video_key_valid($key, $uid) {
+        return is_string($key) && 1 === preg_match('#\A' . preg_quote((string) absint($uid), '#') . '/[a-f0-9]{48}\.mp4\z#D', $key);
+    }
+    private static function derivative_key_valid($key, $uid) { return self::file_key_valid($key, $uid) || self::video_key_valid($key, $uid); }
+    private static function duration_valid($duration) { return (is_int($duration) || is_float($duration)) && is_finite((float) $duration) && $duration > 0 && $duration <= 20; }
+    private static function remove_derivative($key) {
+        return str_ends_with($key, '.mp4') ? (class_exists('Petish_Passport_Video') && Petish_Passport_Video::remove($key)) : Petish_Passport_Media::remove($key);
+    }
     public static function url($token = '') {
         return self::token_valid($token) ? add_query_arg('petish_pet', $token, home_url('/')) : add_query_arg('petish_club', '1', home_url('/'));
+    }
+    /** Only allowlisted directory fields are read. A visitor cannot choose a member ID. */
+    public static function directory_request($source = null) {
+        if ($source === null) $source = $_GET;
+        $filters = array();
+        foreach (array('view', 'species', 'variety', 'name', 'page') as $field) {
+            $key = 'club_' . $field;
+            if (isset($source[$key])) $filters[$field] = is_string($source[$key]) ? wp_unslash($source[$key]) : null;
+        }
+        return $filters;
+    }
+    private static function directory_filters($input) {
+        if (!is_array($input)) return self::error('petish_club_filters', 'Check the Pet Club filters and try again.');
+        $filters = array('view' => 'all', 'species' => '', 'variety' => '', 'name' => '', 'page' => 1);
+        foreach (array('view' => 12, 'species' => 40, 'variety' => 60, 'name' => 80) as $field => $max) {
+            if (!array_key_exists($field, $input)) continue;
+            if (!is_string($input[$field]) || 1 !== preg_match('/\A[^\x00-\x1F\x7F]{0,' . $max . '}\z/uD', $input[$field])) return self::error('petish_club_filters', 'Check the Pet Club filters and try again.');
+            $filters[$field] = trim($input[$field]);
+        }
+        if (!in_array($filters['view'], array('all', 'favourites'), true)
+            || ($filters['species'] !== '' && !isset(Petish_Passport_Store::species()[$filters['species']]))) return self::error('petish_club_filters', 'Choose a valid Pet Club view and pet type.');
+        if (array_key_exists('page', $input)) {
+            if ((!is_int($input['page']) && !is_string($input['page'])) || !preg_match('/\A[1-9][0-9]{0,5}\z/D', (string) $input['page'])) return self::error('petish_club_filters', 'Choose a valid Pet Club page.');
+            $filters['page'] = (int) $input['page'];
+        }
+        return $filters;
+    }
+    public static function directory_url($filters = array(), $page = 1) {
+        $filters = is_array($filters) ? array_merge($filters, array('page' => $page)) : $filters;
+        $filters = self::directory_filters($filters);
+        if (is_wp_error($filters)) return self::url();
+        $args = array('petish_club' => '1');
+        foreach (array('view', 'species', 'variety', 'name') as $field) if ($filters[$field] !== '' && !($field === 'view' && $filters[$field] === 'all')) $args['club_' . $field] = $filters[$field];
+        if ($filters['page'] > 1) $args['club_page'] = $filters['page'];
+        return add_query_arg($args, home_url('/'));
     }
     public static function is_route() { return isset($_GET['petish_pet']) || isset($_GET['petish_club']); }
     public static function robots($robots) {
@@ -92,9 +140,12 @@ final class Petish_Passport_Community {
         if ($value['photo'] !== '' && !self::file_key_valid($value['photo'], $post->post_author)) return false;
         foreach ($value['traits'] as $trait) if (!is_string($trait)) return false;
         foreach ($value['moments'] as $moment) {
-            if (!is_array($moment) || !self::token_valid($moment['token'] ?? null) || !in_array($moment['kind'] ?? '', array('photo', 'journal'), true)) return false;
+            if (!is_array($moment) || !self::token_valid($moment['token'] ?? null) || !in_array($moment['kind'] ?? '', array('photo', 'journal', 'video'), true)) return false;
             foreach (array('caption', 'photo', 'created') as $key) if (!isset($moment[$key]) || !is_string($moment[$key])) return false;
             if ($moment['photo'] !== '' && !self::file_key_valid($moment['photo'], $post->post_author)) return false;
+            if ($moment['kind'] === 'video') {
+                if ($moment['photo'] !== '' || !self::video_key_valid($moment['video'] ?? null, $post->post_author) || !self::duration_valid($moment['duration'] ?? null)) return false;
+            } elseif ((array_key_exists('video', $moment) && $moment['video'] !== '') || (array_key_exists('duration', $moment) && ((!is_int($moment['duration']) && !is_float($moment['duration'])) || (float) $moment['duration'] !== 0.0))) return false;
         }
         return array('pet_id' => (int) $pet_id, 'uid' => (int) $post->post_author, 'snapshot' => $value);
     }
@@ -106,39 +157,111 @@ final class Petish_Passport_Community {
         $raw = self::raw((int) $ids[0]);
         return $raw && hash_equals($raw['snapshot']['token'], $token) ? $raw : false;
     }
+    private static function search_text($value) {
+        // A shared index must not change with the publishing or browsing member's locale.
+        $value = remove_accents($value, 'en_US');
+        return function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
+    }
+    /** Rebuildable search fields are derived exclusively from the frozen public snapshot. */
+    private static function write_index($pet_id, $snapshot) {
+        $values = array(self::INDEX_NAME => self::search_text($snapshot['name'] ?? ''),
+            self::INDEX_SPECIES => $snapshot['species'] ?? '', self::INDEX_VARIETY => self::search_text($snapshot['variety'] ?? ''));
+        foreach ($values as $key => $value) {
+            update_post_meta($pet_id, $key, wp_slash($value));
+            if (!metadata_exists('post', $pet_id, $key) || get_post_meta($pet_id, $key, true) !== $value) return self::error('petish_club_index', 'Pet Club search could not be updated. Please try again.');
+        }
+        return true;
+    }
+    private static function remove_index($pet_id) {
+        $removed = true;
+        foreach (array(self::INDEX_NAME, self::INDEX_SPECIES, self::INDEX_VARIETY) as $key) {
+            delete_post_meta($pet_id, $key);
+            if (metadata_exists('post', $pet_id, $key)) $removed = false;
+        }
+        return $removed;
+    }
+    private static function index_base() {
+        global $wpdb;
+        return array('sql' => "FROM {$wpdb->posts} p INNER JOIN {$wpdb->users} owner ON owner.ID = p.post_author
+            WHERE p.post_type = %s AND p.post_status = 'private'
+            AND EXISTS (SELECT 1 FROM {$wpdb->postmeta} pt WHERE pt.post_id = p.ID AND pt.meta_key = %s)
+            AND NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} pr WHERE pr.post_id = p.ID AND pr.meta_key IN (%s, %s))",
+            'args' => array(Petish_Passport_Store::TYPE, self::TOKEN, self::REVOKED, self::BLOCKED));
+    }
+    private static function missing_index_query($limit, $count = false) {
+        global $wpdb;
+        $base = self::index_base(); $sql = $base['sql']; $args = $base['args']; $missing = array();
+        foreach (array(self::INDEX_NAME, self::INDEX_SPECIES, self::INDEX_VARIETY) as $key) {
+            $missing[] = "NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} mi WHERE mi.post_id = p.ID AND mi.meta_key = %s)";
+            $args[] = $key;
+        }
+        $sql .= ' AND (' . implode(' OR ', $missing) . ')';
+        if (!$count) { $sql .= ' ORDER BY p.ID ASC LIMIT %d'; $args[] = $limit; }
+        return $wpdb->prepare('/* petish_club_backfill */ SELECT ' . ($count ? 'COUNT(*) ' : 'p.ID ') . $sql, ...$args);
+    }
+    /** Read-only release readiness check; zero means directory backfill has no writes. */
+    public static function pending_index_count() {
+        global $wpdb;
+        $count = $wpdb->get_var(self::missing_index_query(1, true));
+        return $count !== null && empty($wpdb->last_error) ? max(0, (int) $count) : self::error('petish_club_index', 'Pet Club search readiness could not be checked.');
+    }
+    /** Bounded, repeatable upgrade of already-shared profiles; never reads private pet fields. */
+    public static function backfill_index($limit = 100) {
+        global $wpdb;
+        $limit = max(1, min(100, (int) $limit)); $processed = 0;
+        $ids = $wpdb->get_col(self::missing_index_query($limit));
+        if (!is_array($ids) || !empty($wpdb->last_error)) return self::error('petish_club_index', 'Pet Club search is temporarily unavailable. Please try again.');
+        foreach ($ids as $id) {
+            $result = self::with_pet_lock((int) $id, static function() use ($id) {
+                $post = get_post($id);
+                if (!$post || $post->post_type !== Petish_Passport_Store::TYPE || $post->post_status !== 'private') return true;
+                if (get_post_meta($id, self::REVOKED, true) || get_post_meta($id, self::BLOCKED, true) || !get_post_meta($id, self::TOKEN, true)) return self::remove_index($id);
+                $raw = self::raw($id);
+                // Invalid stored snapshots get empty, unsearchable fields, preventing
+                // a corrupt record from starving later batches. Explicit publish repairs it.
+                return self::write_index($id, $raw ? $raw['snapshot'] : array());
+            });
+            if (is_wp_error($result) || $result !== true) return self::error('petish_club_index', 'Pet Club search could not be updated. Please try again.');
+            $processed++;
+        }
+        $remaining = $wpdb->get_col(self::missing_index_query(1));
+        if (!is_array($remaining) || !empty($wpdb->last_error)) return self::error('petish_club_index', 'Pet Club search is temporarily unavailable. Please try again.');
+        return array('processed' => $processed, 'remaining' => (bool) $remaining);
+    }
     private static function keys($snapshot, $uid) {
         if (!is_array($snapshot)) return array();
         $keys = array();
         if (self::file_key_valid($snapshot['photo'] ?? '', $uid)) $keys[] = $snapshot['photo'];
         foreach (is_array($snapshot['moments'] ?? null) ? $snapshot['moments'] : array() as $moment) {
             if (is_array($moment) && self::file_key_valid($moment['photo'] ?? '', $uid)) $keys[] = $moment['photo'];
+            if (is_array($moment) && self::video_key_valid($moment['video'] ?? '', $uid)) $keys[] = $moment['video'];
         }
         return array_values(array_unique($keys));
     }
     private static function cleanup_keys($pet_id, $uid) {
         $keys = get_post_meta($pet_id, '_petish_club_cleanup', true);
         if ($keys === '') return array();
-        if (!is_array($keys) || count($keys) > 64) return self::error('petish_club_cleanup', 'Stored shared photos need review before sharing can change.');
-        foreach ($keys as $key) if (!self::file_key_valid($key, $uid)) return self::error('petish_club_cleanup', 'Stored shared photos need review before sharing can change.');
+        if (!is_array($keys) || count($keys) > 64) return self::error('petish_club_cleanup', 'Stored shared media needs review before sharing can change.');
+        foreach ($keys as $key) if (!self::derivative_key_valid($key, $uid)) return self::error('petish_club_cleanup', 'Stored shared media needs review before sharing can change.');
         return array_values(array_unique($keys));
     }
     private static function journal($pet_id, $uid, $keys) {
         $pending = self::cleanup_keys($pet_id, $uid); if (is_wp_error($pending)) return $pending;
-        foreach ($keys as $key) if (!self::file_key_valid($key, $uid)) return self::error('petish_club_cleanup', 'A shared photo could not be prepared.');
+        foreach ($keys as $key) if (!self::derivative_key_valid($key, $uid)) return self::error('petish_club_cleanup', 'Shared media could not be prepared.');
         $pending = array_values(array_unique(array_merge($pending, $keys)));
-        if (count($pending) > 64) return self::error('petish_club_cleanup', 'Stored shared photos need removal before you can publish again.');
+        if (count($pending) > 64) return self::error('petish_club_cleanup', 'Stored shared media needs removal before you can publish again.');
         update_post_meta($pet_id, '_petish_club_cleanup', $pending);
-        return get_post_meta($pet_id, '_petish_club_cleanup', true) === $pending ? true : self::error('petish_club_cleanup', 'The shared photos could not be prepared. Please try again.');
+        return get_post_meta($pet_id, '_petish_club_cleanup', true) === $pending ? true : self::error('petish_club_cleanup', 'The shared media could not be prepared. Please try again.');
     }
     private static function flush_pending($pet_id, $uid, $keep = array()) {
         $pending = self::cleanup_keys($pet_id, $uid); if (is_wp_error($pending)) return $pending;
         $retained = array();
-        foreach ($pending as $key) if (!in_array($key, $keep, true) && !Petish_Passport_Media::remove($key)) $retained[] = $key;
+        foreach ($pending as $key) if (!in_array($key, $keep, true) && !self::remove_derivative($key)) $retained[] = $key;
         update_post_meta($pet_id, '_petish_club_cleanup', $retained);
-        if (get_post_meta($pet_id, '_petish_club_cleanup', true) !== $retained || $retained) return self::error('petish_club_cleanup', 'Sharing is off or updated, but some old photo copies still need removal. Please try again.');
+        if (get_post_meta($pet_id, '_petish_club_cleanup', true) !== $retained || $retained) return self::error('petish_club_cleanup', 'Sharing is off or updated, but some old media copies still need removal. Please try again.');
         return true;
     }
-    /** Selected photos become independent copies, never a public alias for originals. */
+    /** Selected media becomes independent copies, never a public alias for originals. */
     public static function publish($pet_id, $uid, $share_age = false, $moment_ids = array()) {
         if (!is_bool($share_age) || !is_array($moment_ids) || count($moment_ids) > 12) return self::error('petish_club_input', 'Check the details and moments you want to share.');
         foreach ($moment_ids as $id) if (!self::id_valid($id)) return self::error('petish_club_input', 'Check the selected moments.');
@@ -161,6 +284,8 @@ final class Petish_Passport_Community {
             foreach ($moment_ids as $id) {
                 $moment = Petish_Passport_Moments::get($id, $uid);
                 if (is_wp_error($moment) || (int) $moment['pet_id'] !== (int) $pet_id) return self::error('petish_club_input', 'A selected moment is not available in this Passport.');
+                if (!in_array($moment['kind'] ?? '', array('photo', 'journal', 'video'), true)) return self::error('petish_club_input', 'A selected moment is not ready to share.');
+                if ($moment['kind'] === 'video' && (!class_exists('Petish_Passport_Video') || !self::video_key_valid($moment['video'] ?? null, $uid) || !self::duration_valid($moment['duration'] ?? null) || ($moment['photo'] ?? '') !== '')) return self::error('petish_club_input', 'A selected video is not ready to share.');
                 $moments[] = $moment;
             }
             // Persist the cleanup key before a derivative file is created.
@@ -177,8 +302,12 @@ final class Petish_Passport_Community {
                 }
                 foreach ($moments as $moment) {
                     $entry = array('source_id' => (int) $moment['id'], 'token' => bin2hex(random_bytes(16)), 'kind' => $moment['kind'],
-                        'caption' => $moment['caption'], 'created' => $moment['created'], 'photo' => '');
-                    if ($moment['photo'] !== '') {
+                        'caption' => $moment['caption'], 'created' => $moment['created'], 'photo' => '', 'video' => '', 'duration' => 0.0);
+                    if ($moment['kind'] === 'video') {
+                        $copy = Petish_Passport_Video::duplicate($moment['video'], $uid, $before_copy);
+                        if (is_wp_error($copy)) { self::flush_pending($pet_id, $uid, $old_keys); return $copy; }
+                        $entry['video'] = $copy; $entry['duration'] = (float) $moment['duration'];
+                    } elseif ($moment['photo'] !== '') {
                         $copy = Petish_Passport_Media::duplicate($moment['photo'], $uid, $before_copy);
                         if (is_wp_error($copy)) { self::flush_pending($pet_id, $uid, $old_keys); return $copy; }
                         $entry['photo'] = $copy;
@@ -203,6 +332,8 @@ final class Petish_Passport_Community {
                 self::unpublish($pet_id, $uid);
                 return self::error('petish_club_save', 'Sharing is off because the update did not finish. Please try again.');
             }
+            $indexed = self::write_index($pet_id, $snapshot);
+            if (is_wp_error($indexed)) { self::unpublish($pet_id, $uid); return $indexed; }
             $cleanup = self::flush_pending($pet_id, $uid, self::keys($snapshot, $uid));
             if (is_wp_error($cleanup)) return $cleanup; // Revoked until cleanup succeeds; retry remains possible.
             delete_post_meta($pet_id, self::REVOKED);
@@ -238,11 +369,13 @@ final class Petish_Passport_Community {
             if (is_wp_error($pending)) return $pending;
             $keys = array_unique(array_merge(self::keys($snapshot, $uid), $pending));
             if (!$snapshot && !$keys && !get_post_meta($pet_id, self::TOKEN, true)) {
+                if (!self::remove_index($pet_id)) return self::error('petish_club_cleanup', 'Some community search data could not be removed. Please try again.');
                 if (!self::purge_actions($pet_id)) return self::error('petish_club_cleanup', 'Some community data could not be removed. Please try again.');
                 delete_post_meta($pet_id, self::REVOKED); delete_post_meta($pet_id, '_petish_club_cleanup'); return true;
             }
             update_post_meta($pet_id, self::REVOKED, '1');
             if ('1' !== (string) get_post_meta($pet_id, self::REVOKED, true)) return self::error('petish_club_save', 'Sharing could not be turned off. Please try again.');
+            if (!self::remove_index($pet_id)) return self::error('petish_club_cleanup', 'Sharing is off. Some community search data still needs removal; please try again.');
             $queued = self::journal($pet_id, $uid, $keys);
             if (is_wp_error($queued)) return $queued;
             $cleanup = self::flush_pending($pet_id, $uid);
@@ -260,6 +393,9 @@ final class Petish_Passport_Community {
         if ($moment !== '') $args['moment'] = $moment;
         return add_query_arg($args, admin_url('admin-post.php'));
     }
+    private static function video_url($token, $moment) {
+        return add_query_arg(array('action' => 'petish_club_video', 'token' => $token, 'moment' => $moment), admin_url('admin-post.php'));
+    }
     public static function heart_count($pet_id) {
         global $wpdb;
         return max(0, (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like(self::HEART . absint($pet_id) . '_') . '%')));
@@ -267,7 +403,9 @@ final class Petish_Passport_Community {
     private static function project($raw) {
         $snapshot = $raw['snapshot']; $uid = get_current_user_id(); $moments = array();
         foreach ($snapshot['moments'] as $moment) $moments[] = array('token' => $moment['token'], 'kind' => $moment['kind'],
-            'caption' => $moment['caption'], 'photo_url' => $moment['photo'] !== '' ? self::photo_url($snapshot['token'], $moment['token']) : '', 'created' => $moment['created']);
+            'caption' => $moment['caption'], 'photo_url' => $moment['photo'] !== '' ? self::photo_url($snapshot['token'], $moment['token']) : '',
+            'video_url' => $moment['kind'] === 'video' ? self::video_url($snapshot['token'], $moment['token']) : '',
+            'duration_seconds' => $moment['kind'] === 'video' ? (float) $moment['duration'] : 0.0, 'created' => $moment['created']);
         return array('token' => $snapshot['token'], 'url' => self::url($snapshot['token']), 'name' => $snapshot['name'], 'species' => $snapshot['species'],
             'variety' => $snapshot['variety'] ?? '', 'age' => $snapshot['age'], 'bio' => $snapshot['bio'], 'traits' => array_values($snapshot['traits']),
             'photo_url' => $snapshot['photo'] !== '' ? self::photo_url($snapshot['token']) : '', 'moments' => $moments,
@@ -292,6 +430,75 @@ final class Petish_Passport_Community {
             'fields' => 'ids', 'meta_key' => self::TOKEN, 'orderby' => 'ID', 'order' => 'DESC', 'no_found_rows' => true, 'suppress_filters' => true, 'cache_results' => false));
         foreach ($ids as $id) { $raw = self::raw($id); if (!$raw || $raw['snapshot']['token'] === $exclude_token) continue; $profiles[] = self::project($raw); if (count($profiles) >= $limit) break; }
         return $profiles;
+    }
+    private static function directory_query($filters, $uid, $count = false, $offset = 0) {
+        global $wpdb;
+        $base = self::index_base(); $sql = $base['sql']; $args = $base['args'];
+        $species = $filters['species'] !== '' ? array($filters['species']) : array_keys(Petish_Passport_Store::species());
+        $sql .= " AND EXISTS (SELECT 1 FROM {$wpdb->postmeta} ps WHERE ps.post_id = p.ID AND ps.meta_key = %s AND ps.meta_value IN (" . implode(',', array_fill(0, count($species), '%s')) . '))';
+        $args[] = self::INDEX_SPECIES; array_push($args, ...$species);
+        foreach (array(self::INDEX_NAME => $filters['name'], self::INDEX_VARIETY => $filters['variety']) as $key => $value) {
+            // BINARY compares the same normalized bytes as the PHP visibility recheck.
+            // User % and _ characters remain literal substring characters.
+            $sql .= " AND EXISTS (SELECT 1 FROM {$wpdb->postmeta} pf WHERE pf.post_id = p.ID AND pf.meta_key = %s AND pf.meta_value LIKE BINARY %s)";
+            $args[] = $key; $args[] = '%' . $wpdb->esc_like(self::search_text($value)) . '%';
+        }
+        if ($filters['view'] === 'favourites') {
+            $sql .= " AND EXISTS (SELECT 1 FROM {$wpdb->options} fav WHERE fav.option_name = CONCAT(%s, p.ID, %s))";
+            $args[] = self::HEART; $args[] = '_' . $uid;
+        }
+        if (!$count) { $sql .= ' ORDER BY p.ID DESC LIMIT %d OFFSET %d'; $args[] = 12; $args[] = $offset; }
+        return $wpdb->prepare('/* petish_club_directory */ SELECT ' . ($count ? 'COUNT(*) ' : 'p.ID ') . $sql, ...$args);
+    }
+    private static function directory_matches($snapshot, $filters) {
+        if ($filters['species'] !== '' && $snapshot['species'] !== $filters['species']) return false;
+        foreach (array('name', 'variety') as $field) if ($filters[$field] !== '' && strpos(self::search_text($snapshot[$field] ?? ''), self::search_text($filters[$field])) === false) return false;
+        return true;
+    }
+    private static function favourite_exists($pet_id, $uid) {
+        if (!$uid) return false;
+        global $wpdb;
+        return '1' === (string) $wpdb->get_var($wpdb->prepare("SELECT 1 FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", self::HEART . absint($pet_id) . '_' . absint($uid)));
+    }
+    /** Paginated directory. Member identity always comes from the current session. */
+    public static function directory($input = array()) {
+        $filters = self::directory_filters($input);
+        $result = array('profiles' => array(), 'filters' => array('view' => 'all', 'species' => '', 'variety' => '', 'name' => ''),
+            'pagination' => array('page' => 1, 'per_page' => 12, 'total' => 0, 'pages' => 1, 'has_prev' => false, 'has_next' => false),
+            'login_required' => false, 'indexing' => false, 'error' => '');
+        if (is_wp_error($filters)) { $result['error'] = $filters->get_error_message(); return $result; }
+        foreach (array('view', 'species', 'variety', 'name') as $key) $result['filters'][$key] = $filters[$key];
+        $uid = get_current_user_id();
+        if ($filters['view'] === 'favourites' && (!$uid || !self::actor_available($uid))) { $result['login_required'] = true; return $result; }
+        $backfill = self::backfill_index();
+        if (is_wp_error($backfill)) { $result['error'] = $backfill->get_error_message(); return $result; }
+        $result['indexing'] = $backfill['remaining'];
+        $query = static function() use ($filters, $uid, $result) {
+            global $wpdb;
+            if ($filters['view'] === 'favourites' && (!self::actor_available($uid) || $uid !== get_current_user_id())) { $result['login_required'] = true; return $result; }
+            $total = $wpdb->get_var(self::directory_query($filters, $uid, true));
+            if ($total === null || !empty($wpdb->last_error)) { $result['error'] = __('Pet Club search is temporarily unavailable. Please try again.', 'petish-passport'); return $result; }
+            $total = max(0, (int) $total); $pages = max(1, (int) ceil($total / 12)); $page = min($filters['page'], $pages);
+            $ids = $wpdb->get_col(self::directory_query($filters, $uid, false, ($page - 1) * 12));
+            if (!is_array($ids) || !empty($wpdb->last_error)) { $result['error'] = __('Pet Club search is temporarily unavailable. Please try again.', 'petish-passport'); return $result; }
+            $result['pagination'] = array('page' => $page, 'per_page' => 12, 'total' => $total, 'pages' => $pages, 'has_prev' => $page > 1, 'has_next' => $page < $pages);
+            foreach ($ids as $id) {
+                $profile = self::with_pet_lock((int) $id, static function() use ($id, $filters, $uid) {
+                    $raw = self::raw((int) $id);
+                    if (!$raw || !self::directory_matches($raw['snapshot'], $filters)) return false;
+                    if ($filters['view'] === 'favourites' && !self::favourite_exists($id, $uid)) return false;
+                    $profile = self::project($raw);
+                    $profile['hearted'] = self::favourite_exists($id, $uid);
+                    return $profile;
+                });
+                if (is_array($profile)) $result['profiles'][] = $profile;
+            }
+            return $result;
+        };
+        // Match mutation lock ordering. Erasure cannot race a member favourites read.
+        $queried = $filters['view'] === 'favourites' ? self::with_actor_lock($uid, $query) : $query();
+        if (is_wp_error($queried)) { $result['error'] = __('Your favourites are temporarily unavailable. Please try again.', 'petish-passport'); return $result; }
+        return $queried;
     }
     public static function set_heart($token, $uid, $desired) {
         if (!is_bool($desired) || !$uid || (int) $uid !== get_current_user_id() || !get_user_by('id', $uid)) return self::error('petish_club_signin', 'Sign in to give a pet a heart.');
@@ -361,6 +568,38 @@ final class Petish_Passport_Community {
         if (true !== $sent) { status_header(404); header('Content-Type: text/plain; charset=utf-8'); echo 'Not found.'; }
         exit;
     }
+    /** Trusted serving/verification helper. Its filesystem path must never be serialized publicly. */
+    public static function resolve_video($token, $moment_token) {
+        if (!self::token_valid($token) || !self::token_valid($moment_token) || !class_exists('Petish_Passport_Video')) return self::error();
+        $raw = self::find($token); if (!$raw) return self::error();
+        return self::with_pet_lock($raw['pet_id'], static function() use ($token, $moment_token) {
+            $raw = self::find($token); if (!$raw) return self::error();
+            foreach ($raw['snapshot']['moments'] as $moment) {
+                if (!hash_equals($moment['token'], $moment_token) || $moment['kind'] !== 'video') continue;
+                $path = Petish_Passport_Video::file_for_owner($moment['video'], $raw['uid']);
+                return $path ? array('path' => $path, 'mime' => 'video/mp4', 'extension' => 'mp4', 'duration_seconds' => (float) $moment['duration']) : self::error();
+            }
+            return self::error();
+        });
+    }
+    public static function serve_video() {
+        self::no_cache(); header('Cross-Origin-Resource-Policy: same-origin');
+        $token = isset($_GET['token']) && is_string($_GET['token']) ? wp_unslash($_GET['token']) : '';
+        $moment_token = isset($_GET['moment']) && is_string($_GET['moment']) ? wp_unslash($_GET['moment']) : '';
+        $raw = self::find($token); $sent = false;
+        if ($raw && self::token_valid($moment_token)) {
+            $sent = self::with_pet_lock($raw['pet_id'], static function() use ($token, $moment_token) {
+                $resolved = self::resolve_video($token, $moment_token);
+                if (is_wp_error($resolved)) return false;
+                // stream returns on GET, HEAD and range errors; the lock's finally
+                // clause must execute before this route exits.
+                Petish_Passport_Video::stream($resolved['path']);
+                return true;
+            });
+        }
+        if (true !== $sent) { status_header(404); header('Content-Type: text/plain; charset=utf-8'); echo 'Not found.'; }
+        exit;
+    }
     public static function route() {
         if (!self::is_route()) return;
         self::no_cache();
@@ -371,7 +610,7 @@ final class Petish_Passport_Community {
         get_header();
         if (is_wp_error($profile)) echo '<main class="petish-passport pp-club-public"><h1>' . esc_html__('Passport not available', 'petish-passport') . '</h1><p>' . esc_html__('This pet may be private or no longer shared.', 'petish-passport') . '</p><a href="' . esc_url(self::url()) . '">' . esc_html__('Meet the Petish community', 'petish-passport') . '</a></main>';
         elseif ($profile) Petish_Passport_UI::render_public($profile);
-        else Petish_Passport_UI::render_community(self::discover(24));
+        else Petish_Passport_UI::render_community(self::directory(self::directory_request()));
         get_footer(); exit;
     }
     private static function input($name) { return isset($_POST[$name]) && is_string($_POST[$name]) ? wp_unslash($_POST[$name]) : ''; }
@@ -409,7 +648,12 @@ final class Petish_Passport_Community {
         $token = self::input('token'); self::guard('heart', $token);
         $desired = self::input('hearted');
         $result = in_array($desired, array('0', '1'), true) ? self::set_heart($token, get_current_user_id(), $desired === '1') : self::error('petish_club_input', 'Choose whether to add or remove your heart.');
-        self::finish($result, self::url($token), $desired === '1' ? __('Heart added.', 'petish-passport') : __('Heart removed.', 'petish-passport'));
+        $target = self::url($token);
+        if (self::input('return_to') === 'club') {
+            $filters = self::directory_request($_POST);
+            $target = self::directory_url($filters, $filters['page'] ?? 1);
+        }
+        self::finish($result, $target, $desired === '1' ? __('Added to your favourites.', 'petish-passport') : __('Removed from your favourites.', 'petish-passport'));
     }
     public static function handle_report() {
         $token = self::input('token'); self::guard('report', $token);
@@ -488,14 +732,17 @@ final class Petish_Passport_Community {
             $data[] = array('name' => 'Traits', 'value' => implode(', ', array_filter(is_array($snapshot['traits'] ?? null) ? $snapshot['traits'] : array(), 'is_string')));
             $data[] = array('name' => 'Shared profile', 'value' => $raw ? self::url($snapshot['token']) : 'Unavailable');
             $data[] = array('name' => 'Shared photo', 'value' => $raw && $snapshot['photo'] !== '' ? self::photo_url($snapshot['token']) : 'Unavailable or none');
-            $moment_text = array(); $moment_photos = array();
+            $moment_text = array(); $moment_photos = array(); $moment_videos = array();
             foreach (is_array($snapshot['moments'] ?? null) ? $snapshot['moments'] : array() as $moment) {
                 if (!is_array($moment)) continue;
                 $parts = array(); foreach (array('kind', 'created', 'caption') as $field) if (isset($moment[$field]) && is_string($moment[$field])) $parts[] = $moment[$field];
+                if (self::duration_valid($moment['duration'] ?? null)) $parts[] = 'Duration: ' . $moment['duration'] . ' seconds';
                 $moment_text[] = implode(' | ', $parts);
                 if ($raw && $moment['photo'] !== '') $moment_photos[] = self::photo_url($snapshot['token'], $moment['token']);
+                if ($raw && $moment['kind'] === 'video') $moment_videos[] = self::video_url($snapshot['token'], $moment['token']);
             }
             $data[] = array('name' => 'Shared moment photos', 'value' => $raw ? implode("\n", $moment_photos) : 'Unavailable');
+            $data[] = array('name' => 'Shared moment videos', 'value' => $raw ? implode("\n", $moment_videos) : 'Unavailable');
             $data[] = array('name' => 'Shared moments', 'value' => implode("\n", $moment_text));
             $rows[] = array('group_id' => 'petish-club', 'group_label' => 'Petish Club', 'item_id' => 'shared-pet-' . $pet['id'], 'data' => $data);
         }

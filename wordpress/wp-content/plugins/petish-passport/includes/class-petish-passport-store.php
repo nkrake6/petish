@@ -222,7 +222,14 @@ final class Petish_Passport_Store {
  }
  return array('data'=>$rows,'done'=>(int)$page*20>=count($pets));}
  public static function erase($email,$page=1){
- $user=get_user_by('email',$email);$removed=false;$retained=false;$messages=array();if($user){foreach(array_slice(self::ids($user->ID),0,20) as $id){$result=self::delete($id,$user->ID);if(is_wp_error($result)){$retained=true;$messages[]='A Passport could not be removed. Please retry erasure or contact the site administrator.';}else $removed=true;}}
+ $user=get_user_by('email',$email);$removed=false;$retained=false;$messages=array();if($user){foreach(array_slice(self::ids($user->ID),0,20) as $id){$result=self::delete($id,$user->ID);if(is_wp_error($result)){$retained=true;$messages[]='A Passport could not be removed. Please retry erasure or contact the site administrator.';}else $removed=true;}
+  // A failed upload can leave a journaled clip after its record has been removed. Only
+  // sweep this user's private folder once no owned pets remain, including on a retry.
+  $cleaned=self::with_user_lock($user->ID,static function()use($user){
+   return self::ids($user->ID)||!class_exists('Petish_Passport_Video')?true:Petish_Passport_Video::cleanup_user($user->ID);
+  });
+  if(is_wp_error($cleaned)||true!==$cleaned){$retained=true;$messages[]='A private video could not be removed. Please retry erasure or contact the site administrator.';}
+ }
  return array('items_removed'=>$removed,'items_retained'=>$retained,'messages'=>array_unique($messages),'done'=>!$user||$retained||!self::ids($user->ID));}
  public static function delete_user($uid){
   // Abort before WordPress deletes/reassigns the account if a private file cannot be removed.
@@ -231,6 +238,7 @@ final class Petish_Passport_Store {
    if(is_wp_error($result)) wp_die(esc_html__('The account could not be deleted because private pet data could not be removed. Please retry or contact the site administrator.','petish-passport'),esc_html__('Account deletion paused','petish-passport'),array('response'=>500));
   }
   if(!Petish_Passport_Media::cleanup_user($uid))wp_die(esc_html__('The account could not be deleted because private photo cleanup requires administrator attention. Please retry or contact the site administrator.','petish-passport'),'Account deletion paused',array('response'=>500));
+  if(class_exists('Petish_Passport_Video')&&!Petish_Passport_Video::cleanup_user($uid))wp_die(esc_html__('The account could not be deleted because private video cleanup requires administrator attention. Please retry or contact the site administrator.','petish-passport'),'Account deletion paused',array('response'=>500));
   delete_user_meta($uid,self::ACTIVE);
  }
 }

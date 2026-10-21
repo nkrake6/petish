@@ -18,33 +18,46 @@ def module(name):
 navigation = module('sanitize-account-navigation-result')
 DEPLOY = navigation.DEPLOY | {'maintenance_guard_created', 'maintenance_guard_removed'}
 PREFLIGHT = navigation.PREFLIGHT
-FILE_COUNT = 15
+FILE_COUNT = 17
 STAGING = {
     'all_outbound_http_blocked', 'anonymous_heart_denied', 'biography_and_traits_saved',
-    'cron_and_async_runner_disabled', 'existing_passports_unchanged', 'explicit_public_snapshot_created',
-    'fixture_cleanup_verified', 'foreign_owner_denied', 'heart_idempotent',
-    'heart_removal_verified', 'legacy_assets_preserved', 'legacy_defaults_preserved',
-    'mail_calls_blocked', 'moderation_hides_profile', 'mutation_hooks_registered',
-    'only_selected_moments_shared', 'orders_unchanged', 'owned_fixture_pet_created',
-    'owned_fixture_users_created', 'pet_club_assets_enqueued', 'pet_club_classes_loaded',
-    'photo_change_unpublishes', 'private_media_owner_scoped', 'private_moments_owner_scoped',
-    'private_owner_access_verified', 'private_photo_files_unchanged', 'private_record_registration_verified',
+    'cron_and_async_runner_disabled', 'directory_explicit_reshare_filters_verified', 'directory_fixture_scope_verified',
+    'directory_index_migration_not_required', 'directory_legacy_snapshot_index_verified', 'directory_literal_search_verified',
+    'directory_pagination_verified', 'directory_public_snapshot_filters_verified', 'directory_return_url_verified',
+    'directory_visibility_revocation_verified', 'existing_passports_unchanged', 'explicit_public_snapshot_created',
+    'favourites_session_isolation_verified', 'fixture_cleanup_verified', 'foreign_owner_denied',
+    'heart_idempotent', 'heart_removal_verified', 'jetpack_sync_isolated',
+    'legacy_assets_preserved', 'legacy_defaults_preserved', 'mail_calls_blocked',
+    'moderation_hides_profile', 'mutation_hooks_registered', 'only_selected_moments_shared',
+    'orders_unchanged', 'owned_fixture_pet_created', 'owned_fixture_users_created',
+    'pet_club_assets_enqueued', 'pet_club_classes_loaded', 'photo_change_unpublishes',
+    'private_media_owner_scoped', 'private_moments_owner_scoped', 'private_owner_access_verified',
+    'private_photo_files_unchanged', 'private_record_registration_verified', 'private_video_owner_scoped',
     'product_prices_and_stock_unchanged', 'public_photos_are_separate', 'public_projection_allowlisted',
-    'public_routes_registered', 'remote_file_access_disabled', 'report_deduplicated',
-    'request_nonce_and_method_verified', 'self_heart_denied', 'settings_unchanged',
-    'jetpack_sync_isolated', 'staging_database_separate', 'staging_guard_verified', 'synthetic_public_render_verified',
-    'target_environment_verified', 'target_paths_verified', 'unpublish_revokes_public_media',
-    'unshared_pet_not_discoverable', 'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
+    'public_routes_registered', 'public_video_snapshot_separate', 'remote_file_access_disabled',
+    'report_deduplicated', 'request_nonce_and_method_verified', 'self_heart_denied',
+    'settings_unchanged', 'staging_database_separate', 'staging_guard_verified',
+    'synthetic_public_render_verified', 'target_environment_verified', 'target_paths_verified',
+    'unpublish_revokes_public_media', 'unshared_pet_not_discoverable', 'users_and_authentication_unchanged',
+    'video_inspection_limits_verified', 'video_range_contract_verified', 'video_replacement_revokes_public',
+    'video_snapshot_frozen', 'woocommerce_runtime_verified',
 }
 VERIFY = {
-    'all_outbound_http_blocked', 'cron_and_async_runner_disabled', 'existing_passports_unchanged',
-    'legacy_assets_preserved', 'mail_calls_blocked', 'mutation_hooks_registered',
-    'orders_unchanged', 'pet_club_assets_enqueued', 'pet_club_classes_loaded',
-    'private_owner_access_verified', 'private_photo_files_unchanged', 'private_record_registration_verified',
-    'product_prices_and_stock_unchanged', 'production_read_only_verified', 'public_routes_registered',
-    'remote_file_access_disabled', 'settings_unchanged', 'synthetic_public_render_verified',
-    'target_environment_verified', 'target_paths_verified', 'users_and_authentication_unchanged',
-    'woocommerce_runtime_verified',
+    'all_outbound_http_blocked', 'cron_and_async_runner_disabled', 'directory_index_migration_not_required',
+    'existing_passports_unchanged', 'legacy_assets_preserved', 'mail_calls_blocked',
+    'mutation_hooks_registered', 'orders_unchanged', 'pet_club_assets_enqueued',
+    'pet_club_classes_loaded', 'private_owner_access_verified', 'private_photo_files_unchanged',
+    'private_record_registration_verified', 'product_prices_and_stock_unchanged', 'production_read_only_verified',
+    'public_routes_registered', 'remote_file_access_disabled', 'settings_unchanged',
+    'synthetic_public_render_verified', 'target_environment_verified', 'target_paths_verified',
+    'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
+}
+INDEX = {
+    'all_outbound_http_blocked', 'cron_and_async_runner_disabled', 'directory_index_migration_not_required',
+    'existing_passports_unchanged', 'mail_calls_blocked', 'orders_unchanged',
+    'private_photo_files_unchanged', 'product_prices_and_stock_unchanged', 'production_read_only_verified',
+    'remote_file_access_disabled', 'settings_unchanged', 'target_environment_verified',
+    'target_paths_verified', 'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
 }
 FIXTURE = {
     'all_outbound_http_blocked', 'browser_input_written', 'cron_and_async_runner_disabled',
@@ -130,21 +143,25 @@ OPTION_PREFIXES = {
 }
 BROWSER = {
     'account_menu_verified', 'anonymous_private_photos_denied', 'browser_started',
-    'dark_mode_readable', 'desktop_layout_verified', 'edit_form_verified',
-    'explicit_publish_verified', 'foreign_private_photos_denied', 'lightbox_escape_focus_verified',
-    'lightbox_verified', 'member_heart_post_verified', 'member_heart_remove_post_verified',
-    'member_login_verified', 'mobile_320_verified', 'mobile_390_verified',
-    'no_js_fallback_verified', 'owned_passport_displayed', 'owner_login_verified',
-    'owner_private_photo_http_verified', 'private_preview_verified', 'public_photo_http_verified',
-    'public_profile_http_verified', 'public_projection_verified', 'public_responses_uncacheable',
-    'real_photo_upload_verified', 'revoked_photo_http_denied', 'revoked_profile_http_denied',
-    'tabs_keyboard_verified', 'tabs_mouse_verified', 'unpublish_verified',
-    'unsafe_requests_blocked',
+    'dark_mode_readable', 'desktop_layout_verified', 'directory_filters_verified',
+    'directory_return_preserved', 'edit_form_verified', 'explicit_publish_verified',
+    'favourites_responses_uncacheable', 'favourites_session_isolation_verified', 'foreign_private_photos_denied',
+    'lightbox_escape_focus_verified', 'lightbox_verified', 'member_heart_post_verified',
+    'member_heart_remove_post_verified', 'member_login_verified', 'mobile_320_verified',
+    'mobile_390_verified', 'no_js_fallback_verified', 'owned_passport_displayed',
+    'owner_login_verified', 'owner_private_photo_http_verified', 'private_preview_verified',
+    'private_video_http_verified', 'private_video_playback_verified', 'private_video_unauthorized_denied',
+    'public_photo_http_verified', 'public_profile_http_verified', 'public_projection_verified',
+    'public_responses_uncacheable', 'public_video_http_verified', 'real_photo_upload_verified',
+    'real_video_upload_verified', 'revoked_photo_http_denied', 'revoked_profile_http_denied',
+    'revoked_video_http_denied', 'tabs_keyboard_verified', 'tabs_mouse_verified',
+    'unpublish_verified', 'unsafe_requests_blocked', 'video_client_limits_verified',
+    'video_ranges_verified', 'video_server_limits_verified',
 }
 ASSETS = {'pet_club_script_http_verified', 'pet_club_stylesheet_http_verified', 'pet_club_catalogue_stylesheet_http_verified'}
 REQUIRED = {
     **{phase: navigation.REQUIRED[phase] for phase in ('inspect', 'apply', 'rollback', 'commit')},
-    'preflight': PREFLIGHT, 'native': STAGING, 'verify': VERIFY,
+    'preflight': PREFLIGHT, 'native': STAGING, 'verify': VERIFY, 'index': INDEX,
     'fixture': FIXTURE, 'browser': BROWSER, 'cleanup': CLEANUP, 'diagnose': DIAGNOSE, 'retire': RETIRE,
     'health': navigation.email.HEALTH_CHECKS, 'assets': ASSETS,
 }
@@ -154,7 +171,7 @@ REQUIRED['commit'] = REQUIRED['commit'] | {'maintenance_guard_removed'}
 CATEGORIES = {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'guard_receipt',
     'guard_pending', 'guard_publish', 'guard_verified'} | navigation.CATEGORIES | {'snapshot','verification','renderer','catalogue','fixture',
     'maintenance','native','cleanup','diagnose','retire','isolation','bootstrap','registration','routes','privacy',
-    'contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'} | {
+    'index','directory','video','favourites','video_input','video_limits','video_upload','video_http','video_playback','contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'} | {
     'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
     'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
 }

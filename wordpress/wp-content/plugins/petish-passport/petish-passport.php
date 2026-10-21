@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Petish Passport
- * Description: Private pet passports, photo moments and optional Pet Club sharing for WooCommerce customers.
- * Version: 0.3.1
+ * Description: Private pet passports, photo and video moments and optional Pet Club sharing for WooCommerce customers.
+ * Version: 0.3.2
  * Requires at least: 6.8
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce
@@ -10,7 +10,7 @@
  * Text Domain: petish-passport
  */
 defined( 'ABSPATH' ) || exit;
-define( 'PETISH_PASSPORT_VERSION', '0.3.1' );
+define( 'PETISH_PASSPORT_VERSION', '0.3.2' );
 define( 'PETISH_PASSPORT_FILE', __FILE__ );
 define( 'PETISH_PASSPORT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PETISH_PASSPORT_URL', plugin_dir_url( __FILE__ ) );
@@ -22,7 +22,7 @@ add_action( 'plugins_loaded', function () {
         } );
         return;
     }
-    foreach ( array( 'media', 'store', 'moments', 'community', 'ui' ) as $module ) {
+    foreach ( array( 'media', 'video-inspector', 'video', 'store', 'moments', 'community', 'ui' ) as $module ) {
         $file = PETISH_PASSPORT_DIR . 'includes/class-petish-passport-' . $module . '.php';
         if ( ! is_readable( $file ) ) {
             return; // Installation is incomplete; never expose a partially loaded customer flow.
@@ -32,6 +32,8 @@ add_action( 'plugins_loaded', function () {
         if ( ! is_readable( PETISH_PASSPORT_DIR . 'includes/' . $file ) ) { return; }
     }
     require_once PETISH_PASSPORT_DIR . 'includes/class-petish-passport-media.php';
+    require_once PETISH_PASSPORT_DIR . 'includes/class-petish-passport-video-inspector.php';
+    require_once PETISH_PASSPORT_DIR . 'includes/class-petish-passport-video.php';
     require_once PETISH_PASSPORT_DIR . 'includes/class-petish-passport-store.php';
     require_once PETISH_PASSPORT_DIR . 'includes/class-petish-passport-moments.php';
     require_once PETISH_PASSPORT_DIR . 'includes/class-petish-passport-community.php';
@@ -62,9 +64,9 @@ register_deactivation_hook( __FILE__, function () {
 add_action( 'admin_init', function () {
     if ( function_exists( 'wp_add_privacy_policy_content' ) ) {
         wp_add_privacy_policy_content( 'Petish Passport',
-            '<p>Petish Passport stores the pet profiles you choose to create: pet name, species, optional breed or variety, broad age range, shopping interest, optional biography, personality tags, photographs and journal entries, associated with your customer account. New and existing passports remain private unless you explicitly share a pet. Photos are resized and re-encoded, and originals are not retained by Passport.</p>' .
+            '<p>Petish Passport stores the pet profiles you choose to create: pet name, species, optional breed or variety, broad age range, shopping interest, optional biography, personality tags, photographs, short videos and journal entries, associated with your customer account. New and existing passports remain private unless you explicitly share a pet. Photos are resized and re-encoded, and originals are not retained by Passport. Videos are stored as uploaded, without transcoding or removal of embedded metadata.</p>' .
             '<p>Sharing publishes a selected copy of your pet’s name, species, breed or variety when supplied, biography, personality tags, chosen photo, optional age range and selected moments. Account details, shopping preferences and unselected moments are excluded. You can update or withdraw that shared copy from My Pets. Signed-in members can add or remove a heart on a shared pet and report a profile for review. Heart and report records are associated privately with their member accounts; only aggregate heart counts are displayed.</p>' .
-            '<p>You can edit or delete profiles from My Account &gt; My Pets. Deleting a pet removes its profile, moments, shared copy and associated photos from the active site. Passport data is included in WordPress personal-data export and erasure workflows. Backup retention is managed separately and must be specified in the store privacy policy before launch.</p>'
+            '<p>Only explicitly selected moments are shared. Shared videos include any metadata embedded in the uploaded file. You can edit or delete profiles from My Account &gt; My Pets. Deleting a pet removes its profile, moments, shared copy and associated photos and videos from the active site. Passport data is included in WordPress personal-data export and erasure workflows. Backup retention is managed separately and must be specified in the store privacy policy before launch.</p>'
         );
     }
 } );

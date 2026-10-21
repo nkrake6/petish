@@ -91,7 +91,7 @@ final class Petish_Passport_UI {
   } elseif('delete'===$view) self::template('delete',array('pet'=>$pet));
   elseif(in_array($view,array('moment-create','moment-edit','moment-delete'),true)) {
    $editing='moment-edit'===$view;$deleting='moment-delete'===$view;
-   $kind=isset($_GET['kind'])&&'journal'===$_GET['kind']?'journal':'photo';
+   $kind=isset($_GET['kind'])&&in_array($_GET['kind'],array('photo','journal','video'),true)?$_GET['kind']:'photo';
    $values=$moment?:array('kind'=>$kind,'caption'=>'');
    $draft=self::read_draft($view,$moment?$moment['id']:$id);if($draft) $values=array_merge($values,$draft);
    self::template('moment-form',compact('pet','moment','editing','deleting','values'));
@@ -112,16 +112,17 @@ final class Petish_Passport_UI {
  }
  public static function moment_url($view,$pet_id,$moment_id=0,$kind='photo') {
   $url=self::url($view,$pet_id);
-  return add_query_arg($moment_id?array('moment_id'=>absint($moment_id)):array('kind'=>'journal'===$kind?'journal':'photo'),$url);
+  return add_query_arg($moment_id?array('moment_id'=>absint($moment_id)):array('kind'=>in_array($kind,array('photo','journal','video'),true)?$kind:'photo'),$url);
  }
  public static function render_public($profile,$neighbours=null) {
   echo '<main class="pc-public-shell"><div class="petish-passport petish-club" id="petish-passport">';
   self::template('public',array('profile'=>$profile,'neighbours'=>null===$neighbours?Petish_Passport_Community::discover(3,$profile['token']):$neighbours));
   echo '</div></main>';
  }
- public static function render_community($profiles) {
+ public static function render_community($directory) {
+  if(!isset($directory['profiles'])) $directory=array('profiles'=>$directory,'filters'=>array('view'=>'all','species'=>'','variety'=>'','name'=>''),'pagination'=>array('page'=>1,'per_page'=>12,'total'=>count($directory),'pages'=>1,'has_prev'=>false,'has_next'=>false),'login_required'=>false,'indexing'=>false);
   echo '<main class="pc-public-shell"><div class="petish-passport petish-club" id="petish-passport">';
-  self::template('community',array('profiles'=>$profiles));
+  self::template('community',array('directory'=>$directory));
   echo '</div></main>';
  }
  public static function public_avatar($profile,$large=false) {
@@ -132,16 +133,26 @@ final class Petish_Passport_UI {
   $timestamp=is_string($value)?strtotime($value.' UTC'):false;
   return $timestamp?wp_date(get_option('date_format'),$timestamp):'';
  }
- public static function heart_control($profile) {
+ public static function duration_label($seconds) {
+  $seconds=max(0,(int)ceil((float)$seconds));return sprintf('%d:%02d',(int)floor($seconds/60),$seconds%60);
+ }
+ public static function video($url,$caption='') {
+  return '<video class="pc-moment-video" controls playsinline preload="metadata" aria-label="'.esc_attr($caption?:__('Video moment','petish-passport')).'"><source src="'.esc_url($url).'" type="video/mp4"><a href="'.esc_url($url).'">'.esc_html__('Open video','petish-passport').'</a></video>';
+ }
+ public static function heart_control($profile,$return_filters=null) {
   $count=max(0,(int)($profile['hearts']??0));
   if(!empty($profile['can_heart'])) {
    echo '<form class="pc-heart-form" method="post" action="'.esc_url(admin_url('admin-post.php')).'">';
    echo '<input type="hidden" name="action" value="petish_club_heart"><input type="hidden" name="token" value="'.esc_attr($profile['token']).'"><input type="hidden" name="hearted" value="'.(!empty($profile['hearted'])?'0':'1').'">';
+   if(is_array($return_filters)) {
+    echo '<input type="hidden" name="return_to" value="club">';
+    foreach(array('view','species','variety','name','page') as $key) if(isset($return_filters[$key])&&is_scalar($return_filters[$key])) echo '<input type="hidden" name="club_'.esc_attr($key).'" value="'.esc_attr($return_filters[$key]).'">';
+   }
    wp_nonce_field('petish_club_heart_'.$profile['token'],'petish_club_nonce');
-   echo '<button type="submit" class="pc-heart" aria-pressed="'.(!empty($profile['hearted'])?'true':'false').'" aria-label="'.esc_attr(sprintf(!empty($profile['hearted'])?__('Remove your heart from %s','petish-passport'):__('Give %s a heart','petish-passport'),$profile['name'])).'">'.self::icon('heart').'<span>'.esc_html(number_format_i18n($count)).'</span><span>'.esc_html__('hearts','petish-passport').'</span></button></form>';
+   echo '<button type="submit" class="pc-heart" aria-pressed="'.(!empty($profile['hearted'])?'true':'false').'" aria-label="'.esc_attr(sprintf(!empty($profile['hearted'])?__('Remove %s from favourites','petish-passport'):__('Save %s to favourites','petish-passport'),$profile['name'])).'">'.self::icon('heart').'<span>'.esc_html(number_format_i18n($count)).'</span><span>'.esc_html__('hearts','petish-passport').'</span><span class="pc-heart-action">'.esc_html(!empty($profile['hearted'])?__('Remove','petish-passport'):__('Save','petish-passport')).'</span></button></form>';
   } else {
    echo '<span class="pc-heart pc-heart-count">'.self::icon('heart').'<span>'.esc_html(number_format_i18n($count)).'</span> '.esc_html__('hearts','petish-passport').'</span>';
-   if(!is_user_logged_in())echo '<a class="pc-sign-in" href="'.esc_url(wc_get_page_permalink('myaccount')).'">'.esc_html__('Sign in to give a heart','petish-passport').'</a>';
+   if(!is_user_logged_in())echo '<a class="pc-sign-in" href="'.esc_url(wp_login_url($profile['url'])).'">'.esc_html__('Sign in to save favourites','petish-passport').'</a>';
   }
  }
  public static function club_notice() {
@@ -159,7 +170,7 @@ final class Petish_Passport_UI {
   return '<span class="pp-avatar pp-avatar-illustration'.esc_attr($size).'" aria-hidden="true"><span>'.esc_html($symbols[$pet['species']??'']??'🐾').'</span></span>';
  }
  public static function icon($name) {
-  $paths=array('lock'=>'<rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/>','plus'=>'<path d="M12 5v14M5 12h14"/>','bag'=>'<path d="M5 8h14l1 12H4L5 8Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/>','spark'=>'<path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/>','home'=>'<path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/>','camera'=>'<path d="M8 6 9 3h6l1 3h4v15H4V6h4Z"/><circle cx="12" cy="13" r="4"/>','arrow'=>'<path d="M19 12H5m6-6-6 6 6 6"/>','heart'=>'<path d="M20.6 4.9a5.5 5.5 0 0 0-7.8 0L12 5.7l-.8-.8a5.5 5.5 0 0 0-7.8 7.8L12 21l8.6-8.3a5.5 5.5 0 0 0 0-7.8Z"/>','globe'=>'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z"/>','close'=>'<path d="m6 6 12 12M18 6 6 18"/>');
+  $paths=array('lock'=>'<rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/>','plus'=>'<path d="M12 5v14M5 12h14"/>','bag'=>'<path d="M5 8h14l1 12H4L5 8Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/>','spark'=>'<path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/>','home'=>'<path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/>','camera'=>'<path d="M8 6 9 3h6l1 3h4v15H4V6h4Z"/><circle cx="12" cy="13" r="4"/>','arrow'=>'<path d="M19 12H5m6-6-6 6 6 6"/>','heart'=>'<path d="M20.6 4.9a5.5 5.5 0 0 0-7.8 0L12 5.7l-.8-.8a5.5 5.5 0 0 0-7.8 7.8L12 21l8.6-8.3a5.5 5.5 0 0 0 0-7.8Z"/>','globe'=>'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z"/>','video'=>'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3V9Z"/>','close'=>'<path d="m6 6 12 12M18 6 6 18"/>');
   return '<svg class="pp-icon" aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'.($paths[$name]??$paths['spark']).'</svg>';
  }
  private static function value($key) { return isset($_POST[$key])&&is_string($_POST[$key])?sanitize_text_field(wp_unslash($_POST[$key])):''; }
@@ -194,10 +205,11 @@ final class Petish_Passport_UI {
   $r=Petish_Passport_Store::delete($id,get_current_user_id());wc_add_notice(is_wp_error($r)?esc_html($r->get_error_message()):__('The pet’s Passport, moments and published profile have been deleted.','petish-passport'),is_wp_error($r)?'error':'success');self::redirect();
  }
  private static function moment_data() { return array('kind'=>self::value('kind'),'caption'=>self::textarea_value('caption')); }
+ private static function moment_file($kind) { return 'video'===$kind?($_FILES['video']??null):self::file(); }
  private static function moment_redirect($view,$pet_id,$moment_id=0,$kind='photo') { wp_safe_redirect(self::moment_url($view,$pet_id,$moment_id,$kind),303);exit; }
  public static function handle_create_moment() {
   $id=absint(self::value('pet_id'));self::authorize('create_moment',$id);$data=self::moment_data();
-  $result=Petish_Passport_Moments::create($id,get_current_user_id(),$data,self::file());
+  $result=Petish_Passport_Moments::create($id,get_current_user_id(),$data,self::moment_file($data['kind']));
   if(is_wp_error($result)) {self::save_draft('moment-create',$id,$data);wc_add_notice(esc_html($result->get_error_message()),'error');self::moment_redirect('moment-create',$id,0,$data['kind']);}
   wc_add_notice(__('Your little moment has been saved privately.','petish-passport'),'success');self::redirect();
  }
@@ -205,7 +217,7 @@ final class Petish_Passport_UI {
   $id=absint(self::value('moment_id'));self::authorize('update_moment',$id);$data=self::moment_data();
   $moment=Petish_Passport_Moments::get($id,get_current_user_id());
   if(is_wp_error($moment)){wc_add_notice(esc_html($moment->get_error_message()),'error');self::redirect();}
-  $result=Petish_Passport_Moments::update($id,get_current_user_id(),$data,self::file());
+  $result=Petish_Passport_Moments::update($id,get_current_user_id(),$data,self::moment_file($data['kind']));
   if(is_wp_error($result)){self::save_draft('moment-edit',$id,$data);wc_add_notice(esc_html($result->get_error_message()),'error');self::moment_redirect('moment-edit',$moment['pet_id'],$id,$moment['kind']);}
   wc_add_notice(__('Your little moment has been updated privately.','petish-passport'),'success');self::redirect();
  }
@@ -213,7 +225,7 @@ final class Petish_Passport_UI {
   $id=absint(self::value('moment_id'));self::authorize('delete_moment',$id);
   if('1'!==self::value('confirm_delete')){wc_add_notice(__('Confirm that you want to remove this moment.','petish-passport'),'error');self::redirect();}
   $result=Petish_Passport_Moments::delete($id,get_current_user_id());
-  wc_add_notice(is_wp_error($result)?esc_html($result->get_error_message()):__('The moment and its photo have been removed.','petish-passport'),is_wp_error($result)?'error':'success');self::redirect();
+  wc_add_notice(is_wp_error($result)?esc_html($result->get_error_message()):__('The moment and its media have been removed.','petish-passport'),is_wp_error($result)?'error':'success');self::redirect();
  }
 
 }

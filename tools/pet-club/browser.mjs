@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 
 const ORIGIN = 'https://staging.petish.biz';
 const ROOT = '.petish-passport.petish-club';
@@ -21,6 +22,10 @@ export const CHECK_KEYS = Object.freeze([
   'public_responses_uncacheable', 'member_heart_post_verified', 'member_heart_remove_post_verified',
   'unpublish_verified', 'revoked_profile_http_denied',
   'revoked_photo_http_denied', 'unsafe_requests_blocked',
+  'directory_filters_verified', 'directory_return_preserved', 'favourites_session_isolation_verified',
+  'favourites_responses_uncacheable', 'video_client_limits_verified', 'video_server_limits_verified',
+  'real_video_upload_verified', 'private_video_playback_verified', 'private_video_http_verified',
+  'private_video_unauthorized_denied', 'public_video_http_verified', 'video_ranges_verified', 'revoked_video_http_denied',
 ]);
 export const FORM_CATEGORIES = Object.freeze([
   'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
@@ -29,6 +34,7 @@ export const FORM_CATEGORIES = Object.freeze([
 const CATEGORIES = new Set(['input', 'browser', 'login', 'owner', 'mobile', 'desktop', 'navigation',
   'tabs', 'preview', 'lightbox', 'form', 'upload', 'private_photos', 'no_js', 'dark_mode',
   'publish', 'public_profile', 'public_photo', 'hearts', 'unpublish', 'revocation', 'network', 'complete',
+  'directory', 'favourites', 'video_input', 'video_limits', 'video_upload', 'video_http', 'video_playback',
   ...FORM_CATEGORIES]);
 
 export function validateInput(value) {
@@ -81,6 +87,12 @@ export function allowedRequest(raw, method = 'GET', state = {}, body = '', type 
           && [...url.searchParams.keys()].every(key => ['action', 'pet_id', 'v'].includes(key)))
         || (action === 'petish_pet_moment_photo' && url.searchParams.get('moment_id') === String(input.photo_moment_id)
           && [...url.searchParams.keys()].every(key => ['action', 'moment_id', 'v'].includes(key)))
+        || (action === 'petish_pet_moment_video' && Number.isSafeInteger(state.videoId) && state.videoId > 0
+          && url.searchParams.get('moment_id') === String(state.videoId)
+          && [...url.searchParams.keys()].every(key => ['action', 'moment_id', 'v'].includes(key)))
+        || (action === 'petish_club_video' && /^[a-f0-9]{32}$/.test(state.token ?? '')
+          && url.searchParams.get('token') === state.token && /^[a-f0-9]{32}$/.test(url.searchParams.get('moment') ?? '')
+          && [...url.searchParams.keys()].every(key => ['action', 'token', 'moment'].includes(key)))
         || (action === 'petish_club_photo' && /^[a-f0-9]{32}$/.test(state.token ?? '')
           && url.searchParams.get('token') === state.token && [...url.searchParams.keys()].every(key => ['action', 'token', 'moment'].includes(key)));
     }
@@ -95,18 +107,24 @@ export function allowedRequest(raw, method = 'GET', state = {}, body = '', type 
       && fields.getAll('token').length === 1 && fields.get('token') === state.token
       && ['0', '1'].includes(state.desiredHeart) && fields.getAll('hearted').length === 1
       && fields.get('hearted') === state.desiredHeart && !fields.has('pet_id')
-      && /^[a-zA-Z0-9]{10}$/.test(fields.get('petish_club_nonce') ?? '');
+      && /^[a-zA-Z0-9]{10}$/.test(fields.get('petish_club_nonce') ?? '')
+      && (state.directoryFilters ? fields.get('return_to') === 'club'
+        && Object.entries(state.directoryFilters).every(([key, value]) => fields.get(`club_${key}`) === value)
+        : !fields.has('return_to') && ![...fields.keys()].some(key => key.startsWith('club_')));
     if (fields.getAll('pet_id').length !== 1
         || fields.get('pet_id') !== String(input.pet_id)) return false;
+    if (state.operation === 'petish_passport_create_moment') return /^[a-zA-Z0-9]{10}$/.test(fields.get('petish_passport_nonce') ?? '')
+      && fields.get('kind') === 'video' && fields.getAll('kind').length === 1 && fields.get('moment_id') === '0'
+      && fields.get('caption') === 'Synthetic browser video.';
     if (state.operation === 'petish_passport_update') return /^[a-zA-Z0-9]{10}$/.test(fields.get('petish_passport_nonce') ?? '')
       && fields.get('name') === input.name && fields.get('species') === 'rabbit'
       && fields.getAll('variety').length === 1 && fields.get('variety') === 'mini-lop'
       && fields.getAll('variety_other').length <= 1 && (fields.get('variety_other') ?? '') === '';
     if (!/^[a-zA-Z0-9]{10}$/.test(fields.get('petish_club_nonce') ?? '')) return false;
     if (state.operation === 'petish_club_unpublish') return true;
+    const selected = [String(input.photo_moment_id), ...(state.videoId ? [String(state.videoId)] : [])].sort();
     return state.operation === 'petish_club_publish' && fields.get('confirm_share') === '1'
-      && !fields.has('share_age') && fields.getAll('moment_ids[]').length === 1
-      && fields.get('moment_ids[]') === String(input.photo_moment_id);
+      && !fields.has('share_age') && JSON.stringify(fields.getAll('moment_ids[]').sort()) === JSON.stringify(selected);
   } catch { return false; }
 }
 
@@ -160,9 +178,74 @@ async function fit(page, width) {
 }
 function noStore(headers) { return /(?:^|,)\s*no-store(?:\s*,|$)/i.test(headers['cache-control'] ?? '')
   && !/(?:^|[, ])hit(?:[, ]|$)/i.test(headers['x-litespeed-cache'] ?? ''); }
-async function safeGet(context, state, raw) {
+async function safeGet(context, state, raw, range = null) {
   ensure(allowedRequest(raw, 'GET', state), 'network');
-  return context.request.get(raw, { maxRedirects: 0, timeout: 45000 });
+  ensure(range === null || ['bytes=0-31', 'bytes=-8', 'bytes=999999999-', 'bytes=0-1,3-4'].includes(range), 'network');
+  return context.request.get(raw, { maxRedirects: 0, timeout: 45000, ...(range ? { headers: { Range: range } } : {}) });
+}
+export function videoFixture(name) {
+  const hashes = { 'synthetic-valid.mp4': '729c392a8f77dea6990329f71c6f8e8e7e832f232910efe6b0c5e8a23a16013d',
+    'synthetic-over-duration.mp4': 'ac91bd681120bd0dfb3830c45ed2d800abbdf8b147131db3b1ff5ecb7ce4b8fc' };
+  ensure(Object.hasOwn(hashes, name), 'video_input');
+  const filename = fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
+  const stat = fs.lstatSync(filename); ensure(stat.isFile() && !stat.isSymbolicLink() && stat.size <= 262144, 'video_input');
+  const bytes = fs.readFileSync(filename); ensure(createHash('sha256').update(bytes).digest('hex') === hashes[name], 'video_input');
+  return bytes;
+}
+function oversizedVideo(valid) {
+  const padding = Buffer.alloc(20971521 - valid.length);
+  padding.writeUInt32BE(padding.length); padding.write('free', 4, 'ascii');
+  return Buffer.concat([valid, padding]);
+}
+async function videoUploads(browser, owner, input, mark, setCategory) {
+  const { page, state } = owner, valid = videoFixture('synthetic-valid.mp4'), long = videoFixture('synthetic-over-duration.mp4');
+  const oversized = oversizedVideo(valid), createURL = `${ORIGIN}/my-account/my-pets/?passport=moment-create&pet_id=${input.pet_id}&kind=video`;
+  setCategory('video_limits'); await page.goto(createURL, { waitUntil: 'load' });
+  const upload = page.locator('#pp-video'), feedback = page.locator('[data-pp-video-feedback]');
+  await upload.setInputFiles({ name: 'synthetic-oversize.mp4', mimeType: 'video/mp4', buffer: oversized });
+  await page.waitForFunction(() => document.querySelector('#pp-video')?.getAttribute('aria-invalid') === 'true');
+  ensure((await feedback.textContent()).includes('20 MB') && await upload.evaluate(node => !node.checkValidity()), 'video_limits');
+  await upload.setInputFiles({ name: 'synthetic-over-duration.mp4', mimeType: 'video/mp4', buffer: long });
+  await page.waitForFunction(() => document.querySelector('[data-pp-video-feedback]')?.textContent.includes('20 seconds'));
+  mark('video_client_limits_verified', await upload.evaluate(node => !node.checkValidity()));
+  // No-JS requests reach PHP validation; failed upload must not create a moment.
+  const nojs = await browser.newContext({ storageState: await owner.context.storageState(), javaScriptEnabled: false, serviceWorkers: 'block' });
+  const nojsState = { input, operation: '', used: false }; await guard(nojs, nojsState);
+  try {
+    const errorPage = await nojs.newPage(); errorPage.setDefaultTimeout(15000); errorPage.setDefaultNavigationTimeout(45000);
+    for (const [bytes, errorText] of [[long, '20 seconds'], [oversized, '20 MB']]) {
+      await errorPage.goto(createURL, { waitUntil: 'domcontentloaded' });
+      await errorPage.locator('#pc-moment-caption').fill('Synthetic browser video.');
+      await errorPage.locator('#pp-video').setInputFiles({ name: 'synthetic-rejected.mp4', mimeType: 'video/mp4', buffer: bytes });
+      nojsState.operation = 'petish_passport_create_moment'; nojsState.used = false;
+      await Promise.all([errorPage.waitForNavigation({ waitUntil: 'domcontentloaded' }), errorPage.locator('form[data-pp-form] button[type="submit"]').click()]);
+      ensure(nojsState.used && (await errorPage.locator('.woocommerce-error').textContent()).includes(errorText), 'video_limits');
+      nojsState.operation = ''; await dashboard(errorPage);
+      ensure(await errorPage.locator('.pc-video-moment').count() === 0, 'video_limits');
+    }
+    mark('video_server_limits_verified');
+  } finally { await nojs.close(); }
+  setCategory('video_upload'); await page.goto(createURL, { waitUntil: 'load' });
+  await page.locator('#pc-moment-caption').fill('Synthetic browser video.');
+  await page.locator('#pp-video').setInputFiles({ name: 'synthetic-valid.mp4', mimeType: 'video/mp4', buffer: valid });
+  await page.locator('[data-pp-video-preview]').waitFor({ state: 'visible' });
+  ensure(await page.locator('#pp-video').evaluate(node => node.checkValidity()), 'video_upload');
+  state.operation = 'petish_passport_create_moment'; state.used = false;
+  await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.locator('form[data-pp-form] button[type="submit"]').click()]);
+  ensure(state.used && await page.locator('.woocommerce-error').count() === 0 && await page.locator('.pc-video-moment').count() === 1, 'video_upload');
+  state.operation = ''; const video = page.locator('.pc-video-moment video');
+  const raw = await video.locator('source').getAttribute('src'), url = new URL(raw);
+  ensure(url.origin === ORIGIN && url.pathname === '/wp-admin/admin-post.php' && url.searchParams.get('action') === 'petish_pet_moment_video'
+    && /^[1-9][0-9]*$/.test(url.searchParams.get('moment_id') ?? ''), 'video_upload');
+  state.videoId = Number(url.searchParams.get('moment_id')); ensure(Number.isSafeInteger(state.videoId), 'video_upload');
+  mark('real_video_upload_verified'); setCategory('video_playback');
+  await video.evaluate(node => node.load());
+  await page.waitForFunction(() => { const node = document.querySelector('.pc-video-moment video'); return node?.readyState >= 1 && Number.isFinite(node.duration); });
+  mark('private_video_playback_verified', await video.evaluate(async node => {
+    if (!node.controls || !node.playsInline || node.autoplay || Math.abs(node.duration - 1) > 0.01) return false;
+    await node.play(); const playing = !node.paused; node.pause(); return playing;
+  }));
+  return { privateURL: url.href, bytes: valid, id: state.videoId };
 }
 function syntheticPng() {
   const crc = data => { let n = 0xffffffff; for (const byte of data) { n ^= byte; for (let i = 0; i < 8; i++) n = (n >>> 1) ^ (0xedb88320 & -(n & 1)); } return (n ^ 0xffffffff) >>> 0; };
@@ -297,9 +380,26 @@ export async function run(input, chromium) {
       const other = await safeGet(member.context, member.state, url); ensure(other.status() === 404, category);
     }
     mark('owner_private_photo_http_verified'); mark('anonymous_private_photos_denied'); mark('foreign_private_photos_denied');
+    const clip = await videoUploads(browser, owner, input, mark, value => { category = value; });
+    member.state.videoId = clip.id; anonymousState.videoId = clip.id;
+    category = 'video_http';
+    const privateVideo = await safeGet(owner.context, state, clip.privateURL);
+    mark('private_video_http_verified', privateVideo.status() === 200 && noStore(privateVideo.headers())
+      && privateVideo.headers()['content-type']?.startsWith('video/mp4')
+      && privateVideo.headers()['x-content-type-options'] === 'nosniff'
+      && (await privateVideo.body()).equals(clip.bytes));
+    for (const actor of [{ context: anonymous, state: anonymousState }, member]) {
+      for (const range of [null, 'bytes=0-31', 'bytes=999999999-']) {
+        const denied = await safeGet(actor.context, actor.state, clip.privateURL, range);
+        ensure(denied.status() === 404 && noStore(denied.headers()) && !denied.headers()['content-range'], category);
+      }
+    }
+    mark('private_video_unauthorized_denied');
     category = 'publish'; await page.locator('#pc-sharing summary').click();
     await page.locator('.pc-share-form [name="confirm_share"]').check();
     await page.locator(`.pc-share-form [name="moment_ids[]"][value="${input.photo_moment_id}"]`).check();
+    await page.locator(`.pc-share-form [name="moment_ids[]"][value="${clip.id}"]`).check();
+    ensure(await page.locator('.pc-video-privacy').isVisible(), category);
     state.operation = 'petish_club_publish'; state.used = false;
     await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.locator('.pc-share-form button[type="submit"]').click()]);
     mark('explicit_publish_verified', state.used && (await page.locator('.pc-status').textContent()).includes('Shared'));
@@ -324,6 +424,30 @@ export async function run(input, chromium) {
       publicUncacheable = publicUncacheable && noStore(image.headers());
     }
     mark('public_photo_http_verified'); mark('public_responses_uncacheable', publicUncacheable);
+    category = 'video_http';
+    const publicVideoURL = await member.page.locator('.pc-video-moment video source').getAttribute('src');
+    for (const actor of [{ context: member.context, state: member.state }, { context: anonymous, state: anonymousState }]) {
+      const videoResponse = await safeGet(actor.context, actor.state, publicVideoURL);
+      ensure(videoResponse.status() === 200 && noStore(videoResponse.headers())
+        && videoResponse.headers()['content-type']?.startsWith('video/mp4')
+        && videoResponse.headers()['x-content-type-options'] === 'nosniff'
+        && (await videoResponse.body()).equals(clip.bytes), category);
+    }
+    mark('public_video_http_verified');
+    for (const [context, actorState, url] of [[owner.context, state, clip.privateURL], [member.context, member.state, publicVideoURL]]) {
+      for (const [range, start, end] of [['bytes=0-31', 0, 31], ['bytes=-8', clip.bytes.length - 8, clip.bytes.length - 1]]) {
+        const partial = await safeGet(context, actorState, url, range);
+        ensure(partial.status() === 206 && noStore(partial.headers())
+          && partial.headers()['content-range'] === `bytes ${start}-${end}/${clip.bytes.length}`
+          && (await partial.body()).equals(clip.bytes.subarray(start, end + 1)), category);
+      }
+      for (const range of ['bytes=999999999-', 'bytes=0-1,3-4']) {
+        const invalid = await safeGet(context, actorState, url, range);
+        ensure(invalid.status() === 416 && noStore(invalid.headers())
+          && invalid.headers()['content-range'] === `bytes */${clip.bytes.length}` && (await invalid.body()).length === 0, category);
+      }
+    }
+    mark('video_ranges_verified');
     category = 'hearts';
     for (const desired of ['1', '0']) {
       const heart = member.page.locator('.pc-heart-form');
@@ -336,6 +460,44 @@ export async function run(input, chromium) {
         member.state.used && await button.getAttribute('aria-pressed') === (desired === '1' ? 'true' : 'false')
         && (await button.locator('span').first().textContent()).trim() === desired);
       member.state.operation = '';
+      if (desired === '1') {
+        category = 'directory';
+        await member.page.goto(`${ORIGIN}/?petish_club=1`, { waitUntil: 'load' });
+        const filters = member.page.locator('[data-pc-directory-filters]');
+        await filters.locator('#pc-club-species').selectOption('rabbit');
+        await filters.locator('#pc-club-variety').fill('Mini Lop');
+        await filters.locator('#pc-club-name').fill(input.name);
+        await Promise.all([member.page.waitForNavigation({ waitUntil: 'domcontentloaded' }), filters.getByRole('button', { name: 'Apply filters' }).click()]);
+        mark('directory_filters_verified', await member.page.locator('.pc-community-card').count() === 1
+          && (await member.page.locator('.pc-community-card h2').textContent()).trim() === input.name
+          && (await member.page.locator('.pc-community-card .pc-pet-details').textContent()).trim() === 'Mini Lop'
+          && await fit(member.page, 320));
+        await member.page.locator('.pc-directory-nav').getByRole('link', { name: 'My favourites' }).click();
+        category = 'favourites'; const favouriteURL = member.page.url();
+        const memberResponse = await safeGet(member.context, member.state, favouriteURL);
+        const ownerResponse = await page.goto(favouriteURL + `&club_uid=${input.member.id}`, { waitUntil: 'domcontentloaded' });
+        const guestResponse = await safeGet(anonymous, anonymousState, favouriteURL + `&club_uid=${input.member.id}`);
+        mark('favourites_session_isolation_verified', await member.page.locator('.pc-community-card').count() === 1
+          && await page.locator('.pc-community-card').count() === 0
+          && !((await guestResponse.text()).includes(input.name) && guestResponse.status() === 200));
+        mark('favourites_responses_uncacheable', memberResponse.status() === 200 && noStore(memberResponse.headers())
+          && ownerResponse?.ok() && noStore(await ownerResponse.allHeaders()) && noStore(guestResponse.headers())
+          && [200, 404].includes(guestResponse.status()));
+        // Remove via the rendered directory form, checking its native return target.
+        member.state.directoryFilters = { view: 'favourites', species: 'rabbit', variety: 'Mini Lop', name: input.name, page: '1' };
+        member.state.operation = 'petish_club_heart'; member.state.desiredHeart = '0'; member.state.used = false;
+        await Promise.all([member.page.waitForNavigation({ waitUntil: 'domcontentloaded' }), member.page.locator('.pc-heart-form button').click()]);
+        const returned = new URL(member.page.url());
+        mark('directory_return_preserved', member.state.used && returned.origin === ORIGIN && returned.pathname === '/'
+          && Object.entries(member.state.directoryFilters).every(([key, value]) => (returned.searchParams.get(`club_${key}`) ?? (key === 'page' ? '1' : '')) === value)
+          && await member.page.locator('.pc-community-card').count() === 0);
+        member.state.operation = ''; delete member.state.directoryFilters;
+        // Re-add on the public profile so the original remove-heart proof remains intact.
+        await member.page.goto(publicURL, { waitUntil: 'domcontentloaded' });
+        member.state.operation = 'petish_club_heart'; member.state.desiredHeart = '1'; member.state.used = false;
+        await Promise.all([member.page.waitForNavigation({ waitUntil: 'domcontentloaded' }), member.page.locator('.pc-heart-form button').click()]);
+        ensure(member.state.used, category); member.state.operation = ''; await dashboard(page); category = 'hearts';
+      }
     }
     category = 'unpublish'; state.operation = 'petish_club_unpublish'; state.used = false;
     await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.locator('.pc-unpublish-form button[type="submit"]').click()]);
@@ -348,6 +510,13 @@ export async function run(input, chromium) {
       ensure(image.status() === 404 && noStore(image.headers()) && !/^image\//.test(image.headers()['content-type'] ?? ''), category);
     }
     mark('revoked_photo_http_denied');
+    for (const actor of [{ context: member.context, state: member.state }, { context: anonymous, state: anonymousState }]) {
+      for (const range of [null, 'bytes=0-31', 'bytes=999999999-']) {
+        const denied = await safeGet(actor.context, actor.state, publicVideoURL, range);
+        ensure(denied.status() === 404 && noStore(denied.headers()) && !denied.headers()['content-range'], category);
+      }
+    }
+    mark('revoked_video_http_denied');
     category = 'network'; mark('unsafe_requests_blocked', !allowedRequest('https://petish.biz/', 'GET', state)
       && !allowedRequest(ORIGIN + '/checkout/', 'GET', state)
       && !allowedRequest(ORIGIN + '/?add-to-cart=1', 'GET', state)

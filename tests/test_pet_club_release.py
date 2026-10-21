@@ -47,7 +47,7 @@ class PetClubReleaseTests(unittest.TestCase):
         return safe.screen(phase, path)
 
     def test_finite_complete_phases_pass(self):
-        for phase in ('inspect', 'apply', 'native', 'fixture', 'browser', 'cleanup', 'diagnose', 'retire', 'verify', 'assets', 'health', 'rollback', 'commit'):
+        for phase in ('inspect', 'index', 'apply', 'native', 'fixture', 'browser', 'cleanup', 'diagnose', 'retire', 'verify', 'assets', 'health', 'rollback', 'commit'):
             value = self.raw(phase)
             report, passed = self.screen(phase, value)
             self.assertTrue(passed)
@@ -93,6 +93,35 @@ class PetClubReleaseTests(unittest.TestCase):
         for count in (len(evidence.FILES) + 1, -1, True, '15'):
             value['changed_file_count'] = count
             self.assertFalse(self.screen('apply', value)[1])
+
+    def test_directory_index_gate_stops_before_production_mutation(self):
+        source = (ROOT / 'scripts/hostinger-pet-club.sh').read_text()
+        start = source.index('failure_category=inspect\nremote_phase inspect')
+        end = source.index('\nremote_phase apply', start) + len('\nremote_phase apply')
+        gate = source[start:end]
+        for ready, mode, expected in (
+                (False, 'apply', ['inspect', 'production-index', 'rollback_needed:0']),
+                (True, 'apply', ['inspect', 'production-index', 'publish', 'apply', 'rollback_needed:1']),
+                (True, 'inspect', ['inspect', 'production-index', 'publish', 'rollback_needed:0'])):
+            with self.subTest(ready=ready, mode=mode):
+                log = self.directory / 'index-gate.log'
+                log.unlink(missing_ok=True)
+                script = '\n'.join([
+                    'work=$1; log=$2; ready=$3; mode=$4; rollback_needed=0',
+                    'trap \'printf "rollback_needed:%s\\n" "$rollback_needed" >> "$log"\' EXIT',
+                    'remote_phase() { printf "%s\\n" "$1" >> "$log"; }',
+                    'native_verification() { printf "%s\\n" "$1" >> "$log"; [[ "$ready" == 1 ]]; }',
+                    'publish_result() { printf "publish\\n" >> "$log"; }', gate,
+                ])
+                completed = subprocess.run(['bash', '-euc', script, 'fixture', str(self.directory), str(log),
+                                            str(int(ready)), mode], capture_output=True)
+                self.assertEqual(completed.returncode, 0 if ready else 1)
+                self.assertEqual(log.read_text().splitlines(), expected)
+        value = self.raw('index')
+        value['checks']['directory_index_migration_not_required'] = False
+        self.assertFalse(self.screen('index', value)[1])
+        value['pending_private_pet_count'] = 3
+        self.assertEqual(self.screen('index', value)[0]['category'], 'invalid_report')
 
     def fixture(self):
         revision = 'a' * 40
@@ -395,6 +424,7 @@ class PetClubReleaseTests(unittest.TestCase):
         common = names('PETISH_CLUB_VERIFY_COMMON')
         self.assertEqual(safe.STAGING, common | names('PETISH_CLUB_VERIFY_STAGING'))
         self.assertEqual(safe.VERIFY, common | names('PETISH_CLUB_VERIFY_PRODUCTION'))
+        self.assertEqual(safe.INDEX, names('PETISH_CLUB_VERIFY_INDEX'))
         self.assertEqual(safe.FIXTURE, names('PETISH_CLUB_FIXTURE_PREPARE'))
         self.assertEqual(safe.CLEANUP, names('PETISH_CLUB_FIXTURE_CLEANUP'))
         self.assertEqual(safe.DIAGNOSE, names('PETISH_CLUB_FIXTURE_DIAGNOSE'))

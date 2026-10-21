@@ -31,6 +31,24 @@
     variety.addEventListener('change', showOther);
     filterVarieties(false);
   }
+  var directoryFilters = root.querySelector('[data-pc-directory-filters]');
+  if (directoryFilters) {
+    var filterSpecies = directoryFilters.querySelector('[data-pc-filter-species]');
+    var filterVariety = directoryFilters.querySelector('[data-pc-filter-variety]');
+    var suggestions = directoryFilters.querySelector('[data-pc-filter-suggestions]');
+    if (filterSpecies && filterVariety && suggestions) {
+      var choices = Array.from(suggestions.options).map(function (option) { return option.cloneNode(true); });
+      function suggestVarieties(changedSpecies) {
+        while (suggestions.firstChild) suggestions.removeChild(suggestions.firstChild);
+        choices.forEach(function (option) {
+          if (!filterSpecies.value || option.dataset.species === filterSpecies.value) suggestions.appendChild(option.cloneNode(true));
+        });
+        if (changedSpecies) filterVariety.value = '';
+      }
+      filterSpecies.addEventListener('change', function () { suggestVarieties(true); });
+      suggestVarieties(false);
+    }
+  }
   var upload = root.querySelector('[data-pp-photo]');
   var feedback = root.querySelector('[data-pp-photo-feedback]');
   if (upload && feedback) upload.addEventListener('change', function () {
@@ -51,6 +69,56 @@
       feedback.textContent = 'Selected: ' + file.name + '. Saved privately; sharing is a separate choice.';
     }
   });
+  var videoUpload = root.querySelector('[data-pp-video]');
+  var videoFeedback = root.querySelector('[data-pp-video-feedback]');
+  var videoPreview = root.querySelector('[data-pp-video-preview]');
+  if (videoUpload && videoFeedback && videoPreview) {
+    var previewVideo = videoPreview.querySelector('video');
+    var previewURL = '';
+    function clearVideoPreview() {
+      previewVideo.pause();
+      previewVideo.onloadedmetadata = null;
+      previewVideo.onerror = null;
+      previewVideo.removeAttribute('src');
+      previewVideo.load();
+      videoPreview.hidden = true;
+      if (previewURL) URL.revokeObjectURL(previewURL);
+      previewURL = '';
+    }
+    function videoError(message) {
+      videoFeedback.textContent = message;
+      videoUpload.setCustomValidity(message);
+      videoUpload.setAttribute('aria-invalid', 'true');
+      clearVideoPreview();
+    }
+    videoUpload.addEventListener('change', function () {
+      clearVideoPreview();
+      videoUpload.setCustomValidity('');
+      videoUpload.removeAttribute('aria-invalid');
+      videoFeedback.textContent = '';
+      var file = videoUpload.files && videoUpload.files[0];
+      if (!file) return;
+      if (file.size > 20 * 1024 * 1024) { videoError('This video is larger than 20 MB. Please choose a smaller file.'); return; }
+      if ((file.type && file.type !== 'video/mp4') || !/\.mp4$/i.test(file.name)) { videoError('Please choose an MP4 video with H.264 video and optional AAC audio.'); return; }
+      if (!window.URL || !URL.createObjectURL) return;
+      videoFeedback.textContent = 'Checking the video’s duration…';
+      videoUpload.setCustomValidity('Please wait while the video duration is checked.');
+      previewURL = URL.createObjectURL(file);
+      previewVideo.onloadedmetadata = function () {
+        if (previewVideo.currentSrc !== previewURL) return;
+        if (!Number.isFinite(previewVideo.duration) || previewVideo.duration <= 0 || previewVideo.duration > 20) {
+          videoError('Choose a video that is no longer than 20 seconds.'); return;
+        }
+        videoUpload.setCustomValidity('');
+        videoUpload.removeAttribute('aria-invalid');
+        videoFeedback.textContent = 'Selected: ' + file.name + '. Save privately when you’re ready.';
+        videoPreview.hidden = false;
+      };
+      previewVideo.onerror = function () { videoError('This browser could not preview the video. Try an MP4 with H.264 video and optional AAC audio.'); };
+      previewVideo.src = previewURL;
+    });
+    window.addEventListener('pagehide', function () { clearVideoPreview(); });
+  }
   var tablist = root.querySelector('[data-pc-tabs]');
   if (tablist) {
     var tabs = Array.from(tablist.querySelectorAll('[data-pc-tab]'));
@@ -63,6 +131,7 @@
           item.setAttribute('aria-selected', String(active));
           item.tabIndex = active ? 0 : -1;
           panels[i].hidden = !active;
+          if (!active) panels[i].querySelectorAll('video').forEach(function (video) { video.pause(); });
         });
         if (focus) tab.focus();
       }

@@ -4,7 +4,7 @@ if (PHP_SAPI !== 'cli') exit(1);
 const PETISH_CLUB_VERIFY_COMMON = [
  'target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
  'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled','cron_and_async_runner_disabled',
- 'pet_club_classes_loaded','private_record_registration_verified','private_owner_access_verified',
+ 'pet_club_classes_loaded','private_record_registration_verified','private_owner_access_verified','directory_index_migration_not_required',
  'public_routes_registered','mutation_hooks_registered','legacy_assets_preserved','pet_club_assets_enqueued',
  'synthetic_public_render_verified','orders_unchanged','users_and_authentication_unchanged',
  'product_prices_and_stock_unchanged','settings_unchanged','existing_passports_unchanged','private_photo_files_unchanged',
@@ -18,8 +18,18 @@ const PETISH_CLUB_VERIFY_STAGING = [
  'anonymous_heart_denied','self_heart_denied','heart_idempotent','heart_removal_verified',
  'report_deduplicated','moderation_hides_profile','unpublish_revokes_public_media',
  'photo_change_unpublishes','fixture_cleanup_verified',
+ 'video_inspection_limits_verified','private_video_owner_scoped','video_range_contract_verified',
+ 'public_video_snapshot_separate','video_snapshot_frozen','video_replacement_revokes_public',
+ 'directory_fixture_scope_verified','directory_legacy_snapshot_index_verified','directory_public_snapshot_filters_verified',
+ 'directory_explicit_reshare_filters_verified','directory_literal_search_verified','directory_pagination_verified',
+ 'favourites_session_isolation_verified','directory_visibility_revocation_verified','directory_return_url_verified',
 ];
 const PETISH_CLUB_VERIFY_PRODUCTION = ['production_read_only_verified'];
+const PETISH_CLUB_VERIFY_INDEX = ['target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
+ 'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled','cron_and_async_runner_disabled',
+ 'directory_index_migration_not_required','orders_unchanged','users_and_authentication_unchanged',
+ 'product_prices_and_stock_unchanged','settings_unchanged','existing_passports_unchanged','private_photo_files_unchanged',
+ 'production_read_only_verified'];
 const PETISH_CLUB_FIXTURE_PREPARE = ['target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
  'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled','cron_and_async_runner_disabled',
  'staging_database_separate','staging_guard_verified','jetpack_sync_isolated','owned_fixture_users_created','owned_fixture_pet_created',
@@ -430,22 +440,43 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
  require_once __DIR__.'/email-branding-preview-remote.php';return $root;
 }
 function petish_club_verify_capture($callback) { ob_start();try{$callback();return ob_get_contents();}finally{ob_end_clean();} }
+/** Matches the new directory's eligibility rules without requiring its newer class. */
+function petish_club_verify_pending_index_count() {
+ global $wpdb;
+ foreach(['posts','postmeta','users']as$table)if(!preg_match('/\A[A-Za-z0-9_]+\z/D',$wpdb->$table??''))petish_club_verify_fail();
+ $sql="SELECT COUNT(*) FROM `{$wpdb->posts}` p INNER JOIN `{$wpdb->users}` owner ON owner.ID=p.post_author"
+  ." WHERE p.post_type=%s AND p.post_status='private'"
+  ." AND EXISTS (SELECT 1 FROM `{$wpdb->postmeta}` pt WHERE pt.post_id=p.ID AND pt.meta_key=%s)"
+  ." AND NOT EXISTS (SELECT 1 FROM `{$wpdb->postmeta}` pr WHERE pr.post_id=p.ID AND pr.meta_key IN (%s,%s))";
+ $args=['petish_pet',Petish_Passport_Community::TOKEN,Petish_Passport_Community::REVOKED,Petish_Passport_Community::BLOCKED];$missing=[];
+ foreach(['_petish_club_find_name','_petish_club_find_species','_petish_club_find_variety']as$key){
+  $missing[]="NOT EXISTS (SELECT 1 FROM `{$wpdb->postmeta}` mi WHERE mi.post_id=p.ID AND mi.meta_key=%s)";$args[]=$key;}
+ $count=$wpdb->get_var($wpdb->prepare($sql.' AND ('.implode(' OR ',$missing).')',...$args));
+ if($count===null||!empty($wpdb->last_error))petish_club_verify_fail();return max(0,(int)$count);
+}
 function petish_club_verify_contracts($root) {
  global $wp,$report;
  $report['category']='contracts';
- $classes=['Petish_Passport_Store','Petish_Passport_Media','Petish_Passport_Moments','Petish_Passport_Community','Petish_Passport_UI'];
+ $classes=['Petish_Passport_Store','Petish_Passport_Media','Petish_Passport_Video','Petish_Passport_Video_Inspector','Petish_Passport_Moments','Petish_Passport_Community','Petish_Passport_UI'];
  petish_club_verify_mark('pet_club_classes_loaded',count(array_filter($classes,'class_exists'))===count($classes));
+ petish_club_verify_mark('directory_index_migration_not_required',petish_club_verify_pending_index_count()===0
+  &&Petish_Passport_Community::pending_index_count()===0);
  $private=true;foreach(['petish_pet','petish_pet_moment']as$type){$o=get_post_type_object($type);
   $private=$private&&$o&&!$o->public&&!$o->publicly_queryable&&!$o->show_in_rest&&!$o->has_archive&&$o->exclude_from_search;}
  petish_club_verify_mark('private_record_registration_verified',(bool)$private);
  petish_club_verify_mark('private_owner_access_verified',is_wp_error(Petish_Passport_Store::get(0,0))
   &&Petish_Passport_Store::all_for_user(0)===[]&&is_wp_error(Petish_Passport_Moments::get(0,0))
   &&Petish_Passport_Media::file_for_owner('1/'.str_repeat('a',48).'.png',0)===false
+  &&Petish_Passport_Video::file_for_owner('1/'.str_repeat('a',48).'.mp4',0)===false
   &&(Petish_Passport_Store::varieties('rabbit')['mini-lop']??null)==='Mini Lop'
   &&Petish_Passport_Store::variety_label(['species'=>'rabbit','variety'=>'mini-lop','variety_other'=>''])==='Mini Lop');
  petish_club_verify_mark('public_routes_registered',has_action('template_redirect',['Petish_Passport_Community','route'])!==false
   &&has_action('admin_post_petish_club_photo',['Petish_Passport_Community','serve_photo'])!==false
   &&has_action('admin_post_nopriv_petish_club_photo',['Petish_Passport_Community','serve_photo'])!==false
+  &&has_action('admin_post_petish_club_video',['Petish_Passport_Community','serve_video'])!==false
+  &&has_action('admin_post_nopriv_petish_club_video',['Petish_Passport_Community','serve_video'])!==false
+  &&has_action('admin_post_petish_pet_moment_video',['Petish_Passport_Moments','serve_video'])!==false
+  &&has_action('admin_post_nopriv_petish_pet_moment_video',['Petish_Passport_Moments','serve_video'])!==false
   &&is_wp_error(Petish_Passport_Community::public_profile('not-a-token')));
  $actions=true;foreach(['publish','unpublish','heart','report','moderate']as$action)
   $actions=$actions&&has_action('admin_post_petish_club_'.$action,['Petish_Passport_Community','handle_'.$action])!==false;
@@ -480,6 +511,7 @@ function petish_club_verify_fixture_save(&$state) {
 /** Write-ahead identities allow cleanup after failure immediately following user insertion. */
 function petish_club_verify_fixture_begin($root,$run,$kind) {
  if(wp_get_environment_type()!=='staging'||!petish_club_verify_run($run))petish_club_verify_fail();
+ if(petish_club_verify_pending_index_count()!==0||Petish_Passport_Community::pending_index_count()!==0)petish_club_verify_fail();
  $suffix=substr(hash('sha256',$run.'-'.$kind.'-'.bin2hex(random_bytes(12))),0,18);
  $state=['format'=>'petish-club-fixture-v1','run'=>$run,'kind'=>$kind,'created'=>time(),
   'ownership'=>bin2hex(random_bytes(24)),'before'=>petish_club_verify_state($root),'users'=>[], 'pet_id'=>0,'moments'=>[]];
@@ -673,7 +705,9 @@ function petish_club_verify_fixture_cleanup($root,$run,$kind,$retain_journal=fal
   $sessions=$wpdb->prefix.'woocommerce_sessions';
   if($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($sessions)))===$sessions
    &&false===$wpdb->delete($sessions,['session_key'=>(string)$user->ID],['%s']))petish_club_verify_fail();
-  if(!Petish_Passport_Media::cleanup_user((int)$user->ID)||!wp_delete_user((int)$user->ID))petish_club_verify_fail();
+  if(!Petish_Passport_Media::cleanup_user((int)$user->ID)
+   ||(class_exists('Petish_Passport_Video')&&!Petish_Passport_Video::cleanup_user((int)$user->ID))
+   ||!wp_delete_user((int)$user->ID))petish_club_verify_fail();
  }
  wp_set_current_user(0);
  foreach($state['users']as$u)if(get_user_by('login',$u['login']))petish_club_verify_fail();
@@ -782,6 +816,8 @@ function petish_club_verify_staging($root,$run) {
    'variety_other'=>$pet['variety_other'],'remove_photo'=>true]);
   petish_club_verify_mark('photo_change_unpublishes',!is_wp_error($changed)&&$changed['photo']===''
    &&is_wp_error(Petish_Passport_Community::public_profile($newtoken)));
+  require_once __DIR__.'/pet-club-directory-proof.php';petish_club_verify_directory($state);
+  require_once __DIR__.'/pet-club-video-proof.php';petish_club_verify_video($root,$state);
  }finally{
   $previous=$report['category'];$report['category']='cleanup';petish_club_verify_fixture_cleanup($root,$run,'native');$report['category']=$previous;
  }
@@ -790,8 +826,8 @@ function petish_club_verify_main($argv) {
  global $report;
  petish_club_verify_report_start();$root=null;$target=null;
  try{
-  if(count($argv)!==3||!petish_club_verify_run($argv[1])||!in_array($argv[2],['production','staging'],true))petish_club_verify_fail();
-  $run=$argv[1];$target=$argv[2];$root=petish_club_verify_bootstrap($target,$target==='production');
+  if(count($argv)!==3||!petish_club_verify_run($argv[1])||!in_array($argv[2],['production','production-index','staging'],true))petish_club_verify_fail();
+  $index_only=$argv[2]==='production-index';$run=$argv[1];$target=$index_only?'production':$argv[2];$root=petish_club_verify_bootstrap($target,$target==='production');
   // Bootstrap can attempt lazy runtime writes; the installed barrier blocks
   // them. Preserve that evidence and separately require our proof to only read.
   $bootstrap_blocked=$GLOBALS['petish_club_blocked_write_count']??0;
@@ -800,11 +836,12 @@ function petish_club_verify_main($argv) {
   if($target==='production'){
    // The guard was installed before wp-load and remains through the final
    // snapshot and shutdown, including WordPress/plugin lazy bootstrap writes.
-   petish_club_verify_contracts($root);
+   if($index_only)petish_club_verify_mark('directory_index_migration_not_required',petish_club_verify_pending_index_count()===0);
+   else petish_club_verify_contracts($root);
   }else{petish_club_verify_contracts($root);petish_club_verify_staging($root,$run);}
   $report['category']='snapshot';petish_club_verify_state_equal($before,petish_club_verify_state($root));
   if($target==='production')petish_club_verify_mark('production_read_only_verified',petish_club_verify_read_only_scope($bootstrap_blocked));
-  $expected=array_merge(PETISH_CLUB_VERIFY_COMMON,$target==='staging'?PETISH_CLUB_VERIFY_STAGING:PETISH_CLUB_VERIFY_PRODUCTION);
+  $expected=$index_only?PETISH_CLUB_VERIFY_INDEX:array_merge(PETISH_CLUB_VERIFY_COMMON,$target==='staging'?PETISH_CLUB_VERIFY_STAGING:PETISH_CLUB_VERIFY_PRODUCTION);
   if(array_diff($expected,array_keys($report['checks'])))petish_club_verify_fail();
   $report['status']='success';$report['category']='complete';
  }catch(Throwable$ignored){$report['status']='failure';}

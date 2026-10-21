@@ -16,6 +16,8 @@ spec2 = importlib.util.spec_from_file_location('pet_club_checks', Path(__file__)
 checks = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(checks)
 FILES = (
+    'includes/class-petish-passport-video-inspector.php',
+    'includes/class-petish-passport-video.php',
     'includes/class-petish-passport-moments.php',
     'includes/class-petish-passport-community.php',
     'assets/pet-club.css',

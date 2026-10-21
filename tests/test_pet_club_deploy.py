@@ -1,4 +1,4 @@
-"""Exercise the fifteen-file transaction against disposable filesystem fixtures."""
+"""Exercise the seventeen-file transaction against disposable filesystem fixtures."""
 import hashlib
 import json
 import os
@@ -19,8 +19,9 @@ spec = importlib.util.spec_from_file_location('club_evidence', ROOT / 'scripts/v
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
-BASELINE = '5117f7ab0c84c475fc3ec657e44254b325853b9e'
-EXISTING = list(FILES)
+BASELINE = 'a58472a724b3f26b2eb53ef65cbd0092f5659d02'
+NEW_FILES = {'includes/class-petish-passport-video-inspector.php', 'includes/class-petish-passport-video.php'}
+EXISTING = [name for name in FILES if name not in NEW_FILES]
 
 
 

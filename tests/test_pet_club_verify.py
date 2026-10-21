@@ -406,7 +406,7 @@ const bad = proof.publicReport({status:'success',category:'private-error',checks
 console.log(JSON.stringify({good,bad}));
 """)
         self.assertEqual(result["good"]["status"], "success")
-        self.assertEqual(len(result["good"]["checks"]), 31)
+        self.assertEqual(len(result["good"]["checks"]), 44)
         self.assertNotIn("must-not-escape", json.dumps(result))
         self.assertEqual(result["bad"]["status"], "failure")
         self.assertEqual(result["bad"]["category"], "input")
@@ -425,6 +425,44 @@ console.log(JSON.stringify(proof.FORM_CATEGORIES.map(category=>proof.publicRepor
         self.assertTrue(all(entry['status'] == 'failure'
                             and set(entry) == {'status', 'category', 'checks'} for entry in result))
         self.assertNotIn('must-not-escape', json.dumps(result))
+
+    def test_browser_video_fixtures_and_owned_request_boundaries(self):
+        result = self.node(r"""
+const origin='https://staging.petish.biz',input={pet_id:123,photo_moment_id:124,name:'Petish Club Test Rabbit'};
+const state={input,videoId:126,token:'a'.repeat(32),operation:'petish_passport_create_moment',used:false};
+const body=new URLSearchParams({action:state.operation,pet_id:'123',moment_id:'0',kind:'video',caption:'Synthetic browser video.',petish_passport_nonce:'123456789a'});
+const url=origin+'/wp-admin/admin-post.php';const out=[];
+out.push(proof.allowedRequest(url,'POST',state,body.toString()));
+body.set('pet_id','456');out.push(!proof.allowedRequest(url,'POST',state,body.toString()));body.set('pet_id','123');
+body.set('kind','photo');out.push(!proof.allowedRequest(url,'POST',state,body.toString()));body.set('kind','video');
+body.set('moment_id','126');out.push(!proof.allowedRequest(url,'POST',state,body.toString()));
+out.push(proof.allowedRequest(url+'?action=petish_pet_moment_video&moment_id=126','GET',state));
+out.push(!proof.allowedRequest(url+'?action=petish_pet_moment_video&moment_id=456','GET',state));
+out.push(!proof.allowedRequest(url+'?action=petish_pet_moment_video&moment_id=126','GET',{input}));
+out.push(proof.allowedRequest(url+'?action=petish_club_video&token='+state.token+'&moment='+'b'.repeat(32),'GET',state));
+out.push(!proof.allowedRequest(url+'?action=petish_club_video&token='+'c'.repeat(32)+'&moment='+'b'.repeat(32),'GET',state));
+state.operation='petish_club_publish';const share=new URLSearchParams({action:state.operation,pet_id:'123',petish_club_nonce:'123456789a',confirm_share:'1'});
+share.append('moment_ids[]','124');share.append('moment_ids[]','126');out.push(proof.allowedRequest(url,'POST',state,share.toString()));
+share.append('moment_ids[]','127');out.push(!proof.allowedRequest(url,'POST',state,share.toString()));
+out.push(proof.videoFixture('synthetic-valid.mp4').length===2179&&proof.videoFixture('synthetic-over-duration.mp4').length===54310);
+try{proof.videoFixture('../synthetic-valid.mp4');out.push(false);}catch{out.push(true);}
+console.log(JSON.stringify(out));
+""")
+        self.assertEqual(result, [True] * 13)
+
+    def test_directory_index_probe_reads_exact_missing_public_keys(self):
+        result = self.php(r"""
+class Petish_Passport_Community{const TOKEN='_petish_club_token';const REVOKED='_petish_club_revoked';const BLOCKED='_petish_club_blocked';}
+class ProbeDB{public $posts='wp_posts',$postmeta='wp_postmeta',$users='wp_users',$last_error='',$sql='',$args=[],$count='0';
+ function prepare($sql,...$args){$this->sql=$sql;$this->args=$args;return $sql;}function get_var($sql){return $this->count;}}
+$wpdb=new ProbeDB();$out=[petish_club_verify_pending_index_count()===0];
+$out[]=str_starts_with($wpdb->sql,'SELECT COUNT(*)')&&str_contains($wpdb->sql,"p.post_status='private'")&&str_contains($wpdb->sql,'INNER JOIN `wp_users`');
+$out[]=$wpdb->args===['petish_pet','_petish_club_token','_petish_club_revoked','_petish_club_blocked','_petish_club_find_name','_petish_club_find_species','_petish_club_find_variety'];
+$wpdb->count='3';$out[]=petish_club_verify_pending_index_count()===3;
+$wpdb->last_error='private sql failure';try{petish_club_verify_pending_index_count();$out[]=false;}catch(Throwable $e){$out[]=true;}
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 5)
 
     def test_browser_request_guard_limits_mutations_to_owned_pet(self):
         result = self.node(r"""

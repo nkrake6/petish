@@ -49,8 +49,9 @@ remote_phase() {
 
 native_verification() {
     local target=$1 phase=verify status=0 validation=0
-    [[ $target == staging || $target == production ]] || return 1
+    [[ $target == staging || $target == production || $target == production-index ]] || return 1
     [[ $target != staging ]] || phase=native
+    [[ $target != production-index ]] || phase=index
     "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
       for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
       php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-pet-club-deploy-'"$target_run"'/verify-pet-club.php" '"$target_run $target" \
@@ -84,7 +85,7 @@ fixture_phase() {
 verify_staging_source() {
     "${petish_ssh[@]}" 'set -eu; root="$HOME/domains/staging.petish.biz/public_html/wp-content/plugins/petish-passport";
       test -d "$root" && test ! -L "$root" && test "$(readlink -f -- "$root")" = "$root" || exit 1;
-      for relative in includes/class-petish-passport-moments.php includes/class-petish-passport-community.php assets/pet-club.css assets/catalogue.css assets/passport.js templates/public.php templates/community.php templates/moment-form.php includes/class-petish-passport-media.php includes/class-petish-passport-store.php includes/class-petish-passport-ui.php templates/dashboard.php templates/form.php templates/delete.php petish-passport.php; do
+      for relative in includes/class-petish-passport-video-inspector.php includes/class-petish-passport-video.php includes/class-petish-passport-moments.php includes/class-petish-passport-community.php assets/pet-club.css assets/catalogue.css assets/passport.js templates/public.php templates/community.php templates/moment-form.php includes/class-petish-passport-media.php includes/class-petish-passport-store.php includes/class-petish-passport-ui.php templates/dashboard.php templates/form.php templates/delete.php petish-passport.php; do
         file="$root/$relative";
         test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %h "$file")" = 1 || exit 1;
         sha256sum "$file";
@@ -150,7 +151,7 @@ stage=os.environ.get('PET_CLUB_PREPARATION_STAGE','unknown')
 result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
-for phase in ('inspect','preflight','native','fixture','browser','cleanup','diagnose','retire','apply','verify','health','assets','commit','rollback'):
+for phase in ('inspect','index','preflight','native','fixture','browser','cleanup','diagnose','retire','apply','verify','health','assets','commit','rollback'):
  path=root/(phase+'.safe.json')
  try:
   info=path.lstat()
@@ -372,11 +373,15 @@ fi
 if [[ $mode == staging ]]; then
     cp -- scripts/staging-rehearsal-remote.php "$work/bundle/driver.php"
     chmod 600 "$work/bundle/driver.php"
-    for name in verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php email-branding-preview-remote.php; do
+    for name in verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php pet-club-directory-proof.php pet-club-video-proof.php email-branding-preview-remote.php; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
-    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php email-branding-preview-remote.php payload \
+    for name in synthetic-valid.mp4 synthetic-over-duration.mp4; do
+        cp -- "tools/pet-club/fixtures/$name" "$work/bundle/$name"
+        chmod 600 "$work/bundle/$name"
+    done
+    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php pet-club-directory-proof.php pet-club-video-proof.php email-branding-preview-remote.php synthetic-valid.mp4 synthetic-over-duration.mp4 payload \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 else
     for name in deploy-pet-club-remote.php verify-pet-club.php email-branding-preview-remote.php; do
@@ -432,6 +437,8 @@ fi
 
 failure_category=inspect
 remote_phase inspect
+failure_category=index
+native_verification production-index
 result_status=in_progress
 publish_result > "$work/progress.private.stdout" 2> "$work/progress.private.stderr"
 if [[ $mode == inspect ]]; then
