@@ -22,6 +22,8 @@ class CartReleaseBoundaryTests(unittest.TestCase):
         browser=(ROOT/'tools/homepage/cart-badge-browser.mjs').read_text()
         checks=re.search(r'CHECK_KEYS=Object.freeze\(\[(.*?)\]\)',browser,re.S).group(1)
         self.assertEqual(safe.CART_BROWSER,set(re.findall(r"'([a-z0-9_]+)'",checks)))
+        diagnostics=re.search(r'DIAGNOSTIC_KEYS=Object.freeze\(\[(.*?)\]\)',browser,re.S).group(1)
+        self.assertEqual(safe.CART_BROWSER_DIAGNOSTICS,set(re.findall(r"'([a-z0-9_]+)'",diagnostics)))
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'report.json'
             for phase in ['cart_prepare','cart_browser','cart_cleanup']:
@@ -29,6 +31,19 @@ class CartReleaseBoundaryTests(unittest.TestCase):
                 path.write_text(json.dumps(raw));self.assertTrue(safe.screen(phase,path)[1])
                 raw['private_path']='private-sentinel';path.write_text(json.dumps(raw))
                 report,passed=safe.screen(phase,path);self.assertFalse(passed);self.assertNotIn('private-sentinel',json.dumps(report))
+
+    def test_update_failure_diagnostics_are_boolean_and_private_data_is_rejected(self):
+        safe=module('sanitize-homepage-result')
+        raw={'status':'failure','category':'update','checks':{'add_two_quantity_verified':True},
+            'diagnostics':dict.fromkeys(safe.CART_BROWSER_DIAGNOSTICS,False)}
+        raw['diagnostics'].update(update_request_seen=True,update_request_allowed=True,update_response_403=True,update_server_count_two=True)
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'report.json';path.write_text(json.dumps(raw));report,passed=safe.screen('cart_browser',path)
+            self.assertFalse(passed);self.assertEqual(report,raw)
+            for key,value in [('private_response','sentinel'),('update_response_403',403),('update_server_count_two','2')]:
+                changed=json.loads(json.dumps(raw));changed['diagnostics'][key]=value;path.write_text(json.dumps(changed))
+                report,passed=safe.screen('cart_browser',path);self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+                self.assertNotIn('sentinel',json.dumps(report))
 
     def test_only_four_theme_files_change_and_dependencies_precede_header(self):
         evidence=module('validate-homepage-release')

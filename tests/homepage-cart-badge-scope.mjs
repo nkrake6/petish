@@ -1,6 +1,6 @@
 /** Network contract fixtures: no real HTTP, account, product, or checkout. */
 import assert from 'node:assert/strict';
-import { allowedRequest, validateInput, publicReport, CHECK_KEYS, formBody } from '../tools/homepage/cart-badge-browser.mjs';
+import { allowedRequest, validateInput, publicReport, CHECK_KEYS, DIAGNOSTIC_KEYS, formBody } from '../tools/homepage/cart-badge-browser.mjs';
 const root='https://staging.petish.biz';
 const input=validateInput({format:'petish-cart-badge-browser-v1',url:root,run:'12345-1',customer_id:12,login:'cart-proof-owner',password:'private-fixture-only',customer_email:'cart-proof@example.invalid',product_id:42,product_url:root+'/product/cart-proof/',safety:{environment_staging:true,woocommerce_test_mode:true,wcpay_dev_mode:true,account_is_live:false,guard_runtime_verified:true,suppliers_blocked:true,mail_capture_verified:true,webhooks_blocked:true}});
 let state={phase:'add',key:'a'.repeat(32),loginUsed:false};
@@ -26,10 +26,13 @@ assert(!allow(root+'/wp-json/wc/store/v1/batch','POST',JSON.stringify({requests:
 assert(!allow(root+'/wp-json/wc/store/v1/batch','POST',JSON.stringify({requests:[{method:'POST',path:'/wc/store/v1/checkout',body:{}}]}),'fetch'));
 assert(!allow(root+'/wp-json/wc/store/v1/cart/remove-item','POST',JSON.stringify({key:state.key}),'fetch'));
 assert(allow(root+'/cart/','POST',new URLSearchParams({['cart['+state.key+'][qty]']:'3',update_cart:'Update cart','woocommerce-cart-nonce':'123456789a'}).toString()));
+assert(allow(root+'/cart/','POST',new URLSearchParams({['cart['+state.key+'][qty]']:'3',update_cart:'Update cart','woocommerce-cart-nonce':'123456789a',coupon_code:''}).toString()));
+assert(!allow(root+'/cart/','POST',new URLSearchParams({['cart['+state.key+'][qty]']:'3',update_cart:'Update cart','woocommerce-cart-nonce':'123456789a',coupon_code:'UNOWNED'}).toString()));
 state.phase='remove';assert(allow(root+'/wp-json/wc/store/v1/cart/remove-item','POST',JSON.stringify({key:state.key}),'fetch'));
 assert(allow(root+'/cart/?remove_item='+state.key+'&_wpnonce=123456789a'));
 assert(!allow(root+'/cart/?remove_item='+'b'.repeat(32)+'&_wpnonce=123456789a'));
 state.phase='login';const login=new URLSearchParams({username:input.login,password:input.password,login:'Log in','woocommerce-login-nonce':'123456789a'}).toString();assert(allow(root+'/my-account/','POST',login));state.loginUsed=true;assert(!allow(root+'/my-account/','POST',login));
-const safe=publicReport({status:'success',category:'complete',checks:Object.fromEntries(CHECK_KEYS.map(k=>[k,true])),private_path:'sentinel'});assert.equal(safe.status,'success');assert(!JSON.stringify(safe).includes('sentinel'));assert.equal(publicReport({status:'success',category:'complete',checks:{}}).status,'failure');
+const safe=publicReport({status:'success',category:'complete',checks:Object.fromEntries(CHECK_KEYS.map(k=>[k,true])),private_path:'sentinel'});assert.equal(safe.status,'success');assert.deepEqual(Object.keys(safe.diagnostics),DIAGNOSTIC_KEYS);
+const failure=publicReport({status:'failure',category:'update',checks:{},diagnostics:{update_request_seen:true,update_request_allowed:false,update_server_count_two:true,private_body:'sentinel'}});assert(failure.diagnostics.update_request_seen);assert(failure.diagnostics.update_server_count_two);assert(!failure.diagnostics.update_request_allowed);assert(!JSON.stringify(failure).includes('sentinel'));assert(!JSON.stringify(safe).includes('sentinel'));assert.equal(publicReport({status:'success',category:'complete',checks:{}}).status,'failure');
 for(const bad of [{...input,url:'https://petish.biz'},{...input,product_url:root+'/checkout/'},{...input,product_url:root+'/product/cart-proof/?add-to-cart=99'}])assert.throws(()=>validateInput(bad));
 console.log('Cart badge request boundaries passed.');

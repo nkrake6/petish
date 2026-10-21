@@ -160,6 +160,7 @@ CART_CLEANUP={
     'browser_input_removed',
     'fixture_cleanup_verified',
 }
+CART_BROWSER_DIAGNOSTICS={'update_response_2xx', 'update_interaction_completed', 'update_badge_three', 'update_badge_two', 'blocks_store_count_three', 'cart_classic', 'blocks_pending_operation', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'increment_control_single', 'quantity_control_single', 'update_response_3xx', 'quantity_control_visible', 'update_response_5xx', 'blocks_store_count_two', 'update_response_500', 'cart_blocks', 'update_server_count_two', 'blocks_store_available', 'increment_control_enabled', 'update_ui_quantity_three', 'quantity_before_two', 'update_response_400', 'update_server_count_read', 'update_response_4xx', 'update_response_403', 'update_server_count_three'}
 CART_BROWSER={
     'browser_started',
     'fixture_input_verified',
@@ -249,6 +250,10 @@ def screen(phase,path):
         raw=navigation.rehearsal.read_report(path)
         deploy=phase in {'inspect','apply','rollback','commit'}
         fields={'status','category','checks'}|({'changed_file_count'} if deploy else {'section_present'} if phase=='browser' else set())
+        if phase=='cart_browser' and 'diagnostics' in raw:
+            fields.add('diagnostics')
+            if not isinstance(raw['diagnostics'],dict) or set(raw['diagnostics'])!=CART_BROWSER_DIAGNOSTICS \
+                or any(type(value) is not bool for value in raw['diagnostics'].values()):raise ValueError()
         if phase=='native' and 'review_diagnostics' in raw:
             fields.add('review_diagnostics')
             if not isinstance(raw['review_diagnostics'],dict) or set(raw['review_diagnostics'])!=REVIEW_DIAGNOSTICS \
