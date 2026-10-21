@@ -1,4 +1,5 @@
 """Exercise proof boundaries without access to any WordPress database or credentials."""
+import importlib.util
 import json
 from pathlib import Path
 import shutil
@@ -425,6 +426,24 @@ console.log(JSON.stringify(proof.FORM_CATEGORIES.map(category=>proof.publicRepor
         self.assertTrue(all(entry['status'] == 'failure'
                             and set(entry) == {'status', 'category', 'checks'} for entry in result))
         self.assertNotIn('must-not-escape', json.dumps(result))
+
+    def test_browser_video_limit_failures_report_only_finite_steps(self):
+        result = self.node(r"""
+console.log(JSON.stringify(proof.VIDEO_LIMIT_CATEGORIES.map(category=>proof.publicReport({
+ status:'failure',category,privateValue:'must-not-escape',checks:{video_client_limits_verified:true}
+}))));
+""")
+        expected = ['video_nojs_context'] + [f'video_{limit}_{step}'
+                    for limit in ('duration', 'size')
+                    for step in ('form', 'submit', 'post_blocked', 'response', 'notice_missing', 'notice_content', 'unchanged')]
+        self.assertEqual([entry['category'] for entry in result], expected)
+        self.assertTrue(all(entry['status'] == 'failure'
+                            and set(entry) == {'status', 'category', 'checks'} for entry in result))
+        self.assertNotIn('must-not-escape', json.dumps(result))
+        spec = importlib.util.spec_from_file_location('petish_video_limit_sanitizer', ROOT / 'scripts/sanitize-pet-club-result.py')
+        sanitizer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sanitizer)
+        self.assertTrue(set(expected) <= sanitizer.CATEGORIES)
 
     def test_browser_video_fixtures_and_owned_request_boundaries(self):
         result = self.node(r"""

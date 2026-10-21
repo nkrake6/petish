@@ -31,11 +31,16 @@ export const FORM_CATEGORIES = Object.freeze([
   'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
   'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
 ]);
+export const VIDEO_LIMIT_CATEGORIES = Object.freeze([
+  'video_nojs_context',
+  ...['duration', 'size'].flatMap(limit => ['form', 'submit', 'post_blocked', 'response', 'notice_missing', 'notice_content', 'unchanged']
+    .map(step => `video_${limit}_${step}`)),
+]);
 const CATEGORIES = new Set(['input', 'browser', 'login', 'owner', 'mobile', 'desktop', 'navigation',
   'tabs', 'preview', 'lightbox', 'form', 'upload', 'private_photos', 'no_js', 'dark_mode',
   'publish', 'public_profile', 'public_photo', 'hearts', 'unpublish', 'revocation', 'network', 'complete',
   'directory', 'favourites', 'video_input', 'video_limits', 'video_upload', 'video_http', 'video_playback',
-  ...FORM_CATEGORIES]);
+  ...FORM_CATEGORIES, ...VIDEO_LIMIT_CATEGORIES]);
 
 export function validateInput(value) {
   if (!value || value.format !== 'petish-club-browser-v1' || value.url !== ORIGIN
@@ -209,19 +214,39 @@ async function videoUploads(browser, owner, input, mark, setCategory) {
   await page.waitForFunction(() => document.querySelector('[data-pp-video-feedback]')?.textContent.includes('20 seconds'));
   mark('video_client_limits_verified', await upload.evaluate(node => !node.checkValidity()));
   // No-JS requests reach PHP validation; failed upload must not create a moment.
+  setCategory('video_nojs_context');
   const nojs = await browser.newContext({ storageState: await owner.context.storageState(), javaScriptEnabled: false, serviceWorkers: 'block' });
   const nojsState = { input, operation: '', used: false }; await guard(nojs, nojsState);
   try {
     const errorPage = await nojs.newPage(); errorPage.setDefaultTimeout(15000); errorPage.setDefaultNavigationTimeout(45000);
-    for (const [bytes, errorText] of [[long, '20 seconds'], [oversized, '20 MB']]) {
-      await errorPage.goto(createURL, { waitUntil: 'domcontentloaded' });
+    for (const [limit, bytes, errorText] of [['duration', long, '20 seconds'], ['size', oversized, '20 MB']]) {
+      let step = `video_${limit}_form`; setCategory(step);
+      const formResponse = await errorPage.goto(createURL, { waitUntil: 'domcontentloaded' });
+      ensure(formResponse?.ok() && await errorPage.locator('form[data-pp-form]').count() === 1, step);
       await errorPage.locator('#pc-moment-caption').fill('Synthetic browser video.');
       await errorPage.locator('#pp-video').setInputFiles({ name: 'synthetic-rejected.mp4', mimeType: 'video/mp4', buffer: bytes });
       nojsState.operation = 'petish_passport_create_moment'; nojsState.used = false;
-      await Promise.all([errorPage.waitForNavigation({ waitUntil: 'domcontentloaded' }), errorPage.locator('form[data-pp-form] button[type="submit"]').click()]);
-      ensure(nojsState.used && (await errorPage.locator('.woocommerce-error').textContent()).includes(errorText), 'video_limits');
-      nojsState.operation = ''; await dashboard(errorPage);
-      ensure(await errorPage.locator('.pc-video-moment').count() === 0, 'video_limits');
+      step = `video_${limit}_submit`; setCategory(step);
+      let posted = null;
+      const onResponse = response => {
+        if (response.url() === `${ORIGIN}/wp-admin/admin-post.php` && response.request().method() === 'POST') posted = response;
+      };
+      errorPage.on('response', onResponse);
+      try {
+        await Promise.all([errorPage.waitForNavigation({ waitUntil: 'domcontentloaded' }), errorPage.locator('form[data-pp-form] button[type="submit"]').click()]);
+      } catch (error) {
+        if (!nojsState.used) { setCategory(`video_${limit}_post_blocked`); throw new Error(`video_${limit}_post_blocked`); }
+        throw error;
+      } finally { errorPage.off('response', onResponse); }
+      step = `video_${limit}_response`; setCategory(step);
+      ensure(nojsState.used && posted?.status() === 303, step);
+      step = `video_${limit}_notice_missing`; setCategory(step);
+      ensure(await errorPage.locator('.woocommerce-error').count() === 1, step);
+      step = `video_${limit}_notice_content`; setCategory(step);
+      ensure((await errorPage.locator('.woocommerce-error').textContent()).includes(errorText), step);
+      nojsState.operation = ''; step = `video_${limit}_unchanged`; setCategory(step);
+      await dashboard(errorPage);
+      ensure(await errorPage.locator('.pc-video-moment').count() === 0, step);
     }
     mark('video_server_limits_verified');
   } finally { await nojs.close(); }

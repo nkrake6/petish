@@ -174,7 +174,9 @@ CATEGORIES = {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'gu
     'index','directory','video','favourites','video_input','video_limits','video_upload','video_http','video_playback','contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'} | {
     'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
     'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
-}
+    'video_nojs_context',
+} | {f'video_{limit}_{step}' for limit in ('duration', 'size')
+     for step in ('form', 'submit', 'post_blocked', 'response', 'notice_missing', 'notice_content', 'unchanged')}
 
 
 def safe_option_name(name):
