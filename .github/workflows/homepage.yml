@@ -10,6 +10,7 @@ on:
         type: choice
         options: [staging, inspect, apply]
   push:
+    # Install matching application bytes via the staging branch before verification.
     # Main inspects; verify-homepage rehearses; the release branch applies reviewed candidates.
     branches: [main, verify-homepage, deploy-homepage]
     paths:

@@ -74,14 +74,19 @@ already-published snapshots while the release holds maintenance. It records the
 exact inserted metadata rows for conditional rollback and preserves private pet
 edits. See [Pet Club release evidence and privacy behavior](docs/PET-CLUB.md).
 
-The personalised homepage and header use the fifteen-file child-theme release
-through `.github/workflows/homepage.yml`: the original seven homepage files plus
-eight appearance-control/country-flag files. It requires the isolated order-history
+The personalised homepage and header use the eighteen-file child-theme release
+through `.github/workflows/homepage.yml`: the original seven homepage files,
+eight appearance-control/country-flag files and three Cart badge dependencies.
+First deploy the candidate's custom code through the `staging` branch and wait
+for its successful apply receipt. Then push `verify-homepage`; this workflow
+verifies the installed file hashes and does not install application code itself.
+It requires the isolated order-history
 proof, browser checks, cleanup evidence and a fresh recovered backup. Deploy it
 after the Passport release because its protected-file checks expect that account
 UI. See [For your pet](docs/FOR-YOUR-PET.md) for matching and staff curation, and
 [header appearance and flags](docs/HEADER-THEME-AND-FLAGS.md) for the current
-candidate/release status. The yellow Cart-count preview is separate.
+candidate/release status. See [the Cart badge implementation](docs/CART-BADGE.md)
+for its separate real-cart acceptance requirements and release status.
 
 The editable delivery page uses `.github/workflows/delivery-page.yml`. Its
 explicit `inspect-delivery-page`, `rehearse-delivery-page` and
