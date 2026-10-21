@@ -302,9 +302,9 @@ function petish_customer_reviews_proof($work, $keep_for_browser = true) {
             'tmp_name' => array('/nonexistent/review-upload'), 'error' => array(UPLOAD_ERR_OK), 'size' => array(50)));
         petish_customer_reviews_proof_mark($report, 'malformed_upload_denied', is_wp_error(Petish_Customer_Review_Media::save_uploads($bad_upload, $owner)));
         petish_customer_reviews_proof_mark($report, 'media_limits_defined', Petish_Passport_Video_Inspector::MAX_SECONDS === 20
-            && Petish_Passport_Video_Inspector::MAX_BYTES === 20 * 1024 * 1024
+            && Petish_Passport_Video_Inspector::MAX_BYTES === 50 * 1024 * 1024
             && Petish_Customer_Review_Media::MAX_PHOTOS === 4 && Petish_Customer_Review_Media::MAX_PHOTO_BYTES === 5 * 1024 * 1024
-            && Petish_Customer_Review_Media::MAX_VIDEO_BYTES === 20 * 1024 * 1024);
+            && Petish_Customer_Review_Media::MAX_VIDEO_BYTES === 50 * 1024 * 1024);
         // Live HTTP upload/serve proof runs in the separate owned browser fixture.
         petish_customer_reviews_proof_media($state, $report, $id, $owner, $member);
         $privacy_uid = petish_customer_reviews_proof_user($state, 'privacy')->ID;

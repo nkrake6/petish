@@ -91,7 +91,7 @@ function pcr_bootstrap($defs,$persistent_option_cache=false){
 function pcr_flag_row(){global$wpdb;return$wpdb->get_row($wpdb->prepare("SELECT option_value,autoload FROM {$wpdb->options} WHERE option_name=%s",'petish_customer_reviews_enabled'),ARRAY_A);}
 function pcr_upload_limits(){
  $bytes=static function($name){$raw=trim((string)ini_get($name));if(!preg_match('/\A([0-9]{1,15})([KMG]?)\z/iD',$raw,$m))return-1;return(int)$m[1]*(1024**([''=>0,'K'=>1,'M'=>2,'G'=>3][strtoupper($m[2])]));};
- $post=$bytes('post_max_size');return filter_var(ini_get('file_uploads'),FILTER_VALIDATE_BOOLEAN)&&($post===0||$post>=46*1024*1024)&&$bytes('upload_max_filesize')>=20*1024*1024&&(int)ini_get('max_file_uploads')>=6;
+ $post=$bytes('post_max_size');return filter_var(ini_get('file_uploads'),FILTER_VALIDATE_BOOLEAN)&&($post===0||$post>=76*1024*1024)&&$bytes('upload_max_filesize')>=50*1024*1024&&(int)ini_get('max_file_uploads')>=6;
 }
 function pcr_enable($work){
  pcr_mark('upload_limits_sufficient',pcr_upload_limits());
@@ -116,7 +116,7 @@ function pcr_guard_install($work,$run){
  // Verify web PHP separately: CLI and web server limits can differ. Only the
  // finite outcome is exposed, never host configuration values or fixture data.
  $bytes=static function($name){$raw=trim((string)ini_get($name));if(!preg_match('/\A([0-9]{1,15})([KMG]?)\z/iD',$raw,$m))return-1;return(int)$m[1]*(1024**([''=>0,'K'=>1,'M'=>2,'G'=>3][strtoupper($m[2])]));};
- $post=$bytes('post_max_size');$upload_ok=filter_var(ini_get('file_uploads'),FILTER_VALIDATE_BOOLEAN)&&($post===0||$post>=46*1024*1024)&&$bytes('upload_max_filesize')>=20*1024*1024&&(int)ini_get('max_file_uploads')>=6;
+ $post=$bytes('post_max_size');$upload_ok=filter_var(ini_get('file_uploads'),FILTER_VALIDATE_BOOLEAN)&&($post===0||$post>=76*1024*1024)&&$bytes('upload_max_filesize')>=50*1024*1024&&(int)ini_get('max_file_uploads')>=6;
  if(!headers_sent())header('X-Petish-Review-Upload-Limits: '.($upload_ok?'sufficient':'insufficient'));
  $no=static fn()=>false;$yes=static fn()=>true;$zero=static fn()=>0;$http=static fn()=>new WP_Error('petish_reviews_http_blocked','Staging verification blocks outbound requests.');
  foreach(['jetpack_sync_listener_should_load','jetpack_sync_sender_should_load','action_scheduler_allow_async_request_runner']as$hook)add_filter($hook,$no,PHP_INT_MAX);

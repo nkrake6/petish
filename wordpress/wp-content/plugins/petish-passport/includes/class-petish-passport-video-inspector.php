@@ -3,7 +3,7 @@
 defined('ABSPATH') || exit;
 final class Petish_Passport_Video_Inspector {
  const MAX_SECONDS=20;
- const MAX_BYTES=20971520;
+ const MAX_BYTES=52428800;
  const MAX_SAMPLES=5000;
  const MAX_BOXES=512;
  const MAX_DEPTH=10;
@@ -30,7 +30,7 @@ final class Petish_Passport_Video_Inspector {
    if(!$after||$after['size']!==$opened['size']||$after['mtime']!==$opened['mtime']||$after['ctime']!==$opened['ctime'])throw new RuntimeException();
    return $result;
   }catch(Throwable $error){
-   return new WP_Error('petish_video_format','Choose a regular MP4 video with H.264 picture and optional AAC sound, no longer than 20 seconds and no larger than 20 MB.');
+   return new WP_Error('petish_video_format','Choose a regular MP4 video with H.264 picture and optional AAC sound, no longer than 20 seconds and no larger than 50 MB.');
   }finally{if(is_resource($handle))fclose($handle);}
  }
  private function reject(){throw new RuntimeException();}

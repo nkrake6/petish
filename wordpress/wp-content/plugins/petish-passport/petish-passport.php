@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Petish Passport
  * Description: Private pet passports, Pet Club sharing and optional moderated customer product reviews for WooCommerce.
- * Version: 0.4.0
+ * Version: 0.4.1
  * Requires at least: 6.8
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce
@@ -10,7 +10,7 @@
  * Text Domain: petish-passport
  */
 defined( 'ABSPATH' ) || exit;
-define( 'PETISH_PASSPORT_VERSION', '0.4.0' );
+define( 'PETISH_PASSPORT_VERSION', '0.4.1' );
 define( 'PETISH_PASSPORT_FILE', __FILE__ );
 define( 'PETISH_PASSPORT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PETISH_PASSPORT_URL', plugin_dir_url( __FILE__ ) );

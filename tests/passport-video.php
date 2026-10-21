@@ -95,7 +95,7 @@ try{
  check('local_path_not_accepted_as_upload',is_wp_error(Petish_Passport_Video::save($fake,11)));
  check('upload_failure_reservation_removed',is_wp_error(Petish_Passport_Moments::create($id,11,['kind'=>'video','caption'=>''], $fake))&&count($GLOBALS['posts'])===$before);
  $too_large=Petish_Passport_Video::save(['name'=>'large.mp4','tmp_name'=>'','error'=>UPLOAD_ERR_INI_SIZE],11);
- check('php_upload_limit_explained',is_wp_error($too_large)&&str_contains($too_large->message,'20 MB'));
+ check('php_upload_limit_explained',is_wp_error($too_large)&&str_contains($too_large->message,'50 MB'));
  check('malformed_upload_denied',is_wp_error(Petish_Passport_Video::save(['name'=>[],'tmp_name'=>[],'error'=>'0'],11)));
  $moment=video_moment($id,11);$mid=$moment['id'];$key=$moment['video'];$path=video_path($key);$bytes=file_get_contents($path);
  check('owner_file_resolved',Petish_Passport_Video::file_for_owner($key,11)===realpath($path));

@@ -98,7 +98,7 @@
       videoFeedback.textContent = '';
       var file = videoUpload.files && videoUpload.files[0];
       if (!file) return;
-      if (file.size > 20 * 1024 * 1024) { videoError('This video is larger than 20 MB. Please choose a smaller file.'); return; }
+      if (file.size > 50 * 1024 * 1024) { videoError('This video is larger than 50 MB. Please choose a smaller file.'); return; }
       if ((file.type && file.type !== 'video/mp4') || !/\.mp4$/i.test(file.name)) { videoError('Please choose an MP4 video with H.264 video and optional AAC audio.'); return; }
       if (!window.URL || !URL.createObjectURL) return;
       videoFeedback.textContent = 'Checking the video’s duration…';

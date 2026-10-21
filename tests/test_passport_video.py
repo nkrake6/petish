@@ -67,7 +67,7 @@ class PassportVideoTests(unittest.TestCase):
                 port = sock.getsockname()[1]
             env = dict(os.environ, PETISH_TEST_VIDEO_PUBLIC=str(public), PETISH_TEST_GETID3_DIR=GETID3)
             with (work / 'server.log').open('w+') as log:
-                server = subprocess.Popen([PHP, '-d', 'upload_max_filesize=22M', '-d', 'post_max_size=23M',
+                server = subprocess.Popen([PHP, '-d', 'upload_max_filesize=52M', '-d', 'post_max_size=53M',
                                            '-S', f'127.0.0.1:{port}', str(ROOT / 'tests/passport-video-http.php')],
                                           env=env, cwd=ROOT, stdout=log, stderr=log)
                 try:
@@ -109,7 +109,7 @@ class PassportVideoTests(unittest.TestCase):
                         self.assertTrue(result['reserved_before_write'])
                         self.assertLessEqual(result['duration'], 20)
                     data = source.read_bytes()
-                    padding_size = 20 * 1024 * 1024 - len(data)
+                    padding_size = 50 * 1024 * 1024 - len(data)
                     at_limit = data + struct.pack('>I4s', padding_size, b'free') + b'\0' * (padding_size - 8)
                     self.assertEqual(upload(at_limit)['status'], 'saved')
                     over_limit = at_limit + struct.pack('>I4s', 8, b'free')

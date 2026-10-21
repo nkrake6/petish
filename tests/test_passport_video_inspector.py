@@ -34,7 +34,7 @@ class PassportVideoInspectorTests(unittest.TestCase):
                          '+faststart', '-y', str(Path(folder) / f'{name}.mp4')]
                 generated = subprocess.run(args, capture_output=True, text=True, timeout=30)
                 self.assertEqual(generated.returncode, 0, generated.stderr)
-            result = subprocess.run([PHP, str(ROOT / 'tests/passport-video-inspector.php'), folder],
+            result = subprocess.run([PHP, '-d', 'memory_limit=256M', str(ROOT / 'tests/passport-video-inspector.php'), folder],
                                     cwd=ROOT, capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
             self.assertEqual(result.stderr, '')

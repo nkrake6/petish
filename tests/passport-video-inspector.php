@@ -119,8 +119,8 @@ try{
  mutation('metadata_unrecognized_container_rejected',add_moov($valid,box('udta',box('NCDT',box('udta')))));
  mutation('moov_payload_bounded',add_moov($valid,box('free',str_repeat("\0",1048576))));
  mutation('box_count_bounded',$valid.str_repeat(box('free'),513));
- mutation('exact_size_limit_accepted',$valid.box('free',str_repeat("\0",20971520-strlen($valid)-8)),true);
- mutation('size_over_limit_rejected',$valid.box('free',str_repeat("\0",20971521-strlen($valid)-8)));
+ mutation('exact_size_limit_accepted',$valid.box('free',str_repeat("\0",52428800-strlen($valid)-8)),true);
+ mutation('size_over_limit_rejected',$valid.box('free',str_repeat("\0",52428801-strlen($valid)-8)));
  $source=$files[0];$link=$source.'-symlink';$files[]=$link;symlink($source,$link);check('symlink_rejected',Petish_Passport_Video_Inspector::inspect($link) instanceof WP_Error);
  $hard=$source.'-hardlink';$files[]=$hard;link($source,$hard);check('hardlink_rejected',Petish_Passport_Video_Inspector::inspect($source) instanceof WP_Error);
  check('missing_file_rejected',Petish_Passport_Video_Inspector::inspect('/does-not-exist/petish.mp4') instanceof WP_Error);

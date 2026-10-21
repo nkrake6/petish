@@ -2,7 +2,7 @@
 /** Original MP4 clips in private storage. No transcoding or metadata stripping. */
 defined('ABSPATH') || exit;
 final class Petish_Passport_Video {
- const MAX_BYTES=20971520;
+ const MAX_BYTES=Petish_Passport_Video_Inspector::MAX_BYTES;
  const MAX_SECONDS=20;
  private static function error($code='petish_video',$message=''){
   return new WP_Error($code,$message?:'Choose a supported MP4 video with H.264 video and optional AAC audio, up to 20 seconds.');
@@ -37,7 +37,7 @@ final class Petish_Passport_Video {
  public static function inspect($path){
   if(!is_string($path)||!is_file($path)||is_link($path))return self::error();
   $bytes=filesize($path);
-  if(!$bytes||$bytes>self::MAX_BYTES)return self::error('petish_video_size','Choose a video smaller than 20 MB.');
+  if(!$bytes||$bytes>self::MAX_BYTES)return self::error('petish_video_size','Choose a video no larger than 50 MB.');
   $info=Petish_Passport_Video_Inspector::inspect($path);if(is_wp_error($info))return $info;
   if(!class_exists('getID3')){
    $library=ABSPATH.WPINC.'/ID3/getid3.php';
@@ -72,7 +72,7 @@ final class Petish_Passport_Video {
   if(!is_array($file)||!isset($file['error'],$file['tmp_name'],$file['name'])||!is_int($file['error'])
    ||!is_string($file['tmp_name'])||!is_string($file['name']))return self::error();
   if(UPLOAD_ERR_OK!==$file['error'])return self::error('petish_video_upload',
-   in_array($file['error'],array(UPLOAD_ERR_INI_SIZE,UPLOAD_ERR_FORM_SIZE),true)?'Choose a video smaller than 20 MB.':'The video upload did not finish. Please try again.');
+   in_array($file['error'],array(UPLOAD_ERR_INI_SIZE,UPLOAD_ERR_FORM_SIZE),true)?'Choose a video no larger than 50 MB.':'The video upload did not finish. Please try again.');
   if(!is_uploaded_file($file['tmp_name']))return self::error();
   if(strtolower(pathinfo($file['name'],PATHINFO_EXTENSION))!=='mp4')return self::error('petish_video_type','Choose an MP4 video.');
   $info=self::inspect($file['tmp_name']);if(is_wp_error($info))return $info;

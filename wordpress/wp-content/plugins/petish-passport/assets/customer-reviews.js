@@ -34,7 +34,7 @@
         photos.concat(avatar).forEach(function (file) {
           if (file.size > 5 * 1024 * 1024) { message = 'Each product photo or reviewer photo must be 5 MB or smaller.'; (avatar.indexOf(file) >= 0 ? avatarInput : photoInput).setCustomValidity(message); }
         });
-        if (video.some(function (file) { return file.size > 20 * 1024 * 1024; })) { message = 'Your video must be 20 MB or smaller.'; videoInput.setCustomValidity(message); }
+        if (video.some(function (file) { return file.size > 50 * 1024 * 1024; })) { message = 'Your video must be 50 MB or smaller.'; videoInput.setCustomValidity(message); }
         if (error) { error.textContent = message; error.hidden = !message; }
         return !message;
       }

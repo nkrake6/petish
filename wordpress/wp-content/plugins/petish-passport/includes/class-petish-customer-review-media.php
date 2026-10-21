@@ -8,7 +8,7 @@ final class Petish_Customer_Review_Media {
     const JOURNAL = '_petish_review_media_unattached';
     const MAX_PHOTOS = 4;
     const MAX_PHOTO_BYTES = 5242880;
-    const MAX_VIDEO_BYTES = 20971520;
+    const MAX_VIDEO_BYTES = Petish_Passport_Video_Inspector::MAX_BYTES;
     const MAX_PIXELS = 16000000;
 
     public static function boot() {
@@ -107,7 +107,7 @@ final class Petish_Customer_Review_Media {
                 return self::error();
             }
             if ( UPLOAD_ERR_OK !== $file['error'] ) {
-                return self::error( 'petish_review_media_upload', 'An attachment did not finish uploading. Photos must be up to 5 MB and video up to 20 MB.' );
+                return self::error( 'petish_review_media_upload', 'An attachment did not finish uploading. Photos must be up to 5 MB and video up to 50 MB.' );
             }
             if ( is_link( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
                 return self::error( 'petish_review_media_upload', 'Please select the attachment again.' );
@@ -290,7 +290,7 @@ final class Petish_Customer_Review_Media {
 
     private static function save_video( $file, $uid, $dir ) {
         if ( strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) ) !== 'mp4' || ! class_exists( 'Petish_Passport_Video' ) ) {
-            return self::error( 'petish_review_video_type', 'Choose an MP4 video with H.264 video and optional AAC audio, up to 20 seconds and 20 MB.' );
+            return self::error( 'petish_review_video_type', 'Choose an MP4 video with H.264 video and optional AAC audio, up to 20 seconds and 50 MB.' );
         }
         $info = Petish_Passport_Video::inspect( $file['tmp_name'] );
         if ( is_wp_error( $info ) ) {
