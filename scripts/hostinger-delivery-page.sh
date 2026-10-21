@@ -16,6 +16,12 @@ native() {
     local operation=$1
     "${petish_ssh[@]}" 'php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-delivery-page-'"$run"'/delivery-page-remote.php" '"$operation"' '"$run" > "$work/$operation-native.json" 2> "$work/$operation-native.stderr"
 }
+cache_inspect() {
+    local outcome=0
+    "${petish_ssh[@]}" 'php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-delivery-page-'"$run"'/litespeed-html-purge.php" inspect delivery '"$run"' apply' > "$work/cache-inspect.json" 2> "$work/cache-inspect.stderr" || outcome=1
+    python3 scripts/sanitize-litespeed-html-purge.py inspect "$work/cache-inspect.json" "$work/cache-inspect-safe.json" > "$work/cache-inspect-screen.stdout" 2> "$work/cache-inspect-screen.stderr" || return 1
+    [[ $outcome == 0 ]]
+}
 purge() {
     local phase=$1 operation
     for operation in queue verify; do
@@ -55,6 +61,7 @@ from datetime import datetime,timezone
 root=Path(sys.argv[1]);out={'status':'success' if sys.argv[2]=='0' else 'failure','category':sys.argv[3],
  'mode':sys.argv[6],'run_id':sys.argv[4],'source_commit':sys.argv[5],'generated_utc':datetime.now(timezone.utc).isoformat()}
 if (root/'safe.json').exists():out['inspection' if sys.argv[6]=='inspect' else 'operation']=json.loads((root/'safe.json').read_text())
+if (root/'cache-inspect-safe.json').exists():out['cache_preflight']=json.loads((root/'cache-inspect-safe.json').read_text())
 if sys.argv[2]!='0':
  try:
   spec=importlib.util.spec_from_file_location('delivery_report','scripts/delivery-page-report.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
@@ -102,12 +109,15 @@ PY
 import json,sys,datetime,importlib.util
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('delivery_report','scripts/delivery-page-report.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+cache_spec=importlib.util.spec_from_file_location('cache_report','scripts/sanitize-litespeed-html-purge.py');cache=importlib.util.module_from_spec(cache_spec);cache_spec.loader.exec_module(cache)
 try:
  v=json.loads(Path(sys.argv[1]).read_text());manifest=json.loads(Path('operations/delivery-page-release.json').read_text())
  assert v['status']=='success' and v['category']=='complete' and v['mode']=='rehearse' and v['source_commit']==sys.argv[2]
  age=datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(v['generated_utc']);assert datetime.timedelta(0)<=age<=datetime.timedelta(hours=6)
  p=v['operation'];assert p['canonical_public_copy_verified_twice'] is True and p['page']['content_sha256']==manifest['old_content_sha256']
  m.screen({k:p[k] for k in ['status','category','checks','page']},'rehearse')
+ c=v['cache_preflight'];assert set(c)=={'status','category','checks'} and c['status']=='success' and c['category']=='complete'
+ assert set(c['checks'])==cache.REQUIRED['inspect'] and all(item is True for item in c['checks'].values())
 except Exception:sys.exit(1)
 PY
         then evidence=1;break;fi
@@ -124,7 +134,7 @@ done
 if [[ $mode != inspect ]]; then
     cp -- operations/delivery-page-content.html operations/delivery-page-release.json "$work/bundle/"
 fi
-if [[ $mode == apply ]]; then
+if [[ $mode != inspect ]]; then
     cp -- scripts/litespeed-html-purge.php "$work/bundle/"
 fi
 chmod 600 "$work/bundle/"*
@@ -133,6 +143,10 @@ tar -C "$work/bundle" -cf "$work/bundle.tar" .
   test -d "$HOME" && test ! -L "$HOME" && test "$(readlink -f -- "$HOME")" = "$HOME" && test ! -e "$dir" && test ! -L "$dir" || exit 1;
   mkdir -m 700 "$dir"; printf "%s\n" '"$run"' > "$dir/owner"; chmod 600 "$dir/owner";
   tar --extract --no-same-owner --no-same-permissions --directory "$dir"' < "$work/bundle.tar" > "$work/upload.stdout" 2> "$work/upload.stderr"
+if [[ $mode != inspect ]]; then
+    category=cache_preflight
+    cache_inspect
+fi
 category=native
 if [[ $mode == apply ]]; then apply_armed=1;fi
 native "$mode"
