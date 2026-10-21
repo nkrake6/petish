@@ -13,6 +13,9 @@ const CSS_PATH = '/wp-content/themes/dt-the7-child/assets/css/home.css';
 const BADGE_PATH = '/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png';
 const THEME_SCRIPT_PATH = '/wp-content/themes/dt-the7-child/assets/js/theme.js';
 const DESIGN_CSS_PATH = '/wp-content/themes/dt-the7-child/assets/css/petish.css';
+const MARKET_SCRIPT_PATH = '/wp-content/themes/dt-the7-child/assets/js/market-selector.js';
+const MARKET_CSS_PATH = '/wp-content/themes/dt-the7-child/assets/css/market-selector.css';
+const FLAG_PATH = '/wp-content/themes/dt-the7-child/assets/images/ui/country-flags.svg';
 const THEME_SWITCH = '[data-petish-theme-toggle]';
 const PERSONAL_SCRIPT_PATH = '/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js';
 const PERSONAL_ENDPOINT = `${ORIGIN}/wp-admin/admin-ajax.php?action=petish_for_your_pet`;
@@ -22,7 +25,7 @@ export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_h
 export const THEME_VIEWS = Object.freeze(['320_light', '320_dark', '390_light', '390_dark', '1280_light', '1280_dark']);
 export const THEME_GEOMETRY_KEYS = Object.freeze(['header_height', 'baseline_height', 'header_width', 'viewport_width',
   'switch_left', 'switch_right', 'search_right', 'market_left', 'market_right', 'logo_right', 'logo_width', 'visible_count', 'overflow']);
-const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system']);
+const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
   'badge_response_signature_png', 'badge_response_signature_webp', 'badge_response_signature_avif',
@@ -40,7 +43,8 @@ export const CHECK_KEYS = Object.freeze(['browser_started', 'customer_login_veri
   'personalisation_error_retry_verified', 'personalisation_history_reset_verified',
   'theme_assets_http_verified', 'theme_switch_order_verified', 'theme_switch_geometry_verified',
   'theme_switch_pointer_verified', 'theme_switch_keyboard_verified', 'theme_switch_persistence_verified',
-  'theme_switch_select_sync_verified', 'theme_switch_system_verified', 'theme_switch_clones_verified']);
+  'theme_switch_select_sync_verified', 'theme_switch_system_verified', 'theme_switch_clones_verified',
+  'market_flag_assets_verified', 'market_flag_header_verified', 'market_flag_cart_verified', 'market_flag_webkit_verified']);
 
 export function publicReport(value) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, value?.checks?.[key] === true]));
@@ -109,6 +113,9 @@ function launchOptions(chromium) {
 export function allowedHomepageRequest(raw, ...options) {
   // One read-only, same-origin fragment endpoint is needed. No other admin,
   // supplier, identity override or mutation request is admitted by this exception.
+  // Fixed empty Cart document only. All cart query actions and methods stay blocked.
+  if (raw === `${ORIGIN}/cart/` && (options[0] ?? 'GET') === 'GET'
+      && (options[4] ?? 'document') === 'document') return true;
   if (raw === PERSONAL_ENDPOINT && (options[0] ?? 'GET') === 'GET') return true;
   if (!allowedRequest(raw, ...options)) return false;
   try {
@@ -119,10 +126,11 @@ export function allowedHomepageRequest(raw, ...options) {
   } catch { return false; }
 }
 
-async function readOnlyContext(browser) {
+async function readOnlyContext(browser, storageState) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 },
     ignoreHTTPSErrors: false, locale: 'en-AU', timezoneId: 'Australia/Sydney',
-    reducedMotion: 'reduce', serviceWorkers: 'block', acceptDownloads: false });
+    reducedMotion: 'reduce', serviceWorkers: 'block', acceptDownloads: false,
+    ...(storageState ? { storageState } : {}) });
   const login = { allowed: false, used: false, blockPersonal: false };
   await context.route('**/*', async route => {
     const request = route.request();
@@ -512,6 +520,80 @@ export async function checkThemeSwitch(page, checks, diagnostics, setCategory, t
   requireCheck(checks.theme_switch_clones_verified, 'theme_interaction');
 }
 
+/** Public AU flag only: no page image or customer content leaves browser memory. */
+export async function inspectMarketFlags(page) {
+  const valid = await page.evaluate(({ origin, sprite }) => {
+    const markets = [...document.querySelectorAll('[data-petish-market]')];
+    return markets.length >= 1 && markets.length <= 8 && markets.every(market => {
+      const flags = market.querySelectorAll('svg.petish-market__flag');
+      if (flags.length !== 1 || /[\u{1F1E6}-\u{1F1FF}]/u.test(market.textContent)) return false;
+      const flag = flags[0], uses = flag.querySelectorAll('use');
+      if (flag.getAttribute('aria-hidden') !== 'true' || flag.getAttribute('focusable') !== 'false'
+          || flag.getAttribute('viewBox') !== '0 0 512 512' || uses.length !== 1 || flag.textContent.trim()) return false;
+      const url = new URL(uses[0].getAttribute('href'), location.href);
+      if (url.origin !== origin || url.pathname !== sprite || url.hash !== '#flag-au'
+          || !/^\?ver=\d+$/.test(url.search)) return false;
+      const box = flag.getBoundingClientRect();
+      if (!box.width || !box.height || getComputedStyle(flag).visibility === 'hidden') return true;
+      const painted = uses[0].getBBox();
+      const expected = innerWidth <= 767 ? 20 : 22;
+      return Math.abs(box.width - expected) <= 1 && Math.abs(box.height - expected) <= 1
+        && painted.width > 0 && painted.height > 0 && box.left >= 0 && box.right <= innerWidth;
+    });
+  }, { origin: ORIGIN, sprite: FLAG_PATH });
+  if (!valid) return false;
+  const flag = page.locator('svg.petish-market__flag:visible').first();
+  if (!await flag.count()) return false;
+  // Crop only the known decorative flag. Decode in the same browser to prove
+  // actual external-use/mask paint, rather than accepting an empty SVG box.
+  const bytes = await flag.screenshot({ type: 'png', animations: 'disabled' });
+  return page.evaluate(async base64 => {
+    const image = new Image(); image.src = 'data:image/png;base64,' + base64;
+    await image.decode();
+    if (image.width > 88 || image.height > 88 || image.width < 20 || image.height < 20) return false;
+    const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+    const context = canvas.getContext('2d'); if (!context) return false;
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, image.width, image.height).data;
+    let blue = 0, red = 0, white = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const [r, g, b, a] = pixels.slice(i, i + 4); if (a < 200) continue;
+      if (b > 70 && b > r * 1.4 && b > g * 1.25) blue++;
+      if (r > 110 && r > g * 1.6 && r > b * 1.3) red++;
+      if (r > 145 && g > 145 && b > 145 && Math.max(r, g, b) / Math.min(r, g, b) < 1.15) white++;
+    }
+    return blue >= 30 && red >= 3 && white >= 4;
+  }, bytes.toString('base64'));
+}
+
+/** Fixed read-only routes, synthetic account, no market or cart actions. */
+export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 1280]) {
+  if (!['/', '/cart/'].includes(pathname)) return false;
+  const response = await page.goto(ORIGIN + pathname, { waitUntil: 'load' });
+  if (!response?.ok() || new URL(page.url()).pathname !== pathname) return false;
+  if (pathname === '/cart/' && !(await page.locator('.cart-empty, .wc-block-cart__empty-cart__title').count())) return false;
+  if (pathname === '/cart/' && await page.locator('.cart_item, .wc-block-cart-items__row').count()) return false;
+  for (const width of widths) for (const mode of ['light', 'dark']) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => scrollTo(0, 0));
+    if (await page.locator('html').getAttribute('data-theme') !== mode) await page.locator(`${THEME_SWITCH}:visible`).first().click();
+    await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
+    const geometry = await inspectThemeGeometry(page);
+    if (!geometry.order || !geometry.height || !geometry.fit || !await inspectMarketFlags(page)) return false;
+  }
+  return true;
+}
+
+async function checkWebKitFlags(webkit, storageState) {
+  if (!webkit) return false;
+  const browser = await webkit.launch({ headless: true });
+  try {
+    const { context } = await readOnlyContext(browser, storageState);
+    const page = await context.newPage(); page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(45000);
+    return await checkMarketFlagPage(page, '/', [320, 390]) && await checkMarketFlagPage(page, '/cart/', [320, 390]);
+  } finally { await browser.close(); }
+}
+
 export async function run(input, chromium, options = {}) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false]));
   const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
@@ -526,6 +608,8 @@ export async function run(input, chromium, options = {}) {
     const expectedCSS = hash(fs.readFileSync(new URL('assets/css/home.css', THEME)));
     const expectedThemeScript = hash(fs.readFileSync(new URL('assets/js/theme.js', THEME)));
     const expectedDesignCSS = hash(fs.readFileSync(new URL('assets/css/petish.css', THEME)));
+    const expectedMarketAssets = new Map([MARKET_SCRIPT_PATH, MARKET_CSS_PATH, FLAG_PATH].map(asset =>
+      [asset, hash(fs.readFileSync(new URL(asset.split('/dt-the7-child/')[1], THEME)))]));
     const expectedPersonalScript = hash(fs.readFileSync(new URL('assets/js/for-your-pet.js', THEME)));
     const expectedBadgeBytes = fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME));
     const expectedBadge = hash(expectedBadgeBytes);
@@ -543,7 +627,11 @@ export async function run(input, chromium, options = {}) {
       && !allowedRequest(`${ORIGIN}/my-account/edit-account/`, 'POST', true)
       && allowedHomepageRequest(PERSONAL_ENDPOINT, 'GET')
       && !allowedHomepageRequest(PERSONAL_ENDPOINT + '&user_id=1', 'GET')
-      && !allowedHomepageRequest(PERSONAL_ENDPOINT, 'POST');
+      && !allowedHomepageRequest(PERSONAL_ENDPOINT, 'POST')
+      && allowedHomepageRequest(`${ORIGIN}/cart/`, 'GET')
+      && !allowedHomepageRequest(`${ORIGIN}/cart/?remove_item=1`, 'GET')
+      && !allowedHomepageRequest(`${ORIGIN}/cart/`, 'POST')
+      && !allowedHomepageRequest(`${ORIGIN}/?wc-ajax=petish_market_state`, 'GET');
     const page = await context.newPage();
     page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(45000);
     category = 'login';
@@ -565,7 +653,7 @@ export async function run(input, chromium, options = {}) {
     const assetRecords = new Map(), assetTasks = [];
     page.on('response', response => {
       const url = new URL(response.url());
-      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH, THEME_SCRIPT_PATH, DESIGN_CSS_PATH].includes(url.pathname)) return;
+      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH, THEME_SCRIPT_PATH, DESIGN_CSS_PATH, MARKET_SCRIPT_PATH, MARKET_CSS_PATH, FLAG_PATH].includes(url.pathname)) return;
       const task = response.body().then(body => assetRecords.set(url.pathname, { ok: response.ok(), hash: hash(body) }))
         .catch(() => assetRecords.set(url.pathname, { ok: false, hash: null }));
       assetTasks.push(task);
@@ -594,6 +682,9 @@ export async function run(input, chromium, options = {}) {
       && assetRecords.get(THEME_SCRIPT_PATH)?.hash === expectedThemeScript
       && assetRecords.get(DESIGN_CSS_PATH)?.ok === true && assetRecords.get(DESIGN_CSS_PATH)?.hash === expectedDesignCSS;
     requireCheck(checks.theme_assets_http_verified, 'theme_assets');
+    checks.market_flag_assets_verified = [...expectedMarketAssets].every(([asset, expected]) =>
+      assetRecords.get(asset)?.ok === true && assetRecords.get(asset)?.hash === expected);
+    requireCheck(checks.market_flag_assets_verified, 'market_flag_assets');
     // Request the reviewed PNG even when no supplier products qualify, so an
     // intentionally absent section cannot hide an unreadable deployment asset.
     const fetchBadge = pathname => page.evaluate(async target => {
@@ -656,6 +747,13 @@ export async function run(input, chromium, options = {}) {
     checks.badges_nonoverlap_hot = nonoverlap;
     await checkPersonalisation(page, context, login, input, homeHTML, personalResponse, checks, value => { category = value; });
     await checkThemeSwitch(page, checks, diagnostics, value => { category = value; }, themeGeometry);
+    category = 'market_flag_layout';
+    checks.market_flag_header_verified = await checkMarketFlagPage(page, '/');
+    requireCheck(checks.market_flag_header_verified, 'market_flag_layout');
+    checks.market_flag_cart_verified = await checkMarketFlagPage(page, '/cart/');
+    requireCheck(checks.market_flag_cart_verified, 'market_flag_layout');
+    checks.market_flag_webkit_verified = await checkWebKitFlags(options.webkit, await context.storageState());
+    requireCheck(checks.market_flag_webkit_verified, 'market_flag_layout');
     requireCheck(Object.values(checks).every(Boolean), 'layout');
     return report('success', 'complete');
   } catch (error) {
@@ -728,8 +826,8 @@ async function main() {
     if (process.argv.length !== 4) throw new Error('input');
     const input = privateInput(process.argv[2]);
     const require = createRequire(new URL('../staging-rehearsal/package.json', import.meta.url));
-    const { chromium } = require('playwright');
-    result = await run(input, chromium, { badgeResponsePath: input.capture_badge_response === true
+    const { chromium, webkit } = require('playwright');
+    result = await run(input, chromium, { webkit, badgeResponsePath: input.capture_badge_response === true
       ? path.join(path.dirname(path.resolve(process.argv[3])), 'badge-response.png') : null });
   } catch {}
   try {

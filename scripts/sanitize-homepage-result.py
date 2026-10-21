@@ -16,6 +16,7 @@ def module(name):
 
 navigation=module('sanitize-account-navigation-result')
 BROWSER={
+    'market_flag_assets_verified', 'market_flag_header_verified', 'market_flag_cart_verified', 'market_flag_webkit_verified',
     'theme_assets_http_verified', 'theme_switch_order_verified', 'theme_switch_geometry_verified',
     'theme_switch_pointer_verified', 'theme_switch_keyboard_verified', 'theme_switch_persistence_verified',
     'theme_switch_select_sync_verified', 'theme_switch_system_verified', 'theme_switch_clones_verified',
@@ -40,6 +41,7 @@ THEME_GEOMETRY_VIEWS={f'{width}_{mode}' for width in (320,390,1280) for mode in 
 THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewport_width',
     'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','visible_count','overflow'}
 VERIFY={
+    'market_flag_markup_verified',
     'theme_switch_markup_verified', 'theme_switch_assets_enqueued',
     'account_settings_unchanged', 'all_outbound_http_blocked', 'anonymous_render_context_verified',
     'authentication_state_unchanged', 'cron_and_async_runner_disabled', 'for_your_pet_cacheable_shell_verified',
@@ -77,9 +79,10 @@ CLEANUP={
     'woocommerce_runtime_verified',
 }
 OBSERVATIONS={'free_delivery_products_available'}
-ASSETS={'theme_switch_public_markup_verified','theme_script_http_verified','theme_stylesheet_http_verified','for_your_pet_script_http_verified','homepage_http_verified','hot_subtitle_absent','home_stylesheet_http_verified','free_delivery_badge_http_verified'}
+ASSETS={'market_script_http_verified','market_stylesheet_http_verified','country_flag_sprite_http_verified','country_flag_license_http_verified',
+    'homepage_country_flags_verified','cart_http_verified','cart_country_flags_verified','theme_switch_public_markup_verified','theme_script_http_verified','theme_stylesheet_http_verified','for_your_pet_script_http_verified','homepage_http_verified','hot_subtitle_absent','home_stylesheet_http_verified','free_delivery_badge_http_verified'}
 PREFLIGHT=navigation.PREFLIGHT
-FILE_COUNT=10
+FILE_COUNT=15
 DEPLOY=navigation.DEPLOY|{'candidate_badge_png_verified','maintenance_guard_created','maintenance_guard_removed'}
 REQUIRED={**{phase:navigation.REQUIRED[phase]|({'candidate_badge_png_verified'} if phase in {'inspect','apply'} else set())
     for phase in ('inspect','apply','rollback','commit')},
@@ -130,7 +133,7 @@ REVIEW_DIAGNOSTICS={
 }
 CATEGORIES=navigation.CATEGORIES|CACHE_FAILURES|FIXTURE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
     'personalisation','personalisation_error','personalisation_history','bootstrap','isolation','state',
-    'theme_assets','theme_layout','theme_interaction','theme_persistence','theme_system'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
+    'market_flag_assets','market_flag_layout','theme_assets','theme_layout','theme_interaction','theme_persistence','theme_system'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
 
 
 def screen(phase,path):

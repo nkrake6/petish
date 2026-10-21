@@ -292,21 +292,28 @@ class Response:
 
 
 class HomepagePublicAssetsTests(unittest.TestCase):
-    HEADER='<div class="header-bar"><div class="mini-widgets"><div class="mini-search"></div><div data-petish-theme-switch hidden><button data-petish-theme-toggle type="button" role="switch" aria-checked="false" aria-label="Dark mode"><svg></svg></button></div><div data-petish-market></div></div></div>'
+    FLAG='<svg class="petish-market__flag" aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 512 512"><use href="https://petish.biz/wp-content/themes/dt-the7-child/assets/images/ui/country-flags.svg?ver=123#flag-au"/></svg>'
+    HEADER='<div class="header-bar"><div class="mini-widgets"><div class="mini-search"></div><div data-petish-theme-switch hidden><button data-petish-theme-toggle type="button" role="switch" aria-checked="false" aria-label="Dark mode"><svg></svg></button></div><div data-petish-market>'+FLAG+'</div></div></div>'
     @staticmethod
     def png(color=(123,45,67,128),level=0):
         stream=io.BytesIO();Image.new('RGBA',(3,2),color).save(stream,format='PNG',compress_level=level)
         return stream.getvalue()
 
-    def fixture(self,changed=None,subtitle=False,redirect=False,old_header=False):
+    def fixture(self,changed=None,subtitle=False,redirect=False,old_header=False,old_cart_header=False):
         expected={name:self.png() if name.endswith('.png') else ('Reviewed '+name).encode() for name in assets.ASSETS.values()}
+        expected['assets/images/ui/country-flags.svg']=b'<svg><defs><symbol id="flag-au"></symbol><symbol id="flag-globe"></symbol></defs></svg>'
         class Opener:
             def open(self,request,timeout):
+                if request.get_method()!='GET' or request.has_header('Cookie') or request.has_header('Authorization'):
+                    raise AssertionError('Public verification must use anonymous GETs only')
                 url=request.full_url
                 if url=='https://petish.biz/':
                     body=b'<h1 id="petish-home-title">Petish</h1>'
                     if not old_header:body+=HomepagePublicAssetsTests.HEADER.encode()
                     if subtitle:body+=b'<p>Selected by supplier-reported orders.</p>'
+                elif url=='https://petish.biz/cart/':
+                    body=b'<body class="woocommerce-cart">Cart</body>'
+                    if not old_cart_header:body+=HomepagePublicAssetsTests.HEADER.encode()
                 else:
                     name=next(name for name in expected if name in url);body=expected[name]
                     if changed==name:body=HomepagePublicAssetsTests.png(color=(124,45,67,128)) if name.endswith('.png') else body+b' unexpected bytes'
@@ -319,8 +326,10 @@ class HomepagePublicAssetsTests(unittest.TestCase):
 
     def test_wrong_bytes_redirects_or_old_subtitle_refuse(self):
         for arguments in ({'changed':'assets/js/theme.js'},{'changed':'assets/css/petish.css'},
+                          {'changed':'assets/js/market-selector.js'},{'changed':'assets/css/market-selector.css'},
+                          {'changed':'assets/images/ui/country-flags.svg'},{'changed':'assets/images/ui/country-flags.LICENSE.txt'},
                           {'changed':'assets/js/for-your-pet.js'},{'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},
-                          {'subtitle':True},{'redirect':True},{'old_header':True}):
+                          {'subtitle':True},{'redirect':True},{'old_header':True},{'old_cart_header':True}):
             opener,expected=self.fixture(**arguments);self.assertEqual(assets.verify(opener,expected)['status'],'failure')
 
     def test_public_switch_markup_requires_header_order_and_accessible_control(self):
@@ -330,6 +339,16 @@ class HomepagePublicAssetsTests(unittest.TestCase):
                              ('header-bar','footer'),('role="switch"','role="button"'),
                              ('aria-label="Dark mode"','aria-label=""'),('type="button"','type="submit"')]:
             self.assertFalse(assets.theme_switch_markup(self.HEADER.replace(before,after)))
+
+    def test_country_flags_require_local_reviewed_symbol_and_decorative_svg(self):
+        known={'flag-au','flag-globe'}
+        self.assertTrue(assets.country_flag_markup(self.HEADER,known))
+        self.assertTrue(assets.country_flag_markup(self.HEADER.replace('#flag-au','#flag-globe'),known))
+        for before,after in [('https://petish.biz/','https://foreign.invalid/'),('country-flags.svg','other.svg'),
+                             ('#flag-au','#flag-zz'),('?ver=123','?ver=123&private=sentinel'),
+                             ('aria-hidden="true"','aria-hidden="false"'),('width="22"','width="0"'),
+                             ('header-bar','footer'),(self.FLAG,'<span class="petish-market__flag">AU</span>')]:
+            self.assertFalse(assets.country_flag_markup(self.HEADER.replace(before,after),known))
 
     def test_png_recompression_preserves_exact_pixels_but_pixel_changes_refuse(self):
         original=self.png(level=0);compressed=self.png(level=9)

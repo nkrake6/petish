@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Read only the public homepage and five fixed reviewed theme assets."""
+"""Read only the public homepage, empty Cart and fixed reviewed theme assets."""
 import hashlib
 from html.parser import HTMLParser
 import io
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import ssl
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPSHandler, Request, build_opener
+from urllib.parse import parse_qs, urlsplit
 import zlib
 from PIL import Image
 
@@ -20,49 +22,64 @@ http=importlib.util.module_from_spec(spec);spec.loader.exec_module(http)
 http.MAX_BYTES=8388608
 ASSETS={'theme_script_http_verified':'assets/js/theme.js',
     'theme_stylesheet_http_verified':'assets/css/petish.css',
+    'market_script_http_verified':'assets/js/market-selector.js',
+    'market_stylesheet_http_verified':'assets/css/market-selector.css',
+    'country_flag_sprite_http_verified':'assets/images/ui/country-flags.svg',
+    'country_flag_license_http_verified':'assets/images/ui/country-flags.LICENSE.txt',
     'home_stylesheet_http_verified':'assets/css/home.css',
     'for_your_pet_script_http_verified':'assets/js/for-your-pet.js',
     'free_delivery_badge_http_verified':'assets/images/ui/free-delivery-van.png'}
-CHECKS={'homepage_http_verified','hot_subtitle_absent','theme_switch_public_markup_verified',*ASSETS}
+CHECKS={'homepage_http_verified','hot_subtitle_absent','theme_switch_public_markup_verified',
+    'homepage_country_flags_verified','cart_http_verified','cart_country_flags_verified',*ASSETS}
+
+
+class HeaderParser(HTMLParser):
+    """Bounded element-only tree; do not retain page text or execute scripts."""
+    void={'area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'}
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.root={'tag':'root','attrs':{},'children':[],'parent':None}
+        self.stack=[self.root];self.switches=[];self.markets=[];self.count=0
+    def handle_starttag(self,tag,attrs):
+        self.count+=1
+        if self.count>50000:raise ValueError()
+        attrs={key:value for key,value in attrs if key in {'class','id','type','role','aria-label','aria-checked','aria-hidden',
+            'focusable','width','height','viewbox','href','data-petish-theme-switch','data-petish-theme-toggle','data-petish-market'}}
+        node={'tag':tag,'attrs':attrs,'children':[],'parent':self.stack[-1]}
+        self.stack[-1]['children'].append(node)
+        if 'data-petish-theme-switch' in attrs:self.switches.append(node)
+        if 'data-petish-market' in attrs:self.markets.append(node)
+        if len(self.switches)>20 or len(self.markets)>20 or len(self.stack)>256:raise ValueError()
+        if tag not in self.void:self.stack.append(node)
+    def handle_endtag(self,tag):
+        for index in range(len(self.stack)-1,0,-1):
+            if self.stack[index]['tag']==tag:
+                del self.stack[index:];break
+    def handle_startendtag(self,tag,attrs):
+        self.handle_starttag(tag,attrs)
+        if tag not in self.void:self.handle_endtag(tag)
+
+
+def classes(node):return set((node['attrs'].get('class') or '').split())
+
+
+def in_header(node):
+    while node is not None:
+        if classes(node)&{'header-bar','mobile-header-bar'} or node['attrs'].get('id')=='phantom':return True
+        node=node['parent']
+    return False
 
 
 def theme_switch_markup(body):
     """Check only public static header structure; never execute page scripts."""
-    class HeaderParser(HTMLParser):
-        void={'area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'}
-        def __init__(self):
-            super().__init__(convert_charrefs=True)
-            self.root={'tag':'root','attrs':{},'children':[],'parent':None}
-            self.stack=[self.root];self.switches=[];self.count=0
-        def handle_starttag(self,tag,attrs):
-            self.count+=1
-            if self.count>50000:raise ValueError()
-            attrs={key:value for key,value in attrs if key in {'class','id','type','role','aria-label','aria-checked','data-petish-theme-switch','data-petish-theme-toggle','data-petish-market'}}
-            node={'tag':tag,'attrs':attrs,'children':[],'parent':self.stack[-1]}
-            self.stack[-1]['children'].append(node)
-            if 'data-petish-theme-switch' in attrs:self.switches.append(node)
-            if len(self.switches)>20 or len(self.stack)>256:raise ValueError()
-            if tag not in self.void:self.stack.append(node)
-        def handle_endtag(self,tag):
-            for index in range(len(self.stack)-1,0,-1):
-                if self.stack[index]['tag']==tag:
-                    del self.stack[index:];break
-        def handle_startendtag(self,tag,attrs):
-            self.handle_starttag(tag,attrs)
-            if tag not in self.void:self.handle_endtag(tag)
     try:
         parser=HeaderParser();parser.feed(body);parser.close()
         if not parser.switches:return False
-        classes=lambda node:set((node['attrs'].get('class') or '').split())
         for wrapper in parser.switches:
             siblings=wrapper['parent']['children'];position=next(i for i,item in enumerate(siblings) if item is wrapper)
             if position==0 or position+1>=len(siblings) or 'mini-search' not in classes(siblings[position-1]) \
                     or 'data-petish-market' not in siblings[position+1]['attrs']:return False
-            ancestor=wrapper['parent'];header=False
-            while ancestor is not None:
-                header=header or bool(classes(ancestor)&{'header-bar','mobile-header-bar'}) or ancestor['attrs'].get('id')=='phantom'
-                ancestor=ancestor['parent']
-            if not header:return False
+            if not in_header(wrapper):return False
             buttons=[node for node in wrapper['children'] if node['tag']=='button' and 'data-petish-theme-toggle' in node['attrs']]
             if len(buttons)!=1:return False
             attrs=buttons[0]['attrs']
@@ -70,6 +87,34 @@ def theme_switch_markup(body):
                     or not (attrs.get('aria-label') or '').strip():return False
         return True
     except (ValueError,TypeError,KeyError,StopIteration,AssertionError):return False
+
+
+def country_flag_markup(body,known_symbols):
+    """Verify every rendered market uses the reviewed local sprite, not emoji."""
+    try:
+        parser=HeaderParser();parser.feed(body);parser.close()
+        if not parser.markets or not {'flag-au','flag-globe'}<=known_symbols:return False
+        for market in parser.markets:
+            if not in_header(market):return False
+            queue=list(market['children']);flags=[]
+            while queue:
+                node=queue.pop();queue.extend(node['children'])
+                if 'petish-market__flag' in classes(node):flags.append(node)
+            if len(flags)!=1 or flags[0]['tag']!='svg':return False
+            attrs=flags[0]['attrs']
+            if attrs.get('aria-hidden')!='true' or attrs.get('focusable')!='false' \
+                    or attrs.get('viewbox')!='0 0 512 512' or attrs.get('width') not in {'20','22'} \
+                    or attrs.get('height')!=attrs.get('width'):return False
+            children=flags[0]['children']
+            if len(children)!=1 or children[0]['tag']!='use':return False
+            target=urlsplit(children[0]['attrs'].get('href') or '')
+            query=parse_qs(target.query,keep_blank_values=True)
+            if target.scheme!='https' or target.netloc!='petish.biz' \
+                    or target.path!='/wp-content/themes/dt-the7-child/assets/images/ui/country-flags.svg' \
+                    or target.fragment not in known_symbols or set(query)!={'ver'} or len(query['ver'])!=1 \
+                    or not re.fullmatch(r'[0-9]{1,20}',query['ver'][0]):return False
+        return True
+    except (ValueError,TypeError,KeyError,AssertionError):return False
 
 
 def png_matches(expected,fetched):
@@ -87,6 +132,8 @@ def png_matches(expected,fetched):
 def verify(opener,expected):
     report={'status':'failure','category':'input','checks':dict.fromkeys(sorted(CHECKS),False)}
     failures=[]
+    known_symbols=set(re.findall(r'<symbol\s+[^>]*\bid="(flag-(?:[a-z]{2}|globe))"',
+        expected['assets/images/ui/country-flags.svg'].decode('utf-8')))
     for check,name in ASSETS.items():
         body=expected[name];digest=hashlib.sha256(body).hexdigest()
         url='https://petish.biz/wp-content/themes/dt-the7-child/'+name+'?ver='+digest
@@ -110,6 +157,19 @@ def verify(opener,expected):
         report['checks']['homepage_http_verified']='petish-home-title' in body
         report['checks']['hot_subtitle_absent']='Selected by supplier-reported orders.' not in body
         report['checks']['theme_switch_public_markup_verified']=theme_switch_markup(body)
+        report['checks']['homepage_country_flags_verified']=country_flag_markup(body,known_symbols)
+    except (HTTPError,URLError,TimeoutError,OSError):failures.append('http')
+    except (ValueError,UnicodeError,zlib.error):failures.append('assets')
+    # A fresh anonymous GET checks Cart's rendered header. No cookie jar is
+    # installed and no add-to-cart, checkout or market AJAX request is sent.
+    try:
+        url='https://petish.biz/cart/'
+        request=Request(url,method='GET',headers={'Accept-Encoding':'identity','User-Agent':'Petish-homepage-verifier/1.0'})
+        with opener.open(request,timeout=15) as response:
+            if response.status!=200 or response.geturl()!=url:raise ValueError()
+            body=http.decoded_body(response).decode('utf-8')
+        report['checks']['cart_http_verified']='woocommerce' in body.lower() and 'cart' in body.lower()
+        report['checks']['cart_country_flags_verified']=country_flag_markup(body,known_symbols)
     except (HTTPError,URLError,TimeoutError,OSError):failures.append('http')
     except (ValueError,UnicodeError,zlib.error):failures.append('assets')
     if all(report['checks'].values()):report.update(status='success',category='complete')

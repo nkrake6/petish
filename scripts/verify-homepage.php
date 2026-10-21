@@ -123,6 +123,20 @@ function petish_homepage_verify_html($html,$pool,$free) {
             &&$xpath->query('.//*[local-name()="svg" and @aria-hidden="true"]',$wrapper)->length===2;
     }
     petish_homepage_verify_mark('theme_switch_markup_verified',(bool)$switch_markup);
+    $markets=$xpath->query('//*[@data-petish-market]');$flag_markup=$markets->length>=1&&$markets->length<=8;
+    $base=wc_get_base_location();$symbol=Petish_Market_Selector::flag($base['country']??'');
+    $sprite=get_stylesheet_directory_uri().'/assets/images/ui/country-flags.svg?ver='
+        .filemtime(get_stylesheet_directory().'/assets/images/ui/country-flags.svg').'#'.$symbol;
+    foreach($markets as$market){
+        $flags=$xpath->query('.//*[local-name()="svg" and contains(concat(" ",normalize-space(@class)," ")," petish-market__flag ")]',$market);
+        $flag_markup=$flag_markup&&$flags->length===1&&preg_match('/[\x{1F1E6}-\x{1F1FF}]/u',$market->textContent)===0;
+        if($flags->length!==1)continue;
+        $flag=$flags->item(0);$uses=$xpath->query('./*[local-name()="use"]',$flag);
+        $flag_markup=$flag_markup&&$flag->getAttribute('aria-hidden')==='true'&&$flag->getAttribute('focusable')==='false'
+            &&$flag->getAttribute('viewbox')==='0 0 512 512'&&trim($flag->textContent)===''
+            &&$uses->length===1&&$uses->item(0)->getAttribute('href')===$sprite;
+    }
+    petish_homepage_verify_mark('market_flag_markup_verified',(bool)$flag_markup);
     petish_homepage_verify_mark('full_homepage_rendered',$xpath->query('//*[@id="petish-home-title"]')->length===1
         &&$xpath->query('//*[@id="petish-collection"]')->length===1);
     $personal=$xpath->query('//*[@id="petish-for-your-pet"]');

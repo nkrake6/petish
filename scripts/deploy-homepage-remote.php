@@ -15,6 +15,11 @@ const PETISH_HOMEPAGE_FILES = [
     'includes/header-navigation.php'=>'a05b9a05401639266742f381d2acf102999df155973dd3d4bbb810df62caf1c3',
     'assets/js/theme.js'=>'677d7718c3e3d7385990ba59fcb21431589a08695bd34076bbc5e6bf1b2e3852',
     'assets/css/petish.css'=>'e1cedca3280a48b90c736f43380112123a55803d9e7b6ab697eb3a0c4a26100e',
+    'includes/market-selector.php'=>'d7675c569e4659b27c58aa686c4f372906224f8c9f0435843673dce47cf84147',
+    'assets/js/market-selector.js'=>'dd59c4d4c17aa415e4c504a71fc31eb94d4349a8e69b0a838bd13d7b58a871ca',
+    'assets/css/market-selector.css'=>'0ff5c3d46eb4e400a613f721a1e1e1349d4f30b13edd46875eab75c7287fcee0',
+    'assets/images/ui/country-flags.svg'=>'ce61ad3847cdb156c2b5c6775921e1a8dbc2a40c94a2c7cd8b3ff93da939bf87',
+    'assets/images/ui/country-flags.LICENSE.txt'=>'ca3b5f1132bd18fa0b6833d55fad881de51f25a0aac8cc8df89b56d93604c974',
 ];
 const PETISH_HOMEPAGE_BASELINES = [
     'assets/images/ui/free-delivery-van.png'=>'4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af',
@@ -27,6 +32,9 @@ const PETISH_HOMEPAGE_BASELINES = [
     'includes/header-navigation.php'=>'a25e2f4cbab70beb05d8a495dca151e3a6e6b2b73fa3659b88e726673bc00bba',
     'assets/js/theme.js'=>'c2a6aa6a1861d5d953a231206946ae6fb1873e7a65ab30d72f7674e36d00e31e',
     'assets/css/petish.css'=>'6091293d48b3e11d93764abb702e6f4c766abd7d569f674e62dc8a3a85e566ae',
+    'includes/market-selector.php'=>'5f442d161f3d9d7ade7f5bedee4e52c337896b777f073017fa67f5e86684c294',
+    'assets/js/market-selector.js'=>'5a88571111e6ce13d9bc0060f7750c4114dc62b5fbdaffde9ab1f5864788c1e9',
+    'assets/css/market-selector.css'=>'1e249766d92352f414922d6a6c99227edef4b35cf7a76797cf563937425fea0a',
 ];
 
 function homepage_release_fail() { throw new RuntimeException(); }

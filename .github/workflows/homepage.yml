@@ -34,6 +34,11 @@ on:
       - wordpress/wp-content/themes/dt-the7-child/includes/header-navigation.php
       - wordpress/wp-content/themes/dt-the7-child/assets/js/theme.js
       - wordpress/wp-content/themes/dt-the7-child/assets/css/petish.css
+      - wordpress/wp-content/themes/dt-the7-child/includes/market-selector.php
+      - wordpress/wp-content/themes/dt-the7-child/assets/js/market-selector.js
+      - wordpress/wp-content/themes/dt-the7-child/assets/css/market-selector.css
+      - wordpress/wp-content/themes/dt-the7-child/assets/images/ui/country-flags.svg
+      - wordpress/wp-content/themes/dt-the7-child/assets/images/ui/country-flags.LICENSE.txt
 
 permissions:
   contents: write
@@ -79,7 +84,7 @@ jobs:
             export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/petish-homepage-browsers"
             printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
             npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
-            node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium
+            node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium webkit
           fi
           if [[ "$HOMEPAGE_MODE" == apply ]]; then
             preparation_stage=health_dependencies
