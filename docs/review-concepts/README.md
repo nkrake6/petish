@@ -16,8 +16,8 @@ preview dialog. Shipping thresholds and caps remain undecided.
 The member tiers follow the [programme proposal](../CUSTOMER-REVIEWS-PROPOSAL.md):
 50 Pet Scout (cyan), 100 Regular Reviewer (green, 5%), 250 Community Champion
 (pink, 10%), 500 Petish Legend (gold, 15% and capped standard delivery).
-The owner selected green in place of lavender for the review accents and
-Regular Reviewer ring. Cyan, pink and gold tiers retain their colours.
+The 100-review Regular Reviewer badge and profile ring use green in place of
+lavender. The general lavender styling and all other tier colours are retained.
 
 The pet photographs and approved logo reuse the existing concept assets
 unchanged. They are licensed illustrative photographs, not private customer pet

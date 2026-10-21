@@ -8,7 +8,7 @@
       status = document.createElement('div');
       status.dataset.previewStatus = '';
       status.setAttribute('role', 'status');
-      status.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:100;width:max-content;max-width:calc(100% - 32px);padding:12px 18px;border:1px solid #a8dfb8;border-radius:12px;background:#19263d;color:#fff;font:14px/1.5 sans-serif;box-shadow:0 8px 40px #0003';
+      status.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:100;width:max-content;max-width:calc(100% - 32px);padding:12px 18px;border:1px solid #c6b0ef;border-radius:12px;background:#19263d;color:#fff;font:14px/1.5 sans-serif;box-shadow:0 8px 40px #0003';
       document.body.append(status);
     }
     status.textContent = message;
@@ -42,8 +42,8 @@
         dialog = document.createElement('dialog');
         dialog.id = 'video-dialog';
         dialog.setAttribute('aria-label', 'Sample video review');
-        dialog.style.cssText = 'width:min(520px,calc(100% - 32px));padding:28px;border:1px solid #a8dfb8;border-radius:22px;background:#14213b;color:white;font:16px/1.6 sans-serif';
-        dialog.innerHTML = '<p style="color:#bcd5ff;font-size:12px;letter-spacing:.12em">VIDEO REVIEW PREVIEW</p><h2 style="font-size:26px;line-height:1.2">A little moment, in motion.</h2><p>This shows where a customer’s short product-review video would play. The mockup uses a sample photo; no video has been uploaded.</p><button data-close-video type="button" style="padding:12px 20px;background:#a8dfb8;color:#182c23;border:0;border-radius:10px;font-weight:700">Back to the design</button>';
+        dialog.style.cssText = 'width:min(520px,calc(100% - 32px));padding:28px;border:1px solid #c8b6e8;border-radius:22px;background:#14213b;color:white;font:16px/1.6 sans-serif';
+        dialog.innerHTML = '<p style="color:#bcd5ff;font-size:12px;letter-spacing:.12em">VIDEO REVIEW PREVIEW</p><h2 style="font-size:26px;line-height:1.2">A little moment, in motion.</h2><p>This shows where a customer’s short product-review video would play. The mockup uses a sample photo; no video has been uploaded.</p><button data-close-video type="button" style="padding:12px 20px;background:#e1d1ff;color:#26143e;border:0;border-radius:10px;font-weight:700">Back to the design</button>';
         document.body.append(dialog);
       }
       dialog.showModal();
