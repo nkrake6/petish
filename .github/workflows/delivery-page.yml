@@ -3,16 +3,19 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Inspect the existing public delivery page
+        description: Inspect, rehearse a rolled-back update, or apply an exactly rehearsed revision
         required: true
         default: inspect
         type: choice
-        options: [inspect]
+        options: [inspect, rehearse, apply]
   push:
-    branches: [inspect-delivery-page]
+    branches: [inspect-delivery-page, rehearse-delivery-page, deploy-delivery-page]
     paths:
       - .github/workflows/delivery-page.yml
       - scripts/*delivery-page*
+      - scripts/litespeed-html-purge*
+      - scripts/consume-litespeed-html-purge.py
+      - scripts/sanitize-litespeed-html-purge.py
       - operations/delivery-page*
 permissions:
   contents: write
@@ -27,7 +30,7 @@ jobs:
       SSH_HOST: 82.29.81.104
       SSH_PORT: '65002'
       SSH_USER: u839205597
-      DELIVERY_PAGE_MODE: inspect
+      DELIVERY_PAGE_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref_name == 'deploy-delivery-page' && 'apply' || (github.ref_name == 'rehearse-delivery-page' && 'rehearse' || 'inspect')) }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -46,7 +49,7 @@ jobs:
             sudo apt-get -o Acquire::Retries=3 update -qq
             sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
           fi
-      - name: Inspect fixed delivery page without site changes
+      - name: Run the fixed delivery-page operation
         if: always()
         env:
           SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}

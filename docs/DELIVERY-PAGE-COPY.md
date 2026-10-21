@@ -15,11 +15,10 @@ supplier partners, including suppliers overseas.
 
 ### How long will my order take?
 
-Delivery times vary by product, supplier, destination and shipping service. We
-use supplier-specific estimates rather than one delivery window for every item.
-Where an estimate is available, check whether it includes preparation time or
-starts after dispatch. If you need an estimate before ordering, contact us with
-the product and your delivery postcode.
+Delivery times vary by product, supplier, destination and shipping service.
+Check the estimate for your chosen item when one is available. Check whether it
+includes preparation time or starts after dispatch. If you need an estimate
+before ordering, contact us with the product and your delivery postcode.
 
 Orders need time to be prepared before they are handed to a carrier. Estimated
 arrival dates are a guide, not a guaranteed delivery date. Busy periods, public

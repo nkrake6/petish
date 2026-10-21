@@ -1,11 +1,18 @@
 <?php
-/** Inspect only the existing public shipping page; private configuration stays remote. */
+/** Fixed public shipping page; private configuration and before-images stay remote. */
 if (PHP_SAPI !== 'cli') exit(1);
 define('PETISH_CLUB_VERIFY_LIBRARY', true);
 require __DIR__.'/verify-pet-club.php';
 petish_club_verify_report_start();
 try {
-    if (count($argv)!==3 || $argv[1]!=='inspect' || !petish_club_verify_run($argv[2])) petish_club_verify_fail();
+    if (count($argv)!==3 || !in_array($argv[1],['inspect','rehearse','apply','rollback'],true) || !petish_club_verify_run($argv[2])) petish_club_verify_fail();
+    if ($argv[1]!=='inspect') {
+        require __DIR__.'/delivery-page-update.php';
+        if ($argv[1]==='rollback') petish_delivery_rollback($argv[2]);
+        else petish_delivery_change($argv[1],$argv[2]);
+        $report['status']='success';$report['category']='complete';
+        exit(0);
+    }
     $root=petish_club_verify_bootstrap('production',true);
     $blocked=$GLOBALS['petish_club_blocked_write_count']??0;
     $report['category']='page';
