@@ -12,7 +12,7 @@ export const CHECK_KEYS=Object.freeze([
  'dashboard_uncacheable','hosted_upload_limits_sufficient','public_product_section','reviews_below_details','public_review_visible','pending_review_hidden',
  'rating_filter','self_vote_controls_absent','helpful_remove','helpful_add','vote_switch','vote_withdraw',
  'vote_form_available','vote_form_fields_valid','vote_post_authorized','vote_response_accepted','vote_redirect_scoped',
- 'dashboard_received_reactions','invalid_nonce_post_authorized','invalid_nonce_response_accepted','invalid_nonce_denied','real_photo_video_upload','uploaded_review_pending',
+ 'dashboard_received_reactions','composer_ready','rating_selected','draft_filled','invalid_nonce_post_authorized','invalid_nonce_response_accepted','invalid_nonce_denied','real_photo_video_upload','uploaded_review_pending',
  'submission_response_accepted','pending_count_updated','pending_photo_owner_access','pending_video_owner_access','pending_avatar_owner_access',
  'pending_media_foreign_denied','pending_media_guest_denied','pending_media_uncacheable','request_scope_enforced',
 ]);
@@ -101,7 +101,14 @@ async function vote(actor,id,choice){
  await actor.page.goto(actor.input.product_url,{waitUntil:'domcontentloaded'});return actor.page.locator('#pcr-review-'+id);
 }
 function counts(card){return card.locator('.pcr-votes button strong').evaluateAll(nodes=>nodes.map(n=>Number(n.textContent.replace(/[^0-9]/g,''))));}
-async function fillDraft(form,draft){await form.locator('label').filter({has:form.locator('[name="rating"][value="4"]')}).click();for(const name of ['alias','title','body'])await form.locator('[name="'+name+'"]').fill(draft[name]);await form.locator('[name="consent"]').check();}
+async function fillDraft(form,draft){
+ check('composer_ready',await form.count()===1&&await form.isVisible());
+ await form.locator('label:has(input[name="rating"][value="4"])').click();
+ check('rating_selected',await form.locator('[name="rating"][value="4"]').isChecked());
+ for(const name of ['alias','title','body'])await form.locator('[name="'+name+'"]').fill(draft[name]);
+ await form.locator('[name="consent"]').check();
+ check('draft_filled',await form.locator('[name="alias"]').inputValue()===draft.alias&&await form.locator('[name="title"]').inputValue()===draft.title&&await form.locator('[name="body"]').inputValue()===draft.body&&await form.locator('[name="consent"]').isChecked());
+}
 async function mediaGet(actor,url){const u=safeURL(url);if(!ownedMedia(u,actor.input))throw Error('pending_photo_owner_access');actor.state.mediaGets++;return actor.context.request.get(u.href,{maxRedirects:0});}
 let browser;
 try{
