@@ -1,0 +1,57 @@
+{
+  "format": "petish-media-capabilities-v1",
+  "status": "success",
+  "category": "complete",
+  "run_id": "39525312101-1",
+  "source_commit": "6d1c7b0fba90ff8cfc1aaeb3a1f197e59a2303f0",
+  "generated_utc": "2026-10-21T01:06:07.716489+00:00",
+  "read_only": true,
+  "capabilities": {
+    "architecture": "x86_64",
+    "ffmpeg": {
+      "available": false,
+      "version": null
+    },
+    "ffprobe": {
+      "available": false,
+      "version": null
+    },
+    "crontab": {
+      "available": false,
+      "list_readable": false
+    },
+    "php": {
+      "runtime": "cli",
+      "version": "8.5.11",
+      "functions": {
+        "exec": false,
+        "shell_exec": false,
+        "proc_open": false,
+        "proc_close": true,
+        "popen": false,
+        "pclose": true,
+        "system": false,
+        "passthru": false,
+        "pcntl_exec": true,
+        "pcntl_fork": true,
+        "link": false,
+        "symlink": false,
+        "rename": true,
+        "move_uploaded_file": true,
+        "finfo_open": true
+      },
+      "extensions": {
+        "fileinfo": true,
+        "gd": true,
+        "imagick": true
+      },
+      "limits": {
+        "upload_max_filesize": "1536M",
+        "post_max_size": "1536M",
+        "memory_limit": "1536M",
+        "max_execution_time": "0",
+        "max_input_time": "-1"
+      }
+    }
+  }
+}
