@@ -86,7 +86,7 @@ function petish_club_fixture_main($argv) {
  try {
   if(count($argv)!==3||!in_array($argv[1],['prepare','cleanup','diagnose'],true)||!petish_club_verify_run($argv[2]))petish_club_verify_fail();
   $mode=$argv[1];$run=$argv[2];
-  if($mode==='prepare')petish_club_jetpack_guard_install($run);
+  if($mode==='prepare')petish_club_jetpack_guard_verify($run);
   $root=petish_club_verify_bootstrap('staging',$mode==='diagnose');
   if($mode==='prepare'&&(!defined('PETISH_PET_CLUB_JETPACK_GUARD_RUN')||PETISH_PET_CLUB_JETPACK_GUARD_RUN!==$run))petish_club_verify_fail();
   $input=__DIR__.'/pet-club-browser-input.json';

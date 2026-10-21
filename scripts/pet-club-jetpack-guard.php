@@ -63,7 +63,7 @@ function petish_club_jetpack_guard_write($path,$bytes) {
  finally{fclose($stream);}
  petish_club_jetpack_guard_path($path,false,0600);
 }
-function petish_club_jetpack_guard_install($run) {
+function petish_club_jetpack_guard_prepare($run) {
  global $report;
  $report['category']='guard_paths';
  [$root,$path,$receipt,$pending]=petish_club_jetpack_guard_paths($run);
@@ -71,9 +71,7 @@ function petish_club_jetpack_guard_install($run) {
  $token=bin2hex(random_bytes(24));$expires=time()+7200;
  $code=petish_club_jetpack_guard_code($root,$path,$receipt,$run,$token,$expires);
  $value=['format'=>'petish-club-jetpack-guard-v1','run_id'=>$run,'token'=>$token,'expires'=>$expires,'sha256'=>hash('sha256',$code)];
- // These finite checks distinguish host restrictions without disclosing paths/errors.
- $report['category']='guard_link_unavailable';
- if(!function_exists('link'))petish_club_jetpack_guard_fail();
+ // Publication through the pinned SSH shell still requires a single filesystem.
  $report['category']='guard_cross_device';
  $source=stat(dirname($pending));$destination=stat(dirname($path));
  if(!$source||!$destination||$source['dev']!==$destination['dev'])petish_club_jetpack_guard_fail();
@@ -82,19 +80,37 @@ function petish_club_jetpack_guard_install($run) {
  petish_club_jetpack_guard_write($receipt,json_encode($value,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
  $report['category']='guard_pending';
  petish_club_jetpack_guard_write($pending,$code);
- $report['category']='guard_publish';
- if(!link($pending,$path)||!unlink($pending))petish_club_jetpack_guard_fail();
- $report['category']='guard_verified';
- petish_club_jetpack_guard_path($path,false,0600);
- if(!hash_equals($value['sha256'],hash_file('sha256',$path)))petish_club_jetpack_guard_fail();
  return true;
 }
-function petish_club_jetpack_guard_remove($run) {
+/** Verify every byte and inode before adopting the shell-published owned guard. */
+function petish_club_jetpack_guard_verify($run) {
+ global $report;$report['category']='guard_verified';
  [$root,$path,$receipt,$pending]=petish_club_jetpack_guard_paths($run);
- if(!file_exists($receipt)&&!is_link($receipt)){
-  foreach([$path,$pending]as$file)if(file_exists($file)||is_link($file))petish_club_jetpack_guard_fail();
-  return true;
- }
+ $value=petish_club_jetpack_guard_receipt($root,$path,$receipt,$run);
+ if(time()>$value['expires']||time()<$value['expires']-7200)petish_club_jetpack_guard_fail();
+ clearstatcache(true,$path);$target=@lstat($path);
+ if(!$target||realpath($path)!==$path||is_link($path)||($target['mode']&0177777)!==0100600
+  ||!hash_equals($value['sha256'],hash_file('sha256',$path)))petish_club_jetpack_guard_fail();
+ if(file_exists($pending)||is_link($pending)){
+  clearstatcache(true,$pending);$source=@lstat($pending);
+  if(!$source||realpath($pending)!==$pending||is_link($pending)||($source['mode']&0177777)!==0100600
+   ||$source['nlink']!==2||$target['nlink']!==2||$source['ino']!==$target['ino']||$source['dev']!==$target['dev']
+   ||!hash_equals($value['sha256'],hash_file('sha256',$pending))||!unlink($pending))petish_club_jetpack_guard_fail();
+ }elseif($target['nlink']!==1)petish_club_jetpack_guard_fail();
+ petish_club_jetpack_guard_path($path,false,0600);
+ return true;
+}
+/** Local compatibility helper; hosted PHP does not expose link(). */
+function petish_club_jetpack_guard_install($run) {
+ global $report;$report['category']='guard_link_unavailable';
+ if(!function_exists('link'))petish_club_jetpack_guard_fail();
+ petish_club_jetpack_guard_prepare($run);
+ [, $path, ,$pending]=petish_club_jetpack_guard_paths($run);
+ $report['category']='guard_publish';
+ if(!link($pending,$path))petish_club_jetpack_guard_fail();
+ return petish_club_jetpack_guard_verify($run);
+}
+function petish_club_jetpack_guard_receipt($root,$path,$receipt,$run) {
  petish_club_jetpack_guard_path($receipt,false,0600);
  if(filesize($receipt)>4096)petish_club_jetpack_guard_fail();
  $value=json_decode(file_get_contents($receipt),true,16,JSON_THROW_ON_ERROR);
@@ -105,6 +121,16 @@ function petish_club_jetpack_guard_remove($run) {
   ||!is_string($value['sha256'])||!preg_match('/\A[a-f0-9]{64}\z/D',$value['sha256']))petish_club_jetpack_guard_fail();
  $expected=petish_club_jetpack_guard_code($root,$path,$receipt,$run,$value['token'],$value['expires']);
  if(!hash_equals($value['sha256'],hash('sha256',$expected)))petish_club_jetpack_guard_fail();
+ return $value;
+}
+
+function petish_club_jetpack_guard_remove($run) {
+ [$root,$path,$receipt,$pending]=petish_club_jetpack_guard_paths($run);
+ if(!file_exists($receipt)&&!is_link($receipt)){
+  foreach([$path,$pending]as$file)if(file_exists($file)||is_link($file))petish_club_jetpack_guard_fail();
+  return true;
+ }
+ $value=petish_club_jetpack_guard_receipt($root,$path,$receipt,$run);
  $present=[];
  foreach([$path,$pending]as$file){
   if(!file_exists($file)&&!is_link($file))continue;
@@ -122,4 +148,16 @@ function petish_club_jetpack_guard_remove($run) {
    ||!hash_equals($value['sha256'],hash_file('sha256',$file))||!unlink($file))petish_club_jetpack_guard_fail();
  }
  if(!unlink($receipt))petish_club_jetpack_guard_fail();return true;
+}
+
+// The wrapper captures this finite response before atomically publishing via SSH ln.
+if(isset($argv[0])&&realpath($argv[0])===__FILE__){
+ ini_set('display_errors','0');ini_set('log_errors','0');error_reporting(0);umask(0077);
+ $report=['status'=>'failure','category'=>'input','checks'=>(object)[]];
+ try{
+  if(count($argv)!==3||$argv[1]!=='prepare')petish_club_jetpack_guard_fail();
+  petish_club_jetpack_guard_prepare($argv[2]);$report['status']='success';$report['category']='complete';
+ }catch(Throwable $ignored){}
+ echo json_encode($report,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
+ exit($report['status']==='success'?0:1);
 }

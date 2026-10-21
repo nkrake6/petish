@@ -66,7 +66,15 @@ fixture_phase() {
     [[ $operation != diagnose ]] || phase=diagnose
     "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
       for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
-      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-pet-club-deploy-'"$target_run"'/pet-club-fixture.php" '"$operation $target_run" \
+      tools="$HOME/.petish-pet-club-deploy-'"$target_run"'";
+      if test '"$operation"' = prepare; then
+        if preparation=$(php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/pet-club-jetpack-guard.php" prepare '"$target_run"'); then :;
+        else printf "%s\n" "$preparation"; exit 1; fi; unset preparation;
+        if ! ln -T -- "$tools/pet-club-jetpack-guard.php.pending" "$HOME/domains/staging.petish.biz/public_html/wp-content/mu-plugins/zz-petish-pet-club-fixture.php"; then
+          printf "%s\n" '"'"'{"status":"failure","category":"guard_publish","checks":{}}'"'"'; exit 1;
+        fi;
+      fi;
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/pet-club-fixture.php" '"$operation $target_run" \
         > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
     screen_phase "$phase" || validation=$?
     [[ $status == 0 && $validation == 0 ]]

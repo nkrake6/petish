@@ -102,6 +102,70 @@ echo json_encode(['filters'=>$filters,'run'=>defined('PETISH_PET_CLUB_JETPACK_GU
         self.assertFalse(self.pending.exists())
         self.assertFalse(self.guard.exists())
 
+    def test_shell_publication_works_with_disabled_php_link_and_preserves_foreign_targets(self):
+        wrapper = (ROOT / 'scripts/hostinger-pet-club.sh').read_text()
+        function = wrapper[wrapper.index('fixture_phase() {'):wrapper.index('\nverify_staging_source() {')]
+        binaries = self.home / 'bin'
+        binaries.mkdir()
+        (binaries / 'php').write_text('#!/bin/sh\nexec ' + PHP + ' -d disable_functions=link "$@"\n')
+        (binaries / 'wp').write_text('#!/bin/sh\nprintf "fixture-production-db\\n"\n')
+        (binaries / 'ln').write_text("""#!/bin/sh
+case "$TEST_GUARD_SCENARIO" in
+  foreign_file) printf 'foreign-file-sentinel' > "$4";;
+  foreign_directory) mkdir "$4";;
+  foreign_symlink) ln_path="$4"; /usr/bin/ln -s "$HOME/foreign-source" "$ln_path";;
+  same_bytes_copy) cp "$3" "$4"; exit 0;;
+  failure) printf 'private-ln-error-sentinel' >&2; exit 1;;
+esac
+exec /usr/bin/ln "$@"
+""")
+        for path in binaries.iterdir():
+            path.chmod(0o700)
+        (self.tools / 'pet-club-fixture.php').write_text("""<?php
+require __DIR__.'/pet-club-jetpack-guard.php';
+$report=['status'=>'failure','category'=>'guard_verified','checks'=>(object)[]];
+try{petish_club_jetpack_guard_verify($argv[2]);$report['status']='success';$report['category']='complete';}
+catch(Throwable $ignored){}
+echo json_encode($report);exit($report['status']==='success'?0:1);
+""")
+        environment = self.environment.copy()
+        environment['PATH'] = str(binaries) + ':' + environment['PATH']
+        for scenario in ('success', 'failure', 'foreign_file', 'foreign_directory', 'foreign_symlink', 'same_bytes_copy'):
+            with self.subTest(scenario=scenario):
+                work = self.home / ('work-' + scenario)
+                work.mkdir()
+                environment['TEST_GUARD_SCENARIO'] = scenario
+                script = 'work=$1; target_run=$2; petish_ssh=(bash -c)\n'
+                script += 'screen_phase(){ return 0; }\n' + function + '\nfixture_phase prepare\n'
+                result = subprocess.run(['bash', '-c', script, 'test', str(work), RUN],
+                                        env=environment, capture_output=True)
+                self.assertEqual(result.stdout, b'')
+                self.assertEqual(result.stderr, b'')
+                response = json.loads((work / 'fixture.private.json').read_text())
+                self.assertNotIn('sentinel', json.dumps(response))
+                if scenario == 'success':
+                    self.assertEqual(result.returncode, 0)
+                    self.assertEqual(response, {'status': 'success', 'category': 'complete', 'checks': {}})
+                    self.assertFalse(self.pending.exists())
+                    self.assertEqual(self.guard.stat().st_nlink, 1)
+                    self.php('petish_club_jetpack_guard_remove($argv[2]);')
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(response, {'status': 'failure', 'category':
+                        'guard_verified' if scenario == 'same_bytes_copy' else 'guard_publish', 'checks': {}})
+                    self.assertTrue(self.pending.exists())
+                    self.assertTrue(self.receipt.exists())
+                    if scenario.startswith('foreign_'):
+                        self.php('petish_club_jetpack_guard_remove($argv[2]);', False)
+                        if scenario == 'foreign_file':
+                            self.assertEqual(self.guard.read_text(), 'foreign-file-sentinel')
+                        if self.guard.is_dir():
+                            self.assertEqual(list(self.guard.iterdir()), [])
+                            self.guard.rmdir()
+                        else:
+                            self.guard.unlink()
+                    self.php('petish_club_jetpack_guard_remove($argv[2]);')
+
     def test_existing_and_changed_files_are_preserved(self):
         self.guard.write_text('<?php // foreign file')
         self.guard.chmod(0o600)
