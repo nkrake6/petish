@@ -46,11 +46,11 @@ for the current cloud workflow. The Mac setup below is archived history.
 
 ## Latest delivered features
 
-- **Passport 0.3.2, live:** existing hearts also act as favourites, with a private
+- **Passport 0.4.1, live:** existing hearts also act as favourites, with a private
   **My favourites** directory view and species, breed/variety and pet-name
   filters. Searches use published snapshots, not unpublished pet edits.
 - **Video moments:** progressive MP4 with H.264 video and optional AAC audio,
-  up to **20 seconds and 20 MB** (20,971,520 bytes). The existing limit is
+  up to **20 seconds and 50 MB** (52,428,800 bytes), matching review uploads. The existing limit is
   **12 combined photos, videos and journal entries per pet**. Clips stay private
   until explicitly selected for sharing; videos may retain embedded device or
   location metadata.
@@ -89,9 +89,9 @@ for the current cloud workflow. The Mac setup below is archived history.
   only, or exploring a separate express integration; no answer yet.
   [Inspection](docs/AFTERPAY-AVAILABILITY.md) and
   [concrete checkout-button proposal](docs/AFTERPAY-CHECKOUT-CTA-PROPOSAL.md).
-- **Customer reviews, enabled on private staging:** any signed-in customer can contribute, with
-  verified-purchase labels; ongoing 5%/10%/15% rewards at 100/250/500 qualifying
-  reviews, plus capped standard delivery at 500. The owner confirmed one
+- **Customer reviews, live:** any signed-in customer can contribute, with
+  verified-purchase labels. Proposed ongoing 5%/10%/15% rewards at 100/250/500
+  qualifying reviews and capped standard delivery at 500 remain inactive. The owner confirmed one
   qualifying review per customer and parent product, including all variants.
   Delivery minimum/cap amounts and above-cap treatment remain undecided.
   [Programme proposal](docs/CUSTOMER-REVIEWS-PROPOSAL.md) and
@@ -102,16 +102,17 @@ for the current cloud workflow. The Mac setup below is archived history.
   the rating summary near the product title. Reviewer studio now previews
   separate published/pending review counts and Helpful/Not helpful totals
   received, visible on desktop and mobile. Reactions do not affect status.
-  The real opt-in Passport 0.4.0 module now implements moderated customer
+  The real opt-in Passport 0.4.1 module implements moderated customer
   reviews, private photos/video, reactions, reports and account totals. Its
-  dedicated workflow applies only to private staging. Source `cacc02b` passed
-  47 native, 43 hosted-browser and 8 fixture-cleanup checks in
-  [39578596321-1](https://github.com/nkrake6/petish/tree/automation-status/customer-reviews-39578596321-1).
-  Synthetic fixtures and the temporary test guard were removed; staging remains
-  enabled at [My reviews](https://staging.petish.biz/my-account/?my-reviews=1). See
-  [implementation scope and evidence](docs/CUSTOMER-REVIEWS.md). The module
-  defaults off elsewhere; live reviews and financial benefits are not enabled. Customer
-  corrections/revisions and final programme terms remain launch work.
+  staging source `f16690d` passed 47 native, 44 browser and 8 cleanup checks,
+  including a real 50 MiB upload. The approved production release
+  [39583820285-1](https://github.com/nkrake6/petish/tree/automation-status/customer-reviews-production-39583820285-1)
+  applied 15 files from `54e2983`, passed 34 native and 14 public checks and enabled
+  reviews. Maintenance/probe files were removed, and caches purged. Open
+  [My reviews](https://petish.biz/my-account/?my-reviews=1). See
+  [scope and evidence](docs/CUSTOMER-REVIEWS.md). The flag defaults off on other
+  installations. Staff handle corrections; self-service revisions and final
+  financial programme rules remain future work.
 
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
 passed on source `3012a27`; the production release above matches its exact 18

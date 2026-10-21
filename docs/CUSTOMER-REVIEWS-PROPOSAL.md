@@ -1,8 +1,8 @@
 # Petish customer reviews and member rewards — proposal
 
 Status: programme proposal, 21 October 2026. The first review implementation is
-verified and enabled on private staging; see [scope and evidence](CUSTOMER-REVIEWS.md).
-Live customer reviews, rewards and shipping benefits are not enabled. Names,
+verified and live; see [scope and evidence](CUSTOMER-REVIEWS.md).
+Financial rewards and shipping benefits are not enabled. Names,
 colours and defaults below are recommendations unless marked as confirmed.
 
 [Compare three interactive layout mockups](https://nkrake6.github.io/petish/review-concepts/):
@@ -37,7 +37,7 @@ content and preview-only interactions, separate from the staging application.
    or public pet-profile link is an explicit choice, not an automatic reuse.
 2. Submit a quality rating, useful first-hand feedback, and optional media.
    Suggested initial limits: four photos at 5 MB each, and one video at
-   20 seconds / 20 MB. Allow text-only reviews to earn the same credit.
+   20 seconds / 50 MB, matching the owner's global video-limit request. Allow text-only reviews to earn the same credit.
 3. Show the customer a private pending-review screen. Staff check authenticity,
    relevance, privacy and published content rules; a low rating is not a reason
    to reject a review. Keep rejection reasons and allow corrections.
@@ -164,8 +164,8 @@ support. Obtain permission to display the media; advertising or social-media
 reuse should require a separate choice. Support reporting and removal of
 accidentally shared personal information.
 
-Video storage and delivery need a budget: 500 videos at the proposed 20 MB ceiling
-are about 10 GB before thumbnails, derivatives and backups. Use playback controls,
+Video storage and delivery need a budget: 500 videos at the 50 MiB ceiling
+are about 24.4 GiB before thumbnails, derivatives and backups. Use playback controls,
 lazy loading and no autoplay. Consider dedicated media storage/processing once
 volume justifies it; no paid service is selected or authorised by this proposal.
 

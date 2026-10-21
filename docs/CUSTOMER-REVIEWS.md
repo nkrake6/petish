@@ -1,18 +1,26 @@
-# Customer reviews: staging implementation
+# Customer reviews
 
-Status: enabled on private staging, 21 October 2026. Hosted acceptance passed
-47 native checks, 43 browser checks and all 8 fixture-cleanup checks.
-The live store has not been enabled for this feature.
+Status: live on petish.biz, 21 October 2026, in Passport 0.4.1. Customer reviews
+and Passport videos accept up to 50 MiB (shown as 50 MB); the 20-second duration
+limit remains in place. Discount and shipping rewards remain inactive.
 
-[Open My reviews on private staging](https://staging.petish.biz/my-account/?my-reviews=1)
-and sign in with a staging account. Product pages include the review section
+[Open My reviews on the live store](https://petish.biz/my-account/?my-reviews=1)
+and sign in. Product pages include the review section
 below their description/details. Synthetic acceptance accounts, products,
 reviews and media have been removed; the feature itself remains enabled.
 
-Verified source: `cacc02b498b0d821d30bd66b792fa32e224c0d0e`.
-[Hosted acceptance and committed staging release, run 39578596321-1](https://github.com/nkrake6/petish/blob/automation-status/customer-reviews-39578596321-1/status.json)
-confirms the feature flag, exact installed source and unchanged protected
-configuration. The temporary test guard was removed. Production was unchanged.
+Verified staging source: `f16690d087cfe5c5808e65f28e48db1e21525a7c`.
+[Hosted staging acceptance, run 39583147075-1](https://github.com/nkrake6/petish/blob/automation-status/customer-reviews-39583147075-1/status.json)
+passed 47 native, 44 browser and 8 fixture-cleanup checks, including an actual
+50 MiB upload and private playback. The temporary test guard was removed.
+
+[Production release, run 39583820285-1](https://github.com/nkrake6/petish/blob/automation-status/customer-reviews-production-39583820285-1/status.json)
+committed source `54e29834579ed89ae7758e0b38c5973591dc3a49` after 34 native and
+14 public checks passed. All 15 application files match staging. The feature
+flag is enabled, product caches were purged, and temporary maintenance and
+capacity-probe files were removed. Production checks were read-only: no test
+accounts, reviews, uploads or orders were created there. Customer, commerce,
+settings, schema and private media were preserved.
 
 The agreed layout puts customer reviews below the product description/details,
 with the star summary near the title linking to that section. My Account gains
@@ -33,7 +41,7 @@ visible on mobile. Existing approved product reviews remain visible separately.
 - The comment editor includes a private attachment preview. **Comments → Review
   reports** lists member reports for staff; resolving a report does not approve
   or remove the review automatically.
-- Up to four photos of 5 MB each, one H.264 MP4 video of 20 seconds/20 MB, and an
+- Up to four photos of 5 MB each, one H.264 MP4 video of 20 seconds/50 MB, and an
   optional reviewer avatar. Photos are resized and re-encoded. Video originals
   retain embedded metadata; the form discloses this before publication consent.
 - Signed-in customers can give one reversible Helpful/Not helpful reaction to
@@ -88,10 +96,20 @@ submission. Pending media returned 200 only to its owner and 404 to another
 member and a guest, with no-store headers on authorized responses. Desktop and
 mobile layouts, review filters and placement below product details passed.
 
-The implementation and public design previews are separate. Production rollout
-needs a reviewed release with fresh backup/recovery evidence, completed staging
-acceptance, and finalized customer-facing review/benefit terms. The discount
-programme's unresolved commercial rules are recorded in
+The separate `customer-reviews-production.yml` workflow inspects on main and
+applies only through `deploy-customer-reviews` or explicit apply mode. Its fixed
+scope is the eleven review files plus four shared Passport video files. It
+requires matching staging bytes, complete acceptance and a recent recovered
+encrypted backup. This release used `full-site-backup/39581268288-1` and its
+successful application recovery `39581752689-1`. Files and the feature flag have
+private rollback journals; public verification failure restores them and purges
+affected caches. A secret-header probe checks web upload capacity and performs
+the bounded cache purge; ordinary requests are unaffected.
+
+The owner authorized this review MVP for production. Customer corrections are
+handled by staff; self-service revisions remain a future enhancement. Final
+financial programme rules are still required before enabling discounts or
+delivery benefits. The unresolved commercial rules are recorded in
 [CUSTOMER-REVIEWS-PROPOSAL.md](CUSTOMER-REVIEWS-PROPOSAL.md).
 
 ## Local verification

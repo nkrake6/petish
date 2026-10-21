@@ -55,7 +55,9 @@ asked to sign in to use favourites, react or report.
 ## Video moments
 
 Video moments accept progressive MP4 files with H.264 video and optional AAC
-audio, up to 20 seconds and 20,971,520 bytes (shown as 20 MB). Clips use private
+audio, up to 20 seconds and 52,428,800 bytes (shown as 50 MB). Passport 0.4.1
+raised the shared video limit alongside the
+[customer review release](CUSTOMER-REVIEWS.md). Clips use private
 storage outside the webroot, authenticated playback and bounded byte-range
 responses. This storage is inside the existing encrypted Passport backup root.
 
