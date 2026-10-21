@@ -10,8 +10,9 @@ function petish_club_private_option_payload($run,$before,$current) {
  if(!isset($before['settings_rows'],$before['settings'],$current['settings_rows'])
   ||!hash_equals($before['settings'],hash('sha256',json_encode($before['settings_rows'],JSON_THROW_ON_ERROR))))petish_club_verify_fail();
  $delta=petish_club_verify_option_delta($before['settings_rows'],$current['settings_rows']);
- if($delta['modified']||$delta['removed']||!$delta['added']||count($delta['added'])>32)petish_club_verify_fail();
- $names=[];foreach($delta['added']as$row){$name=$row['option_name'];
+ $changes=array_merge($delta['added'],$delta['modified']);
+ if($delta['removed']||!$changes||count($changes)>32)petish_club_verify_fail();
+ $names=[];foreach($changes as$row){$name=$row['option_name'];
   if(!is_string($name)||$name===''||strlen($name)>191||preg_match('/[\x00-\x1f\x7f]/',$name))petish_club_verify_fail();
   $names[]=$name;
  }

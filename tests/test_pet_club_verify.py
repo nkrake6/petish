@@ -142,16 +142,21 @@ $current['settings_rows'][]=['option_name'=>'opaque_runtime_key_123','value_stat
 $payload=petish_club_private_option_payload('123-1',$before,$current);
 $out=[array_keys($payload)===['format','run_id','option_names'],$payload['option_names']===['opaque_runtime_key_123'],
  !str_contains(json_encode($payload),'never disclose'),!str_contains(json_encode($payload),'value_state')];
-foreach(['account','modified','removed','too-many','wrong-run']as$mode){$changed=$current;$run='123-1';
+$changed=$current;$changed['settings_rows'][0]['value_state']=hash('sha256','modified private cache');
+$mixed=petish_club_private_option_payload('123-1',$before,$changed);
+$out[]=$mixed['option_names']===['existing_setting','opaque_runtime_key_123']
+ &&!str_contains(json_encode($mixed),'modified private cache')&&!str_contains(json_encode($mixed),'before_hash');
+$modified=$before;$modified['settings_rows'][0]['value_state']=hash('sha256','modified private cache');
+$out[]=petish_club_private_option_payload('123-1',$before,$modified)['option_names']===['existing_setting'];
+foreach(['account','removed','too-many','wrong-run']as$mode){$changed=$current;$run='123-1';
  if($mode==='account')$changed['accounts']='changed';
- if($mode==='modified')$changed['settings_rows'][0]['value_state']=hash('sha256','changed');
  if($mode==='removed')array_shift($changed['settings_rows']);
  if($mode==='too-many')for($i=0;$i<32;$i++)$changed['settings_rows'][]=['option_name'=>'extra_'.$i,'value_state'=>hash('sha256','private')];
  if($mode==='wrong-run')$run='invalid';
  try{petish_club_private_option_payload($run,$before,$changed);$out[]=false;}catch(Throwable$e){$out[]=true;}}
 echo json_encode($out);
 """)
-        self.assertEqual(result, [True] * 9)
+        self.assertEqual(result, [True] * 10)
 
     def test_diagnosis_blocks_bootstrap_writes_and_preserves_journal(self):
         source = VERIFY.read_text()
