@@ -1,0 +1,52 @@
+{
+  "status": "in_progress",
+  "category": "inspect",
+  "mode": "inspect",
+  "run_id": "39526422400-1",
+  "source_commit": "a58472a724b3f26b2eb53ef65cbd0092f5659d02",
+  "generated_utc": "2026-10-21T01:17:24.485031+00:00",
+  "source_hashes": {
+    "assets/catalogue.css": "de7fe4e27cec268236905ead836b542476940b93d29e496c462d22e0cac9f03a",
+    "assets/passport.js": "764d78a7896cfa4291f09990a864c86a7b2569367a5bb39bc1660a5ab6222fe4",
+    "assets/pet-club.css": "736b25ddd199bb12d4d01a320c9fa06969ed2084f449f56d3e090153102619f8",
+    "includes/class-petish-passport-community.php": "5d5aaab5d19c7c55d6fdbeb0f39bcd8ad4c4bcf0b79e90a07177bbdb9b0dde61",
+    "includes/class-petish-passport-media.php": "f45b48ad7239ed484c24438394f96cefac533de600daa7ccbe98f8404e3b4176",
+    "includes/class-petish-passport-moments.php": "5c24f7f0d6c71df2c422f02eb6401fdca1365f2fbf99ac43f2e4124f2944881c",
+    "includes/class-petish-passport-store.php": "4a06a143e438e390456f6e279602a1341bf5615aa78aad7f1f049d500ed05fe9",
+    "includes/class-petish-passport-ui.php": "ce9d547ea004b8d96c98f850b99a0e03d68ea108d74bc7cd38988032b0f00138",
+    "petish-passport.php": "432f3cbb73f19142178fbfc63fbbf95b2b0ccc16f0fd43b89e3c65ad0ea5d496",
+    "templates/community.php": "891ec1209ca12aba4fe7565c4bae06379caf8b2cb5c854cb16377fb952a5c286",
+    "templates/dashboard.php": "f3a47ee7cc7d5772b60ae891b42c3e6cfb0677be8cd5c6b10ee6c828f6f4611b",
+    "templates/delete.php": "6067c76a295ff52d9f65d8f51a639a38af77d9ee532e91527c4fb1ad32eca1de",
+    "templates/form.php": "b8e11840b306bfc90c40df62bbf807f37e095f5d537166bd4279038ab68f66ed",
+    "templates/moment-form.php": "31028698f8698d4362434938ca8282a2aacfe5f7023047cd1fdcf9fcaece6d31",
+    "templates/public.php": "825b138f5e40a9b7b2d4040d7ff8e6a60598b17be0f743988449e9c0ad5ff84c"
+  },
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "private_option_names_encrypted": false,
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false,
+        "maintenance_guard_created": false,
+        "maintenance_guard_removed": false
+      },
+      "changed_file_count": 11
+    }
+  },
+  "preparation_stage": "complete"
+}
