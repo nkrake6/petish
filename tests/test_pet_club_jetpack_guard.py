@@ -90,6 +90,18 @@ echo json_encode(['filters'=>$filters,'run'=>defined('PETISH_PET_CLUB_JETPACK_GU
         self.assertTrue(self.guard.exists())
         self.assertTrue(self.receipt.exists())
 
+    def test_disabled_link_reports_finite_category_without_writing(self):
+        result = subprocess.run([PHP, '-d', 'disable_functions=link', '-d', 'display_errors=0', '-r',
+            'require $argv[1];$report=[];try{petish_club_jetpack_guard_install($argv[2]);}'
+            'catch(Throwable $error){echo json_encode($report);exit(1);}',
+            str(self.helper), RUN], env=self.environment, capture_output=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout), {'category': 'guard_link_unavailable'})
+        self.assertEqual(result.stderr, b'')
+        self.assertFalse(self.receipt.exists())
+        self.assertFalse(self.pending.exists())
+        self.assertFalse(self.guard.exists())
+
     def test_existing_and_changed_files_are_preserved(self):
         self.guard.write_text('<?php // foreign file')
         self.guard.chmod(0o600)

@@ -141,7 +141,8 @@ REQUIRED = {
 REQUIRED['apply'] = REQUIRED['apply'] | {'maintenance_guard_created', 'maintenance_guard_removed'}
 REQUIRED['rollback'] = REQUIRED['rollback'] | {'maintenance_guard_removed'}
 REQUIRED['commit'] = REQUIRED['commit'] | {'maintenance_guard_removed'}
-CATEGORIES = navigation.CATEGORIES | {'snapshot','verification','renderer','catalogue','fixture',
+CATEGORIES = {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'guard_receipt',
+    'guard_pending', 'guard_publish', 'guard_verified'} | navigation.CATEGORIES | {'snapshot','verification','renderer','catalogue','fixture',
     'maintenance','native','cleanup','diagnose','isolation','bootstrap','registration','routes','privacy',
     'contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'}
 

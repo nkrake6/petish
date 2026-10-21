@@ -53,6 +53,19 @@ class PetClubReleaseTests(unittest.TestCase):
             self.assertTrue(passed)
             self.assertEqual(report, value)
 
+    def test_guard_failures_publish_only_fixed_categories(self):
+        for category in ('guard_paths', 'guard_link_unavailable', 'guard_cross_device',
+                         'guard_receipt', 'guard_pending', 'guard_publish', 'guard_verified'):
+            value = {'status': 'failure', 'category': category, 'checks': {}}
+            result, passed = self.screen('fixture', value)
+            self.assertFalse(passed)
+            self.assertEqual(result, value)
+        value = {'status': 'failure', 'category': 'private-path-sentinel', 'checks': {}}
+        result, passed = self.screen('fixture', value)
+        self.assertFalse(passed)
+        self.assertEqual(result['category'], 'invalid_report')
+        self.assertNotIn('private-path-sentinel', json.dumps(result))
+
     def test_private_values_and_unknown_fields_never_reach_public_report(self):
         bad = []
         value = self.raw('verify')

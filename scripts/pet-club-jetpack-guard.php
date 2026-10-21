@@ -64,15 +64,27 @@ function petish_club_jetpack_guard_write($path,$bytes) {
  petish_club_jetpack_guard_path($path,false,0600);
 }
 function petish_club_jetpack_guard_install($run) {
+ global $report;
+ $report['category']='guard_paths';
  [$root,$path,$receipt,$pending]=petish_club_jetpack_guard_paths($run);
  foreach([$path,$receipt,$pending]as$file)if(file_exists($file)||is_link($file))petish_club_jetpack_guard_fail();
  $token=bin2hex(random_bytes(24));$expires=time()+7200;
  $code=petish_club_jetpack_guard_code($root,$path,$receipt,$run,$token,$expires);
  $value=['format'=>'petish-club-jetpack-guard-v1','run_id'=>$run,'token'=>$token,'expires'=>$expires,'sha256'=>hash('sha256',$code)];
+ // These finite checks distinguish host restrictions without disclosing paths/errors.
+ $report['category']='guard_link_unavailable';
+ if(!function_exists('link'))petish_club_jetpack_guard_fail();
+ $report['category']='guard_cross_device';
+ $source=stat(dirname($pending));$destination=stat(dirname($path));
+ if(!$source||!$destination||$source['dev']!==$destination['dev'])petish_club_jetpack_guard_fail();
  // Write-ahead receipt permits same-run recovery after process interruption.
+ $report['category']='guard_receipt';
  petish_club_jetpack_guard_write($receipt,json_encode($value,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n");
+ $report['category']='guard_pending';
  petish_club_jetpack_guard_write($pending,$code);
+ $report['category']='guard_publish';
  if(!link($pending,$path)||!unlink($pending))petish_club_jetpack_guard_fail();
+ $report['category']='guard_verified';
  petish_club_jetpack_guard_path($path,false,0600);
  if(!hash_equals($value['sha256'],hash_file('sha256',$path)))petish_club_jetpack_guard_fail();
  return true;
