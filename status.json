@@ -1,0 +1,31 @@
+{
+  "status": "failure",
+  "category": "native",
+  "mode": "rehearse",
+  "run_id": "39543337616-1",
+  "source_commit": "e83cb1209de6a57ee7c40f5042ed79e673cc4666",
+  "generated_utc": "2026-10-21T04:19:00.964912+00:00",
+  "cache_preflight": {
+    "status": "success",
+    "category": "complete",
+    "checks": {
+      "target_paths_verified": true,
+      "target_environment_verified": true,
+      "woocommerce_runtime_verified": true,
+      "all_outbound_http_blocked": true,
+      "mail_calls_blocked": true,
+      "remote_file_access_disabled": true,
+      "cron_and_async_runner_disabled": true,
+      "jetpack_sync_isolated": true,
+      "purge_runtime_verified": true,
+      "purge_transactional_options": true,
+      "purge_queue_idle": true,
+      "purge_queue2_idle": true
+    }
+  },
+  "native_diagnostic": {
+    "category": "native_update",
+    "failed_checks": [],
+    "passed_checks": 12
+  }
+}
