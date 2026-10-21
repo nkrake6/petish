@@ -24,7 +24,8 @@ const SECTION = '#petish-free-delivery';
 export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
 export const THEME_VIEWS = Object.freeze(['320_light', '320_dark', '390_light', '390_dark', '1280_light', '1280_dark']);
 export const THEME_GEOMETRY_KEYS = Object.freeze(['header_height', 'baseline_height', 'header_width', 'viewport_width',
-  'switch_left', 'switch_right', 'search_right', 'market_left', 'market_right', 'logo_right', 'logo_width', 'visible_count', 'overflow']);
+  'switch_left', 'switch_right', 'search_right', 'market_left', 'market_right', 'logo_right', 'logo_width', 'baseline_logo_width',
+  'logo_count', 'logo_parent_width', 'baseline_logo_parent_width', 'visible_count', 'overflow']);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
@@ -378,6 +379,7 @@ export async function inspectThemeGeometry(page) {
     const visible = node => {
       const rect = node.getBoundingClientRect(), css = getComputedStyle(node);
       return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight
+        && rect.right > 0 && rect.left < innerWidth
         && css.visibility !== 'hidden' && css.display !== 'none' && Number(css.opacity) > 0;
     };
     const current = wrappers.filter(node => visible(node) && visible(node.querySelector('[data-petish-theme-toggle]')));
@@ -387,8 +389,10 @@ export async function inspectThemeGeometry(page) {
       const siblings = [...wrapper.parentElement.children], index = siblings.indexOf(wrapper);
       const search = siblings.slice(0, index).reverse().find(node => node.matches('.mini-search'));
       const market = siblings.slice(index + 1).find(node => node.matches('[data-petish-market]'));
-      const logo = header && [...header.querySelectorAll('.branding img,[data-petish-logo]')].find(visible);
+      const logos = header ? [...header.querySelectorAll('.branding img,.mobile-branding img,[data-petish-logo]')].filter(visible) : [];
+      const logo = logos[0];
       return { wrapper, button, header, search, market, logo, box: header?.getBoundingClientRect(),
+        logoCount: logos.length, logoParentWidth: (logo?.closest('.branding,.mobile-branding') || logo?.parentElement)?.getBoundingClientRect().width,
         buttonBox: button.getBoundingClientRect(), searchBox: search?.getBoundingClientRect(),
         marketBox: market?.getBoundingClientRect(), logoBox: logo?.getBoundingClientRect(),
         controls: header ? [...header.querySelectorAll('.mobile-navigation,.mobile-mini-widgets,.mini-search,[data-petish-theme-switch],[data-petish-market]')].filter(visible).map(node => node.getBoundingClientRect()) : [] };
@@ -397,7 +401,12 @@ export async function inspectThemeGeometry(page) {
     const styles = wrappers.map(node => node.getAttribute('style'));
     try {
       wrappers.forEach(node => node.style.setProperty('display', 'none', 'important'));
-      records.forEach(record => { record.baseline = record.header?.getBoundingClientRect().height; });
+      records.forEach(record => {
+        record.baseline = record.header?.getBoundingClientRect().height;
+        const logo = record.header && [...record.header.querySelectorAll('.branding img,.mobile-branding img,[data-petish-logo]')].find(visible);
+        record.baselineLogo = logo?.getBoundingClientRect().width;
+        record.baselineLogoParent = (logo?.closest('.branding,.mobile-branding') || logo?.parentElement)?.getBoundingClientRect().width;
+      });
     } finally {
       wrappers.forEach((node, index) => styles[index] === null ? node.removeAttribute('style') : node.setAttribute('style', styles[index]));
     }
@@ -407,7 +416,7 @@ export async function inspectThemeGeometry(page) {
       order = order && !!s && !!m && s.right <= b.left + 1 && b.right <= m.left + 1;
       height = height && !!box && Number.isFinite(baseline) && box.height <= baseline + 1;
       fit = fit && within(box) && within(b) && within(s) && within(m) && b.width >= 43 && b.height >= 43
-        && b.top >= box.top - 1 && b.bottom <= box.bottom + 1 && (!l || (within(l) && l.width >= 48 && l.right <= s.left + 1))
+        && b.top >= box.top - 1 && b.bottom <= box.bottom + 1 && !!l && within(l) && l.width >= 48 && l.right <= s.left + 1
         && record.controls.every(within)
         && button.type === 'button' && button.getAttribute('role') === 'switch'
         && button.getAttribute('aria-label') === 'Dark mode' && button.querySelectorAll('svg[aria-hidden="true"]').length === 2;
@@ -417,7 +426,9 @@ export async function inspectThemeGeometry(page) {
       header_height: number(first?.box?.height), baseline_height: number(first?.baseline), header_width: number(first?.box?.width),
       viewport_width: innerWidth, switch_left: number(first?.buttonBox?.left), switch_right: number(first?.buttonBox?.right),
       search_right: number(first?.searchBox?.right), market_left: number(first?.marketBox?.left), market_right: number(first?.marketBox?.right),
-      logo_right: number(first?.logoBox?.right), logo_width: number(first?.logoBox?.width), visible_count: current.length,
+      logo_right: number(first?.logoBox?.right), logo_width: number(first?.logoBox?.width), baseline_logo_width: number(first?.baselineLogo),
+      logo_count: first?.logoCount ?? 0, logo_parent_width: number(first?.logoParentWidth),
+      baseline_logo_parent_width: number(first?.baselineLogoParent), visible_count: current.length,
       overflow: number(Math.max(0, ...records.flatMap(record => [record.box?.right - innerWidth, record.buttonBox?.right - innerWidth,
         record.marketBox?.right - innerWidth, record.logoBox?.right - innerWidth, ...record.controls.map(rect => rect.right - innerWidth)]).filter(Number.isFinite))) } };
   });

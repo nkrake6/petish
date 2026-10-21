@@ -15,6 +15,9 @@ def module(name):
 
 
 navigation=module('sanitize-account-navigation-result')
+html_purge=module('sanitize-litespeed-html-purge')
+CACHE_PHASES={'cache_preflight':'inspect','cache_queue':'queue','cache_consume':'consume','cache_verify':'verify',
+    'rollback_cache_queue':'queue','rollback_cache_consume':'consume','rollback_cache_verify':'verify'}
 BROWSER={
     'market_flag_assets_verified', 'market_flag_header_verified', 'market_flag_cart_verified', 'market_flag_webkit_verified',
     'theme_assets_http_verified', 'theme_switch_order_verified', 'theme_switch_geometry_verified',
@@ -39,7 +42,8 @@ BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_t
     for mode in ('light','dark') for fact in ('order','height','fit')}
 THEME_GEOMETRY_VIEWS={f'{width}_{mode}' for width in (320,390,1280) for mode in ('light','dark')}
 THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewport_width',
-    'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','visible_count','overflow'}
+    'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','baseline_logo_width',
+    'logo_count','logo_parent_width','baseline_logo_parent_width','visible_count','overflow'}
 VERIFY={
     'market_flag_markup_verified',
     'theme_switch_markup_verified', 'theme_switch_assets_enqueued',
@@ -90,6 +94,7 @@ REQUIRED={**{phase:navigation.REQUIRED[phase]|({'candidate_badge_png_verified'} 
 REQUIRED['apply'] |= {'maintenance_guard_created','maintenance_guard_removed'}
 REQUIRED['rollback'] |= {'maintenance_guard_removed'}
 REQUIRED['commit'] |= {'maintenance_guard_removed'}
+REQUIRED.update({phase:html_purge.REQUIRED[operation] for phase,operation in CACHE_PHASES.items()})
 CACHE_FAILURES={
     'cache_api_missing_add', 'cache_api_missing_add_global_groups', 'cache_api_missing_add_multiple',
     'cache_api_missing_add_non_persistent_groups', 'cache_api_missing_close', 'cache_api_missing_decr',
@@ -139,6 +144,7 @@ CATEGORIES=navigation.CATEGORIES|CACHE_FAILURES|FIXTURE_FAILURES|{'maintenance',
 def screen(phase,path):
     try:
         if phase not in REQUIRED:raise ValueError()
+        if phase in CACHE_PHASES:return html_purge.screen(CACHE_PHASES[phase],path)
         if phase=='preflight':return navigation.screen(phase,path)
         raw=navigation.rehearsal.read_report(path)
         deploy=phase in {'inspect','apply','rollback','commit'}

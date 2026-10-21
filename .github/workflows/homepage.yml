@@ -22,6 +22,9 @@ on:
       - scripts/verify-homepage-assets.py
       - scripts/sanitize-homepage-result.py
       - scripts/validate-homepage-release.py
+      - scripts/litespeed-html-purge.php
+      - scripts/consume-litespeed-html-purge.py
+      - scripts/sanitize-litespeed-html-purge.py
       - tools/homepage/browser.mjs
       - operations/homepage-release.json
       - wordpress/wp-content/themes/dt-the7-child/front-page.php

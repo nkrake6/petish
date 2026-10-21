@@ -243,7 +243,8 @@ class HomepageReleaseTests(unittest.TestCase):
         scenarios=(
             ('rollback_failed',1,0,0,['rollback','publish:failure:rollback']),
             ('cleanup_failed',0,1,0,['cleanup','publish:failure:cleanup']),
-            ('rollback_complete',1,0,0,['rollback','remove_tools','publish:failure:prerequisites']),
+            ('rollback_cache_failed',1,0,0,['rollback','purge:rollback','publish:failure:rollback']),
+            ('rollback_complete',1,0,0,['rollback','purge:rollback','remove_tools','publish:failure:prerequisites']),
             ('fixture_complete',0,1,1,['cleanup','source','remove_tools','publish:success:complete']),
             ('source_changed',0,0,1,['source','remove_tools','publish:failure:staging_source']),
         )
@@ -254,6 +255,7 @@ class HomepageReleaseTests(unittest.TestCase):
                     'work=$1; log=$2; scenario=$3; rollback_needed=$4; fixture_cleanup_needed=$5; operation_verified=$6',
                     'mode=staging; ssh_ready=1; fixture_cleanup_verified=0; failure_category=prerequisites; staging_source_verified=1',
                     'remote_phase() { printf "rollback\\n" >> "$log"; [[ "$scenario" != rollback_failed ]]; }',
+                    'purge_html_cache() { printf "purge:%s\\n" "$1" >> "$log"; [[ "$scenario" != rollback_cache_failed ]]; }',
                     'fixture_phase() { printf "cleanup\\n" >> "$log"; [[ "$scenario" != cleanup_failed ]]; }',
                     'verify_staging_source() { printf "source\\n" >> "$log"; [[ "$scenario" != source_changed ]]; }',
                     'remote_cleanup() { printf "remove_tools\\n" >> "$log"; }',
@@ -265,6 +267,29 @@ class HomepageReleaseTests(unittest.TestCase):
                 self.assertEqual(log.read_text().splitlines(),expected)
                 self.assertEqual(completed.returncode,0 if scenario=='fixture_complete' else 1)
                 self.assertFalse(work.exists())
+
+    def test_html_cache_pipeline_stops_before_later_phases_on_any_failure(self):
+        source=(ROOT/'scripts/hostinger-homepage.sh').read_text()
+        function=source[source.index('purge_html_cache() {'):source.index('\nfixture_phase() {')]
+        for operation in ('apply','rollback'):
+            for failure in ('none','queue','consume','screen','verify'):
+                with self.subTest(operation=operation,failure=failure):
+                    work=self.directory/(operation+'-'+failure);work.mkdir()
+                    log=work/'trace'
+                    script='\n'.join([
+                        'work=$1; log=$2; failure=$3; operation=$4',
+                        'cache_remote_phase() { printf "%s:%s\\n" "$1" "$2" >> "$log"; [[ "$failure" != "$2" ]]; }',
+                        'python3() { printf "consume\\n" >> "$log"; [[ "$failure" != consume ]]; }',
+                        'screen_phase() { printf "screen:%s\\n" "$1" >> "$log"; [[ "$failure" != screen ]]; }',
+                        function,'purge_html_cache "$operation"',
+                    ])
+                    completed=subprocess.run(['bash','-c',script,'fixture',str(work),str(log),failure,operation],capture_output=True)
+                    expected=[operation+':queue']
+                    if failure!='queue':
+                        expected+=['consume','screen:'+('rollback_' if operation=='rollback' else '')+'cache_consume']
+                        if failure not in {'consume','screen'}:expected.append(operation+':verify')
+                    self.assertEqual(log.read_text().splitlines(),expected)
+                    self.assertEqual(completed.returncode,0 if failure=='none' else 1)
 
     def test_native_browser_disagreement_or_stale_backup_refuses(self):
         path,_,stage,backup=self.fixture_evidence()

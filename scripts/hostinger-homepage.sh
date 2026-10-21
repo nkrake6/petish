@@ -51,6 +51,31 @@ native_verification() {
     [[ $status == 0 && $validation == 0 ]]
 }
 
+cache_remote_phase() {
+    local operation=$1 step=$2 phase status=0 validation=0
+    [[ $operation == apply || $operation == rollback ]] || return 1
+    [[ $step == inspect || $step == queue || $step == verify ]] || return 1
+    phase=cache_$step
+    [[ $step != inspect ]] || phase=cache_preflight
+    [[ $operation != rollback ]] || phase=rollback_cache_$step
+    "${petish_ssh[@]}" 'set -eu; php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-homepage-deploy-'"$run"'/litespeed-html-purge.php" '"$step site $run $operation" \
+        > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
+    screen_phase "$phase" || validation=$?
+    [[ $status == 0 && $validation == 0 ]]
+}
+
+purge_html_cache() {
+    local operation=$1 phase=cache_consume status=0 validation=0
+    [[ $operation == apply || $operation == rollback ]] || return 1
+    [[ $operation != rollback ]] || phase=rollback_cache_consume
+    cache_remote_phase "$operation" queue || return 1
+    python3 scripts/consume-litespeed-html-purge.py "$work/$phase.private.json" \
+        > "$work/$phase.private.stdout" 2> "$work/$phase.private.stderr" || status=$?
+    screen_phase "$phase" || validation=$?
+    [[ $status == 0 && $validation == 0 ]] || return 1
+    cache_remote_phase "$operation" verify
+}
+
 fixture_phase() {
     local operation=$1 phase=native status=0 validation=0
     [[ $operation == verify || $operation == cleanup ]] || return 1
@@ -125,7 +150,9 @@ stage=os.environ.get('HOMEPAGE_PREPARATION_STAGE','unknown')
 result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
-for phase in ('inspect','preflight','native','cleanup','browser','apply','verify','health','assets','commit','rollback'):
+for phase in ('inspect','preflight','native','cleanup','browser','cache_preflight','apply','verify',
+ 'cache_queue','cache_consume','cache_verify','health','assets','commit','rollback',
+ 'rollback_cache_queue','rollback_cache_consume','rollback_cache_verify'):
  path=root/(phase+'.safe.json')
  try:
   info=path.lstat()
@@ -215,7 +242,7 @@ finish() {
     trap - EXIT HUP INT TERM
     if [[ $rollback_needed == 1 ]]; then
         rollback_attempted=1
-        if remote_phase rollback; then
+        if remote_phase rollback && purge_html_cache rollback; then
             rollback_verified=1
             rollback_needed=0
         else
@@ -293,11 +320,11 @@ if [[ $mode == staging ]]; then
     tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-homepage.php verify-pet-club.php for-your-pet-proof.php email-branding-preview-remote.php \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 else
-    for name in deploy-homepage-remote.php verify-homepage.php verify-pet-club.php email-branding-preview-remote.php; do
+    for name in deploy-homepage-remote.php verify-homepage.php verify-pet-club.php email-branding-preview-remote.php litespeed-html-purge.php; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
-    tar -C "$work/bundle" -cf "$work/bundle.tar" deploy-homepage-remote.php verify-homepage.php verify-pet-club.php email-branding-preview-remote.php payload \
+    tar -C "$work/bundle" -cf "$work/bundle.tar" deploy-homepage-remote.php verify-homepage.php verify-pet-club.php email-branding-preview-remote.php litespeed-html-purge.php payload \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 fi
 failure_category=transport
@@ -369,11 +396,15 @@ if [[ $mode == inspect ]]; then
     operation_verified=1
     exit 0
 fi
+failure_category=cache_preflight
+cache_remote_phase apply inspect
 failure_category=apply
 rollback_needed=1
 remote_phase apply
 failure_category=verify
 native_verification production
+failure_category=html_cache
+purge_html_cache apply
 failure_category=health
 health_status=0
 python3 scripts/verify-live-email-release.py "$work/health.private.json" \
