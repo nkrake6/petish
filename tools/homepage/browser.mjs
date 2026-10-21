@@ -123,7 +123,7 @@ export function allowedHomepageRequest(raw, ...options) {
   // supplier, identity override or mutation request is admitted by this exception.
   // Fixed empty Cart document only. All cart query actions and methods stay blocked.
   if (raw === `${ORIGIN}/cart/` && (options[0] ?? 'GET') === 'GET'
-      && (options[4] ?? 'document') === 'document') return true;
+      && (options[3] ?? 'document') === 'document') return true;
   if (raw === PERSONAL_ENDPOINT && (options[0] ?? 'GET') === 'GET') return true;
   if (!allowedRequest(raw, ...options)) return false;
   try {
@@ -702,6 +702,7 @@ export async function run(input, chromium, options = {}) {
       && !allowedHomepageRequest(PERSONAL_ENDPOINT + '&user_id=1', 'GET')
       && !allowedHomepageRequest(PERSONAL_ENDPOINT, 'POST')
       && allowedHomepageRequest(`${ORIGIN}/cart/`, 'GET')
+      && !allowedHomepageRequest(`${ORIGIN}/cart/`, 'GET', false, '', 'fetch')
       && !allowedHomepageRequest(`${ORIGIN}/cart/?remove_item=1`, 'GET')
       && !allowedHomepageRequest(`${ORIGIN}/cart/`, 'POST')
       && !allowedHomepageRequest(`${ORIGIN}/?wc-ajax=petish_market_state`, 'GET');
