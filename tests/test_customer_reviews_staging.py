@@ -93,6 +93,30 @@ class CustomerReviewStagingReportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             report.sanitize('enable',self.write(value))
 
+    def test_http_diagnostics_are_fixed_enums_only(self):
+        value = {'status':'failure', 'checks':{'vote_response_accepted':False},
+                 'failed_check':'vote_response_accepted', 'diagnostics':{
+                     'vote':{'status':'forbidden_403','redirect':'missing','body':'staging_guard_denied'}},
+                 'response_body':'private customer text must be discarded'}
+        cleaned = report.sanitize('browser',self.write(value))
+        self.assertEqual(cleaned['diagnostics'],value['diagnostics'])
+        self.assertNotIn('response_body',cleaned)
+        for field in ['status','redirect','body','extra']:
+            unsafe = json.loads(json.dumps(value))
+            unsafe['diagnostics']['vote'][field] = 'private-customer-value'
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                report.sanitize('browser',self.write(unsafe))
+
+    def test_http_diagnostics_reject_unknown_phase_or_nested_values(self):
+        for diagnostics in [
+            {'private-customer-name':{'status':'forbidden_403','redirect':'missing','body':'staging_guard_denied'}},
+            {'vote':{'status':403,'redirect':'missing','body':'other_text'}},
+            {'vote':{'status':'forbidden_403','redirect':'missing','body':{'raw':'secret'}}},
+            ['vote','forbidden_403'],
+        ]:
+            with self.subTest(diagnostics=diagnostics), self.assertRaises(ValueError):
+                report.sanitize('browser',self.write({'status':'failure','checks':{},'diagnostics':diagnostics}))
+
 
 if __name__ == '__main__':
     unittest.main()

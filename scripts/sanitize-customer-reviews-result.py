@@ -59,6 +59,22 @@ def sanitize(phase, source):
     if value['status'] == 'success' and (not required <= set(checks) or not all(checks.values())):
         raise ValueError('Incomplete successful proof')
     result = {'status': value['status'], 'checks': checks}
+    if phase == 'browser' and 'diagnostics' in value:
+        browser = ROOT / 'tools/customer-reviews-browser.mjs'
+        phases = literal_list(browser, 'HTTP_PHASE_KEYS', php=False)
+        fields = {
+            key: literal_list(browser, constant, php=False)
+            for key, constant in [('status','HTTP_STATUS_KEYS'),('redirect','HTTP_REDIRECT_KEYS'),('body','HTTP_BODY_KEYS')]
+        }
+        diagnostics = value['diagnostics']
+        if not isinstance(diagnostics, dict) or set(diagnostics) - phases:
+            raise ValueError('Unknown HTTP diagnostic phase')
+        for item in diagnostics.values():
+            if not isinstance(item, dict) or set(item) != set(fields) or any(
+                not isinstance(item[key], str) or item[key] not in choices for key, choices in fields.items()
+            ):
+                raise ValueError('Non-finite HTTP diagnostic')
+        result['diagnostics'] = diagnostics
     failed = value.get('failed_check', '')
     if failed:
         if failed not in allowed:

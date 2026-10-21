@@ -137,7 +137,11 @@ final class Petish_Customer_Reviews_UI {
         WC()->session->__unset( self::DRAFT_KEY );
         return array_merge( $empty, $draft['values'] ?? array() );
     }
-    private static function session() { if ( function_exists( 'WC' ) && ! WC()->session ) { WC()->initialize_session(); } }
+    private static function session() {
+        // WooCommerce does not load frontend notice helpers for admin-post.php.
+        if ( ! function_exists( 'wc_add_notice' ) ) { require_once WC_ABSPATH . 'includes/wc-notice-functions.php'; }
+        if ( function_exists( 'WC' ) && ! WC()->session ) { WC()->initialize_session(); }
+    }
     private static function authorize( $operation, $id = 0 ) {
         if ( ! Petish_Customer_Reviews::enabled() || ! is_user_logged_in() ) { self::guest_redirect(); }
         self::session();

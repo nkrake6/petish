@@ -13,10 +13,14 @@ export const CHECK_KEYS=Object.freeze([
  'rating_filter','self_vote_controls_absent','helpful_remove','helpful_add','vote_switch','vote_withdraw',
  'vote_form_available','vote_form_fields_valid','vote_post_authorized','vote_response_accepted','vote_redirect_scoped',
  'dashboard_received_reactions','invalid_nonce_post_authorized','invalid_nonce_response_accepted','invalid_nonce_denied','real_photo_video_upload','uploaded_review_pending',
- 'pending_count_updated','pending_photo_owner_access','pending_video_owner_access','pending_avatar_owner_access',
+ 'submission_response_accepted','pending_count_updated','pending_photo_owner_access','pending_video_owner_access','pending_avatar_owner_access',
  'pending_media_foreign_denied','pending_media_guest_denied','pending_media_uncacheable','request_scope_enforced',
 ]);
-const result={status:'failure',checks:Object.fromEntries(CHECK_KEYS.map(k=>[k,false])),failed_check:''};
+export const HTTP_PHASE_KEYS=Object.freeze(['vote','invalid_nonce','submission','owner_photo','owner_video','owner_avatar','foreign_photo','foreign_video','foreign_avatar','guest_photo','guest_video','guest_avatar']);
+export const HTTP_STATUS_KEYS=Object.freeze(['ok_200','created_201','empty_204','redirect_301','redirect_302','redirect_303','redirect_307','redirect_308','bad_request_400','unauthorized_401','forbidden_403','missing_404','method_405','conflict_409','too_large_413','invalid_422','throttled_429','server_500','gateway_502','unavailable_503','timeout_504','other_success','other_redirect','other_client_error','other_server_error','other']);
+export const HTTP_REDIRECT_KEYS=Object.freeze(['missing','owned_product','account','login','other_staging','external_or_invalid']);
+export const HTTP_BODY_KEYS=Object.freeze(['not_read','redirect_not_read','empty','wordpress_zero','wordpress_nonce_failure','wordpress_permission','wordpress_failure','staging_guard_denied','access_denied','browser_challenge','server_failure','other_html','other_text','unavailable','too_large']);
+const result={status:'failure',checks:Object.fromEntries(CHECK_KEYS.map(k=>[k,false])),failed_check:'',diagnostics:{}};
 function check(name,value){if(!CHECK_KEYS.includes(name))throw Error('input_owned');result.checks[name]=value===true;if(value!==true){result.failed_check=name;throw Error(name);}}
 function safeURL(raw){const u=new URL(raw);if(u.origin!==ORIGIN||u.username||u.password)throw Error('input_owned');return u;}
 function inputFile(name){const st=fs.lstatSync(name);if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||(st.mode&0o777)!==0o600||st.size>1048576)throw Error('input_owned');const v=JSON.parse(fs.readFileSync(name,'utf8'));
@@ -28,6 +32,21 @@ function inputFile(name){const st=fs.lstatSync(name);if(!st.isFile()||st.isSymbo
  const account=safeURL(v.account_url);if(account.pathname!=='/my-account/'||account.searchParams.get('my-reviews')!=='1')throw Error('input_owned');v.ownedReviewIds=new Set([v.approved_review_id,v.pending_review_id]);return v;
 }
 function noStore(response){return response&&/\bno-store\b/i.test(response.headers()['cache-control']??'');}
+async function diagnoseHTTP(response,input,phase){
+ if(!HTTP_PHASE_KEYS.includes(phase))throw Error('input_owned');
+ const code=response.status();const statuses={200:'ok_200',201:'created_201',204:'empty_204',301:'redirect_301',302:'redirect_302',303:'redirect_303',307:'redirect_307',308:'redirect_308',400:'bad_request_400',401:'unauthorized_401',403:'forbidden_403',404:'missing_404',405:'method_405',409:'conflict_409',413:'too_large_413',422:'invalid_422',429:'throttled_429',500:'server_500',502:'gateway_502',503:'unavailable_503',504:'timeout_504'};
+ const status=statuses[code]??(code>=500&&code<600?'other_server_error':code>=400&&code<500?'other_client_error':code>=300&&code<400?'other_redirect':code>=200&&code<300?'other_success':'other');
+ const headers=response.headers();let redirect='missing';if(headers.location){try{const u=safeURL(new URL(headers.location,ORIGIN).href);redirect=[input.product_url,input.pending_product_url,input.submission_product_url].some(raw=>safeURL(raw).pathname===u.pathname)?'owned_product':u.pathname==='/my-account/'?'account':u.pathname==='/wp-login.php'?'login':'other_staging';}catch{redirect='external_or_invalid';}}
+ let body=code>=300&&code<400?'redirect_not_read':'not_read';
+ // Error bodies are classified in memory only. Never inspect media payloads or
+ // retain response text, arbitrary headers, URLs, tokens or server paths.
+ if(['vote','invalid_nonce','submission'].includes(phase)&&code>=400){
+  if(Number(headers['content-length']??0)>65536)body='too_large';
+  else try{const text=await response.text();body=text.length>65536?'too_large':text.trim()===''?'empty':text.trim()==='0'?'wordpress_zero':text.trim()==='-1'||/are you sure you want to do this|nonce verification failed/i.test(text)?'wordpress_nonce_failure':/sorry, you are not allowed to access this page/i.test(text)?'wordpress_permission':/private staging|staging access|staging[^<\n]{0,80}(?:denied|not allowed|blocked)/i.test(text)?'staging_guard_denied':/verify you are human|checking your browser|cf-chl|captcha/i.test(text)?'browser_challenge':/there has been a critical error|error establishing a database connection/i.test(text)?'server_failure':/access denied|request forbidden|403 forbidden/i.test(text)?'access_denied':/id=["']error-page["']|wp-die-message/i.test(text)?'wordpress_failure':/text\/html/i.test(headers['content-type']??'')?'other_html':'other_text';}catch{body='unavailable';}
+ }
+ if(!HTTP_STATUS_KEYS.includes(status)||!HTTP_REDIRECT_KEYS.includes(redirect)||!HTTP_BODY_KEYS.includes(body))throw Error('input_owned');
+ result.diagnostics[phase]={status,redirect,body};
+}
 function onlyQuery(u,rules){return [...u.searchParams.keys()].every(k=>Object.hasOwn(rules,k)&&u.searchParams.getAll(k).length===1&&rules[k](u.searchParams.get(k)));}
 function ownedMedia(u,input){return u.pathname==='/wp-admin/admin-post.php'&&u.searchParams.size===3&&onlyQuery(u,{
  action:v=>v==='petish_customer_review_media',review_id:v=>/^[1-9][0-9]{0,15}$/.test(v)&&input.ownedReviewIds.has(Number(v)),item:v=>/^[0-5]$/.test(v),
@@ -75,7 +94,7 @@ async function vote(actor,id,choice){
  try{[response]=await Promise.all([actor.page.waitForResponse(r=>r.url()===ORIGIN+'/wp-admin/admin-post.php'&&r.request().method()==='POST'),form.locator('button[type="submit"]').click()]);}
  catch{throw Error('vote_post_authorized');}
  finally{actor.state.expected=null;}
- check('vote_post_authorized',actor.state.used);check('vote_response_accepted',response.status()===303);
+ check('vote_post_authorized',actor.state.used);await diagnoseHTTP(response,actor.input,'vote');check('vote_response_accepted',response.status()===303);
  let destination;try{destination=safeURL(response.headers().location);}catch{}
  check('vote_redirect_scoped',Boolean(destination&&destination.pathname===safeURL(actor.input.product_url).pathname&&destination.search===''&&destination.hash==='#pcr-review-'+id));
  await actor.page.waitForURL(u=>u.href===destination.href,{waitUntil:'domcontentloaded'});
@@ -101,19 +120,20 @@ try{
  const draft={action:'petish_customer_review_submit',product_id:String(input.submission_product_id),rating:'4',alias:'Staging Reviewer',title:'Owned browser review fixture',body:'A synthetic first-hand review used only to check private staging.',consent:'1',pcr_nonce:nonce};
  await fillDraft(form,draft);await form.locator('[name="pcr_nonce"]').evaluate(node=>{node.value='invalid';});owner.state.used=false;owner.state.expected={values:{...draft,pcr_nonce:'invalid'}};let bad;
  try{[bad]=await Promise.all([owner.page.waitForResponse(r=>r.url()===ORIGIN+'/wp-admin/admin-post.php'&&r.request().method()==='POST'),form.locator('button[type="submit"]').click()]);}catch{throw Error('invalid_nonce_post_authorized');}finally{owner.state.expected=null;}
- check('invalid_nonce_post_authorized',owner.state.used);check('invalid_nonce_response_accepted',bad.status()===303);await owner.page.waitForURL(u=>u.href===input.account_url,{waitUntil:'domcontentloaded'});await dashboard(owner);check('invalid_nonce_denied',JSON.stringify(await metrics(owner.page))==='[1,1,0,0]');await owner.page.goto(compose.href,{waitUntil:'domcontentloaded'});
+ check('invalid_nonce_post_authorized',owner.state.used);await diagnoseHTTP(bad,input,'invalid_nonce');check('invalid_nonce_response_accepted',bad.status()===303);await owner.page.waitForURL(u=>u.href===input.account_url,{waitUntil:'domcontentloaded'});await dashboard(owner);check('invalid_nonce_denied',JSON.stringify(await metrics(owner.page))==='[1,1,0,0]');await owner.page.goto(compose.href,{waitUntil:'domcontentloaded'});
  await fillDraft(form,draft);await form.locator('details summary').click();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAEklEQVR4nGPoPz/rPzJmIF0AAESmL3GjpJ8GAAAAAElFTkSuQmCC','base64');
  await form.locator('[name="photos[]"]').setInputFiles({name:'owned-review.png',mimeType:'image/png',buffer:png});await form.locator('[name="avatar"]').setInputFiles({name:'owned-avatar.png',mimeType:'image/png',buffer:png});await form.locator('[name="video"]').setInputFiles(path.join(ROOT,'tools/pet-club/fixtures/synthetic-valid.mp4'));
  draft.pcr_nonce=await form.locator('[name="pcr_nonce"]').inputValue();owner.state.used=false;owner.state.expected={values:draft};
- await Promise.all([owner.page.waitForURL(u=>u.origin===ORIGIN&&u.searchParams.get('pcr_status')==='pending',{waitUntil:'domcontentloaded'}),form.locator('button[type="submit"]').click()]);owner.state.expected=null;check('real_photo_video_upload',owner.state.used);
+ const [submitted]=await Promise.all([owner.page.waitForResponse(r=>r.url()===ORIGIN+'/wp-admin/admin-post.php'&&r.request().method()==='POST'),form.locator('button[type="submit"]').click()]);owner.state.expected=null;check('real_photo_video_upload',owner.state.used);await diagnoseHTTP(submitted,input,'submission');check('submission_response_accepted',submitted.status()===303);await owner.page.waitForURL(u=>u.origin===ORIGIN&&u.searchParams.get('pcr_status')==='pending',{waitUntil:'domcontentloaded'});
  const uploaded=owner.page.locator('.pcr-my-reviews .pcr-review').filter({has:owner.page.getByRole('heading',{name:draft.title,exact:true})});check('uploaded_review_pending',await uploaded.count()===1&&/Awaiting moderation/.test(await uploaded.textContent()));check('pending_count_updated',JSON.stringify(await metrics(owner.page))==='[1,2,0,0]');
  const uploadedID=(await uploaded.getAttribute('id'))?.match(/^pcr-review-([1-9][0-9]{0,15})$/);if(!uploadedID||input.ownedReviewIds.has(Number(uploadedID[1])))throw Error('uploaded_review_pending');input.ownedReviewIds.add(Number(uploadedID[1]));await owner.page.reload({waitUntil:'domcontentloaded'});
  const photo=await uploaded.locator('.pcr-media img').getAttribute('src');const video=await uploaded.locator('.pcr-media video source').getAttribute('src');const avatar=await uploaded.locator('.pcr-avatar img').getAttribute('src');
  const photoResponse=await mediaGet(owner,photo),videoResponse=await mediaGet(owner,video),avatarResponse=await mediaGet(owner,avatar);
+ for(const [phase,response]of[['owner_photo',photoResponse],['owner_video',videoResponse],['owner_avatar',avatarResponse]])await diagnoseHTTP(response,input,phase);
  check('pending_photo_owner_access',photoResponse.status()===200&&/^image\//.test(photoResponse.headers()['content-type']??''));check('pending_video_owner_access',videoResponse.status()===200&&/^video\/mp4/.test(videoResponse.headers()['content-type']??''));check('pending_avatar_owner_access',avatarResponse.status()===200&&/^image\//.test(avatarResponse.headers()['content-type']??''));check('pending_media_uncacheable',[photoResponse,videoResponse,avatarResponse].every(noStore));
- const foreign=await Promise.all([photo,video,avatar].map(url=>mediaGet(member,url)));check('pending_media_foreign_denied',foreign.every(r=>[403,404].includes(r.status())));
- const guest=await guardedContext(browser,input,'guest');const anonymous=await Promise.all([photo,video,avatar].map(url=>mediaGet(guest,url)));check('pending_media_guest_denied',anonymous.every(r=>[403,404].includes(r.status())||([302,303].includes(r.status())&&safeURL(r.headers().location).pathname==='/wp-login.php')));
+ const foreign=await Promise.all([photo,video,avatar].map(url=>mediaGet(member,url)));for(const [i,kind]of['photo','video','avatar'].entries())await diagnoseHTTP(foreign[i],input,'foreign_'+kind);check('pending_media_foreign_denied',foreign.every(r=>[403,404].includes(r.status())));
+ const guest=await guardedContext(browser,input,'guest');const anonymous=await Promise.all([photo,video,avatar].map(url=>mediaGet(guest,url)));for(const [i,kind]of['photo','video','avatar'].entries())await diagnoseHTTP(anonymous[i],input,'guest_'+kind);check('pending_media_guest_denied',anonymous.every(r=>[403,404].includes(r.status())||([302,303].includes(r.status())&&safeURL(r.headers().location).pathname==='/wp-login.php')));
  const forbidden=['/','/cart/','/checkout/','/wp-json/','/?wc-api=anything','/?rest_route=/anything','/?wc-ajax=anything','/wp-cron.php','/product/unowned/','/my-account/customer-logout/','/wp-admin/admin-post.php?action=petish_customer_review_media&review_id=0&item=0','/wp-content/unowned.php'];
  const policiesReject=forbidden.every(p=>!allowedGET(ORIGIN+p,input))&&!allowedGET(input.product_url+'?add-to-cart='+input.product_id,input)&&!allowedGET('https://petish.biz/my-account/',input);
  check('request_scope_enforced',policiesReject&&guardedActors.length===3&&guardedActors.every(a=>a.state.routeInstalled)&&owner.state.gets>0&&member.state.gets>0&&owner.state.posts===3&&member.state.posts===5&&guest.state.posts===0&&guardedActors.every(a=>a.state.manualPosts===0&&a.state.mediaGets===3));result.status='success';
