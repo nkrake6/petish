@@ -1,0 +1,115 @@
+{
+  "status": "success",
+  "category": "complete",
+  "mode": "apply",
+  "run_id": "39546227600-1",
+  "source_commit": "511e3ea229018cca6c5a1772feb7568b88166d2e",
+  "generated_utc": "2026-10-21T04:50:49.940558+00:00",
+  "preparation": {
+    "checkout": "success",
+    "ssh_tools": "success",
+    "key_discovery_attempts": 1,
+    "host_key_verified": true
+  },
+  "operation": {
+    "status": "success",
+    "category": "complete",
+    "checks": {
+      "target_paths_verified": true,
+      "target_environment_verified": true,
+      "woocommerce_runtime_verified": true,
+      "all_outbound_http_blocked": true,
+      "mail_calls_blocked": true,
+      "remote_file_access_disabled": true,
+      "cron_and_async_runner_disabled": true,
+      "jetpack_sync_isolated": true,
+      "no_persistent_cache_dropins": true,
+      "transactional_page_table": true,
+      "page_table_has_no_triggers": true,
+      "expected_page_content": true,
+      "native_editable_content_saved": true,
+      "private_before_snapshot_saved": true,
+      "committed_row_verified": true
+    },
+    "page": {
+      "id": 1002,
+      "content_sha256": "e5c6e2575f72e4bd5c1c9e45fb05dd33f27f816c7db0ae3b63b2805e41b9b065"
+    },
+    "public_cache": {
+      "litespeed_hit": false,
+      "no_store": false
+    },
+    "public_copy": "Delivery for small-pet adventures\nLittle essentials, delivered to your door. We work with a range of suppliers to bring you products for your small pets. Items may be sent directly from our supplier partners, including suppliers overseas.\nHow long will my order take?\nDelivery times vary by product, supplier, destination and shipping service. Check the estimate for your chosen item when one is available. Check whether it includes preparation time or starts after dispatch. If you need an estimate before ordering, contact us with the product and your delivery postcode.\nOrders need time to be prepared before they are handed to a carrier. Estimated arrival dates are a guide, not a guaranteed delivery date. Busy periods, public holidays, customs checks and local carrier delays can affect timing.\nDelivery options and costs\nEnter your delivery address at checkout to see the available delivery options and charges for your order. Availability varies by item and destination. If no delivery option is shown, we do not currently have a delivery rate for every item in your cart at that address. Contact us before ordering if you need help.\nReview the delivery charge, applicable taxes and full order total before paying. Free delivery applies only where it is offered for the item and destination.\nSeparate parcels\nItems from different suppliers may be sent in separate parcels and arrive on different days. If one item arrives before another, the rest of your order may still be on its way.\nTracking your order\nTracking depends on the supplier and delivery service. When a tracking number is available, the carrier\u2019s updates can help you follow your parcel. A new tracking number may take a little time to show its first scan. Contact us if you need help finding tracking information or checking an order\u2019s progress.\nInternational deliveries\nSome products travel internationally before reaching you. Customs processing and local delivery arrangements can add time. Delivery is available only where the product and shipping service support your destination.\nNeed a hand?\nCheck your delivery address carefully before placing an order. If you notice a mistake, your parcel is delayed, or you need delivery information, email orders@petish.biz with your order number, if you have one. We\u2019ll help you check the next steps. Address changes may not be possible once an order has been dispatched.\nView cart \u00b7 Browse products",
+    "canonical_public_copy_verified_twice": true
+  },
+  "cache_preflight": {
+    "status": "success",
+    "category": "complete",
+    "checks": {
+      "target_paths_verified": true,
+      "target_environment_verified": true,
+      "woocommerce_runtime_verified": true,
+      "all_outbound_http_blocked": true,
+      "mail_calls_blocked": true,
+      "remote_file_access_disabled": true,
+      "cron_and_async_runner_disabled": true,
+      "jetpack_sync_isolated": true,
+      "purge_runtime_verified": true,
+      "purge_transactional_options": true,
+      "purge_queue_idle": true,
+      "purge_queue2_idle": true
+    }
+  },
+  "cache_purge": {
+    "apply_queue": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "jetpack_sync_isolated": true,
+        "purge_runtime_verified": true,
+        "purge_transactional_options": true,
+        "purge_queue_available": true,
+        "purge_queue2_idle": true,
+        "purge_native_scope_verified": true,
+        "purge_exact_queue_write_verified": true,
+        "purge_other_queue_unchanged": true,
+        "purge_receipt_saved": true
+      }
+    },
+    "apply_consume": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "fixed_anonymous_get_verified": true,
+        "native_ajax_response_verified": true
+      }
+    },
+    "apply_verify": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "jetpack_sync_isolated": true,
+        "purge_runtime_verified": true,
+        "purge_receipt_verified": true,
+        "purge_queue_consumed": true,
+        "purge_other_queue_unchanged": true
+      }
+    }
+  },
+  "rollback_verified": false,
+  "manual_recovery_required": false
+}
