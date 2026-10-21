@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "apply",
   "run_id": "39521901384-1",
   "source_commit": "076f9425fc1af7131ed8a22e89f9436dc5fad6d9",
-  "generated_utc": "2026-10-21T00:32:28.727839+00:00",
+  "generated_utc": "2026-10-21T00:32:44.508355+00:00",
   "source_hashes": {
     "assets/passport.js": "97e0a4ecaddfd555ca779edec6a01685da268e9ee39e8a4555908d9becc26f49",
     "assets/pet-club.css": "6871a9d7d2a87f7bc47be1d179e2cdb816228f70249379ff2adbd5c3b364be0f",
@@ -45,6 +45,100 @@
         "maintenance_guard_removed": false
       },
       "changed_file_count": 14
+    },
+    "apply": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": true,
+        "maintenance_guard_created": true,
+        "maintenance_guard_removed": true
+      },
+      "changed_file_count": 14
+    },
+    "verify": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "pet_club_classes_loaded": true,
+        "private_record_registration_verified": true,
+        "private_owner_access_verified": true,
+        "public_routes_registered": true,
+        "mutation_hooks_registered": true,
+        "legacy_assets_preserved": true,
+        "pet_club_assets_enqueued": true,
+        "synthetic_public_render_verified": true,
+        "orders_unchanged": true,
+        "users_and_authentication_unchanged": true,
+        "product_prices_and_stock_unchanged": true,
+        "settings_unchanged": true,
+        "existing_passports_unchanged": true,
+        "private_photo_files_unchanged": true,
+        "production_read_only_verified": true
+      }
+    },
+    "health": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "homepage_http_verified": true,
+        "shop_http_verified": true,
+        "product_http_verified": true,
+        "cart_http_verified": true,
+        "account_http_verified": true,
+        "approved_logo_http_verified": true,
+        "logo_http_fetch_succeeded": true,
+        "logo_http_is_png": true,
+        "logo_http_is_webp": false,
+        "logo_http_file_bytes_match": false,
+        "logo_http_dimensions_match": true,
+        "logo_http_pixels_match": true
+      }
+    },
+    "assets": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "pet_club_script_http_verified": true,
+        "pet_club_stylesheet_http_verified": true
+      }
+    },
+    "commit": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": true,
+        "lock_owned": true,
+        "maintenance_guard_created": false,
+        "maintenance_guard_removed": true
+      },
+      "changed_file_count": 0
     }
   },
   "preparation_stage": "complete",
