@@ -22,6 +22,8 @@ const PERSONAL_ENDPOINT = `${ORIGIN}/wp-admin/admin-ajax.php?action=petish_for_y
 const PERSONAL = '[data-petish-for-your-pet]';
 const SECTION = '#petish-free-delivery';
 export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
+export const CART_METRIC_ENGINES = Object.freeze(['chromium', 'webkit']);
+export const CART_METRIC_KEYS = Object.freeze(['http_status_class', 'empty_marker_count', 'visible_cart_row_count', 'min_flag_in_view_count', 'max_flag_offscreen_count']);
 export const THEME_VIEWS = Object.freeze(['320_light', '320_dark', '390_light', '390_dark', '1280_light', '1280_dark']);
 export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', 'baseline_height', 'header_width', 'viewport_width',
   'switch_left', 'switch_right', 'search_right', 'market_left', 'market_right', 'logo_right', 'logo_width', 'baseline_logo_width',
@@ -33,6 +35,10 @@ export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', '
   ...['search', 'switch', 'market', 'other'].flatMap(node => ['width', 'margin_left', 'margin_right', 'count'].map(metric => `${node}_${metric}`))])]);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
+  ...['market_cart', 'market_webkit_cart'].flatMap(prefix => ['http_ok', 'route_ok', 'empty_marker', 'items_absent', 'block_shell',
+    'header_present', 'geometry_verified', 'paint_verified', 'flag_markup_verified', 'flag_dimensions_verified', 'flag_bbox_verified',
+    'flag_pixels_verified', 'initial_empty_marker_present', 'store_api_get_blocked'].map(suffix => `${prefix}_${suffix}`)),
+  'market_webkit_homepage_verified', 'market_webkit_cart_verified',
   'native_other_cart_present', 'native_other_login_present', 'native_cart_link_present', 'native_cart_amount_present',
   'native_cart_icon_present', 'native_cart_counter_present', 'native_login_link_present', 'native_login_icon_present',
   'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
@@ -64,6 +70,9 @@ export function publicReport(value) {
     image_dimensions: Object.fromEntries(IMAGE_DIMENSION_KEYS.map(key => [key,
       Number.isInteger(value?.image_dimensions?.[key]) && value.image_dimensions[key] >= 0
         && value.image_dimensions[key] <= 4096 ? value.image_dimensions[key] : 0])),
+    cart_metrics: Object.fromEntries(CART_METRIC_ENGINES.map(engine => [engine, Object.fromEntries(CART_METRIC_KEYS.map(key => [key,
+      Number.isInteger(value?.cart_metrics?.[engine]?.[key]) && value.cart_metrics[engine][key] >= 0
+        && value.cart_metrics[engine][key] <= (key === 'http_status_class' ? 5 : key.includes('_flag_') ? 8 : 100) ? value.cart_metrics[engine][key] : 0]))])),
     theme_geometry: Object.fromEntries(THEME_VIEWS.map(view => [view, Object.fromEntries(THEME_GEOMETRY_KEYS.map(key => [key,
       Number.isFinite(value?.theme_geometry?.[view]?.[key]) && Math.abs(value.theme_geometry[view][key]) <= 4096
         ? Math.round(value.theme_geometry[view][key] * 100) / 100 : 0]))])),
@@ -139,12 +148,16 @@ async function readOnlyContext(browser, storageState) {
     ignoreHTTPSErrors: false, locale: 'en-AU', timezoneId: 'Australia/Sydney',
     reducedMotion: 'reduce', serviceWorkers: 'block', acceptDownloads: false,
     ...(storageState ? { storageState } : {}) });
-  const login = { allowed: false, used: false, blockPersonal: false };
+  const login = { allowed: false, used: false, blockPersonal: false, cartStoreReadBlocked: false };
   await context.route('**/*', async route => {
     const request = route.request();
     if (login.blockPersonal && request.url() === PERSONAL_ENDPOINT) return route.abort('blockedbyclient');
     if (!allowedHomepageRequest(request.url(), request.method(), login.allowed && !login.used,
-      request.postData() ?? '', request.resourceType())) return route.abort('blockedbyclient');
+      request.postData() ?? '', request.resourceType())) {
+      const url = new URL(request.url());
+      if (request.method() === 'GET' && url.origin === ORIGIN && url.pathname === '/wp-json/wc/store/v1/cart') login.cartStoreReadBlocked = true;
+      return route.abort('blockedbyclient');
+    }
     if (request.method() === 'POST') login.used = true;
     return route.continue();
   });
@@ -594,33 +607,47 @@ export async function checkThemeSwitch(page, checks, diagnostics, setCategory, t
 }
 
 /** Public AU flag only: no page image or customer content leaves browser memory. */
-export async function inspectMarketFlags(page) {
-  const valid = await page.evaluate(({ origin, sprite }) => {
+export async function inspectMarketFlags(page, diagnostics = {}, prefix = '', metrics = {}) {
+  const result = await page.evaluate(({ origin, sprite }) => {
     const markets = [...document.querySelectorAll('[data-petish-market]')];
-    return markets.length >= 1 && markets.length <= 8 && markets.every(market => {
+    const allFlags = [...document.querySelectorAll('svg.petish-market__flag')];
+    const result = { markup: markets.length >= 1 && markets.length <= 8, dimensions: true, bbox: true,
+      visibleIndex: -1, inViewCount: 0, offscreenCount: 0 };
+    for (const market of markets) {
       const flags = market.querySelectorAll('svg.petish-market__flag');
-      if (flags.length !== 1 || /[\u{1F1E6}-\u{1F1FF}]/u.test(market.textContent)) return false;
+      if (flags.length !== 1 || /[\u{1F1E6}-\u{1F1FF}]/u.test(market.textContent)) { result.markup = false; continue; }
       const flag = flags[0], uses = flag.querySelectorAll('use');
       if (flag.getAttribute('aria-hidden') !== 'true' || flag.getAttribute('focusable') !== 'false'
-          || flag.getAttribute('viewBox') !== '0 0 512 512' || uses.length !== 1 || flag.textContent.trim()) return false;
-      const url = new URL(uses[0].getAttribute('href'), location.href);
-      if (url.origin !== origin || url.pathname !== sprite || url.hash !== '#flag-au'
-          || !/^\?ver=\d+$/.test(url.search)) return false;
+          || flag.getAttribute('viewBox') !== '0 0 512 512' || uses.length !== 1 || flag.textContent.trim()) { result.markup = false; continue; }
+      try {
+        const url = new URL(uses[0].getAttribute('href'), location.href);
+        if (url.origin !== origin || url.pathname !== sprite || url.hash !== '#flag-au'
+            || !/^\?ver=\d+$/.test(url.search)) result.markup = false;
+      } catch { result.markup = false; }
       const box = flag.getBoundingClientRect();
-      if (!box.width || !box.height || getComputedStyle(flag).visibility === 'hidden') return true;
-      const painted = uses[0].getBBox();
+      let hidden = !box.width || !box.height || getComputedStyle(flag).visibility === 'hidden';
+      for (let node = flag; node && !hidden; node = node.parentElement) hidden = Number(getComputedStyle(node).opacity) === 0;
+      if (hidden) continue;
+      if (box.right <= 0 || box.left >= innerWidth || box.bottom <= 0 || box.top >= innerHeight) { result.offscreenCount++; continue; }
+      result.inViewCount++; if (result.visibleIndex < 0) result.visibleIndex = allFlags.indexOf(flag);
       const expected = innerWidth <= 767 ? 20 : 22;
-      return Math.abs(box.width - expected) <= 1 && Math.abs(box.height - expected) <= 1
-        && painted.width > 0 && painted.height > 0 && box.left >= 0 && box.right <= innerWidth;
-    });
+      result.dimensions = result.dimensions && Math.abs(box.width - expected) <= 1 && Math.abs(box.height - expected) <= 1
+        && box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight;
+      try { const painted = uses[0].getBBox(); result.bbox = result.bbox && painted.width > 0 && painted.height > 0; }
+      catch { result.bbox = false; }
+    }
+    result.dimensions = result.dimensions && result.inViewCount >= 1;
+    result.bbox = result.bbox && result.inViewCount >= 1;
+    return result;
   }, { origin: ORIGIN, sprite: FLAG_PATH });
-  if (!valid) return false;
-  const flag = page.locator('svg.petish-market__flag:visible').first();
-  if (!await flag.count()) return false;
-  // Crop only the known decorative flag. Decode in the same browser to prove
-  // actual external-use/mask paint, rather than accepting an empty SVG box.
-  const bytes = await flag.screenshot({ type: 'png', animations: 'disabled' });
-  return page.evaluate(async base64 => {
+  metrics.min_flag_in_view_count = Math.min(metrics.min_flag_in_view_count ?? 8, result.inViewCount);
+  metrics.max_flag_offscreen_count = Math.max(metrics.max_flag_offscreen_count ?? 0, result.offscreenCount);
+  let pixels = false;
+  if (result.markup && result.dimensions && result.bbox && result.visibleIndex >= 0) try {
+    // Only this viewport-visible public flag is cropped into memory. Offscreen
+    // The7 clones retain strict markup validation but cannot select the crop.
+    const bytes = await page.locator('svg.petish-market__flag').nth(result.visibleIndex).screenshot({ type: 'png', animations: 'disabled' });
+    pixels = await page.evaluate(async base64 => {
     const image = new Image(); image.src = 'data:image/png;base64,' + base64;
     await image.decode();
     if (image.width > 88 || image.height > 88 || image.width < 20 || image.height < 20) return false;
@@ -637,33 +664,59 @@ export async function inspectMarketFlags(page) {
     }
     return blue >= 30 && red >= 3 && white >= 4;
   }, bytes.toString('base64'));
+  } catch { pixels = false; }
+  if (prefix) for (const [suffix, value] of Object.entries({ markup: result.markup, dimensions: result.dimensions, bbox: result.bbox, pixels })) {
+    const key = `${prefix}_flag_${suffix}_verified`; diagnostics[key] = diagnostics[key] !== false && value;
+  }
+  return result.markup && result.dimensions && result.bbox && pixels;
 }
 
 /** Fixed read-only routes, synthetic account, no market or cart actions. */
-export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 1280]) {
+export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 1280], diagnostics = {}, prefix = 'market_cart', metrics = {}) {
   if (!['/', '/cart/'].includes(pathname)) return false;
   const response = await page.goto(ORIGIN + pathname, { waitUntil: 'load' });
-  if (!response?.ok() || new URL(page.url()).pathname !== pathname) return false;
-  if (pathname === '/cart/' && !(await page.locator('.cart-empty, .wc-block-cart__empty-cart__title').count())) return false;
-  if (pathname === '/cart/' && await page.locator('.cart_item, .wc-block-cart-items__row').count()) return false;
+  if (pathname === '/cart/' && response) diagnostics[`${prefix}_initial_empty_marker_present`] = /<[^>]+\bclass=(["'])[^"']*\b(?:cart-empty|wc-block-cart__empty-cart__title)\b[^"']*\1[^>]*>/i.test(await response.text());
+  await settleHeader(page);
+  if (pathname === '/cart/') Object.assign(metrics, { http_status_class: Math.floor((response?.status() ?? 0) / 100),
+    empty_marker_count: Math.min(100, await page.locator('.cart-empty, .wc-block-cart__empty-cart__title').count()),
+    visible_cart_row_count: Math.min(100, await page.locator('.cart_item:visible, .wc-block-cart-items__row:visible').count()) });
+  const facts = { http_ok: !!response?.ok(), route_ok: new URL(page.url()).origin === ORIGIN && new URL(page.url()).pathname === pathname,
+    empty_marker: false, items_absent: false, block_shell: false, header_present: false, geometry_verified: false, paint_verified: false };
+  const publish = () => { if (pathname === '/cart/') for (const [name, value] of Object.entries(facts)) diagnostics[`${prefix}_${name}`] = value; };
+  publish();
+  if (!facts.http_ok || !facts.route_ok) return false;
+  facts.empty_marker = await page.locator('.cart-empty, .wc-block-cart__empty-cart__title').count() > 0;
+  facts.items_absent = await page.locator('.cart_item, .wc-block-cart-items__row').count() === 0;
+  facts.block_shell = await page.locator('.wp-block-woocommerce-cart,[data-block-name="woocommerce/cart"]').count() > 0;
+  facts.header_present = await page.locator('[data-petish-market]').count() > 0 && await page.locator(THEME_SWITCH).count() > 0;
+  publish();
+  if (!facts.header_present) return false;
+  if (pathname === '/cart/') for (const suffix of ['markup', 'dimensions', 'bbox', 'pixels']) diagnostics[`${prefix}_flag_${suffix}_verified`] = true;
+  let layout = true, painted = true;
   for (const width of widths) for (const mode of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(() => scrollTo(0, 0));
     if (await page.locator('html').getAttribute('data-theme') !== mode) await page.locator(`${THEME_SWITCH}:visible`).first().click();
     await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
     const geometry = await inspectThemeGeometry(page);
-    if (!geometry.order || !geometry.height || !geometry.fit || !await inspectMarketFlags(page)) return false;
+    layout = layout && geometry.order && geometry.height && geometry.fit;
+    painted = await inspectMarketFlags(page, diagnostics, pathname === '/cart/' ? prefix : '', metrics) && painted;
   }
-  return true;
+  facts.geometry_verified = layout; facts.paint_verified = painted; publish();
+  return layout && painted && (pathname !== '/cart/' || (facts.empty_marker && facts.items_absent));
 }
 
-async function checkWebKitFlags(webkit, storageState) {
+async function checkWebKitFlags(webkit, storageState, diagnostics, metrics) {
   if (!webkit) return false;
   const browser = await webkit.launch({ headless: true });
   try {
-    const { context } = await readOnlyContext(browser, storageState);
+    const { context, login } = await readOnlyContext(browser, storageState);
     const page = await context.newPage(); page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(45000);
-    return await checkMarketFlagPage(page, '/', [320, 390]) && await checkMarketFlagPage(page, '/cart/', [320, 390]);
+    diagnostics.market_webkit_homepage_verified = await checkMarketFlagPage(page, '/', [320, 390]);
+    login.cartStoreReadBlocked = false;
+    diagnostics.market_webkit_cart_verified = await checkMarketFlagPage(page, '/cart/', [320, 390], diagnostics, 'market_webkit_cart', metrics);
+    diagnostics.market_webkit_cart_store_api_get_blocked = login.cartStoreReadBlocked;
+    return diagnostics.market_webkit_homepage_verified && diagnostics.market_webkit_cart_verified;
   } finally { await browser.close(); }
 }
 
@@ -672,8 +725,9 @@ export async function run(input, chromium, options = {}) {
   const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
   const imageDimensions = Object.fromEntries(IMAGE_DIMENSION_KEYS.map(key => [key, 0]));
   const themeGeometry = {};
+  const cartMetrics = { chromium: {}, webkit: {} };
   let browser, category = 'input', sectionPresent = false;
-  const report = (status, category) => publicReport({ status, category, section_present: sectionPresent, image_dimensions: imageDimensions, theme_geometry: themeGeometry, diagnostics, checks });
+  const report = (status, category) => publicReport({ status, category, section_present: sectionPresent, image_dimensions: imageDimensions, theme_geometry: themeGeometry, cart_metrics: cartMetrics, diagnostics, checks });
   try {
     validateInput(input);
     if (input.expected_section_present !== undefined && typeof input.expected_section_present !== 'boolean') throw new Error('input');
@@ -823,11 +877,11 @@ export async function run(input, chromium, options = {}) {
     await checkThemeSwitch(page, checks, diagnostics, value => { category = value; }, themeGeometry);
     category = 'market_flag_layout';
     checks.market_flag_header_verified = await checkMarketFlagPage(page, '/');
-    requireCheck(checks.market_flag_header_verified, 'market_flag_layout');
-    checks.market_flag_cart_verified = await checkMarketFlagPage(page, '/cart/');
-    requireCheck(checks.market_flag_cart_verified, 'market_flag_layout');
-    checks.market_flag_webkit_verified = await checkWebKitFlags(options.webkit, await context.storageState());
-    requireCheck(checks.market_flag_webkit_verified, 'market_flag_layout');
+    login.cartStoreReadBlocked = false;
+    checks.market_flag_cart_verified = await checkMarketFlagPage(page, '/cart/', [320, 390, 1280], diagnostics, 'market_cart', cartMetrics.chromium);
+    diagnostics.market_cart_store_api_get_blocked = login.cartStoreReadBlocked;
+    checks.market_flag_webkit_verified = await checkWebKitFlags(options.webkit, await context.storageState(), diagnostics, cartMetrics.webkit);
+    requireCheck(checks.market_flag_header_verified && checks.market_flag_cart_verified && checks.market_flag_webkit_verified, 'market_flag_layout');
     requireCheck(Object.values(checks).every(Boolean), 'layout');
     return report('success', 'complete');
   } catch (error) {

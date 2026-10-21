@@ -42,7 +42,15 @@ BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_t
     for mode in ('light','dark') for fact in ('order','height','fit')} | {
     'native_other_cart_present','native_other_login_present','native_cart_link_present',
     'native_cart_amount_present','native_cart_icon_present','native_cart_counter_present',
-    'native_login_link_present','native_login_icon_present'}
+    'native_login_link_present','native_login_icon_present',
+    'market_webkit_homepage_verified','market_webkit_cart_verified'} | {
+    f'{prefix}_{suffix}' for prefix in ('market_cart','market_webkit_cart')
+    for suffix in ('http_ok','route_ok','empty_marker','items_absent','block_shell','header_present','geometry_verified','paint_verified',
+                   'flag_markup_verified','flag_dimensions_verified','flag_bbox_verified','flag_pixels_verified',
+                   'initial_empty_marker_present','store_api_get_blocked')}
+CART_METRIC_ENGINES={'chromium','webkit'}
+CART_METRIC_LIMITS={'http_status_class':5,'empty_marker_count':100,'visible_cart_row_count':100,
+    'min_flag_in_view_count':8,'max_flag_offscreen_count':8}
 THEME_GEOMETRY_VIEWS={f'{width}_{mode}' for width in (320,390,1280) for mode in ('light','dark')}
 THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewport_width',
     'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','baseline_logo_width',
@@ -177,6 +185,14 @@ def screen(phase,path):
                 if not isinstance(measurements,dict) or set(measurements)!=THEME_GEOMETRY_FIELDS \
                     or any(type(value) not in (int,float) or not math.isfinite(value) or not -4096<=value<=4096
                            for value in measurements.values()):raise ValueError()
+        if phase=='browser' and 'cart_metrics' in raw:
+            fields.add('cart_metrics')
+            metrics=raw['cart_metrics']
+            if not isinstance(metrics,dict) or set(metrics)!=CART_METRIC_ENGINES:raise ValueError()
+            for observed in metrics.values():
+                if not isinstance(observed,dict) or set(observed)!=set(CART_METRIC_LIMITS) \
+                    or any(type(observed[key]) is not int or not 0<=observed[key]<=limit
+                           for key,limit in CART_METRIC_LIMITS.items()):raise ValueError()
         if phase=='browser' and 'image_dimensions' in raw:
             fields.add('image_dimensions')
             dimensions=raw['image_dimensions']

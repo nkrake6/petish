@@ -141,19 +141,54 @@ class HomepageReleaseTests(unittest.TestCase):
             self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
 
     def test_browser_geometry_export_matches_exact_fixed_numeric_schema(self):
-        code="import { THEME_GEOMETRY_KEYS, DIAGNOSTIC_KEYS } from './tools/homepage/browser.mjs'; process.stdout.write(JSON.stringify({geometry:THEME_GEOMETRY_KEYS,diagnostics:DIAGNOSTIC_KEYS}));"
+        code="import { THEME_GEOMETRY_KEYS, DIAGNOSTIC_KEYS, CART_METRIC_KEYS, CART_METRIC_ENGINES } from './tools/homepage/browser.mjs'; process.stdout.write(JSON.stringify({geometry:THEME_GEOMETRY_KEYS,diagnostics:DIAGNOSTIC_KEYS,cart_keys:CART_METRIC_KEYS,cart_engines:CART_METRIC_ENGINES}));"
         output=subprocess.run(['node','--input-type=module','-e',code],cwd=ROOT,
             check=True,capture_output=True,text=True)
         exports=json.loads(output.stdout);fields=exports['geometry']
         self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
+        self.assertEqual(len(exports['diagnostics']),73)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))
         self.assertEqual(set(exports['diagnostics']),safe.BROWSER_DIAGNOSTICS)
+        self.assertEqual(set(exports['cart_keys']),set(safe.CART_METRIC_LIMITS))
+        self.assertEqual(set(exports['cart_engines']),safe.CART_METRIC_ENGINES)
         value=self.raw('browser')
         value['theme_geometry']={view:dict.fromkeys(fields,-1) for view in safe.THEME_GEOMETRY_VIEWS}
+        value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,False)
+        value['cart_metrics']={engine:dict.fromkeys(safe.CART_METRIC_LIMITS,0) for engine in safe.CART_METRIC_ENGINES}
         self.assertLess(len(json.dumps(value)),65536)
         self.assertTrue(self.screen('browser',value)[1])
+
+    def test_cart_diagnostics_cannot_replace_required_cart_or_webkit_checks(self):
+        for check in ('market_flag_cart_verified','market_flag_webkit_verified'):
+            value=self.raw('browser');value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,True)
+            value['checks'][check]=False
+            self.assertFalse(self.screen('browser',value)[1])
+
+    def test_cart_metrics_accept_only_fixed_bounded_counts(self):
+        value=self.raw('browser')
+        value['cart_metrics']={engine:{'http_status_class':2,'empty_marker_count':1,'visible_cart_row_count':0,
+                                      'min_flag_in_view_count':1,'max_flag_offscreen_count':2}
+                              for engine in ('chromium','webkit')}
+        self.assertTrue(self.screen('browser',value)[1])
+        for key,invalid in (('http_status_class',6),('http_status_class',True),('http_status_class',2.5),
+                            ('empty_marker_count',101),('visible_cart_row_count',-1),
+                            ('empty_marker_count','private-sentinel'),('min_flag_in_view_count',9),
+                            ('max_flag_offscreen_count',-1),('max_flag_offscreen_count',True)):
+            raw=copy.deepcopy(value);raw['cart_metrics']['chromium'][key]=invalid
+            report,passed=self.screen('browser',raw)
+            self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+            self.assertNotIn('private-sentinel',json.dumps(report))
+        for kind in ('extra_engine','missing_engine','extra_field','missing_field'):
+            raw=copy.deepcopy(value)
+            if kind=='extra_engine':raw['cart_metrics']['private-sentinel']={}
+            if kind=='missing_engine':del raw['cart_metrics']['webkit']
+            if kind=='extra_field':raw['cart_metrics']['chromium']['private-sentinel']=1
+            if kind=='missing_field':del raw['cart_metrics']['chromium']['empty_marker_count']
+            report,passed=self.screen('browser',raw)
+            self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+            self.assertNotIn('private-sentinel',json.dumps(report))
 
     def test_private_extras_invalid_flags_or_file_counts_refuse(self):
         bad=[]
