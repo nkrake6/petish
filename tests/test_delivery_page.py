@@ -190,15 +190,15 @@ echo json_encode($out);
 
     def test_only_reviewed_native_fields_reconstruct_an_update(self):
         result = self.php(self.native_data_fixture() + r'''
-$sql=petish_delivery_update_sql($data,$before,$content);$out=[str_starts_with($sql,'UPDATE `wp_posts` SET `post_author` = 7,'),str_ends_with($sql,' WHERE `ID` = 1002')];
-foreach(['missing','extra','title','id','content','null','array','date','reordered','field_format']as$case){
- $changed=$data;$wpdb->field_types['post_author']='%d';
- if($case==='missing')unset($changed['guid']);if($case==='extra')$changed['private_meta']='Injected';
+$sql=petish_delivery_update_sql($data,$before,$content);$out=[str_starts_with($sql,'UPDATE `wp_posts` SET `post_content` = '),str_ends_with($sql,' WHERE `ID` = 1002')];
+foreach(['missing','extra','title','id','content','null','array','date','reordered','wrong_target']as$case){
+ $changed=$data;$original=$before;
+ if($case==='missing')unset($changed['post_modified']);if($case==='extra')$changed['private_meta']='Injected';
  if($case==='title')$changed['post_title']='Different';if($case==='id')$changed['ID']=1003;
- if($case==='content')$changed['post_content']='Unreviewed';if($case==='null')$changed['post_excerpt']=null;
- if($case==='array')$changed['post_excerpt']=[];if($case==='date')$changed['post_modified']='not a date';
- if($case==='reordered')$changed=array_reverse($changed,true);if($case==='field_format')$wpdb->field_types['post_author']='%f';
- try{petish_delivery_update_sql($changed,$before,$content);$out[]=false;}catch(Throwable$e){$out[]=true;}}
+ if($case==='content')$changed['post_content']='Unreviewed';if($case==='null')$changed['post_modified']=null;
+ if($case==='array')$changed['post_modified']=[];if($case==='date')$changed['post_modified']='not a date';
+ if($case==='reordered')$changed=array_reverse($changed,true);if($case==='wrong_target')$original['ID']='1003';
+ try{petish_delivery_update_sql($changed,$original,$content);$out[]=false;}catch(Throwable$e){$out[]=true;}}
 $changed=$before;$changed['post_title']='Foreign editor';$out[]=!petish_delivery_row_equal($before,$changed);
 $out[]=petish_delivery_row_equal($before,array_reverse($before,true));echo json_encode($out);
 ''')
@@ -235,6 +235,15 @@ echo json_encode($out);
 ''', isolated_runtime=True)
         self.assertEqual(result, [True] * 7)
 
+    def test_three_column_rehearsal_preserves_the_full_row_and_rolls_back(self):
+        result = self.php(self.transaction_fixture() + r'''
+$wpdb->row=$before;petish_delivery_change('rehearse','123-1');
+echo json_encode([$wpdb->writes===1,$wpdb->row===$before,$GLOBALS['native_called']===false,
+ $wpdb->transactions===['START TRANSACTION','ROLLBACK'],
+ $report['checks']['native_editable_content_saved']===true,$report['checks']['rehearsal_rolled_back']===true]);
+''', isolated_runtime=True)
+        self.assertEqual(result,[True]*6)
+
     def test_rollback_restores_only_its_unchanged_owned_row(self):
         for mode in ['after', 'before', 'foreign', 'wrong_run', 'wrong_page', 'wrong_before_hash', 'wrong_after_hash']:
             result = self.php(self.transaction_fixture() + '$mode=' + json.dumps(mode) + r''';
@@ -268,8 +277,8 @@ $before=array_fill_keys($keys,'');$before['ID']='1002';$before['post_author']='7
 $before['post_content']='Original delivery copy';$before['post_title']='Delivery & shipping';$before['post_status']='publish';
 $before['post_type']='page';$before['post_name']='delivery-shipping';$before['guid']='https://petish.invalid/?page_id=1002';
 foreach(['post_date','post_date_gmt','post_modified','post_modified_gmt']as$key)$before[$key]='2026-10-21 00:00:00';
-$content='<p>Reviewed supplier-specific delivery estimates.</p>';$data=array_intersect_key($before,array_flip($keys));
-$data['post_content']=$content;$data['post_modified']=$data['post_modified_gmt']='2026-10-21 04:00:00';$data['post_author']=7;
+$content='<p>Reviewed supplier-specific delivery estimates.</p>';
+$data=['post_content'=>$content,'post_modified'=>'2026-10-21 04:00:00','post_modified_gmt'=>'2026-10-21 04:00:00'];
 '''
 
     @classmethod
@@ -280,6 +289,11 @@ class TransactionWPDB extends FixtureWPDB {
  public function get_row($query,$mode){if(str_starts_with($query,'SHOW TABLE STATUS'))return ['Engine'=>'InnoDB'];return$this->row;}
  public function get_results($query,$mode){if(str_starts_with($query,'SHOW TRIGGERS'))return[];throw new RuntimeException('Unexpected fixture query');}
  public function esc_like($value){return$value;}
+ public function update($table,$data,$where,$formats,$where_formats){
+  if($table!=='wp_posts'||$where!==['ID'=>1002]||$formats!==['%s','%s','%s']||$where_formats!==['%d'])throw new RuntimeException('Wrong scope');
+  $sql=petish_delivery_update_sql($data,$this->row,$data['post_content']);petish_delivery_query_guard($sql);
+  $this->writes++;$this->row=array_replace($this->row,$data);return 1;
+ }
  public function query($query){$sql=petish_delivery_query_guard($query);
   if(in_array($sql,['START TRANSACTION','COMMIT','ROLLBACK'],true)){
    $this->transactions[]=$sql;if($sql==='START TRANSACTION')$this->snapshot=$this->row;
@@ -296,6 +310,8 @@ mkdir(getenv('PETISH_TEST_HOME').'/.petish-delivery-page-backups',0700);
 function petish_club_verify_path($path,$directory=false){return$directory?is_dir($path):is_file($path);}
 function petish_club_verify_read_json($path){return$GLOBALS['fixture_journal'];}
 function clean_post_cache($id){if($id!==1002)throw new RuntimeException('Wrong cache key');}
+function current_time($type,$gmt=false){if($type!=='mysql')throw new RuntimeException('Wrong date format');return '2026-10-21 04:00:00';}
+function get_post_meta($id,$key,$single){return '';}
 function wp_update_post(...$args){$GLOBALS['native_called']=true;throw new RuntimeException('Unexpected native call');}
 '''
 

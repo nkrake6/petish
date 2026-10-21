@@ -94,43 +94,19 @@ function petish_delivery_bootstrap() {
     petish_delivery_check('no_persistent_cache_dropins',!file_exists($root.'/wp-content/object-cache.php')&&!file_exists($root.'/wp-content/advanced-cache.php'));
     return $root;
 }
-/** WordPress still performs its native cache invalidation; external save hooks are request-local disabled. */
+/** Keep native cache invalidation while preventing request-local cache hooks from making unrelated writes. */
 function petish_delivery_bound_hooks() {
-    $hooks=['pre_post_update','edit_post_page','edit_post','post_updated','save_post_page','save_post','wp_insert_post',
-        'wp_after_insert_post','transition_post_status','publish_page','publish_to_publish','clean_post_cache','clean_page_cache'];
-    foreach ($hooks as $hook) remove_all_actions($hook);
-    add_filter('wp_revisions_to_keep',static fn()=>0,PHP_INT_MAX);
-    add_filter('add_trashed_suffix_to_trashed_posts',static fn()=>false,PHP_INT_MAX);
-    foreach (get_object_taxonomies('page','objects') as $taxonomy) if (!empty($taxonomy->default_term)) petish_delivery_fail();
-    if (is_object_in_taxonomy('page','category')||is_object_in_taxonomy('page','post_tag')) petish_delivery_fail();
+    foreach (['clean_post_cache','clean_page_cache'] as $hook) remove_all_actions($hook);
 }
-/** Reconstruct the exact native wpdb::update statement after validating every merged field. */
+/** Only reviewed content and WordPress modified timestamps can reach wpdb::update. */
 function petish_delivery_update_sql($data,$before,$content) {
     global $wpdb;
-    $expected=['post_author','post_date','post_date_gmt','post_content','post_content_filtered','post_title','post_excerpt',
-        'post_status','post_type','comment_status','ping_status','post_password','post_name','to_ping','pinged',
-        'post_modified','post_modified_gmt','post_parent','menu_order','post_mime_type','guid'];
-    $observed=array_keys($data);$sorted=$observed;$sorted_expected=$expected;sort($sorted);sort($sorted_expected);
-    $observations=&$GLOBALS['petish_delivery_observations'];
-    $observations['native_field_count']=min(count($observed),100);
-    $observations['expected_field_set']=$sorted===$sorted_expected;
-    $observations['expected_field_order']=$observed===$expected;
-    if (!$observations['expected_field_order']) petish_delivery_fail();
-    foreach (['content_matches','unchanged_fields','valid_modified_dates','valid_field_types'] as $key) $observations[$key]=true;
-    $fields=[];$values=[];
-    foreach ($data as $field=>$value) {
-        if (!is_scalar($value)) { $observations['valid_field_types']=false;continue; }
-        if ($field==='post_content') { if ($value!==$content) $observations['content_matches']=false; }
-        elseif (in_array($field,['post_modified','post_modified_gmt'],true)) {
-            if (!is_string($value)||!preg_match('/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/D',$value)) $observations['valid_modified_dates']=false;
-        } elseif ((string)$value!==$before[$field]) $observations['unchanged_fields']=false;
-        $format=$wpdb->field_types[$field]??'%s';
-        if (!in_array($format,['%d','%s'],true)) $observations['valid_field_types']=false;
-        $fields[]='`'.$field.'` = '.$format;$values[]=$value;
-    }
-    foreach (['content_matches','unchanged_fields','valid_modified_dates','valid_field_types'] as $key) if (!$observations[$key]) petish_delivery_fail();
-    $values[]=1002;
-    return $wpdb->prepare('UPDATE `'.$wpdb->posts.'` SET '.implode(', ',$fields).' WHERE `ID` = %d',$values);
+    if (array_keys($data)!==['post_content','post_modified','post_modified_gmt']
+        ||($before['ID']??null)!=='1002'||$data['post_content']!==$content) petish_delivery_fail();
+    foreach (['post_modified','post_modified_gmt'] as $field)
+        if (!is_string($data[$field])||!preg_match('/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/D',$data[$field])) petish_delivery_fail();
+    return $wpdb->prepare('UPDATE `'.$wpdb->posts.'` SET `post_content` = %s, `post_modified` = %s, `post_modified_gmt` = %s WHERE `ID` = %d',
+        [$content,$data['post_modified'],$data['post_modified_gmt'],1002]);
 }
 function petish_delivery_journal_path($run,$create) {
     $dir=getenv('HOME').'/.petish-delivery-page-backups';
@@ -162,21 +138,20 @@ function petish_delivery_change($mode,$run) {
         petish_delivery_check('expected_page_content',hash_equals($manifest['old_content_sha256'],hash('sha256',$before['post_content'])));
         if (get_post_meta(1002,'_wp_page_template',true)!==''||get_post_meta(1002,'_elementor_edit_mode',true)==='builder'
             ||get_post_meta(1002,'_elementor_data',true)!=='') petish_delivery_fail();
-        $after=$before;$updates=0;
-        add_action('pre_post_update',static function($id,$data)use($before,$content,&$after,&$updates){
-            $GLOBALS['petish_delivery_observations']['native_pre_update_reached']=true;
-            $GLOBALS['petish_delivery_observations']['native_target_valid']=$id===1002&&$updates===0;
-            if ($id!==1002||$updates!==0) petish_delivery_fail();
-            $sql=petish_delivery_update_sql($data,$before,$content);
-            foreach ($data as $key=>$value) $after[$key]=(string)$value;
-            $GLOBALS['petish_delivery_next_sql']=$sql;$GLOBALS['petish_delivery_native_permit']=true;
-            $GLOBALS['petish_delivery_observations']['prepared_statement_approved']=true;$updates++;
-        },PHP_INT_MAX,2);
+        // wp_update_post normalizes unrelated old fields on this installation. The
+        // reviewed copy remains editable in WordPress; change only these three columns.
+        $data=['post_content'=>$content,'post_modified'=>current_time('mysql'),
+            'post_modified_gmt'=>current_time('mysql',true)];
+        $after=array_replace($before,$data);
+        $sql=petish_delivery_update_sql($data,$before,$content);
+        $GLOBALS['petish_delivery_next_sql']=$sql;$GLOBALS['petish_delivery_native_permit']=true;
+        $GLOBALS['petish_delivery_observations']['prepared_statement_approved']=true;
         $report['category']='native_update';
-        $result=wp_update_post(['ID'=>1002,'post_content'=>wp_slash($content)],true,false);
-        $GLOBALS['petish_delivery_observations']['native_result_valid']=$result===1002;
-        petish_delivery_check('native_editable_content_saved',$result===1002&&$updates===1
+        $result=$wpdb->update($wpdb->posts,$data,['ID'=>1002],['%s','%s','%s'],['%d']);
+        $GLOBALS['petish_delivery_observations']['native_result_valid']=$result===1;
+        petish_delivery_check('native_editable_content_saved',$result===1
             &&($GLOBALS['petish_delivery_next_sql']??null)===null&&petish_delivery_row_equal(petish_delivery_row(),$after));
+        clean_post_cache(1002);
         if ($mode==='rehearse') {
             $report['category']='rollback';
             petish_delivery_once('ROLLBACK');$transaction=false;
