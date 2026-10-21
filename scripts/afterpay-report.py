@@ -34,10 +34,11 @@ def code(value, length):
 
 
 def validate(value):
-    keys(value, 'status store_country store_currency active_plugins wcpay cached_account source_matches_11_2_0')
+    keys(value, 'status store_country store_currency checkout_page_content active_plugins wcpay cached_account source_matches_11_2_0')
     enum(value['status'], 'success')
     code(value['store_country'], 2)
     code(value['store_currency'], 3)
+    enum(value['checkout_page_content'], 'classic block mixed other missing')
     plugins = value['active_plugins']
     keys(plugins, 'woocommerce_payments woocommerce_stripe afterpay_plugin woocommerce_paypal_payments')
     for item in plugins.values():

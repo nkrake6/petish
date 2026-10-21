@@ -61,7 +61,14 @@ def country_or_currency(value, length):
 
 
 def boolean_or_unknown(value):
-    return value if type(value) is bool else None
+    # wp_localize_script stringifies scalar PHP values; do not treat arbitrary text as truthy.
+    if type(value) is bool:
+        return value
+    if value == '1':
+        return True
+    if isinstance(value, str) and value in {'', '0'}:
+        return False
+    return None
 
 
 def minor_amount(value):

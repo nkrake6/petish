@@ -79,6 +79,7 @@ function petish_project_afterpay($options) {
         'status' => 'success',
         'store_country' => petish_code($country, 2),
         'store_currency' => petish_code($options['woocommerce_currency'] ?? null, 3),
+        'checkout_page_content' => 'missing',
         'active_plugins' => [
             'woocommerce_payments' => in_array('woocommerce-payments/woocommerce-payments.php', $plugins, true),
             'woocommerce_stripe' => in_array('woocommerce-gateway-stripe/woocommerce-gateway-stripe.php', $plugins, true),
@@ -151,6 +152,7 @@ try {
         'active_plugins', 'woocommerce_default_country', 'woocommerce_currency',
         'woocommerce_woocommerce_payments_settings',
         'woocommerce_woocommerce_payments_afterpay_clearpay_settings', 'wcpay_account_data',
+        'woocommerce_checkout_page_id',
     ];
     $quoted = "'" . implode("','", $names) . "'";
     $rows = $database->query("SELECT option_name, option_value FROM `{$prefix}options` WHERE option_name IN ($quoted)");
@@ -160,9 +162,23 @@ try {
         if ($bytes > 4194304 || strlen($row['option_value']) > 2097152 || !in_array($row['option_name'], $names, true)) throw new RuntimeException();
         $options[$row['option_name']] = $row['option_value'];
     }
-    $rows->free(); $database->close();
+    $rows->free();
     $category = 'safe_projection';
     $report = petish_project_afterpay($options);
+    // Only the configured, published checkout page is inspected; its text never leaves SSH.
+    $checkoutId = $options['woocommerce_checkout_page_id'] ?? '';
+    if (is_string($checkoutId) && preg_match('/\A[1-9][0-9]{0,14}\z/D', $checkoutId)) {
+        $checkout = $database->query("SELECT post_content FROM `{$prefix}posts` WHERE ID=" . (int)$checkoutId
+            . " AND post_type='page' AND post_status='publish' AND post_password='' LIMIT 1");
+        $page = $checkout->fetch_assoc();
+        if (is_array($page) && is_string($page['post_content']) && strlen($page['post_content']) <= 131072) {
+            $block = preg_match('/<!--\s+wp:woocommerce\/checkout(?:\s|\/|-->)/', $page['post_content']) === 1;
+            $classic = preg_match('/\[woocommerce_checkout(?:\s|\])/', $page['post_content']) === 1;
+            $report['checkout_page_content'] = $block ? ($classic ? 'mixed' : 'block') : ($classic ? 'classic' : 'other');
+        }
+        $checkout->free();
+    }
+    $database->close();
     unset($options);
     $root = (string)getenv('PETISH_SITE_PATH') . '/wp-content/plugins/woocommerce-payments';
     $rootReal = realpath($root);
