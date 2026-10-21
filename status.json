@@ -1,0 +1,43 @@
+{
+  "status": "failure",
+  "category": "native",
+  "mode": "rehearse",
+  "run_id": "39543776385-1",
+  "source_commit": "bcf2c8205d32d2e3192b7501b5b69f82900a51af",
+  "generated_utc": "2026-10-21T04:23:45.486140+00:00",
+  "cache_preflight": {
+    "status": "success",
+    "category": "complete",
+    "checks": {
+      "target_paths_verified": true,
+      "target_environment_verified": true,
+      "woocommerce_runtime_verified": true,
+      "all_outbound_http_blocked": true,
+      "mail_calls_blocked": true,
+      "remote_file_access_disabled": true,
+      "cron_and_async_runner_disabled": true,
+      "jetpack_sync_isolated": true,
+      "purge_runtime_verified": true,
+      "purge_transactional_options": true,
+      "purge_queue_idle": true,
+      "purge_queue2_idle": true
+    }
+  },
+  "native_diagnostic": {
+    "category": "native_update",
+    "failed_checks": [],
+    "passed_checks": 13,
+    "rehearsal_rolled_back": true,
+    "observations": {
+      "native_pre_update_reached": true,
+      "native_target_valid": true,
+      "native_field_count": 21,
+      "expected_field_set": true,
+      "expected_field_order": true,
+      "content_matches": true,
+      "unchanged_fields": false,
+      "valid_modified_dates": true,
+      "valid_field_types": true
+    }
+  }
+}
