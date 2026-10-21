@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "scope": "public-static-concepts-only",
+  "source_sha": "ff1f46fde0c9f2467bdf6e25b9eaa96cf3ea9189",
+  "expected_file_count": 18,
+  "verified_file_count": 18,
+  "attempt_count": 3,
+  "all_public_files_match_git": true,
+  "pages_and_preview_match_git": true,
+  "screenshots_match_git": true,
+  "shared_render_assets_match_git": true
+}
