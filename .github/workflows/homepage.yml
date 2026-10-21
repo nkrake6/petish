@@ -72,10 +72,14 @@ jobs:
         run: |
           preparation_stage=connection
           trap 'printf "stage=%s\n" "$preparation_stage" >> "$GITHUB_OUTPUT"' EXIT
+          umask 077
           for attempt in 1 2 3; do
-            if bash scripts/hostinger-connection-check.sh; then break; fi
+            # Discover only the configured server's ED25519 identity. The shared
+            # SSH helper verifies its exact fingerprint before authentication.
+            if ssh-keyscan -T 15 -p "$SSH_PORT" -t ed25519 "$SSH_HOST" > "$RUNNER_TEMP/petish-candidate-host-keys" 2>/dev/null \
+                && [[ -s "$RUNNER_TEMP/petish-candidate-host-keys" ]]; then break; fi
             if [ "$attempt" = 3 ]; then exit 1; fi
-            sleep $((attempt * 15))
+            sleep 2
           done
           preparation_stage=ssh_tools
           if ! command -v sshpass >/dev/null 2>&1; then
