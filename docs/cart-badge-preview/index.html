@@ -19,7 +19,8 @@
     .links { display: flex; align-items: flex-start; gap: 30px; height: 36px; }
     .link { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 0 10px; font-size: 14px; line-height: 24px; font-weight: 600; white-space: nowrap; }
     .current { color: var(--active); border-bottom: 2px solid var(--active); }
-    .badge { display: inline-flex; flex: 0 0 24px; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #f9a825; color: #0b1426; font: 700 12px/1 "DM Sans", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+    .badge { display: inline-flex; flex: 0 0 1em; align-items: center; justify-content: center; width: 1em; height: 1em; border-radius: 50%; background: #f9a825; color: #0b1426; font: inherit; line-height: 1; font-variant-numeric: tabular-nums; }
+    .badge > span { font-size: .7em; font-weight: 700; line-height: 1; }
     .note { margin-top: 24px; max-width: 55ch; font-size: 13px; }
     @media(max-width:400px) { main { padding-inline: 12px; } .sample { padding-inline: 12px; } }
   </style>
@@ -30,11 +31,11 @@
     <p>A warm yellow circle with a dark number beside Cart.</p>
     <h2>Dark mode</h2>
     <div class="sample dark" id="dark-preview" aria-label="Dark navigation preview: Cart has three items">
-      <div class="links"><span class="link current">My account</span><span class="link">Cart <span class="badge" aria-hidden="true">3</span></span></div>
+      <div class="links"><span class="link current">My account</span><span class="link">Cart <span class="badge" aria-hidden="true"><span>3</span></span></span></div>
     </div>
     <h2>Light mode</h2>
     <div class="sample light" id="light-preview" aria-label="Light navigation preview: Cart has three items">
-      <div class="links"><span class="link current">My account</span><span class="link">Cart <span class="badge" aria-hidden="true">3</span></span></div>
+      <div class="links"><span class="link current">My account</span><span class="link">Cart <span class="badge" aria-hidden="true"><span>3</span></span></span></div>
     </div>
     <p class="note">Design preview only. The number shown is an example; this preview does not connect to a cart or change the live store.</p>
   </main>
