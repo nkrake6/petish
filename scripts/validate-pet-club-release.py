@@ -67,9 +67,10 @@ def validate(source):
         raise ValueError()
     for phase, required in [('preflight',checks.PREFLIGHT),('native',checks.STAGING),('fixture',checks.FIXTURE),('browser',checks.BROWSER),('cleanup',checks.CLEANUP)]:
         result = stage.get('phases',{}).get(phase,{})
-        fields = {'status','category','checks'} | ({'diagnostics'} if phase == 'browser' else set())
+        fields = {'status','category','checks'} | ({'diagnostics','menu_geometry'} if phase == 'browser' else set())
         if phase == 'browser':
             checks.browser_diagnostics(result.get('diagnostics') if isinstance(result,dict) else None)
+            checks.menu_geometry(result.get('menu_geometry') if isinstance(result,dict) else None)
         if not isinstance(result,dict) or set(result) != fields \
                 or result.get('status') != 'success' or result.get('category') != 'complete' \
                 or not isinstance(result.get('checks'),dict) or set(result['checks']) != required \

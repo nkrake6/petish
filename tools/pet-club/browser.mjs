@@ -41,6 +41,18 @@ export const MENU_CATEGORIES = Object.freeze(['menu_ready', 'menu_fonts', 'menu_
 export const DIAGNOSTIC_KEYS = Object.freeze([...MENU_DIAGNOSTIC_KEYS, ...['member', 'owner', 'guest'].flatMap(actor =>
   ['status_200', 'status_404', 'status_redirect', 'status_403', 'status_other',
     'no_store_header', 'litespeed_hit', 'redirect_to_staging_login'].map(fact => `favourites_${actor}_${fact}`))]);
+export const MENU_GEOMETRY_VIEWS = Object.freeze(['current_light', 'current_dark', 'baseline_light', 'baseline_dark']);
+export const MENU_GEOMETRY_ENDPOINTS = Object.freeze(['dashboard', 'orders', 'downloads', 'edit-address', 'payment-methods',
+  'edit-account', 'my-pets', 'for-my-pet', 'customer-logout']);
+export const MENU_GEOMETRY_FIELDS = Object.freeze(['row_width', 'row_height', 'text_width', 'text_height', 'line_height',
+  'padding_top', 'padding_bottom', 'padding_left', 'padding_right']);
+function publicMenuGeometry(value) {
+  return Object.fromEntries(MENU_GEOMETRY_VIEWS.map(view => [view, Object.fromEntries(MENU_GEOMETRY_ENDPOINTS.map(endpoint =>
+    [endpoint, Object.fromEntries(MENU_GEOMETRY_FIELDS.map(field => {
+      const number = value?.[view]?.[endpoint]?.[field];
+      return [field, typeof number === 'number' && Number.isFinite(number) && number >= 0 && number <= 2000 ? Math.round(number * 100) / 100 : 0];
+    }))]))]));
+}
 /** Response classification only: never publish headers, URLs, or response bodies. */
 export function favouritesHttpFacts(actor, status, headers) {
   if (!['member', 'owner', 'guest'].includes(actor)) throw new Error('input');
@@ -192,9 +204,10 @@ export function allowedRequest(raw, method = 'GET', state = {}, body = '', type 
 export function publicReport(value) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, value?.checks?.[key] === true]));
   const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, value?.diagnostics?.[key] === true]));
+  const menu_geometry = publicMenuGeometry(value?.menu_geometry);
   const success = value?.status === 'success' && value?.category === 'complete' && Object.values(checks).every(Boolean);
   return { status: success ? 'success' : 'failure', category: success ? 'complete'
-    : (CATEGORIES.has(value?.category) && value.category !== 'complete' ? value.category : 'input'), checks, diagnostics };
+    : (CATEGORIES.has(value?.category) && value.category !== 'complete' ? value.category : 'input'), checks, diagnostics, menu_geometry };
 }
 function ensure(value, category) { if (!value) throw new Error(category); }
 async function guard(context, state) {
@@ -346,6 +359,63 @@ export function menuToggleFacts(toggle) {
   return { visible: box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility === 'visible',
     receives_pointer: !!hit && (hit === toggle || toggle.contains(hit)) };
 }
+/** Only known menu endpoints and numeric layout data can leave the browser. */
+export function menuGeometryFacts(navigation, endpoints) {
+  return Object.fromEntries(endpoints.map(endpoint => {
+    const link = navigation.querySelector(`.woocommerce-MyAccount-navigation-link--${endpoint} a`);
+    if (!link) throw new Error('menu_height');
+    const box = link.getBoundingClientRect(), style = getComputedStyle(link), range = document.createRange();
+    range.selectNodeContents(link); const text = range.getBoundingClientRect();
+    return [endpoint, Object.fromEntries(Object.entries({ row_width: box.width, row_height: box.height,
+      text_width: text.width, text_height: text.height, line_height: parseFloat(style.lineHeight),
+      padding_top: parseFloat(style.paddingTop), padding_bottom: parseFloat(style.paddingBottom),
+      padding_left: parseFloat(style.paddingLeft), padding_right: parseFloat(style.paddingRight) })
+      .map(([key, value]) => [key, Number.isFinite(value) && value >= 0 && value <= 2000 ? Math.round(value * 100) / 100 : 0]))];
+  }));
+}
+export function menuBaselineStyles() {
+  const current = fs.readFileSync(new URL('../../wordpress/wp-content/plugins/petish-passport/assets/passport.css', import.meta.url), 'utf8');
+  const marker = current.indexOf('/* Colour track:');
+  const baseline = marker > 0 ? current.slice(0, marker - 1) : '';
+  if (createHash('sha256').update(baseline).digest('hex') !== 'e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076') throw new Error('menu_height');
+  return baseline;
+}
+async function settledMenuGeometry(page) {
+  const deadline = performance.now() + 2000; let previous = '', equal = 0, result;
+  do {
+    result = await page.locator('.woocommerce-MyAccount-navigation').evaluate(menuGeometryFacts, MENU_GEOMETRY_ENDPOINTS);
+    const snapshot = JSON.stringify(result), ready = await page.evaluate(() => !document.fonts || document.fonts.status === 'loaded');
+    equal = ready && snapshot === previous ? equal + 1 : 0; previous = snapshot;
+    if (equal >= 2 || performance.now() >= deadline) return result;
+    await page.waitForTimeout(50);
+  } while (performance.now() < deadline);
+  return result;
+}
+export async function compareMenuBaseline(page, theme, geometry) {
+  geometry[`current_${theme}`] = await settledMenuGeometry(page);
+  const baseline = menuBaselineStyles(); let installed = false;
+  try {
+    await page.evaluate(css => {
+      if (window.__petishMenuBaseline || document.getElementById('petish-proof-menu-baseline')) throw new Error('menu_height');
+      const links = [...document.querySelectorAll('link[rel="stylesheet"]')].filter(link => {
+        const url = new URL(link.href); return url.origin === location.origin
+          && url.pathname === '/wp-content/plugins/petish-passport/assets/passport.css';
+      });
+      if (links.length !== 1 || links[0].disabled) throw new Error('menu_height');
+      const style = document.createElement('style'); style.id = 'petish-proof-menu-baseline'; style.textContent = css;
+      window.__petishMenuBaseline = { link: links[0], style };
+      links[0].after(style); links[0].disabled = true;
+    }, baseline); installed = true;
+    await settled(page); geometry[`baseline_${theme}`] = await settledMenuGeometry(page);
+  } finally {
+    if (installed) await page.evaluate(() => {
+      const owned = window.__petishMenuBaseline;
+      if (!owned || owned.style.id !== 'petish-proof-menu-baseline') throw new Error('menu_height');
+      owned.link.disabled = false; owned.style.remove(); delete window.__petishMenuBaseline;
+    });
+    await settled(page);
+  }
+}
 /** Measure settled styles without disabling the theme's animations or changing expectations. */
 export async function settledAccountColourTrackFacts(page) {
   const navigation = page.locator('.woocommerce-MyAccount-navigation');
@@ -363,7 +433,7 @@ export async function settledAccountColourTrackFacts(page) {
   // Preserve the actual failing measurements for the finite diagnostic report.
   return { ...facts, icons: facts.icons && iconsReady >= 3, height: facts.height && heightReady >= 3 };
 }
-export async function checkAccountColourTrack(page, diagnostics = {}, setCategory = () => {}) {
+export async function checkAccountColourTrack(page, diagnostics = {}, setCategory = () => {}, geometry = null) {
   const viewport = page.viewportSize(), original = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   let icons = true, height = true;
   const palette = { cyan: true, purple: true, pink: true, gold: true };
@@ -388,6 +458,7 @@ export async function checkAccountColourTrack(page, diagnostics = {}, setCategor
         await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
         await settled(page);
         const facts = await settledAccountColourTrackFacts(page);
+        if (width === 992 && geometry) await compareMenuBaseline(page, theme, geometry);
         diagnostics[`menu_${width}_${theme}_icons`] = facts.icons;
         diagnostics[`menu_${width}_${theme}_height`] = facts.height;
         for (const group of Object.keys(palette)) {
@@ -495,6 +566,7 @@ function syntheticPng() {
 export async function run(input, chromium) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false])); let browser, category = 'input';
   const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
+  const menu_geometry = publicMenuGeometry();
   const mark = (key, value = true) => { checks[key] = !!value; ensure(checks[key], category); };
   try {
     validateInput(input); category = 'browser';
@@ -511,11 +583,13 @@ export async function run(input, chromium) {
       && (await page.locator('.pc-status').textContent()).includes('Private'));
     category = 'mobile'; mark('mobile_390_verified', await fit(page, 390)); mark('mobile_320_verified', await fit(page, 320));
     category = 'menu_ready'; const menu = page.locator('.pp-account-navigation-toggle'); await menu.waitFor({ state: 'visible' });
-    const menuFacts = await checkAccountColourTrack(page, diagnostics, value => { category = value; });
+    const menuFacts = await checkAccountColourTrack(page, diagnostics, value => { category = value; }, menu_geometry);
     category = 'menu_stylesheet'; await Promise.all(menuResponses);
     ensure(diagnostics.menu_stylesheet_seen && diagnostics.menu_stylesheet_bytes_verified, category);
     category = 'menu_icons'; mark('account_menu_colour_track_verified', menuFacts.icons);
-    category = 'menu_height'; mark('account_menu_height_preserved', menuFacts.height); category = 'navigation';
+    // Collect independent fixture/privacy results even if this visual check fails.
+    // The final report still requires this check and all other required checks.
+    checks.account_menu_height_preserved = menuFacts.height; category = 'navigation';
     await menu.click(); ensure(await menu.getAttribute('aria-expanded') === 'true', category);
     await page.keyboard.press('Escape'); const menuClosed = await menu.getAttribute('aria-expanded') === 'false';
     const collection = await page.goto(ORIGIN + '/my-account/for-my-pet/', { waitUntil: 'domcontentloaded' });
@@ -771,8 +845,9 @@ export async function run(input, chromium) {
       && !allowedRequest(ORIGIN + '/?add-to-cart=1', 'GET', state)
       && !allowedRequest(ORIGIN + '/wp-admin/admin-post.php', 'POST', state, 'action=petish_club_publish')
       && !allowedRequest(ORIGIN + '/my-account/edit-account/', 'POST', state));
-    return publicReport({ status: 'success', category: 'complete', checks, diagnostics });
-  } catch (error) { return publicReport({ status: 'failure', category: CATEGORIES.has(error.message) ? error.message : category, checks, diagnostics }); }
+    ensure(checks.account_menu_height_preserved, 'menu_height');
+    return publicReport({ status: 'success', category: 'complete', checks, diagnostics, menu_geometry });
+  } catch (error) { return publicReport({ status: 'failure', category: CATEGORIES.has(error.message) ? error.message : category, checks, diagnostics, menu_geometry }); }
   finally { if (browser) await browser.close().catch(() => {}); }
 }
 

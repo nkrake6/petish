@@ -2,6 +2,7 @@
 """Publish only finite Pet Club verification checks; private pet data stays remote."""
 import importlib.util
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -196,6 +197,28 @@ BROWSER_DIAGNOSTICS = MENU_DIAGNOSTICS | {
 }
 
 
+MENU_GEOMETRY_VIEWS = {'current_light', 'current_dark', 'baseline_light', 'baseline_dark'}
+MENU_GEOMETRY_ENDPOINTS = {'dashboard', 'orders', 'downloads', 'edit-address', 'payment-methods',
+                           'edit-account', 'my-pets', 'for-my-pet', 'customer-logout'}
+MENU_GEOMETRY_FIELDS = {'row_width', 'row_height', 'text_width', 'text_height', 'line_height',
+                       'padding_top', 'padding_bottom', 'padding_left', 'padding_right'}
+
+
+def menu_geometry(value):
+    if not isinstance(value, dict) or set(value) != MENU_GEOMETRY_VIEWS:
+        raise ValueError()
+    for view in value.values():
+        if not isinstance(view, dict) or set(view) != MENU_GEOMETRY_ENDPOINTS:
+            raise ValueError()
+        for row in view.values():
+            if not isinstance(row, dict) or set(row) != MENU_GEOMETRY_FIELDS:
+                raise ValueError()
+            for measure in row.values():
+                if type(measure) not in (int, float) or not math.isfinite(measure) \
+                        or not 0 <= measure <= 2000 or round(measure, 2) != measure:
+                    raise ValueError()
+
+
 def browser_diagnostics(value):
     if not isinstance(value, dict) or set(value) != BROWSER_DIAGNOSTICS \
             or any(type(fact) is not bool for fact in value.values()):
@@ -264,7 +287,8 @@ def screen(phase, path):
         fields = {'status', 'category', 'checks'} | ({'changed_file_count'} if deploy else set())
         if phase == 'browser' and isinstance(raw, dict):
             browser_diagnostics(raw.get('diagnostics'))
-            fields.add('diagnostics')
+            menu_geometry(raw.get('menu_geometry'))
+            fields |= {'diagnostics', 'menu_geometry'}
         if phase == 'diagnose' and isinstance(raw, dict):
             diagnostic_names(raw)
             fields |= set(raw) & {'option_names', 'option_name_prefixes'}

@@ -39,6 +39,8 @@ class PetClubReleaseTests(unittest.TestCase):
                  'checks': dict.fromkeys(safe.REQUIRED[phase], True)}
         if phase == 'browser':
             value['diagnostics'] = dict.fromkeys(safe.BROWSER_DIAGNOSTICS, False)
+            value['menu_geometry'] = {view: {endpoint: dict.fromkeys(safe.MENU_GEOMETRY_FIELDS, 0)
+                for endpoint in safe.MENU_GEOMETRY_ENDPOINTS} for view in safe.MENU_GEOMETRY_VIEWS}
         if phase in {'inspect', 'apply', 'apply_index', 'pause', 'resume', 'rollback', 'commit'}:
             value['changed_file_count'] = len(evidence.FILES)
         return value
@@ -74,6 +76,39 @@ class PetClubReleaseTests(unittest.TestCase):
         self.assertFalse(self.screen('browser', value)[1])
         path, _, stage, _, _ = self.fixture()
         stage['phases']['browser']['diagnostics']['private_value'] = 'private-sentinel'
+        with self.assertRaises(ValueError): evidence.validate(path)
+
+    def test_menu_geometry_allows_only_bounded_rounded_numbers_on_fixed_menu_rows(self):
+        value = self.raw('browser')
+        row = value['menu_geometry']['current_light']['payment-methods']
+        for number in (0, 0.01, 18.2, 1999.99, 2000):
+            row['row_width'] = number
+            self.assertTrue(self.screen('browser', value)[1])
+        for number in (True, False, None, 'private-sentinel', -0.01, 2000.01, 0.001,
+                       float('inf'), float('-inf'), float('nan')):
+            row['row_width'] = number
+            report, passed = self.screen('browser', value)
+            self.assertFalse(passed)
+            self.assertEqual(report['category'], 'invalid_report')
+            self.assertNotIn('private-sentinel', json.dumps(report))
+        value = self.raw('browser')
+        for kind in ('missing_view', 'unknown_view', 'missing_endpoint', 'unknown_endpoint', 'missing_field', 'unknown_field'):
+            changed = copy.deepcopy(value)
+            views = changed['menu_geometry']
+            if kind == 'missing_view': del views['current_light']
+            if kind == 'unknown_view': views['customer_name'] = {}
+            if kind == 'missing_endpoint': del views['current_light']['orders']
+            if kind == 'unknown_endpoint': views['current_light']['private-owner-id'] = {}
+            if kind == 'missing_field': del views['current_light']['orders']['line_height']
+            if kind == 'unknown_field': views['current_light']['orders']['text'] = 'private-sentinel'
+            report, passed = self.screen('browser', changed)
+            self.assertFalse(passed)
+            self.assertEqual(report['category'], 'invalid_report')
+            self.assertNotIn('private-sentinel', json.dumps(report))
+        value['checks']['account_menu_height_preserved'] = False
+        self.assertFalse(self.screen('browser', value)[1])
+        path, _, stage, _, _ = self.fixture()
+        stage['phases']['browser']['menu_geometry']['baseline_dark']['orders']['row_height'] = True
         with self.assertRaises(ValueError): evidence.validate(path)
 
     def test_guard_failures_publish_only_fixed_categories(self):
@@ -542,14 +577,19 @@ class PetClubReleaseTests(unittest.TestCase):
         self.assertEqual(safe.BROWSER, set(re.findall(r"'([a-z0-9_]+)'", contract.group(1))))
         if shutil.which('node'):
             exported = subprocess.check_output(['node', '--input-type=module', '-e',
-                "import { DIAGNOSTIC_KEYS, MENU_DIAGNOSTIC_KEYS, MENU_CATEGORIES } from './tools/pet-club/browser.mjs'; "
-                "console.log(JSON.stringify({diagnostics:DIAGNOSTIC_KEYS,menu:MENU_DIAGNOSTIC_KEYS,categories:MENU_CATEGORIES}));"],
+                "import { DIAGNOSTIC_KEYS, MENU_DIAGNOSTIC_KEYS, MENU_CATEGORIES, "
+                "MENU_GEOMETRY_VIEWS, MENU_GEOMETRY_ENDPOINTS, MENU_GEOMETRY_FIELDS } from './tools/pet-club/browser.mjs'; "
+                "console.log(JSON.stringify({diagnostics:DIAGNOSTIC_KEYS,menu:MENU_DIAGNOSTIC_KEYS,categories:MENU_CATEGORIES,"
+                "views:MENU_GEOMETRY_VIEWS,endpoints:MENU_GEOMETRY_ENDPOINTS,fields:MENU_GEOMETRY_FIELDS}));"],
                 cwd=ROOT, timeout=10)
             exported = json.loads(exported)
             self.assertEqual(safe.BROWSER_DIAGNOSTICS, set(exported['diagnostics']))
             self.assertEqual(safe.MENU_DIAGNOSTICS, set(exported['menu']))
             self.assertEqual(safe.MENU_CATEGORIES, set(exported['categories']))
             self.assertTrue(set(exported['categories']) <= safe.CATEGORIES)
+            self.assertEqual(safe.MENU_GEOMETRY_VIEWS, set(exported['views']))
+            self.assertEqual(safe.MENU_GEOMETRY_ENDPOINTS, set(exported['endpoints']))
+            self.assertEqual(safe.MENU_GEOMETRY_FIELDS, set(exported['fields']))
 
 
     def test_expired_backup_or_unproven_recovery_refuses(self):

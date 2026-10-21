@@ -524,6 +524,27 @@ console.log(JSON.stringify([transitioned>=6,settled.icons,settled.height,!wrong.
 """)
         self.assertEqual(result, [True] * 6)
 
+    def test_menu_geometry_reports_only_fixed_bounded_dimensions_and_keeps_failure_gate(self):
+        result = self.node(r"""
+const checks=Object.fromEntries(proof.CHECK_KEYS.map(key=>[key,true]));checks.account_menu_height_preserved=false;
+const input={current_light:{dashboard:{row_width:173.1234,row_height:2001,text_width:'PRIVATE',text_height:true,
+ line_height:Infinity,padding_top:-1,padding_bottom:12,padding_left:0,padding_right:NaN,private:'PRIVATE'}},private:'PRIVATE'};
+const report=proof.publicReport({status:'success',category:'complete',checks,menu_geometry:input});
+const {createHash}=await import('node:crypto');
+console.log(JSON.stringify({report,pinned:createHash('sha256').update(proof.menuBaselineStyles()).digest('hex')===
+ 'e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076'}));
+""")
+        self.assertEqual(result['report']['status'], 'failure')
+        self.assertTrue(result['pinned'])
+        geometry = result['report']['menu_geometry']
+        self.assertEqual(set(geometry), {'current_light', 'current_dark', 'baseline_light', 'baseline_dark'})
+        self.assertTrue(all(len(view) == 9 and all(len(row) == 9 for row in view.values()) for view in geometry.values()))
+        self.assertEqual(geometry['current_light']['dashboard']['row_width'], 173.12)
+        self.assertEqual(geometry['current_light']['dashboard']['padding_bottom'], 12)
+        self.assertTrue(all(geometry['current_light']['dashboard'][key] == 0 for key in
+                            ['row_height', 'text_width', 'text_height', 'line_height', 'padding_top', 'padding_right']))
+        self.assertNotIn('PRIVATE', json.dumps(result))
+
     def test_browser_form_failures_report_only_finite_steps(self):
         result = self.node(r"""
 console.log(JSON.stringify(proof.FORM_CATEGORIES.map(category=>proof.publicReport({
@@ -535,7 +556,7 @@ console.log(JSON.stringify(proof.FORM_CATEGORIES.map(category=>proof.publicRepor
                     'variety_selection', 'form_saved']
         self.assertEqual([entry['category'] for entry in result], expected)
         self.assertTrue(all(entry['status'] == 'failure'
-                            and set(entry) == {'status', 'category', 'checks', 'diagnostics'} for entry in result))
+                            and set(entry) == {'status', 'category', 'checks', 'diagnostics', 'menu_geometry'} for entry in result))
         self.assertNotIn('must-not-escape', json.dumps(result))
 
     def test_browser_video_limit_failures_report_only_finite_steps(self):
@@ -551,7 +572,7 @@ console.log(JSON.stringify(proof.VIDEO_LIMIT_CATEGORIES.map(category=>proof.publ
                                  *(f'post_{reason}' for reason in reasons), 'response', 'notice_missing', 'notice_content', 'unchanged')]
         self.assertEqual([entry['category'] for entry in result], expected)
         self.assertTrue(all(entry['status'] == 'failure'
-                            and set(entry) == {'status', 'category', 'checks', 'diagnostics'} for entry in result))
+                            and set(entry) == {'status', 'category', 'checks', 'diagnostics', 'menu_geometry'} for entry in result))
         self.assertNotIn('must-not-escape', json.dumps(result))
         spec = importlib.util.spec_from_file_location('petish_video_limit_sanitizer', ROOT / 'scripts/sanitize-pet-club-result.py')
         sanitizer = importlib.util.module_from_spec(spec)
