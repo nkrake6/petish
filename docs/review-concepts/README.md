@@ -14,8 +14,10 @@ activate rewards or play a real customer video. Video posters open an explanator
 preview dialog. Shipping thresholds and caps remain undecided.
 
 The member tiers follow the [programme proposal](../CUSTOMER-REVIEWS-PROPOSAL.md):
-50 Pet Scout (cyan), 100 Regular Reviewer (lavender, 5%), 250 Community Champion
+50 Pet Scout (cyan), 100 Regular Reviewer (green, 5%), 250 Community Champion
 (pink, 10%), 500 Petish Legend (gold, 15% and capped standard delivery).
+The owner selected green in place of lavender for the review accents and
+Regular Reviewer ring. Cyan, pink and gold tiers retain their colours.
 
 The pet photographs and approved logo reuse the existing concept assets
 unchanged. They are licensed illustrative photographs, not private customer pet

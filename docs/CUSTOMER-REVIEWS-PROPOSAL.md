@@ -56,7 +56,7 @@ variant even if the counting rule groups variants under their parent product.
 | Qualifying reviews | Suggested title | Profile ring | Ongoing benefit |
 | --- | --- | --- | --- |
 | 50 | Pet Scout | Cyan | Status recognition |
-| 100 | Regular Reviewer | Lavender | 5% product discount |
+| 100 | Regular Reviewer | Green | 5% product discount |
 | 250 | Community Champion | Pink | 10% product discount |
 | 500 | Petish Legend | Gold | 15% product discount and capped standard delivery |
 

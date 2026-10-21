@@ -95,7 +95,8 @@ for the current cloud workflow. The Mac setup below is archived history.
   delivery minimum/cap amounts and above-cap treatment remain undecided.
   [Programme proposal](docs/CUSTOMER-REVIEWS-PROPOSAL.md) and
   [three interactive layout mockups](https://nkrake6.github.io/petish/review-concepts/)
-  are ready for design choice. The mockups use fictional data; no review,
+  are ready for design choice. Green replaces lavender in the review accents
+  and 100-review tier, as requested by the owner. The mockups use fictional data; no review,
   voting, upload or reward features have been enabled on the live store.
 
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
