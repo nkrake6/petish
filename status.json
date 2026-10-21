@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "apply",
   "run_id": "39537785516-1",
   "source_commit": "c136035fe5d76538fbc0199a3f3a87ec8e5f5995",
-  "generated_utc": "2026-10-21T03:18:03.151444+00:00",
+  "generated_utc": "2026-10-21T03:18:28.182512+00:00",
   "source_hashes": {
     "assets/css/home.css": "dc4f3606341c2eb44df505c54a192e07d2771e90a9e09c102ac2a6983789bd23",
     "assets/images/ui/free-delivery-van.png": "4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af",
@@ -38,6 +38,117 @@
         "maintenance_guard_removed": false
       },
       "changed_file_count": 5
+    },
+    "apply": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "candidate_badge_png_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": true,
+        "maintenance_guard_created": true,
+        "maintenance_guard_removed": true
+      },
+      "changed_file_count": 5
+    },
+    "verify": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "previous_account_and_email_assets_preserved": true,
+        "free_delivery_badge_asset_verified": true,
+        "target_environment_verified": true,
+        "tested_theme_and_woocommerce_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "production_data_snapshot_verified": true,
+        "anonymous_render_context_verified": true,
+        "free_delivery_helpers_available": true,
+        "original_hot_rule_preserved": true,
+        "homepage_query_verified": true,
+        "free_delivery_products_available": false,
+        "full_homepage_rendered": true,
+        "for_your_pet_cacheable_shell_verified": true,
+        "hot_subtitle_removed": true,
+        "free_delivery_section_matches_evidence": true,
+        "free_delivery_ordering_verified": true,
+        "free_delivery_section_position_verified": true,
+        "product_badges_match_eligibility": true,
+        "hot_badges_match_existing_rule": true,
+        "homepage_stylesheet_enqueued": true,
+        "stylesheet_version_matches_file": true,
+        "for_your_pet_script_enqueued": true,
+        "order_counts_unchanged": true,
+        "user_counts_unchanged": true,
+        "authentication_state_unchanged": true,
+        "product_stock_unchanged": true,
+        "account_settings_unchanged": true,
+        "shipping_policy_and_evidence_unchanged": true,
+        "protected_site_state_unchanged": true,
+        "native_read_only_verified": true
+      }
+    },
+    "health": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "homepage_http_verified": true,
+        "shop_http_verified": true,
+        "product_http_verified": true,
+        "cart_http_verified": true,
+        "account_http_verified": true,
+        "approved_logo_http_verified": true,
+        "logo_http_fetch_succeeded": true,
+        "logo_http_is_png": true,
+        "logo_http_is_webp": false,
+        "logo_http_file_bytes_match": false,
+        "logo_http_dimensions_match": true,
+        "logo_http_pixels_match": true
+      }
+    },
+    "assets": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "for_your_pet_script_http_verified": true,
+        "free_delivery_badge_http_verified": true,
+        "home_stylesheet_http_verified": true,
+        "homepage_http_verified": true,
+        "hot_subtitle_absent": true
+      }
+    },
+    "commit": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "candidate_badge_png_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": true,
+        "lock_owned": true,
+        "maintenance_guard_created": false,
+        "maintenance_guard_removed": true
+      },
+      "changed_file_count": 0
     }
   },
   "preparation_stage": "complete",
