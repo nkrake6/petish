@@ -181,8 +181,10 @@ body.woocommerce-account .woocommerce-MyAccount-navigation li.woocommerce-MyAcco
 body.woocommerce-account .woocommerce-MyAccount-navigation.pp-account-navigation>ul{background:var(--pp-surface)}
 body.woocommerce-account .woocommerce-MyAccount-navigation.pp-account-navigation li a{padding-inline:16px var(--pp-menu-reserve,12px)}
 }
-/* Keep the longest native label on one line in The7's narrow desktop sidebar. */
-@media(min-width:992px) and (max-width:1100px){
+/* Give native labels and icons room without increasing narrow-desktop row heights. */
+@media(min-width:992px) and (max-width:1199px){
+body.woocommerce-account .woocommerce-MyAccount-navigation{width:22%}
+body.woocommerce-account .woocommerce-MyAccount-content{width:74%}
 body.woocommerce-account .woocommerce-MyAccount-navigation li a{padding-inline:10px 32px}
 body.woocommerce-account .woocommerce-MyAccount-navigation li a::after{right:6px}
 body.woocommerce-account .woocommerce-MyAccount-navigation li a::before{right:3px}

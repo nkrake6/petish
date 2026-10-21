@@ -487,6 +487,18 @@ function petish_club_verify_pending_index_count() {
  $count=$wpdb->get_var($wpdb->prepare($sql.' AND ('.implode(' OR ',$missing).')',...$args));
  if($count===null||!empty($wpdb->last_error))petish_club_verify_fail();return max(0,(int)$count);
 }
+function petish_club_verify_guest_favourites() {
+ $previous_user=get_current_user_id();
+ try{
+  if($previous_user)wp_set_current_user(0);
+  $guest=Petish_Passport_Community::directory(['view'=>'favourites','name'=>'Synthetic guest filter','uid'=>PHP_INT_MAX]);
+  $html=petish_club_verify_capture(static fn()=>Petish_Passport_UI::render_community($guest));
+  return get_current_user_id()===0&&is_array($guest)&&($guest['login_required']??false)===true
+   &&($guest['profiles']??null)===[]&&is_string($html)&&strlen($html)<1048576
+   &&str_contains($html,'Sign in to see favourites')&&str_contains($html,'pc-empty pc-welcome')
+   &&!preg_match('~class=["\'][^"\']*\b(?:pc-community-card|pc-heart-form|pc-profile|pc-moment)\b~',$html);
+ }finally{if($previous_user)wp_set_current_user($previous_user);}
+}
 function petish_club_verify_contracts($root) {
  global $wp,$report;
  $report['category']='contracts';
@@ -516,7 +528,7 @@ function petish_club_verify_contracts($root) {
  petish_club_verify_mark('mutation_hooks_registered',$actions);
  $base=$root.'/wp-content/plugins/petish-passport/assets/';
  petish_club_verify_mark('legacy_assets_preserved',hash_equals('5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75',hash_file('sha256',$base.'account-navigation.js'))
-  &&hash_equals('7bfaba1d23ea4ca07fbdb009aceec36efbefb194e1bdafff60c46f012c8a237d',hash_file('sha256',$base.'passport.css')));
+  &&hash_equals('58ae61debf37356af35c47abc0881e2d393ae5f6330fa79afff1eb9e1b6732fd',hash_file('sha256',$base.'passport.css')));
  $query=$wp->query_vars;$account=static fn()=>true;add_filter('woocommerce_is_account_page',$account,PHP_INT_MAX);
  try{$wp->query_vars=['my-pets'=>''];Petish_Passport_UI::enqueue();
   $styles=wp_styles();$club=false;foreach($styles->registered as$item)
@@ -529,9 +541,10 @@ function petish_club_verify_contracts($root) {
   'traits'=>['<b>Curious</b>'],'photo_url'=>'','moments'=>[],'published'=>'2026-10-21 00:00:00',
   'hearts'=>0,'hearted'=>false,'is_owner'=>false,'can_heart'=>false];
  $html=petish_club_verify_capture(static fn()=>Petish_Passport_UI::render_public($sample,[]));
+ $guest_verified=petish_club_verify_guest_favourites();
  petish_club_verify_mark('synthetic_public_render_verified',is_string($html)&&strlen($html)>100&&strlen($html)<1048576
   &&str_contains($html,'Synthetic')&&str_contains($html,'Mini Lop')&&!preg_match('~<(?:script|img|svg)\b[^>]*(?:alert\(|src=x)~i',$html)
-  &&!str_contains($html,'onerror=alert(1)>')&&!str_contains($html,'onload=alert(1)>')&&!str_contains($html,'@petish.invalid'));
+  &&!str_contains($html,'onerror=alert(1)>')&&!str_contains($html,'onload=alert(1)>')&&!str_contains($html,'@petish.invalid')&&$guest_verified);
 }
 
 function petish_club_verify_fixture_state_path($kind) {

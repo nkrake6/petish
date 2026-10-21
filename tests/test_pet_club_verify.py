@@ -488,6 +488,60 @@ console.log(JSON.stringify({report,cached,keys:proof.DIAGNOSTIC_KEYS}));
         self.assertTrue(result['cached']['favourites_member_litespeed_hit'])
         self.assertNotIn('PRIVATE', json.dumps(result))
 
+    def test_guest_favourite_redirect_is_same_site_uncacheable_and_bounded(self):
+        result = self.node(r"""
+const target='https://staging.petish.biz/?petish_club=1&club_view=favourites&club_uid=123';
+const base={'cache-control':'private, no-store','x-litespeed-cache':'miss',location:'/wp-login.php?redirect_to='+encodeURIComponent(target)+'&reauth=1'};
+const verify=(status,headers)=>proof.stagingGuestFavouriteRedirect(status,headers,target);
+const out=[verify(302,base),verify(303,{...base,location:'/wp-login.php'})];
+for(const change of[{location:'https://foreign.invalid/wp-login.php'}, {location:'/other'},
+ {location:'/wp-login.php?redirect_to='+encodeURIComponent('https://staging.petish.biz/other')},
+ {location:'/wp-login.php?redirect_to='+encodeURIComponent(target)+'&redirect_to='+encodeURIComponent(target)},
+ {location:'/wp-login.php?reauth=0'},{location:'/wp-login.php#private'},
+ {'cache-control':'public,max-age=600'},{'x-litespeed-cache':'hit'},{location:'/wp-login.php?private=value'}])out.push(!verify(302,{...base,...change}));
+out.push(!verify(301,base),!verify(200,base));console.log(JSON.stringify(out));
+""")
+        self.assertEqual(result, [True] * 13)
+
+    def test_native_guest_favourites_uses_no_account_and_restores_actor(self):
+        result = self.php(r'''
+$GLOBALS['actor']=42;$GLOBALS['case']='normal';
+function get_current_user_id(){return $GLOBALS['actor'];}function wp_set_current_user($id){$GLOBALS['actor']=$id;}
+class Petish_Passport_Community{static function directory($filters){
+ if(get_current_user_id()!==0||$filters['view']!=='favourites'||$filters['uid']!==PHP_INT_MAX)throw new RuntimeException('fixture');
+ return ['login_required'=>$GLOBALS['case']!=='bad_login','profiles'=>[]];}}
+class Petish_Passport_UI{static function render_community($directory){
+ if($GLOBALS['case']==='exception')throw new RuntimeException('fixture');
+ echo '<section class="pc-empty pc-welcome"><a>Sign in to see favourites</a></section>';
+ if($GLOBALS['case']==='private')echo '<article class="pc-community-card">Private</article>';
+}}
+$out=[petish_club_verify_guest_favourites(),get_current_user_id()===42];
+foreach(['bad_login','private']as$case){$GLOBALS['case']=$case;$out[]=!petish_club_verify_guest_favourites()&&get_current_user_id()===42;}
+$GLOBALS['case']='exception';try{petish_club_verify_guest_favourites();$out[]=false;}catch(Throwable$ignored){$out[]=get_current_user_id()===42;}
+echo json_encode($out);
+''')
+        self.assertEqual(result, [True] * 5)
+
+    @unittest.skipUnless(shutil.which('chromium'), 'Chromium is required')
+    def test_guest_markup_allows_filter_urls_but_rejects_profile_content(self):
+        result = self.node(r"""
+const {createRequire}=await import('node:module');
+const require=createRequire(new URL('./tools/staging-rehearsal/package.json',import.meta.url));
+const browser=await require('playwright').chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+try{
+ const context=await browser.newContext({serviceWorkers:'block'});await context.route('**/*',route=>route.abort());
+ const page=await context.newPage();
+ const base='<nav><a href="/?club_name=Synthetic%20Pet">My favourites</a></nav><section class="pc-welcome"><a>Sign in to see favourites</a></section>';
+ const good=await page.evaluate(proof.guestFavouriteMarkup,base);const out=[good.no_cards,good.sign_in_prompt];
+ for(const markup of['<article class="pc-community-card">Private</article>','<form class="pc-heart-form"></form>',
+  '<article class="pc-profile">Private</article>','<h2 id="pc-public-name">Private</h2>','<article class="pc-moment">Private</article>'])
+  out.push(!(await page.evaluate(proof.guestFavouriteMarkup,base+markup)).no_cards);
+ const script=await page.evaluate(proof.guestFavouriteMarkup,base+'<script>window.privateLeak=true</script>');
+ out.push(script.no_cards&&!await page.evaluate(()=>window.privateLeak===true));console.log(JSON.stringify(out));
+}finally{await browser.close();}
+""")
+        self.assertEqual(result, [True] * 8)
+
     def test_menu_diagnostics_bind_actual_stylesheet_without_publishing_bytes(self):
         result = self.node(r"""
 const fs=await import('node:fs');let listener;const diagnostics={};

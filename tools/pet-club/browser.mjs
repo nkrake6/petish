@@ -69,8 +69,21 @@ export function favouritesHttpFacts(actor, status, headers) {
 /** Parse without running response scripts; filter URLs may legitimately echo a search term. */
 export function guestFavouriteMarkup(html) {
   const document = new DOMParser().parseFromString(html, 'text/html');
-  return { no_cards: document.querySelectorAll('.pc-community-card, .pc-heart-form').length === 0,
+  return { no_cards: document.querySelectorAll('.pc-community-card, .pc-heart-form, .pc-profile, #pc-public-name, .pc-moment').length === 0,
     sign_in_prompt: [...document.querySelectorAll('.pc-welcome a')].some(link => link.textContent.trim() === 'Sign in to see favourites') };
+}
+/** Private staging may stop a guest before the public directory template runs. */
+export function stagingGuestFavouriteRedirect(status, headers, requested) {
+  try {
+    if (![302, 303].includes(status) || !noStore(headers)) return false;
+    const target = new URL(headers.location, ORIGIN), original = new URL(requested);
+    if (original.origin !== ORIGIN || original.pathname !== '/' || target.origin !== ORIGIN
+        || target.pathname !== '/wp-login.php' || target.username || target.password || target.hash) return false;
+    if ([...target.searchParams.keys()].some(key => !['redirect_to', 'reauth'].includes(key))
+        || target.searchParams.getAll('redirect_to').length > 1 || target.searchParams.getAll('reauth').length > 1) return false;
+    if (target.searchParams.has('reauth') && target.searchParams.get('reauth') !== '1') return false;
+    return !target.searchParams.has('redirect_to') || new URL(target.searchParams.get('redirect_to'), ORIGIN).href === original.href;
+  } catch { return false; }
 }
 export const FORM_CATEGORIES = Object.freeze([
   'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
@@ -348,7 +361,7 @@ export function observeMenuStylesheet(page, diagnostics) {
     diagnostics.menu_stylesheet_seen = true;
     pending.push(response.body().then(bytes => {
       diagnostics.menu_stylesheet_bytes_verified = response.status() === 200
-        && createHash('sha256').update(bytes).digest('hex') === '7bfaba1d23ea4ca07fbdb009aceec36efbefb194e1bdafff60c46f012c8a237d';
+        && createHash('sha256').update(bytes).digest('hex') === '58ae61debf37356af35c47abc0881e2d393ae5f6330fa79afff1eb9e1b6732fd';
     }).catch(() => { diagnostics.menu_stylesheet_bytes_verified = false; }));
   });
   return pending;
@@ -794,18 +807,20 @@ export async function run(input, chromium) {
         category = 'favourites'; const favouriteURL = member.page.url();
         const memberResponse = await safeGet(member.context, member.state, favouriteURL);
         const ownerResponse = await page.goto(favouriteURL + `&club_uid=${input.member.id}`, { waitUntil: 'domcontentloaded' });
-        const guestResponse = await safeGet(anonymous, anonymousState, favouriteURL + `&club_uid=${input.member.id}`);
+        const guestURL = favouriteURL + `&club_uid=${input.member.id}`;
+        const guestResponse = await safeGet(anonymous, anonymousState, guestURL);
         const ownerHeaders = ownerResponse ? await ownerResponse.allHeaders() : {};
         Object.assign(diagnostics, favouritesHttpFacts('member', memberResponse.status(), memberResponse.headers()),
           favouritesHttpFacts('owner', ownerResponse?.status(), ownerHeaders),
           favouritesHttpFacts('guest', guestResponse.status(), guestResponse.headers()));
         const guestMarkup = await page.evaluate(guestFavouriteMarkup, await guestResponse.text());
+        const guestGuarded = stagingGuestFavouriteRedirect(guestResponse.status(), guestResponse.headers(), guestURL);
         mark('favourites_session_isolation_verified', await member.page.locator('.pc-community-card').count() === 1
           && await page.locator('.pc-community-card').count() === 0
-          && guestMarkup.no_cards && (guestResponse.status() === 404 || (guestResponse.status() === 200 && guestMarkup.sign_in_prompt)));
+          && guestMarkup.no_cards && (guestGuarded || guestResponse.status() === 404 || (guestResponse.status() === 200 && guestMarkup.sign_in_prompt)));
         mark('favourites_responses_uncacheable', memberResponse.status() === 200 && noStore(memberResponse.headers())
           && ownerResponse?.ok() && noStore(ownerHeaders) && noStore(guestResponse.headers())
-          && [200, 404].includes(guestResponse.status()));
+          && (guestGuarded || [200, 404].includes(guestResponse.status())));
         // Remove via the rendered directory form, checking its native return target.
         member.state.directoryFilters = { view: 'favourites', species: 'rabbit', variety: 'Mini Lop', name: input.name, page: '1' };
         member.state.operation = 'petish_club_heart'; member.state.desiredHeart = '0'; member.state.used = false;
