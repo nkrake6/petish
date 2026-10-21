@@ -11,7 +11,8 @@ export const CHECK_KEYS=Object.freeze([
  'input_owned','browser_started','owner_login','member_login','dashboard_counts','mobile_320','mobile_390','desktop_1440',
  'dashboard_uncacheable','hosted_upload_limits_sufficient','public_product_section','reviews_below_details','public_review_visible','pending_review_hidden',
  'rating_filter','self_vote_controls_absent','helpful_remove','helpful_add','vote_switch','vote_withdraw',
- 'dashboard_received_reactions','invalid_nonce_denied','real_photo_video_upload','uploaded_review_pending',
+ 'vote_form_available','vote_form_fields_valid','vote_post_authorized','vote_response_accepted','vote_redirect_scoped',
+ 'dashboard_received_reactions','invalid_nonce_post_authorized','invalid_nonce_response_accepted','invalid_nonce_denied','real_photo_video_upload','uploaded_review_pending',
  'pending_count_updated','pending_photo_owner_access','pending_video_owner_access','pending_avatar_owner_access',
  'pending_media_foreign_denied','pending_media_guest_denied','pending_media_uncacheable','request_scope_enforced',
 ]);
@@ -53,7 +54,7 @@ function parseFields(request){const type=request.headers()['content-type']??'';c
 }
 async function guardedContext(browser,input,role){const context=await browser.newContext({viewport:{width:390,height:900},locale:'en-AU',reducedMotion:'reduce',acceptDownloads:false,serviceWorkers:'block'});const state={expected:null,used:false,routeInstalled:false,gets:0,posts:0,manualPosts:0,mediaGets:0,blocked:0};
  await context.route('**/*',async route=>{const request=route.request();if(['GET','HEAD'].includes(request.method())&&allowedGET(request.url(),input)){state.gets++;return route.continue();}
-  if(request.method()==='POST'&&state.expected&&!state.used){let u;try{u=safeURL(request.url());}catch{}const fields=parseFields(request);const e=state.expected;const allowedKeys=e.login?['log','pwd','wp-submit','redirect_to','testcookie','rememberme']:['action','product_id','rating','alias','title','body','consent','pcr_nonce','_wp_http_referer'];
+  if(request.method()==='POST'&&state.expected&&!state.used){let u;try{u=safeURL(request.url());}catch{}const fields=parseFields(request);const e=state.expected;const allowedKeys=e.login?['log','pwd','wp-submit','redirect_to','testcookie','rememberme']:(e.vote?['action','review_id','choice','pcr_nonce','_wp_http_referer']:['action','product_id','rating','alias','title','body','consent','pcr_nonce','_wp_http_referer']);
    if(u&&u.search===''&&u.pathname===(e.login?'/wp-login.php':'/wp-admin/admin-post.php')&&fields&&Object.keys(fields).every(k=>allowedKeys.includes(k))&&Object.entries(e.values).every(([k,v])=>fields[k]===v)){state.used=true;state.posts++;return route.continue();}
   }state.blocked++;return route.abort('blockedbyclient');});
  state.routeInstalled=true;if(context.routeWebSocket)await context.routeWebSocket('**/*',socket=>socket.close());const actor={context,state,role,input};guardedActors.push(actor);return actor;
@@ -65,12 +66,23 @@ async function login(browser,input,role){const actor=await guardedContext(browse
 }
 async function dashboard(actor){const r=await actor.page.goto(actor.input.account_url,{waitUntil:'domcontentloaded'});await actor.page.locator('#petish-review-studio').waitFor();return r;}
 async function metrics(page){return page.locator('.pcr-stats .pcr-stat dd').evaluateAll(nodes=>nodes.map(n=>Number(n.textContent.replace(/[^0-9]/g,''))));}
-async function vote(actor,id,choice){const card=actor.page.locator('#pcr-review-'+id);const form=card.locator('form').filter({has:actor.page.locator('input[name="choice"][value="'+choice+'"]')}).first();const fields=await form.locator('input').evaluateAll(nodes=>Object.fromEntries(nodes.filter(n=>n.name).map(n=>[n.name,n.value])));
- if(id!==actor.input.approved_review_id||!['helpful','not-helpful','none'].includes(choice)||fields.action!=='petish_customer_review_vote'||fields.review_id!==String(id)||fields.choice!==choice||!/^[A-Za-z0-9]{8,20}$/.test(fields.pcr_nonce??'')||Object.keys(fields).some(k=>!['action','review_id','choice','pcr_nonce','_wp_http_referer'].includes(k)))throw Error('vote_switch');
- actor.state.manualPosts++;
- const response=await actor.context.request.post(ORIGIN+'/wp-admin/admin-post.php',{form:fields,maxRedirects:0});if(response.status()!==303||safeURL(response.headers().location).origin!==ORIGIN)throw Error('vote_switch');await actor.page.goto(actor.input.product_url,{waitUntil:'domcontentloaded'});return actor.page.locator('#pcr-review-'+id);
+async function vote(actor,id,choice){
+ const card=actor.page.locator('#pcr-review-'+id);const form=card.locator('.pcr-votes form').filter({has:actor.page.locator('input[name="choice"][value="'+choice+'"]')});
+ check('vote_form_available',await form.count()===1);
+ const fields=await form.locator('input').evaluateAll(nodes=>Object.fromEntries(nodes.filter(n=>n.name).map(n=>[n.name,n.value])));
+ check('vote_form_fields_valid',id===actor.input.approved_review_id&&['helpful','not-helpful','none'].includes(choice)&&fields.action==='petish_customer_review_vote'&&fields.review_id===String(id)&&fields.choice===choice&&/^[A-Za-z0-9]{8,20}$/.test(fields.pcr_nonce??'')&&Object.keys(fields).every(k=>['action','review_id','choice','pcr_nonce','_wp_http_referer'].includes(k))&&await form.getAttribute('method')==='post'&&await form.getAttribute('action')===ORIGIN+'/wp-admin/admin-post.php'&&(!fields._wp_http_referer||fields._wp_http_referer===safeURL(actor.input.product_url).pathname));
+ actor.state.used=false;actor.state.expected={vote:true,values:fields};let response;
+ try{[response]=await Promise.all([actor.page.waitForResponse(r=>r.url()===ORIGIN+'/wp-admin/admin-post.php'&&r.request().method()==='POST'),form.locator('button[type="submit"]').click()]);}
+ catch{throw Error('vote_post_authorized');}
+ finally{actor.state.expected=null;}
+ check('vote_post_authorized',actor.state.used);check('vote_response_accepted',response.status()===303);
+ let destination;try{destination=safeURL(response.headers().location);}catch{}
+ check('vote_redirect_scoped',Boolean(destination&&destination.pathname===safeURL(actor.input.product_url).pathname&&destination.search===''&&destination.hash==='#pcr-review-'+id));
+ await actor.page.waitForURL(u=>u.href===destination.href,{waitUntil:'domcontentloaded'});
+ await actor.page.goto(actor.input.product_url,{waitUntil:'domcontentloaded'});return actor.page.locator('#pcr-review-'+id);
 }
 function counts(card){return card.locator('.pcr-votes button strong').evaluateAll(nodes=>nodes.map(n=>Number(n.textContent.replace(/[^0-9]/g,''))));}
+async function fillDraft(form,draft){await form.locator('label').filter({has:form.locator('[name="rating"][value="4"]')}).click();for(const name of ['alias','title','body'])await form.locator('[name="'+name+'"]').fill(draft[name]);await form.locator('[name="consent"]').check();}
 async function mediaGet(actor,url){const u=safeURL(url);if(!ownedMedia(u,actor.input))throw Error('pending_photo_owner_access');actor.state.mediaGets++;return actor.context.request.get(u.href,{maxRedirects:0});}
 let browser;
 try{
@@ -87,8 +99,10 @@ try{
  await dashboard(owner);check('dashboard_received_reactions',JSON.stringify(await metrics(owner.page))==='[1,1,0,1]');card=await vote(member,input.approved_review_id,'none');check('vote_withdraw',JSON.stringify(await counts(card))==='[0,0]');
  const compose=new URL(input.account_url);compose.searchParams.set('pcr_product',String(input.submission_product_id));await owner.page.goto(compose.href,{waitUntil:'domcontentloaded'});const form=owner.page.locator('[data-pcr-form]');await form.waitFor();const nonce=await form.locator('[name="pcr_nonce"]').inputValue();
  const draft={action:'petish_customer_review_submit',product_id:String(input.submission_product_id),rating:'4',alias:'Staging Reviewer',title:'Owned browser review fixture',body:'A synthetic first-hand review used only to check private staging.',consent:'1',pcr_nonce:nonce};
- owner.state.manualPosts++;const bad=await owner.context.request.post(ORIGIN+'/wp-admin/admin-post.php',{form:{...draft,pcr_nonce:'invalid'},maxRedirects:0});if(bad.status()!==303)throw Error('invalid_nonce_denied');await dashboard(owner);check('invalid_nonce_denied',JSON.stringify(await metrics(owner.page))==='[1,1,0,0]');await owner.page.goto(compose.href,{waitUntil:'domcontentloaded'});
- await form.locator('label').filter({has:form.locator('[name="rating"][value="4"]')}).click();for(const name of ['alias','title','body'])await form.locator('[name="'+name+'"]').fill(draft[name]);await form.locator('[name="consent"]').check();await form.locator('details summary').click();
+ await fillDraft(form,draft);await form.locator('[name="pcr_nonce"]').evaluate(node=>{node.value='invalid';});owner.state.used=false;owner.state.expected={values:{...draft,pcr_nonce:'invalid'}};let bad;
+ try{[bad]=await Promise.all([owner.page.waitForResponse(r=>r.url()===ORIGIN+'/wp-admin/admin-post.php'&&r.request().method()==='POST'),form.locator('button[type="submit"]').click()]);}catch{throw Error('invalid_nonce_post_authorized');}finally{owner.state.expected=null;}
+ check('invalid_nonce_post_authorized',owner.state.used);check('invalid_nonce_response_accepted',bad.status()===303);await owner.page.waitForURL(u=>u.href===input.account_url,{waitUntil:'domcontentloaded'});await dashboard(owner);check('invalid_nonce_denied',JSON.stringify(await metrics(owner.page))==='[1,1,0,0]');await owner.page.goto(compose.href,{waitUntil:'domcontentloaded'});
+ await fillDraft(form,draft);await form.locator('details summary').click();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAEklEQVR4nGPoPz/rPzJmIF0AAESmL3GjpJ8GAAAAAElFTkSuQmCC','base64');
  await form.locator('[name="photos[]"]').setInputFiles({name:'owned-review.png',mimeType:'image/png',buffer:png});await form.locator('[name="avatar"]').setInputFiles({name:'owned-avatar.png',mimeType:'image/png',buffer:png});await form.locator('[name="video"]').setInputFiles(path.join(ROOT,'tools/pet-club/fixtures/synthetic-valid.mp4'));
  draft.pcr_nonce=await form.locator('[name="pcr_nonce"]').inputValue();owner.state.used=false;owner.state.expected={values:draft};
@@ -102,7 +116,7 @@ try{
  const guest=await guardedContext(browser,input,'guest');const anonymous=await Promise.all([photo,video,avatar].map(url=>mediaGet(guest,url)));check('pending_media_guest_denied',anonymous.every(r=>[403,404].includes(r.status())||([302,303].includes(r.status())&&safeURL(r.headers().location).pathname==='/wp-login.php')));
  const forbidden=['/','/cart/','/checkout/','/wp-json/','/?wc-api=anything','/?rest_route=/anything','/?wc-ajax=anything','/wp-cron.php','/product/unowned/','/my-account/customer-logout/','/wp-admin/admin-post.php?action=petish_customer_review_media&review_id=0&item=0','/wp-content/unowned.php'];
  const policiesReject=forbidden.every(p=>!allowedGET(ORIGIN+p,input))&&!allowedGET(input.product_url+'?add-to-cart='+input.product_id,input)&&!allowedGET('https://petish.biz/my-account/',input);
- check('request_scope_enforced',policiesReject&&guardedActors.length===3&&guardedActors.every(a=>a.state.routeInstalled)&&owner.state.gets>0&&member.state.gets>0&&owner.state.posts===2&&member.state.posts===1&&guest.state.posts===0&&owner.state.manualPosts===1&&member.state.manualPosts===4&&guest.state.manualPosts===0&&guardedActors.every(a=>a.state.mediaGets===3));result.status='success';
+ check('request_scope_enforced',policiesReject&&guardedActors.length===3&&guardedActors.every(a=>a.state.routeInstalled)&&owner.state.gets>0&&member.state.gets>0&&owner.state.posts===3&&member.state.posts===5&&guest.state.posts===0&&guardedActors.every(a=>a.state.manualPosts===0&&a.state.mediaGets===3));result.status='success';
 }catch(error){if(CHECK_KEYS.includes(error.message))result.failed_check=error.message;}
 finally{if(browser)await browser.close().catch(()=>{});if(process.argv[3])fs.writeFileSync(process.argv[3],JSON.stringify(result,null,2)+'\n',{mode:0o600});}
 process.exitCode=result.status==='success'?0:1;
