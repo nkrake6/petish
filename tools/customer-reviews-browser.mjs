@@ -110,7 +110,7 @@ async function fillDraft(form,draft){
  check('draft_filled',await form.locator('[name="alias"]').inputValue()===draft.alias&&await form.locator('[name="title"]').inputValue()===draft.title&&await form.locator('[name="body"]').inputValue()===draft.body&&await form.locator('[name="consent"]').isChecked());
 }
 async function mediaGet(actor,url){const u=safeURL(url);if(!ownedMedia(u,actor.input))throw Error('pending_photo_owner_access');actor.state.mediaGets++;return actor.context.request.get(u.href,{maxRedirects:0,timeout:120000});}
-let browser;
+let browser,videoFixtureDir;
 try{
  if(process.argv.length!==4)throw Error('input_owned');const input=inputFile(process.argv[2]);check('input_owned',true);
  browser=await chromium.launch({headless:true});check('browser_started',true);const owner=await login(browser,input,'owner');const member=await login(browser,input,'member');
@@ -132,9 +132,13 @@ try{
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAEklEQVR4nGPoPz/rPzJmIF0AAESmL3GjpJ8GAAAAAElFTkSuQmCC','base64');
  await form.locator('[name="photos[]"]').setInputFiles({name:'owned-review.png',mimeType:'image/png',buffer:png});await form.locator('[name="avatar"]').setInputFiles({name:'owned-avatar.png',mimeType:'image/png',buffer:png});
  const clip=fs.readFileSync(path.join(ROOT,'tools/pet-club/fixtures/synthetic-valid.mp4'));
- const videoBytes=50*1024*1024;const video=Buffer.alloc(videoBytes);clip.copy(video);
- const padding=videoBytes-clip.length;if(padding<8)throw Error('video_50mb_uploaded');video.writeUInt32BE(padding,clip.length);video.write('free',clip.length+4,'ascii');
- await form.locator('[name="video"]').setInputFiles({name:'owned-limit-video.mp4',mimeType:'video/mp4',buffer:video},{timeout:120000});
+ const videoBytes=50*1024*1024;const padding=videoBytes-clip.length;if(padding<8)throw Error('video_50mb_uploaded');
+ videoFixtureDir=fs.mkdtempSync(path.join(path.dirname(process.argv[2]),'video-50mb.'));fs.chmodSync(videoFixtureDir,0o700);
+ const videoPath=path.join(videoFixtureDir,'owned-limit-video.mp4');const videoHandle=fs.openSync(videoPath,'wx',0o600);
+ try{fs.writeSync(videoHandle,clip);const box=Buffer.alloc(8);box.writeUInt32BE(padding,0);box.write('free',4,'ascii');fs.writeSync(videoHandle,box);fs.ftruncateSync(videoHandle,videoBytes);}finally{fs.closeSync(videoHandle);}
+ // Playwright's in-memory payloads reject files at 50 MiB; native file paths
+ // exercise the browser's real file upload without that transport ceiling.
+ try{await form.locator('[name="video"]').setInputFiles(videoPath,{timeout:120000});}catch{throw Error('video_50mb_uploaded');}
  draft.pcr_nonce=await form.locator('[name="pcr_nonce"]').inputValue();owner.state.used=false;owner.state.expected={values:draft};
  const [submitted]=await Promise.all([owner.page.waitForResponse(r=>r.url()===ORIGIN+'/wp-admin/admin-post.php'&&r.request().method()==='POST',{timeout:120000}),form.locator('button[type="submit"]').click({timeout:120000})]);owner.state.expected=null;check('real_photo_video_upload',owner.state.used);await diagnoseHTTP(submitted,input,'submission');check('submission_response_accepted',submitted.status()===303);await owner.page.waitForURL(u=>u.origin===ORIGIN&&u.searchParams.get('pcr_status')==='pending',{waitUntil:'domcontentloaded',timeout:120000});
  const uploaded=owner.page.locator('.pcr-my-reviews .pcr-review').filter({has:owner.page.getByRole('heading',{name:draft.title,exact:true})});check('uploaded_review_pending',await uploaded.count()===1&&/Awaiting moderation/.test(await uploaded.textContent()));check('pending_count_updated',JSON.stringify(await metrics(owner.page))==='[1,2,0,0]');
@@ -149,5 +153,5 @@ try{
  const policiesReject=forbidden.every(p=>!allowedGET(ORIGIN+p,input))&&!allowedGET(input.product_url+'?add-to-cart='+input.product_id,input)&&!allowedGET('https://petish.biz/my-account/',input);
  check('request_scope_enforced',policiesReject&&guardedActors.length===3&&guardedActors.every(a=>a.state.routeInstalled)&&owner.state.gets>0&&member.state.gets>0&&owner.state.posts===3&&member.state.posts===5&&guest.state.posts===0&&guardedActors.every(a=>a.state.manualPosts===0&&a.state.mediaGets===3));result.status='success';
 }catch(error){if(CHECK_KEYS.includes(error.message))result.failed_check=error.message;}
-finally{if(browser)await browser.close().catch(()=>{});if(process.argv[3])fs.writeFileSync(process.argv[3],JSON.stringify(result,null,2)+'\n',{mode:0o600});}
+finally{if(browser)await browser.close().catch(()=>{});if(videoFixtureDir)fs.rmSync(videoFixtureDir,{recursive:true,force:true});if(process.argv[3])fs.writeFileSync(process.argv[3],JSON.stringify(result,null,2)+'\n',{mode:0o600});}
 process.exitCode=result.status==='success'?0:1;
