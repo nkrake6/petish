@@ -1,0 +1,56 @@
+{
+  "status": "success",
+  "category": "complete",
+  "mode": "rehearse",
+  "run_id": "39544058851-1",
+  "source_commit": "907c5203e28388096d0da57cebe9e6d69b8a31fc",
+  "generated_utc": "2026-10-21T04:26:50.326073+00:00",
+  "operation": {
+    "status": "success",
+    "category": "complete",
+    "checks": {
+      "target_paths_verified": true,
+      "target_environment_verified": true,
+      "woocommerce_runtime_verified": true,
+      "all_outbound_http_blocked": true,
+      "mail_calls_blocked": true,
+      "remote_file_access_disabled": true,
+      "cron_and_async_runner_disabled": true,
+      "jetpack_sync_isolated": true,
+      "no_persistent_cache_dropins": true,
+      "transactional_page_table": true,
+      "page_table_has_no_triggers": true,
+      "expected_page_content": true,
+      "native_editable_content_saved": true,
+      "rehearsal_rolled_back": true
+    },
+    "page": {
+      "id": 1002,
+      "content_sha256": "a6be7ca22b83ce301bf3fa0969f4559f3fa539f716ecaf7236472fa06ac9c000"
+    },
+    "public_cache": {
+      "litespeed_hit": true,
+      "no_store": false
+    },
+    "public_copy": "Delivery for small-pet adventures\nInitial delivery trial: Victoria 3083\nCheckout currently supports the following product options for delivery to postcode 3083, Victoria, Australia. Delivery charges are added per item.\nCorner & Gap Cleaning Brush \u2014 Blue: A$4 delivery per item, including GST.\nCage-Mounted Hay Feeder \u2014 Blue: A$4 delivery per item, including GST.\nHandheld Fur Removal Brush \u2014 Gray: A$4 delivery per item, including GST.\nWooden Foraging Puzzle Board \u2014 Option 01: A$0 delivery.\nHard-Sided Small-Pet Travel Box \u2014 Pink: A$4 delivery per item, including GST.\nCheckout for other product options and destinations is not available yet. We are adding more delivery options as we build the range.\nEnter your delivery address at checkout to see available delivery options and charges for your items. Review the delivery charge, applicable taxes and full order total before paying.\nHow delivery charges work\nDelivery charges depend on the products, quantities and destination. Charges for separate items are added together. Items from different suppliers may arrive in separate parcels.\nDelivery availability\nAvailability depends on the item and delivery address. If no delivery method is shown, an automatic rate is not currently available for every item in your cart at that destination.\nView cart Browse products",
+    "canonical_public_copy_verified_twice": true
+  },
+  "cache_preflight": {
+    "status": "success",
+    "category": "complete",
+    "checks": {
+      "target_paths_verified": true,
+      "target_environment_verified": true,
+      "woocommerce_runtime_verified": true,
+      "all_outbound_http_blocked": true,
+      "mail_calls_blocked": true,
+      "remote_file_access_disabled": true,
+      "cron_and_async_runner_disabled": true,
+      "jetpack_sync_isolated": true,
+      "purge_runtime_verified": true,
+      "purge_transactional_options": true,
+      "purge_queue_idle": true,
+      "purge_queue2_idle": true
+    }
+  }
+}
