@@ -11,6 +11,8 @@ require_once get_stylesheet_directory() . '/includes/collection-header.php';
 require_once get_stylesheet_directory() . '/includes/market-selector.php';
 require_once get_stylesheet_directory() . '/includes/supplier-popularity.php';
 require_once get_stylesheet_directory() . '/includes/product-retail-rounding.php';
+require_once get_stylesheet_directory() . '/includes/for-your-pet.php';
+Petish_For_Your_Pet::boot();
 require_once get_stylesheet_directory() . '/inc/petish-email-branding.php';
 require_once get_stylesheet_directory() . '/inc/petish-account-email-branding.php';
 
@@ -47,6 +49,7 @@ add_action( 'wp_enqueue_scripts', function () {
     }
     if ( is_front_page() && file_exists( $dir . '/assets/css/home.css' ) ) {
         wp_enqueue_style( 'petish-home', $uri . '/assets/css/home.css', array( 'petish-design' ), filemtime( $dir . '/assets/css/home.css' ) );
+        wp_enqueue_script( 'petish-for-your-pet', $uri . '/assets/js/for-your-pet.js', array(), filemtime( $dir . '/assets/js/for-your-pet.js' ), array( 'strategy' => 'defer', 'in_footer' => true ) );
         if ( file_exists( $dir . '/assets/js/home.js' ) ) {
             wp_enqueue_script( 'petish-home', $uri . '/assets/js/home.js', array(), filemtime( $dir . '/assets/js/home.js' ), array( 'strategy' => 'defer', 'in_footer' => true ) );
         }

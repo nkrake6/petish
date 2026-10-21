@@ -16,6 +16,9 @@ $petish_home_commerce = class_exists( 'WooCommerce' ) && function_exists( 'wc_ge
 $petish_home_passport = $petish_home_commerce && class_exists( 'Petish_Passport_UI' );
 $petish_home_shop     = $petish_home_commerce ? add_query_arg( 'petish_species', 'all', wc_get_page_permalink( 'shop' ) ) : '#petish-collection';
 $petish_home_pets     = $petish_home_passport ? Petish_Passport_UI::url() : '';
+$petish_home_personal = $petish_home_commerce && function_exists( 'wc_get_account_endpoint_url' )
+    ? ( class_exists( 'Petish_Catalogue' ) && method_exists( 'Petish_Catalogue', 'url' ) ? Petish_Catalogue::url() : wc_get_account_endpoint_url( 'for-my-pet' ) )
+    : $petish_home_shop;
 $petish_home_images   = get_stylesheet_directory_uri() . '/assets/images/';
 $petish_home_products = array();
 $petish_home_hot      = array();
@@ -208,6 +211,29 @@ get_header();
                 <?php endforeach; ?>
             </div>
             <p class="ph-category-note"><?php esc_html_e( 'Category images are illustrative. See individual listings for product photos and details.', 'petish' ); ?></p>
+        </section>
+
+        <section id="petish-for-your-pet" class="ph-section ph-collection ph-for-your-pet" aria-labelledby="petish-for-your-pet-title" data-petish-for-your-pet data-endpoint="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>" data-loading-label="<?php esc_attr_e( 'Finding your pet’s picks…', 'petish' ); ?>" data-loaded-label="<?php esc_attr_e( 'For your pet has been updated.', 'petish' ); ?>">
+            <div class="ph-section-heading"><div><h2 id="petish-for-your-pet-title"><?php esc_html_e( 'For your pet', 'petish' ); ?></h2><p class="ph-for-pet-subtitle"><?php esc_html_e( 'Products curated for your pet’s species, personality, quirks and favourite things.', 'petish' ); ?></p></div></div>
+            <?php // This fallback is identical for every visitor. Personal results arrive privately after page load. ?>
+            <div data-petish-for-your-pet-body>
+                <div class="ph-collection-empty ph-for-pet-empty">
+                    <div class="ph-empty-art" aria-hidden="true"><?php echo $petish_home_icon( 'passport' ); ?><span></span></div>
+                    <div class="ph-empty-copy">
+                        <h3><?php esc_html_e( 'Little discoveries, just for them.', 'petish' ); ?></h3>
+                        <p><?php esc_html_e( 'Sign in and add a Petish Passport to explore picks inspired by your little companion.', 'petish' ); ?></p>
+                        <div class="ph-actions">
+                            <a class="petish-button" href="<?php echo esc_url( $petish_home_personal ); ?>"><?php esc_html_e( 'Explore my pet’s collection', 'petish' ); ?><?php echo $petish_home_icon( 'arrow' ); ?></a>
+                            <?php if ( $petish_home_pets ) : ?><a class="ph-text-link" href="<?php echo esc_url( $petish_home_pets ); ?>"><?php esc_html_e( 'Create a Passport', 'petish' ); ?><?php echo $petish_home_icon( 'arrow' ); ?></a><?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="ph-sr-only" role="status" aria-live="polite" aria-atomic="true" data-petish-for-your-pet-status></p>
+            <div class="ph-for-pet-error" data-petish-for-your-pet-error hidden>
+                <p role="alert"><?php esc_html_e( 'We couldn’t load your pet’s picks. Try again or open your pet’s collection.', 'petish' ); ?></p>
+                <div class="ph-actions"><button type="button" class="petish-button petish-button-secondary" data-petish-for-your-pet-retry><?php esc_html_e( 'Try again', 'petish' ); ?></button><a class="ph-text-link" href="<?php echo esc_url( $petish_home_personal ); ?>"><?php esc_html_e( 'Open my pet’s collection', 'petish' ); ?><?php echo $petish_home_icon( 'arrow' ); ?></a></div>
+            </div>
         </section>
 
         <?php if ( $petish_home_hot ) : ?>

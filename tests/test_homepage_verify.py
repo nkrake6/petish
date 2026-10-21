@@ -121,6 +121,34 @@ echo json_encode($out);
             self.assertEqual(json.loads(result.stdout), {'status':'failure','category':'input','checks':{}})
             self.assertNotIn(mode.encode() if mode else b'PRIVATE', result.stdout)
 
+    def test_full_read_only_barrier_covers_bootstrap_render_and_final_snapshot(self):
+        source = self.source
+        attach = source.index("add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX)")
+        bootstrap = source.index("require$root.'/wp-load.php'")
+        capture = source.index("$bootstrap_blocked=$GLOBALS['petish_club_blocked_write_count']")
+        self.assertLess(attach, bootstrap)
+        self.assertLess(bootstrap, capture)
+        self.assertLess(capture, source.index('$full_before=petish_club_verify_state($root)'))
+        self.assertLess(source.index('petish_homepage_verify_render($root);'),
+                        source.index("'protected_site_state_unchanged'"))
+        self.assertLess(source.index("'protected_site_state_unchanged'"),
+                        source.index("'native_read_only_verified'"))
+        self.assertIn("if($hook==='shutdown')petish_club_verify_disable_async_dispatch()", source)
+
+    def test_browser_allows_only_exact_read_only_personal_fragment(self):
+        script = """
+import * as proof from './tools/homepage/browser.mjs';
+const endpoint='https://staging.petish.biz/wp-admin/admin-ajax.php?action=petish_for_your_pet';
+const good=proof.allowedHomepageRequest(endpoint,'GET');
+const bad=[endpoint+'&user_id=1',endpoint+'&pet_id=1',endpoint.replace('petish_for_your_pet','other'),endpoint.replace('staging.petish.biz','petish.biz'),endpoint+'#fragment'];
+console.log(JSON.stringify([good,...bad.map(url=>!proof.allowedHomepageRequest(url,'GET')),!proof.allowedHomepageRequest(endpoint,'POST'),!proof.allowedHomepageRequest(endpoint,'HEAD')]));
+"""
+        result = subprocess.run(['node', '--input-type=module', '-e', script], cwd=ROOT,
+                                capture_output=True, timeout=20)
+        self.assertEqual(result.returncode, 0)
+        self.assertFalse(result.stderr)
+        self.assertEqual(json.loads(result.stdout), [True] * 8)
+
 
 if __name__ == '__main__':
     unittest.main()

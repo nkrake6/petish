@@ -10,7 +10,6 @@ ob_start(static function($ignored,$phase)use(&$report){
 },0,0);
 
 const PETISH_HOMEPAGE_PREVIOUS_FILES = [
-    'wp-content/themes/dt-the7-child/functions.php'=>'3c89e235558d1fe17cfa8ef0b6c7bdc50b80e4ccf09326e4ee19dd30961ef824',
     'wp-content/themes/dt-the7-child/inc/petish-email-branding.php'=>'c4d6fcbb325dacb6c3778b2bac6cfa0b007ad01972599131a5d8f5aa532c70e3',
     'wp-content/themes/dt-the7-child/inc/petish-account-email-branding.php'=>'8a347cbf2fb77b10f6ce0b5ae31a5ef639a2334990f6f8f2927d48e3b012b0fd',
     'wp-content/themes/dt-the7-child/woocommerce/emails/email-header.php'=>'f60dc3839daf6282aa533897f1ee82d21331d89e029fb4257e16f3f35279b2bd',
@@ -18,7 +17,7 @@ const PETISH_HOMEPAGE_PREVIOUS_FILES = [
     'wp-content/themes/dt-the7-child/woocommerce/emails/email-button.php'=>'d913f0696089c47252dfb04f51f4d6988305f6702924675092af2d8f7d09d116',
     'wp-content/plugins/petish-passport/assets/account-navigation.js'=>'5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75',
     'wp-content/plugins/petish-passport/assets/passport.css'=>'e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076',
-    'wp-content/plugins/petish-passport/includes/class-petish-passport-ui.php'=>'d5abfc66c9735470b7ed7e3dae728221bb28c78636b06e4bba5efa56dbfe58d5',
+    'wp-content/plugins/petish-passport/includes/class-petish-passport-ui.php'=>'f3b878854d38a6a4fc83c5b5908a2429a84da2a7d1155609f83fae55a37dceac',
     'wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png'=>'45b8ab50ef5fd0b4bc98fb7994d3a4583d0d013db1b253bf7f870496cd5cf615',
 ];
 const PETISH_HOMEPAGE_HOT_RULE_SHA256 = '159367b9eaf4e4ec6173568ad612182ab2800b70df1fd37185ebe4488d30b09c';
@@ -114,6 +113,13 @@ function petish_homepage_verify_html($html,$pool,$free) {
     foreach($pool as$product)$products[$product->get_permalink()]=$product;
     petish_homepage_verify_mark('full_homepage_rendered',$xpath->query('//*[@id="petish-home-title"]')->length===1
         &&$xpath->query('//*[@id="petish-collection"]')->length===1);
+    $personal=$xpath->query('//*[@id="petish-for-your-pet"]');
+    petish_homepage_verify_mark('for_your_pet_cacheable_shell_verified',$personal->length===1
+        &&$xpath->query('.//*[@data-petish-for-your-pet-body]',$personal->item(0))->length===1
+        &&$xpath->query('.//*[@data-petish-for-your-pet-error and @hidden]',$personal->item(0))->length===1
+        &&$xpath->query('.//*[@data-petish-for-your-pet-retry]',$personal->item(0))->length===1
+        &&$xpath->query('.//article[contains(concat(" ",normalize-space(@class)," ")," ph-product ")]',$personal->item(0))->length===0
+        &&parse_url($personal->item(0)->getAttribute('data-endpoint'),PHP_URL_PATH)==='/wp-admin/admin-ajax.php');
     petish_homepage_verify_mark('hot_subtitle_removed',!str_contains(html_entity_decode(strip_tags($html),ENT_QUOTES|ENT_HTML5,'UTF-8'),'Selected by supplier-reported orders.'));
     $sections=$xpath->query('//*[@id="petish-free-delivery"]');
     petish_homepage_verify_mark('free_delivery_section_matches_evidence',$sections->length===(count($free)?1:0));
@@ -181,6 +187,10 @@ function petish_homepage_verify_render($root) {
     petish_homepage_verify_mark('stylesheet_version_matches_file',is_object($style)
         &&parse_url($style->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/css/home.css'
         &&(string)$style->ver===(string)filemtime($root.'/wp-content/themes/dt-the7-child/assets/css/home.css'));
+    $script=wp_scripts()->registered['petish-for-your-pet']??null;
+    petish_homepage_verify_mark('for_your_pet_script_enqueued',(wp_script_is('petish-for-your-pet','enqueued')||wp_script_is('petish-for-your-pet','done'))
+        &&is_object($script)&&parse_url($script->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js'
+        &&(string)$script->ver===(string)filemtime($root.'/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js'));
 }
 
 try {
@@ -191,9 +201,11 @@ try {
     if(!petish_homepage_verify_path($home,true))petish_homepage_verify_fail();
     $root=$home.'/domains/'.$host.'/public_html';
     foreach([$root,$root.'/wp-includes']as$path)if(!petish_homepage_verify_path($path,true))petish_homepage_verify_fail();
-    foreach([$root.'/wp-config.php',$root.'/wp-load.php',$root.'/wp-includes/plugin.php',__DIR__.'/email-branding-preview-remote.php',
+    foreach([$root.'/wp-config.php',$root.'/wp-load.php',$root.'/wp-includes/plugin.php',__DIR__.'/email-branding-preview-remote.php',__DIR__.'/verify-pet-club.php',
         $root.'/wp-content/themes/dt-the7-child/front-page.php',$root.'/wp-content/themes/dt-the7-child/assets/css/home.css',
-        $root.'/wp-content/themes/dt-the7-child/includes/supplier-popularity.php']as$path)
+        $root.'/wp-content/themes/dt-the7-child/includes/supplier-popularity.php',
+        $root.'/wp-content/themes/dt-the7-child/includes/for-your-pet.php',
+        $root.'/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js']as$path)
         if(!petish_homepage_verify_path($path))petish_homepage_verify_fail();
     petish_homepage_verify_mark('target_paths_verified',true);
     $report['category']='assets';
@@ -212,6 +224,11 @@ try {
     $_SERVER['HTTPS']='on';$_SERVER['REQUEST_METHOD']='GET';$_SERVER['REQUEST_URI']='/';$_SERVER['PHP_SELF']='/index.php';
     $_SERVER['SCRIPT_NAME']='/index.php';$_SERVER['SERVER_PROTOCOL']='HTTP/1.1';$_SERVER['REMOTE_ADDR']='127.0.0.1';
     require_once$root.'/wp-includes/plugin.php';
+    // Reuse the tested barrier and full state proof. Its CLI entrypoint stays
+    // disabled; the barrier remains attached through WordPress shutdown.
+    define('PETISH_CLUB_VERIFY_LIBRARY',true);require_once __DIR__.'/verify-pet-club.php';
+    $GLOBALS['petish_club_blocked_write_count']=0;
+    add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
     $block_http=static function(){return new WP_Error('petish_homepage_verify_http_blocked','Homepage verification blocks outbound HTTP.');};
     $block_mail=static function(){return true;};
     $stop_delivery=static function(){throw new \PHPMailer\PHPMailer\Exception('Homepage verification blocks delivery.');};
@@ -220,8 +237,17 @@ try {
     add_action('phpmailer_init',$stop_delivery,PHP_INT_MAX);
     add_filter('action_scheduler_allow_async_request_runner',$false,PHP_INT_MAX);
     add_filter('action_scheduler_queue_runner_concurrent_batches',$zero,PHP_INT_MAX);
-    add_action('wp_loaded',static function(){remove_all_actions('action_scheduler_run_queue');},PHP_INT_MAX);
+    add_filter('jetpack_sync_listener_should_load',$false,PHP_INT_MAX);
+    add_filter('jetpack_sync_sender_should_load',$false,PHP_INT_MAX);
+    add_filter('pre_option_jetpack_sync_settings_disable',$block_mail,PHP_INT_MAX);
+    foreach(['wcpay_account_data','wcpay_multi_currency_cached_currencies','the7_plugins_last_check']as$key)
+        add_filter('pre_update_option_'.$key,static function($value,$previous){return $previous;},PHP_INT_MAX,2);
+    add_action('wp_loaded',static function(){remove_all_actions('action_scheduler_run_queue');petish_club_verify_disable_async_dispatch();},PHP_INT_MAX);
     add_action('all',static function($hook)use($block_http,$block_mail,$stop_delivery,$false,$zero){
+        if($hook==='shutdown')petish_club_verify_disable_async_dispatch();
+        if($hook==='query'){remove_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);}
+        foreach(['jetpack_sync_listener_should_load'=>$false,'jetpack_sync_sender_should_load'=>$false,'pre_option_jetpack_sync_settings_disable'=>$block_mail]as$name=>$callback)
+            if($hook===$name){remove_filter($hook,$callback,PHP_INT_MAX);add_filter($hook,$callback,PHP_INT_MAX);}
         if($hook==='pre_http_request'){remove_filter($hook,$block_http,PHP_INT_MAX);add_filter($hook,$block_http,PHP_INT_MAX,3);}
         if($hook==='pre_wp_mail'){remove_filter($hook,$block_mail,PHP_INT_MAX);add_filter($hook,$block_mail,PHP_INT_MAX,2);}
         if($hook==='phpmailer_init'){remove_action($hook,$stop_delivery,PHP_INT_MAX);add_action($hook,$stop_delivery,PHP_INT_MAX);}
@@ -229,6 +255,7 @@ try {
         if($hook==='action_scheduler_queue_runner_concurrent_batches'){remove_filter($hook,$zero,PHP_INT_MAX);add_filter($hook,$zero,PHP_INT_MAX);}
     },PHP_INT_MAX,1);
     require$root.'/wp-load.php';
+    $bootstrap_blocked=$GLOBALS['petish_club_blocked_write_count'];
     $report['category']='runtime';
     petish_homepage_verify_mark('target_environment_verified',wp_get_environment_type()===$target
         &&parse_url(home_url('/'),PHP_URL_HOST)===$host&&parse_url(site_url('/'),PHP_URL_HOST)===$host
@@ -242,9 +269,10 @@ try {
     petish_homepage_verify_mark('remote_file_access_disabled',!ini_get('allow_url_fopen'));
     petish_homepage_verify_mark('cron_and_async_runner_disabled',defined('DISABLE_WP_CRON')&&DISABLE_WP_CRON===true
         &&apply_filters('action_scheduler_allow_async_request_runner',true)===false
-        &&apply_filters('action_scheduler_queue_runner_concurrent_batches',1)===0);
+        &&apply_filters('action_scheduler_queue_runner_concurrent_batches',1)===0
+        &&(!class_exists('ActionScheduler_QueueRunner',false)||has_action('shutdown',[ActionScheduler_QueueRunner::instance(),'maybe_dispatch_async_request'])===false));
     require_once __DIR__.'/email-branding-preview-remote.php';
-    $report['category']='snapshot';$before=petish_homepage_verify_state();
+    $report['category']='snapshot';$before=petish_homepage_verify_state();$full_before=petish_club_verify_state($root);
     petish_homepage_verify_mark('production_data_snapshot_verified',true);
     petish_homepage_verify_render($root);
     $report['category']='verification';$after=petish_homepage_verify_state();
@@ -255,6 +283,8 @@ try {
     petish_homepage_verify_mark('account_settings_unchanged',hash_equals($after['settings'],$before['settings']));
     petish_homepage_verify_mark('shipping_policy_and_evidence_unchanged',hash_equals($after['shipping_policy'],$before['shipping_policy'])
         &&hash_equals($after['supplier_evidence'],$before['supplier_evidence']));
+    petish_homepage_verify_mark('protected_site_state_unchanged',$full_before===petish_club_verify_state($root));
+    petish_homepage_verify_mark('native_read_only_verified',petish_club_verify_read_only_scope($bootstrap_blocked));
     petish_homepage_verify_mark('previous_account_and_email_assets_preserved',petish_homepage_verify_previous_files($root));
     $report['status']='success';$report['category']='complete';
 }catch(Throwable$ignored){$report['status']='failure';}

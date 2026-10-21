@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone, timedelta
 
 spec = importlib.util.spec_from_file_location('email_evidence', Path(__file__).with_name('validate-email-release-request.py'))
@@ -15,7 +16,7 @@ spec.loader.exec_module(evidence)
 spec2 = importlib.util.spec_from_file_location('homepage_checks', Path(__file__).with_name('sanitize-homepage-result.py'))
 checks = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(checks)
-FILES = ('assets/images/ui/free-delivery-van.png','assets/css/home.css','includes/supplier-popularity.php','front-page.php')
+FILES = ('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php')
 PREFIX = 'wordpress/wp-content/themes/dt-the7-child/'
 
 
@@ -41,14 +42,28 @@ def validate(source):
         raise ValueError()
     stage = evidence.report(request['staging_status_branch'],'homepage-stage')
     expected_hashes = {name:hashlib.sha256(Path(PREFIX + name).read_bytes()).hexdigest() for name in FILES}
-    if stage.get('status') != 'success' or stage.get('mode') != 'staging' \
+    if stage.get('status') != 'success' or stage.get('category') != 'complete' or stage.get('mode') != 'staging' \
             or stage.get('staging_source_verified') is not True \
             or stage.get('source_commit') != request['staging_source_commit'] \
             or stage.get('source_hashes') != expected_hashes:
         raise ValueError()
-    for phase, required in [('preflight',checks.PREFLIGHT),('verify',checks.VERIFY),('browser',checks.BROWSER)]:
+    for phase, required in [('preflight',checks.PREFLIGHT),('native',checks.NATIVE),('cleanup',checks.CLEANUP),('verify',checks.VERIFY),('browser',checks.BROWSER)]:
         result = stage.get('phases',{}).get(phase,{})
-        if result.get('status') != 'success' or any(result.get('checks',{}).get(key) is not True for key in required):
+        # Preflight has already discarded its private raw fields when published.
+        if phase == 'preflight':
+            if not isinstance(result,dict) or set(result) != {'status','category','checks'} \
+                    or result.get('status') != 'success' or result.get('category') != 'complete' \
+                    or not isinstance(result.get('checks'),dict) or set(result['checks']) != required \
+                    or any(result['checks'].get(key) is not True for key in required):
+                raise ValueError()
+            continue
+        # Apply the same exact finite schema used when the receipt was published.
+        with tempfile.TemporaryDirectory(prefix='petish-homepage-evidence-') as folder:
+            path = Path(folder) / 'phase.json'
+            path.write_text(json.dumps(result))
+            path.chmod(0o600)
+            screened, passed = checks.screen(phase, path)
+        if not passed or screened != result or any(result.get('checks',{}).get(key) is not True for key in required):
             raise ValueError()
     available=stage['phases']['verify']['checks'].get('free_delivery_products_available')
     present=stage['phases']['browser'].get('section_present')
@@ -63,7 +78,8 @@ def validate(source):
     if backup.get('AUTOMATION_KIND') != 'backup' or backup.get('AUTOMATION_RESULT') != 'success' \
             or str(backup.get('GITHUB_RUN_ID')) + '-' + str(backup.get('GITHUB_RUN_ATTEMPT')) != backup_id \
             or backup.get('restore_check',{}).get('restore_smoke_test_passed') is not True \
-            or backup.get('restore_check',{}).get('database_import_verified') is not True:
+            or backup.get('restore_check',{}).get('database_import_verified') is not True \
+            or backup.get('restore_check',{}).get('private_passport_root_restored') is not True:
         raise ValueError()
     now = datetime.now(timezone.utc)
     generated = datetime.fromisoformat(backup['generated_utc'])
@@ -74,7 +90,12 @@ def validate(source):
         raise ValueError()
     recovery = evidence.report(request['recovery_result_branch'],'homepage-recovery')
     required = {'wordpress_application_recovery_passed','database_import_verified','wordpress_bootstrap_verified',
-                'homepage_http_verified','shop_http_verified','product_http_verified','cart_http_verified','account_http_verified'}
+                'homepage_http_verified','shop_http_verified','product_http_verified','cart_http_verified','account_http_verified',
+                'anonymous_private_photo_denied','application_outbound_http_blocked',
+                'application_email_blocked','application_container_removed','private_sandbox_removed'}
+    references = recovery.get('recovery_check',{}).get('private_photo_references_verified')
+    if type(references) is not int or not 1 <= references <= 20000:
+        raise ValueError()
     if recovery.get('AUTOMATION_KIND') != 'recovery' or recovery.get('AUTOMATION_RESULT') != 'success' \
             or recovery.get('backup_branch') != request['backup_branch'] \
             or any(recovery.get('recovery_check',{}).get(key) is not True for key in required):

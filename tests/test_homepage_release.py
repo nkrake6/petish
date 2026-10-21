@@ -7,6 +7,8 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import subprocess
+import re
 import unittest
 from PIL import Image
 
@@ -31,7 +33,7 @@ class HomepageReleaseTests(unittest.TestCase):
 
     def raw(self,phase):
         value={'status':'success','category':'complete','checks':dict.fromkeys(safe.REQUIRED[phase],True)}
-        if phase in {'inspect','apply','commit','rollback'}:value['changed_file_count']=4
+        if phase in {'inspect','apply','commit','rollback'}:value['changed_file_count']=len(evidence.FILES)
         if phase=='verify':value['checks']['free_delivery_products_available']=False
         if phase=='browser':value['section_present']=False
         return value
@@ -40,7 +42,7 @@ class HomepageReleaseTests(unittest.TestCase):
         path=self.directory/'raw.json';path.write_text(json.dumps(value));return safe.screen(phase,path)
 
     def test_hidden_section_is_a_successful_verified_state(self):
-        for phase in ('inspect','apply','verify','browser','health','assets','commit','rollback'):
+        for phase in ('inspect','apply','native','cleanup','verify','browser','health','assets','commit','rollback'):
             with self.subTest(phase=phase):
                 value=self.raw(phase);report,passed=self.screen(phase,value)
                 self.assertTrue(passed);self.assertEqual(report,value)
@@ -74,7 +76,7 @@ class HomepageReleaseTests(unittest.TestCase):
         value=self.raw('verify');value['checks']['free_delivery_products_available']='no';bad.append(('verify',value))
         value=self.raw('browser');value['section_present']='false';bad.append(('browser',value))
         value=self.raw('browser');value['checks']['private_token']=True;bad.append(('browser',value))
-        value=self.raw('apply');value['changed_file_count']=5;bad.append(('apply',value))
+        value=self.raw('apply');value['changed_file_count']=len(evidence.FILES)+1;bad.append(('apply',value))
         value=self.raw('assets');value['checks']['home_stylesheet_http_verified']=1;bad.append(('assets',value))
         for phase,value in bad:
             with self.subTest(phase=phase,value=value):
@@ -86,17 +88,19 @@ class HomepageReleaseTests(unittest.TestCase):
         request={'format':'petish-homepage-v1','staging_source_commit':revision,
             'staging_status_branch':'automation-status/homepage-12344-1','backup_branch':'full-site-backup/12345-1',
             'backup_result_branch':'automation-status/backup-12345-1','recovery_result_branch':'automation-status/recovery-12346-1'}
-        stage={'status':'success','mode':'staging','staging_source_verified':True,'source_commit':revision,
+        stage={'status':'success','category':'complete','mode':'staging','staging_source_verified':True,'source_commit':revision,
             'source_hashes':{name:hashlib.sha256((ROOT/(evidence.PREFIX+name)).read_bytes()).hexdigest() for name in evidence.FILES},
-            'phases':{phase:self.raw(phase) for phase in ('verify','browser')}}
+            'phases':{phase:self.raw(phase) for phase in ('native','cleanup','verify','browser')}}
         stage['phases']['preflight']={'status':'success','category':'complete','checks':dict.fromkeys(safe.PREFLIGHT,True)}
         backup={'AUTOMATION_KIND':'backup','AUTOMATION_RESULT':'success','GITHUB_RUN_ID':'12345','GITHUB_RUN_ATTEMPT':'1',
             'generated_utc':datetime.now(timezone.utc).isoformat(),
-            'restore_check':{'restore_smoke_test_passed':True,'database_import_verified':True}}
+            'restore_check':{'restore_smoke_test_passed':True,'database_import_verified':True,'private_passport_root_restored':True}}
         checks={'wordpress_application_recovery_passed','database_import_verified','wordpress_bootstrap_verified',
-            'homepage_http_verified','shop_http_verified','product_http_verified','cart_http_verified','account_http_verified'}
+            'homepage_http_verified','shop_http_verified','product_http_verified','cart_http_verified','account_http_verified',
+            'anonymous_private_photo_denied','application_outbound_http_blocked','application_email_blocked',
+            'application_container_removed','private_sandbox_removed'}
         recovery={'AUTOMATION_KIND':'recovery','AUTOMATION_RESULT':'success','backup_branch':request['backup_branch'],
-            'recovery_check':dict.fromkeys(checks,True)}
+            'recovery_check':{**dict.fromkeys(checks,True),'private_photo_references_verified':1}}
         reports={request['staging_status_branch']:stage,request['backup_result_branch']:backup,request['recovery_result_branch']:recovery}
         original_report=evidence.evidence.report;original_git=evidence.evidence.git
         self.addCleanup(setattr,evidence.evidence,'report',original_report);self.addCleanup(setattr,evidence.evidence,'git',original_git)
@@ -113,6 +117,80 @@ class HomepageReleaseTests(unittest.TestCase):
     def test_release_accepts_matching_hidden_native_and_browser_evidence(self):
         path,request,_,_=self.fixture_evidence()
         self.assertEqual(evidence.validate(path),{'verified':True,**{key:value for key,value in request.items() if key!='format'}})
+
+    def test_recovery_requires_real_private_media_proof(self):
+        path,request,_,backup=self.fixture_evidence()
+        recovery=evidence.evidence.report(request['recovery_result_branch'],'homepage-recovery')
+        for value in (True,False,0,-1,20001,'1',1.0):
+            recovery['recovery_check']['private_photo_references_verified']=value
+            with self.subTest(value=value),self.assertRaises(ValueError):evidence.validate(path)
+        recovery['recovery_check']['private_photo_references_verified']=1
+        backup['restore_check']['private_passport_root_restored']=False
+        with self.assertRaises(ValueError):evidence.validate(path)
+
+    def test_unrecognized_receipt_fields_cannot_satisfy_release_evidence(self):
+        path,_,stage,_=self.fixture_evidence()
+        original=copy.deepcopy(stage)
+        for phase in ('preflight','native','cleanup','verify','browser'):
+            stage.clear();stage.update(copy.deepcopy(original))
+            stage['phases'][phase]['private_path']='private-sentinel'
+            with self.subTest(phase=phase),self.assertRaises(ValueError):evidence.validate(path)
+
+    def test_actual_order_proof_and_cleanup_are_both_required(self):
+        path,_,stage,_=self.fixture_evidence()
+        original=copy.deepcopy(stage)
+        for phase in ('native','cleanup'):
+            stage.clear();stage.update(copy.deepcopy(original));del stage['phases'][phase]
+            with self.subTest(phase=phase),self.assertRaises(ValueError):evidence.validate(path)
+            stage.clear();stage.update(copy.deepcopy(original))
+            stage['phases'][phase]['checks'][next(iter(safe.REQUIRED[phase]))]=False
+            with self.subTest(phase=phase),self.assertRaises(ValueError):evidence.validate(path)
+
+    def test_public_contracts_match_native_browser_and_asset_helpers(self):
+        native=(ROOT/'scripts/verify-homepage.php').read_text()
+        self.assertEqual(safe.VERIFY,set(re.findall(r"petish_homepage_verify_mark\('([a-z_]+)'",native)))
+        proof=(ROOT/'scripts/for-your-pet-proof.php').read_text()
+        def names(name):
+            match=re.search(r'const '+name+r'\s*=\s*\[(.*?)\];',proof,re.S)
+            self.assertIsNotNone(match)
+            return set(re.findall(r"'([a-z_]+)'",match.group(1)))
+        common=names('PETISH_FYP_PROOF_COMMON')
+        self.assertEqual(safe.NATIVE,common|names('PETISH_FYP_PROOF_VERIFY'))
+        self.assertEqual(safe.CLEANUP,common)
+        browser=(ROOT/'tools/homepage/browser.mjs').read_text()
+        match=re.search(r'CHECK_KEYS = Object.freeze\(\[(.*?)\]\)',browser,re.S)
+        self.assertEqual(safe.BROWSER,set(re.findall(r"'([a-z0-9_]+)'",match.group(1))))
+        self.assertEqual(safe.ASSETS,assets.CHECKS)
+        self.assertEqual(safe.FILE_COUNT,len(evidence.FILES))
+
+    def test_recovery_helpers_survive_incomplete_rollback_or_fixture_cleanup(self):
+        source=(ROOT/'scripts/hostinger-homepage.sh').read_text()
+        function=source[source.index('finish() {'):source.index('\ntrap finish EXIT')]
+        scenarios=(
+            ('rollback_failed',1,0,0,['rollback','publish:failure:rollback']),
+            ('cleanup_failed',0,1,0,['cleanup','publish:failure:cleanup']),
+            ('rollback_complete',1,0,0,['rollback','remove_tools','publish:failure:prerequisites']),
+            ('fixture_complete',0,1,1,['cleanup','source','remove_tools','publish:success:complete']),
+            ('source_changed',0,0,1,['source','remove_tools','publish:failure:staging_source']),
+        )
+        for scenario,rollback,fixture,operation,expected in scenarios:
+            with self.subTest(scenario=scenario):
+                work=self.directory/scenario;work.mkdir();log=self.directory/(scenario+'.log')
+                script='\n'.join([
+                    'work=$1; log=$2; scenario=$3; rollback_needed=$4; fixture_cleanup_needed=$5; operation_verified=$6',
+                    'mode=staging; ssh_ready=1; fixture_cleanup_verified=0; failure_category=prerequisites; staging_source_verified=1',
+                    'remote_phase() { printf "rollback\\n" >> "$log"; [[ "$scenario" != rollback_failed ]]; }',
+                    'fixture_phase() { printf "cleanup\\n" >> "$log"; [[ "$scenario" != cleanup_failed ]]; }',
+                    'verify_staging_source() { printf "source\\n" >> "$log"; [[ "$scenario" != source_changed ]]; }',
+                    'remote_cleanup() { printf "remove_tools\\n" >> "$log"; }',
+                    'publish_result() { printf "publish:%s:%s\\n" "$result_status" "$failure_category" >> "$log"; }',
+                    function,'true','finish',
+                ])
+                completed=subprocess.run(['bash','-c',script,'fixture',str(work),str(log),scenario,
+                    str(rollback),str(fixture),str(operation)],capture_output=True)
+                self.assertEqual(log.read_text().splitlines(),expected)
+                self.assertEqual(completed.returncode,0 if scenario=='fixture_complete' else 1)
+                self.assertFalse(work.exists())
 
     def test_native_browser_disagreement_or_stale_backup_refuses(self):
         path,_,stage,backup=self.fixture_evidence()
@@ -164,7 +242,7 @@ class HomepagePublicAssetsTests(unittest.TestCase):
         self.assertEqual(result['status'],'success');self.assertTrue(all(result['checks'].values()))
 
     def test_wrong_bytes_redirects_or_old_subtitle_refuse(self):
-        for arguments in ({'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},
+        for arguments in ({'changed':'assets/js/for-your-pet.js'},{'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},
                           {'subtitle':True},{'redirect':True}):
             opener,expected=self.fixture(**arguments);self.assertEqual(assets.verify(opener,expected)['status'],'failure')
 

@@ -11,9 +11,12 @@ const ORIGIN = 'https://staging.petish.biz';
 const THEME = new URL('../../wordpress/wp-content/themes/dt-the7-child/', import.meta.url);
 const CSS_PATH = '/wp-content/themes/dt-the7-child/assets/css/home.css';
 const BADGE_PATH = '/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png';
+const PERSONAL_SCRIPT_PATH = '/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js';
+const PERSONAL_ENDPOINT = `${ORIGIN}/wp-admin/admin-ajax.php?action=petish_for_your_pet`;
+const PERSONAL = '[data-petish-for-your-pet]';
 const SECTION = '#petish-free-delivery';
 export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
-const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network']);
+const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
   'badge_response_signature_png', 'badge_response_signature_webp', 'badge_response_signature_avif',
@@ -24,7 +27,10 @@ export const CHECK_KEYS = Object.freeze(['browser_started', 'customer_login_veri
   'homepage_http_ok', 'hot_subtitle_absent', 'home_css_http_ok', 'home_css_hash_matches',
   'badge_png_http_ok', 'badge_png_image_matches', 'conditional_section_valid',
   'section_320_valid', 'section_390_valid', 'section_1280_valid',
-  'badges_bottom_right', 'badges_nonoverlap_hot', 'readonly_requests_enforced']);
+  'badges_bottom_right', 'badges_nonoverlap_hot', 'readonly_requests_enforced',
+  'personalisation_script_http_verified', 'personalisation_shell_private_verified',
+  'personalisation_ajax_verified', 'personalisation_no_store_verified', 'personalisation_layout_verified',
+  'personalisation_error_retry_verified', 'personalisation_history_reset_verified']);
 
 export function publicReport(value) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, value?.checks?.[key] === true]));
@@ -88,6 +94,9 @@ function launchOptions(chromium) {
 }
 
 export function allowedHomepageRequest(raw, ...options) {
+  // One read-only, same-origin fragment endpoint is needed. No other admin,
+  // supplier, identity override or mutation request is admitted by this exception.
+  if (raw === PERSONAL_ENDPOINT && (options[0] ?? 'GET') === 'GET') return true;
   if (!allowedRequest(raw, ...options)) return false;
   try {
     const url = new URL(raw);
@@ -101,9 +110,10 @@ async function readOnlyContext(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 },
     ignoreHTTPSErrors: false, locale: 'en-AU', timezoneId: 'Australia/Sydney',
     reducedMotion: 'reduce', serviceWorkers: 'block', acceptDownloads: false });
-  const login = { allowed: false, used: false };
+  const login = { allowed: false, used: false, blockPersonal: false };
   await context.route('**/*', async route => {
     const request = route.request();
+    if (login.blockPersonal && request.url() === PERSONAL_ENDPOINT) return route.abort('blockedbyclient');
     if (!allowedHomepageRequest(request.url(), request.method(), login.allowed && !login.used,
       request.postData() ?? '', request.resourceType())) return route.abort('blockedbyclient');
     if (request.method() === 'POST') login.used = true;
@@ -251,6 +261,95 @@ async function decodeSectionBadges(page) {
   });
 }
 
+function noStore(headers) {
+  return /(?:^|,)\s*no-store(?:\s*,|$)/i.test(headers['cache-control'] ?? '')
+    && !/(?:^|[, ])hit(?:[, ]|$)/i.test(headers['x-litespeed-cache'] ?? '');
+}
+function privateFragmentHeaders(headers) {
+  return noStore(headers) && /(?:^|,)\s*Cookie\s*(?:,|$)/i.test(headers.vary ?? '')
+    && (headers['x-content-type-options'] ?? '').toLowerCase() === 'nosniff';
+}
+async function checkPersonalisation(page, context, login, input, homeHTML, initialResponse, checks, setCategory) {
+  setCategory('personalisation');
+  const fallback = await page.evaluate(html => {
+    const document = new DOMParser().parseFromString(html, 'text/html');
+    const section = document.querySelector('[data-petish-for-your-pet]');
+    const body = section?.querySelector('[data-petish-for-your-pet-body]');
+    return body && document.querySelectorAll('[data-petish-for-your-pet]').length === 1
+      && !body.querySelector('.ph-product') ? body.innerHTML : null;
+  }, homeHTML);
+  checks.personalisation_shell_private_verified = typeof fallback === 'string' && fallback.length > 50
+    && !fallback.includes(input.customer_email) && !fallback.includes(input.login)
+    && fallback.includes('Sign in and add a Petish Passport');
+  requireCheck(checks.personalisation_shell_private_verified, 'personalisation');
+  const response = await initialResponse; requireCheck(!!response, 'personalisation');
+  const payload = await response.json();
+  requireCheck(response.ok() && payload?.success === true && typeof payload.data?.html === 'string'
+    && payload.data.html.length > 30 && payload.data.html.length < 1048576, 'personalisation');
+  await page.waitForFunction(() => {
+    const section = document.querySelector('[data-petish-for-your-pet]');
+    return section && !section.querySelector('[data-petish-for-your-pet-body]').hasAttribute('aria-busy')
+      && section.querySelector('[data-petish-for-your-pet-error]').hidden
+      && section.querySelector('[data-petish-for-your-pet-status]').textContent.trim();
+  });
+  checks.personalisation_ajax_verified = await page.locator(`${PERSONAL} [data-petish-for-your-pet-body]`).evaluate((body, html) => {
+    const comparison = document.createElement('div'); comparison.innerHTML = html;
+    return body.innerHTML === comparison.innerHTML && body.textContent.trim().length > 20
+      && !body.querySelector('script,iframe,form');
+  }, payload.data.html);
+  requireCheck(checks.personalisation_ajax_verified, 'personalisation');
+  // Guest endpoint access is intentionally public but never cacheable. The
+  // separate request context carries no member authentication cookies.
+  const guest = await context.browser().newContext({ serviceWorkers: 'block', acceptDownloads: false });
+  try {
+    const guestResponse = await guest.request.get(PERSONAL_ENDPOINT, { maxRedirects: 0, timeout: 45000 });
+    const guestPayload = await guestResponse.json();
+    checks.personalisation_no_store_verified = privateFragmentHeaders(await response.allHeaders())
+      && privateFragmentHeaders(guestResponse.headers())
+      && guestResponse.ok() && guestPayload?.success === true && typeof guestPayload.data?.html === 'string'
+      && guestPayload.data.html.includes('Sign in and choose your pet')
+      && !guestPayload.data.html.includes('class="ph-product"')
+      && !guestPayload.data.html.includes(input.customer_email) && !guestPayload.data.html.includes(input.login);
+  } finally { await guest.close(); }
+  requireCheck(checks.personalisation_no_store_verified, 'personalisation');
+  let fits = true;
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 1000 });
+    fits = fits && await page.locator(PERSONAL).evaluate(section => {
+      const box = section.getBoundingClientRect();
+      return box.width > 200 && box.left >= -1 && box.right <= innerWidth + 1
+        && [...section.querySelectorAll('a,button,.ph-product')].every(node => {
+          const rect = node.getBoundingClientRect();
+          return !rect.width || (rect.left >= box.left - 1 && rect.right <= box.right + 1);
+        });
+    });
+  }
+  checks.personalisation_layout_verified = fits; requireCheck(fits, 'personalisation');
+  setCategory('personalisation_error'); login.blockPersonal = true;
+  await page.reload({ waitUntil: 'load' });
+  await page.locator('[data-petish-for-your-pet-error]').waitFor({ state: 'visible' });
+  requireCheck(await page.locator('[data-petish-for-your-pet-body]').innerHTML() === fallback, 'personalisation_error');
+  login.blockPersonal = false;
+  const retried = page.waitForResponse(value => value.url() === PERSONAL_ENDPOINT);
+  await page.locator('[data-petish-for-your-pet-retry]').click();
+  const retryResponse = await retried;
+  await page.locator('[data-petish-for-your-pet-error]').waitFor({ state: 'hidden' });
+  await page.waitForFunction(() => !document.querySelector('[data-petish-for-your-pet-body]').hasAttribute('aria-busy'));
+  checks.personalisation_error_retry_verified = retryResponse.ok()
+    && (await page.locator('[data-petish-for-your-pet-status]').textContent()).trim().length > 0;
+  requireCheck(checks.personalisation_error_retry_verified, 'personalisation_error');
+  setCategory('personalisation_history');
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+  requireCheck(await page.locator('[data-petish-for-your-pet-body]').innerHTML() === fallback, 'personalisation_history');
+  const restored = page.waitForResponse(value => value.url() === PERSONAL_ENDPOINT);
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+  const restoredResponse = await restored;
+  await page.waitForFunction(() => !document.querySelector('[data-petish-for-your-pet-body]').hasAttribute('aria-busy'));
+  checks.personalisation_history_reset_verified = restoredResponse.ok()
+    && (await page.locator('[data-petish-for-your-pet-status]').textContent()).trim().length > 0;
+  requireCheck(checks.personalisation_history_reset_verified, 'personalisation_history');
+}
+
 export async function run(input, chromium, options = {}) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false]));
   const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
@@ -262,6 +361,7 @@ export async function run(input, chromium, options = {}) {
     if (input.expected_section_present !== undefined && typeof input.expected_section_present !== 'boolean') throw new Error('input');
     if (input.capture_badge_response !== undefined && typeof input.capture_badge_response !== 'boolean') throw new Error('input');
     const expectedCSS = hash(fs.readFileSync(new URL('assets/css/home.css', THEME)));
+    const expectedPersonalScript = hash(fs.readFileSync(new URL('assets/js/for-your-pet.js', THEME)));
     const expectedBadgeBytes = fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME));
     const expectedBadge = hash(expectedBadgeBytes);
     const expectedDimensions = pngDimensions(expectedBadgeBytes);
@@ -275,7 +375,10 @@ export async function run(input, chromium, options = {}) {
       && !allowedHomepageRequest('https://petish.biz/', 'GET')
       && !allowedRequest(`${ORIGIN}/checkout/`, 'GET')
       && !allowedRequest(`${ORIGIN}/?add-to-cart=1`, 'GET')
-      && !allowedRequest(`${ORIGIN}/my-account/edit-account/`, 'POST', true);
+      && !allowedRequest(`${ORIGIN}/my-account/edit-account/`, 'POST', true)
+      && allowedHomepageRequest(PERSONAL_ENDPOINT, 'GET')
+      && !allowedHomepageRequest(PERSONAL_ENDPOINT + '&user_id=1', 'GET')
+      && !allowedHomepageRequest(PERSONAL_ENDPOINT, 'POST');
     const page = await context.newPage();
     page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(45000);
     category = 'login';
@@ -297,15 +400,17 @@ export async function run(input, chromium, options = {}) {
     const assetRecords = new Map(), assetTasks = [];
     page.on('response', response => {
       const url = new URL(response.url());
-      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH].includes(url.pathname)) return;
+      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH].includes(url.pathname)) return;
       const task = response.body().then(body => assetRecords.set(url.pathname, { ok: response.ok(), hash: hash(body) }))
         .catch(() => assetRecords.set(url.pathname, { ok: false, hash: null }));
       assetTasks.push(task);
     });
+    const personalResponse = page.waitForResponse(response => response.url() === PERSONAL_ENDPOINT).catch(() => null);
     const homeResponse = await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded' });
     checks.homepage_http_ok = !!homeResponse?.ok() && new URL(page.url()).origin === ORIGIN
       && new URL(page.url()).pathname === '/' && await page.locator('.petish-home').count() === 1;
     requireCheck(checks.homepage_http_ok, 'homepage');
+    const homeHTML = await homeResponse.text();
     category = 'subtitle';
     checks.hot_subtitle_absent = await page.locator('#petish-hot-items .ph-section-heading p').count() === 0
       && !await page.locator('.petish-home').evaluate(node => node.textContent.includes('Selected by supplier-reported orders.'));
@@ -314,10 +419,12 @@ export async function run(input, chromium, options = {}) {
     const cssEnqueued = await page.locator('link[rel="stylesheet"]').evaluateAll((links, expected) =>
       links.some(link => { try { const u = new URL(link.href); return u.origin === expected.origin && u.pathname === expected.path; } catch { return false; } }),
     { origin: ORIGIN, path: CSS_PATH });
-    await Promise.allSettled(assetTasks);
+    await page.waitForLoadState('load'); await Promise.allSettled(assetTasks);
     const css = assetRecords.get(CSS_PATH);
     checks.home_css_http_ok = cssEnqueued && css?.ok === true;
     checks.home_css_hash_matches = cssEnqueued && css?.hash === expectedCSS;
+    checks.personalisation_script_http_verified = assetRecords.get(PERSONAL_SCRIPT_PATH)?.ok === true
+      && assetRecords.get(PERSONAL_SCRIPT_PATH)?.hash === expectedPersonalScript;
     // Request the reviewed PNG even when no supplier products qualify, so an
     // intentionally absent section cannot hide an unreadable deployment asset.
     const fetchBadge = pathname => page.evaluate(async target => {
@@ -378,6 +485,7 @@ export async function run(input, chromium, options = {}) {
     }
     checks.badges_bottom_right = bottomRight;
     checks.badges_nonoverlap_hot = nonoverlap;
+    await checkPersonalisation(page, context, login, input, homeHTML, personalResponse, checks, value => { category = value; });
     requireCheck(Object.values(checks).every(Boolean), 'layout');
     return report('success', 'complete');
   } catch (error) {

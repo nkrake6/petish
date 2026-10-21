@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify the public homepage on staging or release its four reviewed files.
+# Verify the public homepage on staging or release its seven reviewed files.
 set +x
 set -euo pipefail
 umask 077
@@ -15,6 +15,8 @@ source_sha=${HOMEPAGE_SOURCE_SHA:-$GITHUB_SHA}
 work=$(mktemp -d "$RUNNER_TEMP/petish-homepage.XXXXXXXX")
 mkdir -m 700 "$work/public" "$work/bundle" "$work/bundle/payload"
 ssh_ready=0
+fixture_cleanup_needed=0
+fixture_cleanup_verified=0
 rollback_needed=0
 rollback_attempted=0
 rollback_verified=0
@@ -47,6 +49,39 @@ native_verification() {
         > "$work/verify.private.json" 2> "$work/verify.private.stderr" || status=$?
     screen_phase verify || validation=$?
     [[ $status == 0 && $validation == 0 ]]
+}
+
+fixture_phase() {
+    local operation=$1 phase=native status=0 validation=0
+    [[ $operation == verify || $operation == cleanup ]] || return 1
+    [[ $operation != cleanup ]] || phase=cleanup
+    "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
+      for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-homepage-deploy-'"$run"'/for-your-pet-proof.php" '"$run $operation" \
+        > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
+    screen_phase "$phase" || validation=$?
+    [[ $status == 0 && $validation == 0 ]]
+}
+
+verify_staging_source() {
+    "${petish_ssh[@]}" 'set -eu; root="$HOME/domains/staging.petish.biz/public_html/wp-content/themes/dt-the7-child";
+      test -d "$root" && test ! -L "$root" && test "$(readlink -f -- "$root")" = "$root" || exit 1;
+      for relative in assets/images/ui/free-delivery-van.png assets/css/home.css assets/js/for-your-pet.js includes/supplier-popularity.php includes/for-your-pet.php front-page.php functions.php; do
+        file="$root/$relative";
+        test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %h "$file")" = 1 || exit 1;
+        sha256sum "$file";
+      done' > "$work/staging-hashes.private.txt" 2> "$work/staging-hashes.private.stderr"
+    python3 - "$work/bundle/payload/manifest.json" "$work/staging-hashes.private.txt" <<'PY' > "$work/staging-source.private.stdout" 2> "$work/staging-source.private.stderr"
+import json,re,sys
+from pathlib import Path
+expected=json.loads(Path(sys.argv[1]).read_text());lines=Path(sys.argv[2]).read_text().splitlines()
+names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php')
+if len(lines)!=len(names):raise SystemExit(1)
+for name,line in zip(names,lines):
+ parts=line.split('  ',1)
+ if len(parts)!=2 or not re.fullmatch(r'[a-f0-9]{64}',parts[0]) \
+  or not parts[1].endswith('/wp-content/themes/dt-the7-child/'+name) or parts[0]!=expected[name]:raise SystemExit(1)
+PY
 }
 
 remote_cleanup() {
@@ -90,7 +125,7 @@ stage=os.environ.get('HOMEPAGE_PREPARATION_STAGE','unknown')
 result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
-for phase in ('inspect','preflight','browser','apply','verify','health','assets','commit','rollback'):
+for phase in ('inspect','preflight','native','cleanup','browser','apply','verify','health','assets','commit','rollback'):
  path=root/(phase+'.safe.json')
  try:
   info=path.lstat()
@@ -188,7 +223,21 @@ finish() {
         fi
         outcome=1
     fi
-    if [[ $ssh_ready == 1 ]] && ! remote_cleanup; then
+    if [[ $ssh_ready == 1 && $fixture_cleanup_needed == 1 ]]; then
+        if fixture_phase cleanup; then
+            fixture_cleanup_verified=1
+        else
+            outcome=1
+            failure_category=cleanup
+        fi
+    fi
+    if [[ $mode == staging && $operation_verified == 1 ]] && ! verify_staging_source; then
+        staging_source_verified=0
+        outcome=1
+        failure_category=staging_source
+    fi
+    # Retain exact recovery helpers and journals until rollback and fixture cleanup pass.
+    if [[ $ssh_ready == 1 && $rollback_needed == 0 && ( $fixture_cleanup_needed == 0 || $fixture_cleanup_verified == 1 ) ]] && ! remote_cleanup; then
         outcome=1
         failure_category=cleanup
     fi
@@ -212,13 +261,13 @@ trap finish EXIT
 trap 'exit 1' HUP INT TERM
 [[ ${HOMEPAGE_PREREQUISITES:-success} == success ]]
 failure_category=source
-if [[ $mode != staging ]]; then [[ $(git rev-parse HEAD) == "$source_sha" ]]; fi
+[[ $(git rev-parse HEAD) == "$source_sha" ]]
 git fetch --no-tags --depth=1 origin "$source_sha" > "$work/fetch.private.stdout" 2> "$work/fetch.private.stderr"
 python3 - "$source_sha" "$work/bundle/payload" <<'PY' > "$work/payload.private.stdout" 2> "$work/payload.private.stderr"
 import hashlib,json,subprocess,sys
 from pathlib import Path
 revision=sys.argv[1];destination=Path(sys.argv[2]);prefix='wordpress/wp-content/themes/dt-the7-child/'
-names=('assets/images/ui/free-delivery-van.png','assets/css/home.css','includes/supplier-popularity.php','front-page.php')
+names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php')
 manifest={}
 for name in names:
  content=subprocess.run(['git','show',revision+':'+prefix+name],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout
@@ -237,18 +286,18 @@ fi
 if [[ $mode == staging ]]; then
     cp -- scripts/staging-rehearsal-remote.php "$work/bundle/driver.php"
     chmod 600 "$work/bundle/driver.php"
-    for name in verify-homepage.php email-branding-preview-remote.php; do
+    for name in verify-homepage.php verify-pet-club.php for-your-pet-proof.php email-branding-preview-remote.php; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
-    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-homepage.php email-branding-preview-remote.php \
+    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-homepage.php verify-pet-club.php for-your-pet-proof.php email-branding-preview-remote.php \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 else
-    for name in deploy-homepage-remote.php verify-homepage.php email-branding-preview-remote.php; do
+    for name in deploy-homepage-remote.php verify-homepage.php verify-pet-club.php email-branding-preview-remote.php; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
-    tar -C "$work/bundle" -cf "$work/bundle.tar" deploy-homepage-remote.php verify-homepage.php email-branding-preview-remote.php payload \
+    tar -C "$work/bundle" -cf "$work/bundle.tar" deploy-homepage-remote.php verify-homepage.php verify-pet-club.php email-branding-preview-remote.php payload \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 fi
 failure_category=transport
@@ -263,24 +312,7 @@ ssh_ready=1
 
 if [[ $mode == staging ]]; then
     failure_category=staging_source
-    "${petish_ssh[@]}" 'set -eu; root="$HOME/domains/staging.petish.biz/public_html/wp-content/themes/dt-the7-child";
-      test -d "$root" && test ! -L "$root" && test "$(readlink -f -- "$root")" = "$root" || exit 1;
-      for relative in assets/images/ui/free-delivery-van.png assets/css/home.css includes/supplier-popularity.php front-page.php; do
-        file="$root/$relative";
-        test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %h "$file")" = 1 || exit 1;
-        sha256sum "$file";
-      done' > "$work/staging-hashes.private.txt" 2> "$work/staging-hashes.private.stderr"
-    python3 - "$work/bundle/payload/manifest.json" "$work/staging-hashes.private.txt" <<'PY' > "$work/staging-source.private.stdout" 2> "$work/staging-source.private.stderr"
-import json,re,sys
-from pathlib import Path
-expected=json.loads(Path(sys.argv[1]).read_text());lines=Path(sys.argv[2]).read_text().splitlines()
-names=('assets/images/ui/free-delivery-van.png','assets/css/home.css','includes/supplier-popularity.php','front-page.php')
-if len(lines)!=len(names):raise SystemExit(1)
-for name,line in zip(names,lines):
- parts=line.split('  ',1)
- if len(parts)!=2 or not re.fullmatch(r'[a-f0-9]{64}',parts[0]) \
-  or not parts[1].endswith('/wp-content/themes/dt-the7-child/'+name) or parts[0]!=expected[name]:raise SystemExit(1)
-PY
+    verify_staging_source
     staging_source_verified=1
     failure_category=preflight
     preflight_status=0
@@ -291,6 +323,13 @@ PY
     preflight_validation=0
     screen_phase preflight || preflight_validation=$?
     [[ $preflight_status == 0 && $preflight_validation == 0 ]]
+    failure_category=native
+    fixture_cleanup_needed=1
+    fixture_phase verify
+    failure_category=cleanup
+    fixture_phase cleanup
+    fixture_cleanup_verified=1
+    fixture_cleanup_needed=0
     failure_category=verify
     native_verification staging
     "${petish_ssh[@]}" 'set -eu; file="$HOME/.petish-staging/rehearsal-'"$run"'/browser-input.json";

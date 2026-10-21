@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read only the public homepage and two fixed reviewed theme assets."""
+"""Read only the public homepage and three fixed reviewed theme assets."""
 import hashlib
 import io
 import importlib.util
@@ -18,6 +18,7 @@ spec=importlib.util.spec_from_file_location('asset_http',ROOT/'scripts/verify-ac
 http=importlib.util.module_from_spec(spec);spec.loader.exec_module(http)
 http.MAX_BYTES=8388608
 ASSETS={'home_stylesheet_http_verified':'assets/css/home.css',
+    'for_your_pet_script_http_verified':'assets/js/for-your-pet.js',
     'free_delivery_badge_http_verified':'assets/images/ui/free-delivery-van.png'}
 CHECKS={'homepage_http_verified','hot_subtitle_absent',*ASSETS}
 

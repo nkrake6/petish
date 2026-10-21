@@ -3,17 +3,22 @@
 if (PHP_SAPI !== 'cli') exit(1);
 ini_set('display_errors','0'); ini_set('log_errors','0'); error_reporting(0);
 
-// Exact reviewed homepage source and the canonical hosted delivery badge bytes.
+// Exact reviewed homepage files. All application hashes must be frozen before release.
 const PETISH_HOMEPAGE_FILES = [
+    'assets/images/ui/free-delivery-van.png'=>'4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af',
+    'assets/css/home.css'=>'dc4f3606341c2eb44df505c54a192e07d2771e90a9e09c102ac2a6983789bd23',
+    'assets/js/for-your-pet.js'=>'29cd41f2e0a646234fefea9d3a73bb2c53ebc11cb07f1362ca406a7ca9d22a0a',
+    'includes/supplier-popularity.php'=>'54ef94d249292953c41a81291a5b5eb3f0760ef290f6ee19de79c691747b2e2b',
+    'includes/for-your-pet.php'=>'eb3b9d59c63642770366db0c5c0d3375f4ce16539f0b94df01d12b7e87e54aa8',
+    'front-page.php'=>'7336764e7da8fc56132584564da7e4fe28da7fdec1839775dd131469b7f3f924',
+    'functions.php'=>'ef3372a1d00a28eb952953eaefb3793b82361195aa0d773373006aa5dfee170b',
+];
+const PETISH_HOMEPAGE_BASELINES = [
     'assets/images/ui/free-delivery-van.png'=>'4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af',
     'assets/css/home.css'=>'11aa02b5a3890e3023753bb2acfd024cf9e520a74737ee1d4ac8a9b1c2dca557',
     'includes/supplier-popularity.php'=>'54ef94d249292953c41a81291a5b5eb3f0760ef290f6ee19de79c691747b2e2b',
     'front-page.php'=>'50828b31df5a89a5a31308f3fb4bac6d01412afcab379d4b53bbecb45c46280c',
-];
-const PETISH_HOMEPAGE_BASELINES = [
-    'assets/css/home.css'=>'81139fc111d1cdc85c412b9ecfe86dbf32cc1a2b4658ffb14088c0b9ab9e026a',
-    'includes/supplier-popularity.php'=>'74b02a8407b64f407f69cc776a500d5e68872d5acf5382ef09bae3de4ee403f2',
-    'front-page.php'=>'ee5c1425f0bf746471886a88bf185e176b12f8fdf3827831e51a947417dee863',
+    'functions.php'=>'3c89e235558d1fe17cfa8ef0b6c7bdc50b80e4ccf09326e4ee19dd30961ef824',
 ];
 
 function homepage_release_fail() { throw new RuntimeException(); }
@@ -73,6 +78,8 @@ function homepage_release_protected($root,$theme) {
         'passport'=>homepage_release_tree($root.'/wp-content/plugins/petish-passport'),
         'fulfilment'=>homepage_release_tree($root.'/wp-content/plugins/petish-fulfilment'),
         'mu'=>homepage_release_tree($root.'/wp-content/mu-plugins')];
+    $private=dirname($root).'/private/petish-passport';
+    $state['private_passport']=file_exists($private)||is_link($private)?homepage_release_tree($private):null;
     foreach(['wp-config.php','.htaccess','.user.ini'] as$name) {
         $path=$root.'/'.$name;
         if(file_exists($path)||is_link($path)) { homepage_release_path($path); $state[$name]=hash_file('sha256',$path); }
@@ -93,6 +100,7 @@ function homepage_release_payload($payload) {
     if(!is_string($image)||strlen($image)>8388608||!str_starts_with($image,"\x89PNG\r\n\x1a\n")) homepage_release_fail();
     $dimensions=getimagesizefromstring($image);
     if(!is_array($dimensions)||($dimensions['mime']??null)!=='image/png'||$dimensions[0]<1||$dimensions[0]>4096||$dimensions[1]<1||$dimensions[1]>4096) homepage_release_fail();
+
 }
 function homepage_release_live($theme) {
     $state=[]; $changed=0;
@@ -113,6 +121,23 @@ function homepage_release_live($theme) {
         if(!$state[$name]['present']||$state[$name]['sha256']!==$expected) $changed++;
     }
     return [$state,$changed];
+}
+/** Refuse an edit made since the private snapshot was captured. */
+function homepage_release_preimage($path,$entry) {
+    clearstatcache(true,$path);
+    if($entry['present']) {
+        homepage_release_path($path);
+        if(!hash_equals($entry['sha256'],hash_file('sha256',$path))
+            || (fileperms($path)&0777)!==$entry['mode']) homepage_release_fail();
+    }elseif(file_exists($path)||is_link($path)) homepage_release_fail();
+}
+/** A rollback may replace only this release's candidate or its exact preimage. */
+function homepage_release_rollback_destination($path,$name,$entry) {
+    clearstatcache(true,$path);
+    if(file_exists($path)||is_link($path)) {
+        homepage_release_path($path); $hash=hash_file('sha256',$path);
+        if($hash!==PETISH_HOMEPAGE_FILES[$name] && (!$entry['present']||$hash!==$entry['sha256'])) homepage_release_fail();
+    }elseif($entry['present']) homepage_release_fail();
 }
 function homepage_release_require_candidates($theme) {
     foreach(PETISH_HOMEPAGE_FILES as$name=>$expected) {
@@ -152,9 +177,14 @@ function homepage_release_journal($release,$run) {
     if($journal['created_directories']!==[]) homepage_release_fail();
     return $journal;
 }
-function homepage_release_originals_verified($theme,$root,$release,$run) {
+function homepage_release_originals_verified($theme,$root,$release,$run,$protected_expected=null) {
     $journal=homepage_release_journal($release,$run);
-    if(homepage_release_protected($root,$theme)!==$journal['protected']) homepage_release_fail();
+    $current=homepage_release_protected($root,$theme);
+    if($protected_expected===null) {
+        $protected_expected=$journal['protected'];
+        $protected_expected['private_passport']=$current['private_passport'];
+    }
+    if($current!==$protected_expected) homepage_release_fail();
     foreach($journal['files'] as$name=>$entry) {
         $path=$theme.'/'.$name;
         if($entry['present']) {
@@ -164,19 +194,63 @@ function homepage_release_originals_verified($theme,$root,$release,$run) {
     }
     foreach($journal['created_directories'] as$relative) if(file_exists($theme.'/'.$relative)||is_link($theme.'/'.$relative)) homepage_release_fail();
 }
+/** A short owned WordPress maintenance guard hides mixed application versions. */
+function homepage_release_maintenance($root,$run,$release,$remove=false,$adopt=false) {
+    static $owned=[];
+    $path=$root.'/.maintenance'; $receipt=$release.'/maintenance.json';
+    homepage_release_path($root,true); homepage_release_path($release,true);
+    $record=null;
+    if(file_exists($receipt)||is_link($receipt)) {
+        $record=homepage_release_json($receipt);
+        if(array_keys($record)!==['run','sha256']||$record['run']!==$run
+            ||!is_string($record['sha256'])||!preg_match('/\A[a-f0-9]{64}\z/D',$record['sha256'])) homepage_release_fail();
+    }
+    if($remove) {
+        if(!isset($owned[$path])||$record===null||!hash_equals($owned[$path],$record['sha256'])) homepage_release_fail();
+        homepage_release_path($path);
+        if((fileperms($path)&07777)!==0600 || !hash_equals($owned[$path],hash_file('sha256',$path))) homepage_release_fail();
+        if(!unlink($path)) homepage_release_fail();
+        unset($owned[$path]);
+        return;
+    }
+    if(file_exists($path)||is_link($path)) {
+        if(!$adopt||$record===null) homepage_release_fail();
+        homepage_release_path($path);
+        if((fileperms($path)&07777)!==0600||!hash_equals($record['sha256'],hash_file('sha256',$path))) homepage_release_fail();
+        $owned[$path]=$record['sha256'];
+        return;
+    }
+    $content="<?php /* Petish homepage release ".$run." */\n\$upgrading = time();\n";
+    $digest=hash('sha256',$content);
+    $raw=json_encode(['run'=>$run,'sha256'=>$digest],JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
+    if($record===null) homepage_release_write($receipt,$raw);
+    else homepage_release_atomic($receipt,$raw,0600,$run);
+    // Persist proof before creation so a later same-run rollback can recover it.
+    homepage_release_write($path,$content); $owned[$path]=$digest;
+}
+function homepage_release_coherent($theme,$release,$run) {
+    try { homepage_release_require_candidates($theme); return true; }catch(Throwable $ignored) {}
+    try {
+        $journal=homepage_release_journal($release,$run);
+        foreach($journal['files']as$name=>$entry) homepage_release_preimage($theme.'/'.$name,$entry);
+        return true;
+    }catch(Throwable $ignored) { return false; }
+}
+
 function homepage_release_rollback($theme,$root,$release,$run) {
     $journal=homepage_release_journal($release,$run);
-    if(homepage_release_protected($root,$theme)!==$journal['protected']) homepage_release_fail();
-    // First validate every destination, then restore the homepage template before its helper and assets.
+    $protected=homepage_release_protected($root,$theme);
+    $expected=$journal['protected']; $expected['private_passport']=$protected['private_passport'];
+    if($protected!==$expected) homepage_release_fail();
+    // Private photos may have changed legitimately; this transaction never writes them.
+    // Validate every destination, then restore the bootstrap before removing new helper classes.
     foreach($journal['files'] as$name=>$entry) {
         $path=$theme.'/'.$name;
-        if(file_exists($path)||is_link($path)) {
-            homepage_release_path($path); $hash=hash_file('sha256',$path);
-            if($hash!==PETISH_HOMEPAGE_FILES[$name] && (!$entry['present']||$hash!==$entry['sha256'])) homepage_release_fail();
-        }elseif($entry['present']) homepage_release_fail();
+        homepage_release_rollback_destination($path,$name,$entry);
     }
     foreach(array_reverse(array_keys(PETISH_HOMEPAGE_FILES)) as$name) {
         $path=$theme.'/'.$name; $entry=$journal['files'][$name];
+        homepage_release_rollback_destination($path,$name,$entry);
         if($entry['present']) {
             $backup=$release.'/backup/'.array_search($name,array_keys(PETISH_HOMEPAGE_FILES),true);
             homepage_release_atomic($path,file_get_contents($backup),$entry['mode'],$run);
@@ -186,16 +260,17 @@ function homepage_release_rollback($theme,$root,$release,$run) {
         $directory=$theme.'/'.$relative;
         if(is_dir($directory)) { homepage_release_path($directory,true); if(!rmdir($directory)) homepage_release_fail(); }
     }
-    homepage_release_originals_verified($theme,$root,$release,$run);
+    homepage_release_originals_verified($theme,$root,$release,$run,$protected);
     if(!file_exists($release.'/rolled-back')) homepage_release_write($release.'/rolled-back',"verified\n");
 }
 
 $report=['status'=>'failure','category'=>'input','checks'=>array_fill_keys([
     'paths_verified','candidate_manifest_verified','candidate_syntax_verified','candidate_badge_png_verified',
     'production_config_present','live_files_compatible','protected_state_unchanged',
-    'rollback_snapshot_created','files_deployed','rollback_completed','release_committed','lock_owned'],false),'changed_file_count'=>0];
-$rollback_on_exit=false; $lock=null; $theme=null; $root=null; $release=null; $run=null;
-$finish=static function()use(&$report,&$rollback_on_exit,&$lock,&$theme,&$root,&$release,&$run) {
+    'rollback_snapshot_created','files_deployed','rollback_completed','release_committed','lock_owned',
+    'maintenance_guard_created','maintenance_guard_removed'],false),'changed_file_count'=>0];
+$rollback_on_exit=false; $live_mutation_started=false; $maintenance_owned=false; $lock=null; $theme=null; $root=null; $release=null; $run=null;
+$finish=static function()use(&$report,&$rollback_on_exit,&$maintenance_owned,&$lock,&$theme,&$root,&$release,&$run) {
     if($rollback_on_exit) {
         try {
             homepage_release_rollback($theme,$root,$release,$run);
@@ -203,6 +278,10 @@ $finish=static function()use(&$report,&$rollback_on_exit,&$lock,&$theme,&$root,&
             if($lock!==null) { homepage_release_unlock($lock); $lock=null; }
             $rollback_on_exit=false;
         }catch(Throwable $ignored) { $report['category']='rollback'; }
+    }
+    if($maintenance_owned && (!$rollback_on_exit || homepage_release_coherent($theme,$release,$run))) {
+        try { homepage_release_maintenance($root,$run,$release,true); $maintenance_owned=false; $report['checks']['maintenance_guard_removed']=true; }
+        catch(Throwable $ignored) { $report['status']='failure'; $report['category']='maintenance'; }
     }
 };
 register_shutdown_function(static function()use($finish,&$report) {
@@ -224,6 +303,8 @@ try {
     $base=$home.'/.petish-homepage-releases'; $release=$base.'/'.$run;
     if($operation==='inspect') { homepage_release_protected($root,$theme); }
     elseif($operation==='apply') {
+        $report['category']='maintenance';
+        if(file_exists($root.'/.maintenance')||is_link($root.'/.maintenance')) homepage_release_fail();
         $report['category']='lock';
         if(!file_exists($base)&&!is_link($base)&&!mkdir($base,0700)) homepage_release_fail();
         homepage_release_path($base,true); if((fileperms($base)&07777)!==0700) homepage_release_fail();
@@ -231,25 +312,32 @@ try {
         $report['category']='snapshot';
         if(file_exists($release)||is_link($release)||!mkdir($release,0700)||!mkdir($release.'/backup',0700)) homepage_release_fail();
         $protected=homepage_release_protected($root,$theme); $created=[];
-        // All asset/helper directories already belong to the existing child theme.
-        foreach(['assets/css','assets/images/ui','includes'] as$relative) homepage_release_path($theme.'/'.$relative,true);
+        // All destination directories belong to the existing child theme.
+        foreach(['assets/css','assets/js','assets/images/ui','includes'] as$relative) homepage_release_path($theme.'/'.$relative,true);
         foreach($live as$name=>$entry) if($entry['present']) {
             homepage_release_write($release.'/backup/'.array_search($name,array_keys(PETISH_HOMEPAGE_FILES),true),file_get_contents($theme.'/'.$name));
         }
         $journal=['run'=>$run,'files'=>$live,'protected'=>$protected,'created_directories'=>$created];
         homepage_release_write($release.'/journal.json',json_encode($journal,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
         homepage_release_journal($release,$run); $report['checks']['rollback_snapshot_created']=true;
-        $rollback_on_exit=true;
+        $report['category']='maintenance';
+        homepage_release_maintenance($root,$run,$release); $maintenance_owned=true; $report['checks']['maintenance_guard_created']=true;
         $report['category']='deployment';
+        foreach($live as$name=>$entry) homepage_release_preimage($theme.'/'.$name,$entry);
+        if(homepage_release_protected($root,$theme)!==$protected) homepage_release_fail();
+        $rollback_on_exit=true;
         foreach($created as$relative) if(!mkdir($theme.'/'.$relative,0755)) homepage_release_fail();
         foreach(PETISH_HOMEPAGE_FILES as$name=>$hash) {
+            homepage_release_preimage($theme.'/'.$name,$live[$name]);
             if($live[$name]['present']&&$live[$name]['sha256']===$hash) continue;
+            $live_mutation_started=true;
             homepage_release_atomic($theme.'/'.$name,file_get_contents($payload.'/'.$name),0644,$run);
         }
         homepage_release_require_candidates($theme); $report['checks']['files_deployed']=true;
         if(homepage_release_protected($root,$theme)!==$protected) homepage_release_fail();
         $report['checks']['protected_state_unchanged']=true;
         homepage_release_write($release.'/pending',"verified\n");
+        homepage_release_maintenance($root,$run,$release,true); $maintenance_owned=false; $report['checks']['maintenance_guard_removed']=true;
         $rollback_on_exit=false;
     }else {
         $report['category']='lock'; homepage_release_path($base,true); homepage_release_path($release,true);
@@ -267,9 +355,23 @@ try {
                 homepage_release_path($release.'/rolled-back');
                 if((fileperms($release.'/rolled-back')&07777)!==0600||file_get_contents($release.'/rolled-back')!=="verified\n") homepage_release_fail();
                 homepage_release_originals_verified($theme,$root,$release,$run);
-            }else homepage_release_rollback($theme,$root,$release,$run);
+                if(file_exists($root.'/.maintenance')||is_link($root.'/.maintenance')) {
+                    homepage_release_maintenance($root,$run,$release,false,true); $maintenance_owned=true;
+                    $report['checks']['maintenance_guard_created']=true;
+                    homepage_release_maintenance($root,$run,$release,true); $maintenance_owned=false;
+                }
+                $report['checks']['maintenance_guard_removed']=true;
+            }else {
+                $report['category']='maintenance';
+                homepage_release_maintenance($root,$run,$release,false,true); $maintenance_owned=true; $report['checks']['maintenance_guard_created']=true;
+                $report['category']='rollback'; $rollback_on_exit=true; homepage_release_rollback($theme,$root,$release,$run);
+                $rollback_on_exit=false;
+                homepage_release_maintenance($root,$run,$release,true); $maintenance_owned=false; $report['checks']['maintenance_guard_removed']=true;
+            }
             $report['checks']['rollback_completed']=true; $report['checks']['protected_state_unchanged']=true;
         }else {
+            if(file_exists($root.'/.maintenance')||is_link($root.'/.maintenance')) homepage_release_fail();
+            $report['checks']['maintenance_guard_removed']=true;
             homepage_release_path($release.'/pending'); homepage_release_require_candidates($theme);
             if(homepage_release_protected($root,$theme)!==$journal['protected']) homepage_release_fail();
             $report['checks']['protected_state_unchanged']=true; $report['checks']['files_deployed']=true;
@@ -281,8 +383,8 @@ try {
     $report['status']='success'; $report['category']='complete';
 }catch(Throwable $ignored) {
     $finish();
-    // If preparation failed before a complete snapshot, no live file changed.
-    if(($operation??null)==='apply'&&!$rollback_on_exit&&$lock!==null&&!$report['checks']['rollback_snapshot_created']) {
+    // An aborted preparation or preimage check changed no live application file.
+    if(($operation??null)==='apply'&&!$rollback_on_exit&&$lock!==null&&!$live_mutation_started) {
         try { homepage_release_unlock($lock); $lock=null; }catch(Throwable $ignored_again) {}
     }
 }

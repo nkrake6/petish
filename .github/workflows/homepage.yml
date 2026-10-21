@@ -17,12 +17,17 @@ on:
       - scripts/hostinger-homepage.sh
       - scripts/deploy-homepage-remote.php
       - scripts/verify-homepage.php
+      - scripts/for-your-pet-proof.php
+      - scripts/verify-pet-club.php
       - scripts/verify-homepage-assets.py
       - scripts/sanitize-homepage-result.py
       - scripts/validate-homepage-release.py
       - tools/homepage/browser.mjs
       - operations/homepage-release.json
       - wordpress/wp-content/themes/dt-the7-child/front-page.php
+      - wordpress/wp-content/themes/dt-the7-child/functions.php
+      - wordpress/wp-content/themes/dt-the7-child/includes/for-your-pet.php
+      - wordpress/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js
       - wordpress/wp-content/themes/dt-the7-child/includes/supplier-popularity.php
       - wordpress/wp-content/themes/dt-the7-child/assets/css/home.css
       - wordpress/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png
@@ -48,7 +53,7 @@ jobs:
       - name: Check out reviewed homepage tools
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: main
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: Prepare pinned SSH connection and verification tools
         id: prepare
@@ -59,7 +64,7 @@ jobs:
           for attempt in 1 2 3; do
             if bash scripts/hostinger-connection-check.sh; then break; fi
             if [ "$attempt" = 3 ]; then exit 1; fi
-            sleep 2
+            sleep $((attempt * 5))
           done
           preparation_stage=ssh_tools
           if ! command -v sshpass >/dev/null 2>&1; then

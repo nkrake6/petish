@@ -109,6 +109,16 @@ body.home.petish-site #footer .ph-photo-credits li { margin: 0; font: inherit; }
 .petish-home .ph-empty-copy h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); margin-bottom: 12px; }
 .petish-home .ph-empty-copy > p { color: var(--color-text-muted); font-size: 1rem; max-width: 53ch; }
 .petish-home .ph-empty-copy > .ph-text-link { margin-top: 20px; }
+.petish-home .ph-for-pet-subtitle { margin-top: 10px; max-width: 68ch; color: var(--color-text-muted); font-size: .9375rem; line-height: 1.7; }
+.petish-home .ph-for-pet-empty { background: color-mix(in srgb, var(--color-lavender) 24%, var(--color-surface)); }
+.petish-home .ph-for-pet-empty > .ph-empty-copy:only-child { grid-column: 1 / -1; }
+.petish-home .ph-for-your-pet [data-petish-for-your-pet-body] { min-width: 0; }
+.petish-home .ph-for-pet-intro { margin-bottom: 24px; color: var(--color-text-muted); }
+.petish-home .ph-for-pet-footer { margin-top: 24px; }
+.petish-home .ph-for-pet-error { margin-top: 20px; padding: 20px 24px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); }
+.petish-home .ph-for-pet-error > p { color: var(--color-text-muted); font-size: .9375rem; }
+.petish-home .ph-for-pet-error .ph-actions { margin-top: 12px; }
+.petish-home .ph-for-your-pet [hidden] { display: none !important; }
 .petish-home .ph-product { min-width: 0; margin: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 20px; overflow: hidden; }
 .petish-home .ph-product-link { display: flex; height: 100%; min-inline-size: 0; flex-direction: column; color: var(--color-text); }
 .petish-home .ph-product:hover { border-color: var(--color-control-border); }
@@ -194,6 +204,9 @@ body.home.petish-site #footer .ph-photo-credits li { margin: 0; font: inherit; }
   .petish-home .ph-empty-art { width: 96px; height: 96px; margin-block: 4px; }
   .petish-home .ph-empty-art > svg { width: 51px; height: 51px; }
   .petish-home .ph-empty-copy > p { font-size: .9375rem; }
+  .petish-home .ph-for-pet-empty .ph-actions { justify-content: center; }
+  .petish-home .ph-for-pet-empty .ph-actions > .petish-button { width: 100%; }
+  .petish-home .ph-for-pet-error { padding: 20px; }
   .petish-home .ph-product { border-radius: 17px; }
   .petish-home .ph-product-image { padding: 10px; }
   .petish-home .ph-product-body { padding: 15px; }
