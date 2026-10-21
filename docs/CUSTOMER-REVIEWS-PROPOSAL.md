@@ -1,13 +1,13 @@
 # Petish customer reviews and member rewards — proposal
 
-Status: design discussion, 21 October 2026. No review features, rewards,
-shipping benefits or payment settings have been installed or enabled by this
-proposal. Names, colours and defaults below are recommendations unless marked
-as confirmed.
+Status: programme proposal, 21 October 2026. The first review implementation is
+being verified on private staging; see [scope and evidence](CUSTOMER-REVIEWS.md).
+Live customer reviews, rewards and shipping benefits are not enabled. Names,
+colours and defaults below are recommendations unless marked as confirmed.
 
 [Compare three interactive layout mockups](https://nkrake6.github.io/petish/review-concepts/):
 Product stories, Community wall and Reviewer studio. These use fictional review
-content and preview-only interactions; no programme features are enabled.
+content and preview-only interactions, separate from the staging application.
 
 ## Confirmed owner choices
 
@@ -25,6 +25,8 @@ content and preview-only interactions; no programme features are enabled.
 - Reviews appear below the product description and details. The rating summary
   near the product title links to the review section.
 - The reviewer dashboard shows review counts and likes/dislikes received.
+- Each customer can earn qualifying review credit once per parent product;
+  edits and different colours/sizes do not grant extra credit.
 - The 100-review Regular Reviewer badge and profile ring are green; the general
   lavender styling remains unchanged.
 
@@ -90,11 +92,10 @@ Always display the title/count alongside colour for accessibility.
 
 ## Commercial and counting rules to settle
 
-- **Counting:** the owner is choosing between one qualifying review per parent
-  product and additional reviews following verified repeat purchases. The
-  former is simpler and resists duplicate farming. The latter needs a meaningful
-  update requirement and cooldown. Re-imported supplier listings must not
-  create easy duplicate credit for the same underlying product.
+- **Counting (confirmed):** one qualifying review per customer per parent
+  product, across edits and colour/size variants. Repeat purchases do not earn
+  another credit for the same product. Re-imported supplier listings must not
+  create duplicate credit for the same underlying product.
 - **Achievability:** the handover records a historical catalogue of 104 products;
   current live inventory has not been counted for this proposal. One credit per
   product requires at least 500 distinct products to reach 500. At one qualifying

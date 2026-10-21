@@ -1,0 +1,53 @@
+name: Verify Petish customer reviews on private staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [verify-customer-reviews]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-staging-code
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - name: Check out the exact review feature candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Prepare pinned SSH and isolated browser checks
+        id: prepare
+        continue-on-error: true
+        run: |
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
+          fi
+          export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/petish-customer-reviews-browsers"
+          printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+          npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
+          node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium
+          bash scripts/install-gitleaks.sh
+      - name: Deploy and verify only private staging
+        if: always()
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          REVIEWS_PREREQUISITES: ${{ steps.prepare.outcome }}
+        run: bash scripts/hostinger-customer-reviews.sh
+      - name: Remove private runner material
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/petish-customer-reviews.* "$RUNNER_TEMP/petish-customer-reviews-browsers"
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"

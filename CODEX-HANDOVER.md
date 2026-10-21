@@ -89,20 +89,26 @@ for the current cloud workflow. The Mac setup below is archived history.
   only, or exploring a separate express integration; no answer yet.
   [Inspection](docs/AFTERPAY-AVAILABILITY.md) and
   [concrete checkout-button proposal](docs/AFTERPAY-CHECKOUT-CTA-PROPOSAL.md).
-- **Customer reviews, proposed:** any signed-in customer can contribute, with
+- **Customer reviews, staging candidate:** any signed-in customer can contribute, with
   verified-purchase labels; ongoing 5%/10%/15% rewards at 100/250/500 qualifying
-  reviews, plus capped standard delivery at 500. Counting repeat reviews,
-  delivery minimum/cap amounts and above-cap treatment remain undecided.
+  reviews, plus capped standard delivery at 500. The owner confirmed one
+  qualifying review per customer and parent product, including all variants.
+  Delivery minimum/cap amounts and above-cap treatment remain undecided.
   [Programme proposal](docs/CUSTOMER-REVIEWS-PROPOSAL.md) and
   [three interactive layout mockups](https://nkrake6.github.io/petish/review-concepts/)
-  are ready for design choice. Green replaces lavender only for the 100-review
+  document the design. Green replaces lavender only for the 100-review
   Regular Reviewer badge and profile ring; general lavender styling is retained.
   The owner confirmed product reviews below description/details, linked from
   the rating summary near the product title. Reviewer studio now previews
   separate published/pending review counts and Helpful/Not helpful totals
   received, visible on desktop and mobile. Reactions do not affect status.
-  The mockups use fictional data; no review, voting, upload or reward features
-  have been enabled on the live store.
+  The real opt-in Passport 0.4.0 module now implements moderated customer
+  reviews, private photos/video, reactions, reports and account totals. Its
+  dedicated workflow applies only to private staging and must pass native,
+  hosted-browser and fixture-cleanup acceptance. See
+  [implementation scope and evidence](docs/CUSTOMER-REVIEWS.md). The module
+  defaults off; live reviews and financial benefits are not enabled. Customer
+  corrections/revisions and final programme terms remain launch work.
 
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
 passed on source `3012a27`; the production release above matches its exact 18

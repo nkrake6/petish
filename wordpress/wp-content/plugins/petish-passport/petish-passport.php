@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Petish Passport
- * Description: Private pet passports, photo and video moments and optional Pet Club sharing for WooCommerce customers.
- * Version: 0.3.2
+ * Description: Private pet passports, Pet Club sharing and optional moderated customer product reviews for WooCommerce.
+ * Version: 0.4.0
  * Requires at least: 6.8
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce
@@ -10,7 +10,7 @@
  * Text Domain: petish-passport
  */
 defined( 'ABSPATH' ) || exit;
-define( 'PETISH_PASSPORT_VERSION', '0.3.2' );
+define( 'PETISH_PASSPORT_VERSION', '0.4.0' );
 define( 'PETISH_PASSPORT_FILE', __FILE__ );
 define( 'PETISH_PASSPORT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PETISH_PASSPORT_URL', plugin_dir_url( __FILE__ ) );
@@ -49,6 +49,25 @@ add_action( 'plugins_loaded', function () {
     Petish_Catalogue::boot();
     require_once PETISH_PASSPORT_DIR . 'includes/class-petish-supplier-intake.php';
     Petish_Supplier_Intake::boot();
+
+    // Customer reviews are an opt-in module. Existing Passport features remain
+    // available if a partial code transfer has not yet supplied the new files.
+    $review_modules = array(
+        'class-petish-customer-reviews.php',
+        'class-petish-customer-review-media.php',
+        'class-petish-customer-reviews-ui.php',
+    );
+    foreach ( $review_modules as $review_module ) {
+        if ( ! is_readable( PETISH_PASSPORT_DIR . 'includes/' . $review_module ) ) {
+            return;
+        }
+    }
+    foreach ( $review_modules as $review_module ) {
+        require_once PETISH_PASSPORT_DIR . 'includes/' . $review_module;
+    }
+    Petish_Customer_Reviews::boot();
+    Petish_Customer_Review_Media::boot();
+    Petish_Customer_Reviews_UI::boot();
 }, 20 );
 
 register_activation_hook( __FILE__, function () {
