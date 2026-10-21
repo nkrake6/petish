@@ -57,6 +57,8 @@ class CleanupDatabase {
         return $count - count($this->rows[$m[1]]);
     }
     function get_var($sql) {
+        if (preg_match('/\ASELECT GET_LOCK\(\x27petish-cart-publish-[a-f0-9]{32}\x27,15\)\z/D', $sql)
+            || preg_match('/\ASELECT RELEASE_LOCK\(\x27petish-cart-publish-[a-f0-9]{32}\x27\)\z/D', $sql)) return '1';
         if (preg_match('/\ASHOW TABLES LIKE \x27([^\x27]+)\x27\z/D', $sql, $m)) {
             $name = stripslashes($m[1]); return isset($this->rows[$name]) ? $name : null;
         }
@@ -178,8 +180,45 @@ if ($case === 'journal_pending_hardlink') {
     private_file($work.'/unrelated', 'must remain unchanged');
     if (!link($work.'/unrelated', $journal.'.pending')) throw new RuntimeException('Hardlink fixture');
 }
+$nested = null;
+$install = str_starts_with($case, 'install_');
+if ($install || str_starts_with($case, 'nested_')) {
+    $tools = CART_BADGE_HOME.'/.petish-homepage-deploy-'.$run;
+    if (!mkdir($tools, 0700)) throw new RuntimeException('Tools fixture');
+    private_file($tools.'/cart-badge-staging-proof.php', '<?php // fixture source');
+    $source_hash = hash_file('sha256', $tools.'/cart-badge-staging-proof.php');
+    $code = cart_badge_guard_code($run, $work, $tools.'/cart-badge-staging-proof.php', $source_hash);
+    $nested = cart_badge_guard_pending($state);
+    if (!$install) {
+        $state['guard_pending'] = $nested;
+        $state['guard_source_hash'] = $source_hash;
+        $state['guard_hash'] = hash('sha256', $code);
+        cart_badge_write($journal, $state);
+        unlink($guard);
+        if (!mkdir(dirname($nested), 0700)) throw new RuntimeException('Nested fixture');
+        if ($case === 'nested_after_rename') private_file($guard, $code);
+        elseif ($case === 'nested_empty') {} // Crash after mkdir, before fopen.
+        elseif ($case === 'nested_partial') private_file($nested, substr($code, 0, 37));
+        elseif ($case === 'nested_foreign') private_file($nested, '<?php // unrelated content');
+        elseif ($case === 'nested_symlink' || $case === 'nested_hardlink') {
+            private_file($work.'/unrelated', 'must remain unchanged');
+            if ($case === 'nested_symlink') symlink($work.'/unrelated', $nested);
+            else link($work.'/unrelated', $nested);
+        } else private_file($nested, $code);
+    } elseif ($case !== 'install_existing_guard') {
+        unlink($guard);
+        if ($case === 'install_existing_directory') {
+            mkdir(dirname($nested), 0700);
+            private_file(dirname($nested).'/foreign.txt', 'must remain unchanged');
+        }
+    }
+}
 $initial = $wpdb->rows; $success = false; $retry = null;
-try { cart_badge_cleanup($run, $work); $success = true; }
+try {
+    if ($install) cart_badge_guard_install($state, $work, $tools);
+    else cart_badge_cleanup($run, $work);
+    $success = true;
+}
 catch (Throwable $error) { if ($error->getMessage() !== 'Cart fixture verification failed.' && !str_starts_with($error->getMessage(), 'Injected ')) throw $error; }
 if ($case === 'idempotent' && $success) {
     try { cart_badge_cleanup($run, $work); $retry = true; } catch (Throwable $ignored) { $retry = false; }
@@ -194,6 +233,10 @@ echo json_encode([
     'journal_pending_exists'=>file_exists($journal.'.pending')||is_link($journal.'.pending'),
     'journal_cleaned'=>$saved['cleaned']??false, 'journal_closing'=>$saved['closing']??false,
     'journal_exists'=>file_exists($journal), 'checks'=>$report['checks'],
+    'nested_exists'=>$nested !== null && (file_exists(dirname($nested)) || is_link(dirname($nested))),
+    'publication_intent_recorded'=>isset($saved['guard_pending']),
+    'publication_hash_matches'=>$install && file_exists($guard) && hash_equals($state['guard_hash'],hash_file('sha256',$guard)),
+    'existing_guard_preserved'=>$case !== 'install_existing_guard' || file_get_contents($guard)==='<?php // owned guard',
     'unrelated_file_preserved'=>!file_exists($work.'/unrelated')||file_get_contents($work.'/unrelated')==='must remain unchanged',
 ], JSON_THROW_ON_ERROR);
 '''
@@ -213,7 +256,8 @@ class CartBadgeFixtureCleanupTests(unittest.TestCase):
                 source = source.replace(needle, f"const {name} = '{new}';")
             copy = Path(temp) / 'fixture.php'
             copy.write_text(source)
-            result = subprocess.run([PHP, '-d', 'display_errors=0', '-r', HARNESS, str(copy), case],
+            options = ['-d', 'disable_functions=link'] if case == 'install_no_link' else []
+            result = subprocess.run([PHP, '-d', 'display_errors=stderr', *options, '-r', HARNESS, str(copy), case],
                                     text=True, capture_output=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             return json.loads(result.stdout)
@@ -321,6 +365,46 @@ class CartBadgeFixtureCleanupTests(unittest.TestCase):
         self.assertTrue(result['success'])
         self.assertFalse(result['guard_pending_exists'])
         self.assertTrue(result['journal_cleaned'])
+
+    def test_actual_atomic_publication_works_with_hardlinks_disabled(self):
+        result = self.run_case('install_no_link')
+        self.assertTrue(result['success'])
+        self.assertTrue(result['publication_hash_matches'])
+        self.assertTrue(result['publication_intent_recorded'])
+        self.assertFalse(result['nested_exists'])
+        self.assertTrue(result['initial_rows_preserved'])
+
+    def test_publication_preserves_existing_guard_and_unclaimed_directory(self):
+        for case in ['install_existing_guard', 'install_existing_directory']:
+            with self.subTest(case=case):
+                result = self.run_case(case)
+                self.assertFalse(result['success'])
+                self.assertTrue(result['existing_guard_preserved'])
+                self.assertFalse(result['publication_intent_recorded'])
+                self.assertTrue(result['initial_rows_preserved'])
+                if case == 'install_existing_directory':
+                    self.assertTrue(result['nested_exists'])
+
+    def test_cleanup_recovers_each_atomic_publication_interruption(self):
+        for case in ['nested_empty', 'nested_partial', 'nested_complete', 'nested_after_rename']:
+            with self.subTest(case=case):
+                result = self.run_case(case)
+                self.assertTrue(result['success'])
+                self.assertTrue(result['baseline_restored'])
+                self.assertFalse(result['nested_exists'])
+                self.assertFalse(result['guard_exists'])
+                self.assertTrue(result['journal_cleaned'])
+
+    def test_cleanup_rejects_foreign_nested_contents_or_links(self):
+        for case in ['nested_foreign', 'nested_symlink', 'nested_hardlink']:
+            with self.subTest(case=case):
+                result = self.run_case(case)
+                self.assertFalse(result['success'])
+                self.assertTrue(result['initial_rows_preserved'])
+                self.assertTrue(result['nested_exists'])
+                self.assertTrue(result['unrelated_file_preserved'])
+                self.assertFalse(result['journal_cleaned'])
+                self.assertEqual(result['queries'], [])
 
 
 if __name__ == '__main__':

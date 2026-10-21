@@ -158,6 +158,12 @@ function cart_badge_lock($run) {
  if((string)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,15)',$name))!=='1'||$wpdb->last_error!=='')cart_badge_fail();
  register_shutdown_function(static function()use($wpdb,$name){try{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$name));}catch(Throwable$ignored){}});
 }
+/** All cooperating runs serialize publication/removal of the single MU guard. */
+function cart_badge_publication_lock() {
+ static$held=false;if($held)return;global$wpdb;$name='petish-cart-publish-'.substr(hash('sha256',CART_BADGE_ROOT),0,32);
+ if((string)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,15)',$name))!=='1'||$wpdb->last_error!=='')cart_badge_fail();$held=true;
+ register_shutdown_function(static function()use($wpdb,$name){try{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$name));}catch(Throwable$ignored){}});
+}
 function cart_badge_store_request($path,$method,$body,$key,$depth=0) {
  if($depth>1||!is_array($body))return false;
  if($path==='/wc/store/v1/cart')return $method==='GET'&&!$body;
@@ -231,14 +237,39 @@ function cart_badge_snapshot() {
  $state['comments']=[petish_club_verify_table_state($wpdb->comments),petish_club_verify_table_state($wpdb->commentmeta)];
  $state['protected']=cart_badge_protected();return$state;
 }
+function cart_badge_guard_code($run,$work,$source,$hash) {
+ return "<?php\n// Owned private staging cart fixture.\nif (PHP_SAPI === 'cli') return;\nrequire_once ".var_export($source,true).";\ncart_badge_web_start(".var_export($run,true).','.var_export($work,true).','.var_export($hash,true).");\n";
+}
+/** The nested PHP file is ignored by the MU loader and cannot reveal its source. */
+function cart_badge_guard_pending($s) {
+ if(!preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$s['run']??'')||!preg_match('/\A[a-f0-9]{32}\z/D',$s['token']??''))cart_badge_fail();
+ return CART_BADGE_ROOT.'/wp-content/mu-plugins/.petish-cart-badge-'.$s['run'].'-'.$s['token'].'/guard.php';
+}
+function cart_badge_guard_pending_remove($s,$work) {
+ if(!array_key_exists('guard_pending',$s))return;$pending=cart_badge_guard_pending($s);
+ if($s['guard_pending']!==$pending||!preg_match('/\A[a-f0-9]{64}\z/D',$s['guard_source_hash']??''))cart_badge_fail();
+ $code=cart_badge_guard_code($s['run'],$work,CART_BADGE_HOME.'/.petish-homepage-deploy-'.$s['run'].'/cart-badge-staging-proof.php',$s['guard_source_hash']);
+ if(!is_string($s['guard_hash'])||!hash_equals($s['guard_hash'],hash('sha256',$code)))cart_badge_fail();$dir=dirname($pending);
+ if(!file_exists($dir)&&!is_link($dir))return;cart_badge_path($dir,true,0700);
+ $entries=array_values(array_diff(scandir($dir),['.','..']));if(array_diff($entries,['guard.php']))cart_badge_fail();
+ if(file_exists($pending)||is_link($pending)){$st=cart_badge_path($pending,false,0600);if($st['size']>strlen($code)||file_get_contents($pending)!==substr($code,0,$st['size'])||!unlink($pending))cart_badge_fail();}
+ if(!rmdir($dir))cart_badge_fail();
+}
 function cart_badge_guard_install(&$s,$work,$tools) {
+ cart_badge_publication_lock();
  $path=CART_BADGE_ROOT.'/wp-content/mu-plugins/zz-petish-cart-badge-fixture.php';if(file_exists($path)||is_link($path))cart_badge_fail();
  $source=$tools.'/cart-badge-staging-proof.php';cart_badge_path($source);$hash=hash_file('sha256',$source);
- $code="<?php\n// Owned private staging cart fixture.\nif (PHP_SAPI === 'cli') return;\nrequire_once ".var_export($source,true).";\ncart_badge_web_start(".var_export($s['run'],true).','.var_export($work,true).','.var_export($hash,true).");\n";
- $s['guard_hash']=hash('sha256',$code);cart_badge_write($work.'/journal.json',$s);
- $pending=$work.'/guard.pending';if(file_exists($pending)||is_link($pending))cart_badge_fail();$f=fopen($pending,'xb');if(!$f)cart_badge_fail();try{if(!chmod($pending,0600)||fwrite($f,$code)!==strlen($code)||!fflush($f))cart_badge_fail();}finally{fclose($f);}
- if(!hash_equals($s['guard_hash'],hash_file('sha256',$pending))||file_exists($path)||is_link($path)||!link($pending,$path))cart_badge_fail();
- if(!unlink($pending))cart_badge_fail();
+ if(!is_string($hash)||!preg_match('/\A[a-f0-9]{64}\z/D',$hash))cart_badge_fail();
+ $code=cart_badge_guard_code($s['run'],$work,$source,$hash);$pending=cart_badge_guard_pending($s);$dir=dirname($pending);
+ if(file_exists($dir)||is_link($dir))cart_badge_fail();
+ $s['guard_hash']=hash('sha256',$code);$s['guard_source_hash']=$hash;$s['guard_pending']=$pending;cart_badge_write($work.'/journal.json',$s);
+ if(file_exists($dir)||is_link($dir)||!mkdir($dir,0700))cart_badge_fail();cart_badge_path($dir,true,0700);
+ $mask=umask(0077);try{$f=fopen($pending,'xb');}finally{umask($mask);}if(!$f)cart_badge_fail();try{if(!chmod($pending,0600)||fwrite($f,$code)!==strlen($code)||!fflush($f))cart_badge_fail();}finally{fclose($f);}
+ cart_badge_path($pending,false,0600);clearstatcache(true,$path);
+ // Both paths share the attested MU filesystem. The site-wide lock serializes
+ // every fixture publisher/remover; an existing target is never replaced.
+ if(!hash_equals($s['guard_hash'],hash_file('sha256',$pending))||file_exists($path)||is_link($path)||!rename($pending,$path))cart_badge_fail();
+ cart_badge_path($path,false,0600);if(!rmdir($dir))cart_badge_fail();
  cart_badge_mark('browser_guard_installed',hash_equals($s['guard_hash'],hash_file('sha256',$path)));
 }
 function cart_badge_prepare($run,$work,$tools) {
@@ -279,6 +310,7 @@ function cart_badge_prepare($run,$work,$tools) {
  cart_badge_write($work.'/browser-input.json',$input);cart_badge_mark('browser_input_written',true);
 }
 function cart_badge_cleanup($run,$work) {
+ cart_badge_publication_lock();
  global$wpdb;$guard=CART_BADGE_ROOT.'/wp-content/mu-plugins/zz-petish-cart-badge-fixture.php';$input=$work.'/browser-input.json';
  $no_journal=!file_exists($work.'/journal.json')&&!is_link($work.'/journal.json');
  if($no_journal){
@@ -292,6 +324,10 @@ function cart_badge_cleanup($run,$work) {
  if($user&&((int)$user->ID!==$u['id']||$user->user_email!==$u['email']||!wp_check_password($u['password'],$user->user_pass,$user->ID)||$user->roles!==['customer']||get_user_meta($user->ID,'_petish_cart_badge_owned',true)!==$s['token']))cart_badge_fail();
  if($product&&($product->post_type!=='product'||$product->post_name!==$p['slug']||(int)$product->post_author!==$u['id']||get_post_meta($p['id'],'_petish_cart_badge_owned',true)!==$s['token']))cart_badge_fail();
  cart_badge_mark('fixture_ownership_verified',true);
+ // Recover interrupted publication before comparing protected files. Only the
+ // exact journal-owned nested file/directory may be removed, including a prefix
+ // left by an interrupted write; foreign contents and links remain untouched.
+ cart_badge_guard_pending_remove($s,$work);
  $session=$wpdb->prefix.'woocommerce_sessions';if(!preg_match('/\A[A-Za-z0-9_]+\z/D',$session))cart_badge_fail();
  $transaction=false;
  try{
