@@ -1,0 +1,213 @@
+{
+  "status": "failure",
+  "scope": "private-staging-only",
+  "source_commit": "56c6271fccdfb2f26b3822f20d579fc169b2c720",
+  "run_id": "39575484984-1",
+  "generated_utc": "2026-10-21T09:16:56.323322+00:00",
+  "category": "browser",
+  "fixture_cleanup_verified": true,
+  "rollback_verified": true,
+  "production_changed": false,
+  "phases": {
+    "prepare": {
+      "status": "success",
+      "checks": {
+        "fixed_staging_paths": true,
+        "guard_pinned": true,
+        "configuration_isolated": true,
+        "code_snapshot_verified": true
+      }
+    },
+    "source": {
+      "status": "success",
+      "checks": {
+        "fixed_staging_paths": true,
+        "guard_pinned": true,
+        "configuration_isolated": true,
+        "source_verified": true,
+        "protected_files_unchanged": true
+      }
+    },
+    "enable": {
+      "status": "success",
+      "checks": {
+        "fixed_staging_paths": true,
+        "guard_pinned": true,
+        "configuration_isolated": true,
+        "source_verified": true,
+        "browser_guard_installed": true,
+        "environment_staging": true,
+        "database_separate": true,
+        "outbound_blocked": true,
+        "mail_blocked": true,
+        "async_blocked": true,
+        "jetpack_isolated": true,
+        "upload_limits_sufficient": true,
+        "flag_journal_written": true,
+        "flag_enabled": true
+      }
+    },
+    "verify": {
+      "status": "success",
+      "checks": {
+        "fixed_staging_paths": true,
+        "guard_pinned": true,
+        "configuration_isolated": true,
+        "environment_staging": true,
+        "database_separate": true,
+        "outbound_blocked": true,
+        "mail_blocked": true,
+        "async_blocked": true,
+        "jetpack_isolated": true,
+        "source_verified": true,
+        "native_proof_passed": true
+      }
+    },
+    "native": {
+      "status": "success",
+      "checks": {
+        "staging_scope_verified": true,
+        "feature_enabled": true,
+        "fixtures_created": true,
+        "guest_submission_denied": true,
+        "rating_bounds_enforced": true,
+        "explicit_identity_required": true,
+        "consent_required": true,
+        "private_product_denied": true,
+        "pending_submission_verified": true,
+        "pending_not_public": true,
+        "owner_isolation_verified": true,
+        "pending_reactions_denied": true,
+        "duplicate_parent_review_denied": true,
+        "approval_publishes_review": true,
+        "native_woocommerce_rating_updated": true,
+        "five_star_credit_verified": true,
+        "one_star_credit_verified": true,
+        "withdrawn_native_queries_and_rest_denied": true,
+        "incomplete_review_credit_and_queries_denied": true,
+        "native_unapproval_revokes_visibility": true,
+        "approval_idempotent": true,
+        "guest_reaction_denied": true,
+        "self_reaction_denied": true,
+        "helpful_reaction_verified": true,
+        "repeat_vote_idempotent": true,
+        "vote_switch_verified": true,
+        "vote_removal_verified": true,
+        "dashboard_received_counts_verified": true,
+        "foreign_withdrawal_denied": true,
+        "withdrawal_revokes_visibility": true,
+        "withdrawal_retains_uniqueness": true,
+        "tier_thresholds_verified": true,
+        "green_regular_reviewer_verified": true,
+        "public_identity_minimized": true,
+        "malformed_upload_denied": true,
+        "media_limits_defined": true,
+        "media_manifest_limits_enforced": true,
+        "dashboard_rendered": true,
+        "private_media_authorization_verified": true,
+        "private_media_projection_verified": true,
+        "product_section_rendered": true,
+        "reviewer_form_nonce_present": true,
+        "staff_review_metadata_unchanged": true,
+        "privacy_export_includes_spam_and_trash": true,
+        "privacy_erasure_removes_spam_and_trash": true,
+        "privacy_erasure_removes_private_media": true,
+        "browser_fixture_ready": true
+      }
+    },
+    "browser": {
+      "status": "failure",
+      "checks": {
+        "input_owned": true,
+        "browser_started": true,
+        "owner_login": true,
+        "member_login": true,
+        "dashboard_counts": true,
+        "mobile_320": true,
+        "mobile_390": true,
+        "desktop_1440": true,
+        "dashboard_uncacheable": true,
+        "hosted_upload_limits_sufficient": true,
+        "public_product_section": true,
+        "reviews_below_details": true,
+        "public_review_visible": true,
+        "pending_review_hidden": true,
+        "rating_filter": true,
+        "self_vote_controls_absent": true,
+        "helpful_remove": false,
+        "helpful_add": false,
+        "vote_switch": false,
+        "vote_withdraw": false,
+        "dashboard_received_reactions": false,
+        "invalid_nonce_denied": false,
+        "real_photo_video_upload": false,
+        "uploaded_review_pending": false,
+        "pending_count_updated": false,
+        "pending_photo_owner_access": false,
+        "pending_video_owner_access": false,
+        "pending_avatar_owner_access": false,
+        "pending_media_foreign_denied": false,
+        "pending_media_guest_denied": false,
+        "pending_media_uncacheable": false,
+        "request_scope_enforced": false
+      },
+      "failed_check": "vote_switch"
+    },
+    "cleanup": {
+      "status": "success",
+      "checks": {
+        "fixed_staging_paths": true,
+        "guard_pinned": true,
+        "configuration_isolated": true,
+        "environment_staging": true,
+        "database_separate": true,
+        "outbound_blocked": true,
+        "mail_blocked": true,
+        "async_blocked": true,
+        "jetpack_isolated": true,
+        "fixture_cleanup_verified": true,
+        "browser_guard_removed": true,
+        "protected_files_unchanged": true
+      }
+    },
+    "cleanup-fixture": {
+      "status": "success",
+      "checks": {
+        "journal_ownership_verified": true,
+        "owned_reviews_removed": true,
+        "owned_products_removed": true,
+        "owned_users_removed": true,
+        "owned_media_removed": true,
+        "staff_review_metadata_preserved": true,
+        "private_inputs_removed": true,
+        "fixture_cleanup_complete": true
+      }
+    },
+    "rollback-flag": {
+      "status": "success",
+      "checks": {
+        "fixed_staging_paths": true,
+        "guard_pinned": true,
+        "configuration_isolated": true,
+        "environment_staging": true,
+        "database_separate": true,
+        "outbound_blocked": true,
+        "mail_blocked": true,
+        "async_blocked": true,
+        "jetpack_isolated": true,
+        "flag_restored": true,
+        "browser_guard_removed": true
+      }
+    },
+    "rollback-code": {
+      "status": "success",
+      "checks": {
+        "fixed_staging_paths": true,
+        "guard_pinned": true,
+        "configuration_isolated": true,
+        "protected_files_unchanged": true,
+        "code_restored": true
+      }
+    }
+  }
+}
