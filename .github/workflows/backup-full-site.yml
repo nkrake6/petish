@@ -1,5 +1,5 @@
 name: Back up the full Petish site to Git
-# Refresh the recovered backup before the verified header switch and flag release.
+# Refresh the recovered backup before enabling moderated customer reviews in production.
 
 on:
   workflow_dispatch:
