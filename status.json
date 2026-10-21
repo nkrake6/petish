@@ -1,0 +1,44 @@
+{
+  "status": "in_progress",
+  "category": "inspect",
+  "mode": "inspect",
+  "run_id": "39530974222-1",
+  "source_commit": "91d1a5403677c2319d133d82a432bf5eb4b4cef7",
+  "generated_utc": "2026-10-21T02:04:47.623948+00:00",
+  "source_hashes": {
+    "assets/css/home.css": "dc4f3606341c2eb44df505c54a192e07d2771e90a9e09c102ac2a6983789bd23",
+    "assets/images/ui/free-delivery-van.png": "4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af",
+    "assets/js/for-your-pet.js": "29cd41f2e0a646234fefea9d3a73bb2c53ebc11cb07f1362ca406a7ca9d22a0a",
+    "front-page.php": "7336764e7da8fc56132584564da7e4fe28da7fdec1839775dd131469b7f3f924",
+    "functions.php": "ef3372a1d00a28eb952953eaefb3793b82361195aa0d773373006aa5dfee170b",
+    "includes/for-your-pet.php": "eb3b9d59c63642770366db0c5c0d3375f4ce16539f0b94df01d12b7e87e54aa8",
+    "includes/supplier-popularity.php": "54ef94d249292953c41a81291a5b5eb3f0760ef290f6ee19de79c691747b2e2b"
+  },
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "candidate_badge_png_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false,
+        "maintenance_guard_created": false,
+        "maintenance_guard_removed": false
+      },
+      "changed_file_count": 5
+    }
+  },
+  "preparation_stage": "complete"
+}
