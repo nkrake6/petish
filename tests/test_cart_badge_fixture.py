@@ -124,6 +124,38 @@ class CartBadgeFixtureTests(unittest.TestCase):
         ]
         self.assertEqual(self.php([{'kind': 'request', **r} for r in requests]), [False] * len(requests))
 
+    def test_native_batch_nonce_headers_are_allowed_without_expanding_cart_scope(self):
+        import hashlib
+        key = hashlib.md5(b'31').hexdigest()
+        requests = []
+        for headers in [{}, {'Nonce': '0123456789'}, {'X-WC-Store-API-Nonce': 'abcdef0123'},
+                        {'nonce': '0123456789', 'Content-Type': 'application/json',
+                         'x-wc-store-api-nonce': 'abcdef0123'}]:
+            requests.append({'kind': 'request', 'method': 'POST', 'path': '/wp-json/wc/store/v1/batch',
+                             'json': {'requests': [{'method': 'POST', 'path': '/wc/store/v1/cart/update-item',
+                                                    'body': {'key': key, 'quantity': 3}, 'headers': headers}]}})
+        self.assertEqual(self.php(requests), [True] * len(requests))
+        for body in [{'key': 'foreign', 'quantity': 3}, {'key': key, 'quantity': 4}]:
+            requests = [{'kind': 'request', 'method': 'POST', 'path': '/wp-json/wc/store/v1/batch',
+                         'json': {'requests': [{'method': 'POST', 'path': '/wc/store/v1/cart/update-item',
+                                                'body': body, 'headers': {'Nonce': '0123456789'}}]}}]
+            self.assertEqual(self.php(requests), [False])
+
+    def test_batch_foreign_headers_and_malformed_values_are_denied(self):
+        import hashlib
+        key = hashlib.md5(b'31').hexdigest()
+        invalid = [{'Authorization': 'Bearer token'}, {'Cookie': 'other=identity'},
+                   {'X-WP-Nonce': '0123456789'}, {'Host': 'foreign.example'},
+                   {'Nonce': '0123456789', 'nonce': 'abcdef0123'}, {'nonce': ['0123456789']},
+                   {'nonce': None}, {'nonce': 123}, {'nonce': ''}, {'nonce': ' '},
+                   {'nonce': 'a' * 257}, {'nonce': '0123456789\r\nCookie: injected'},
+                   {'content-type': 'application/json\x00'}, ['0123456789'], None]
+        requests = [{'kind': 'request', 'method': 'POST', 'path': '/wp-json/wc/store/v1/batch',
+                     'json': {'requests': [{'method': 'POST', 'path': '/wc/store/v1/cart/update-item',
+                                            'body': {'key': key, 'quantity': 3}, 'headers': headers}]}}
+                    for headers in invalid]
+        self.assertEqual(self.php(requests), [False] * len(requests))
+
 
 if __name__ == '__main__':
     unittest.main()

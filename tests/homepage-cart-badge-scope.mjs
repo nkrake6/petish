@@ -1,6 +1,6 @@
 /** Network contract fixtures: no real HTTP, account, product, or checkout. */
 import assert from 'node:assert/strict';
-import { allowedRequest, validateInput, publicReport, CHECK_KEYS, DIAGNOSTIC_KEYS, formBody } from '../tools/homepage/cart-badge-browser.mjs';
+import { allowedRequest, validateInput, publicReport, CHECK_KEYS, DIAGNOSTIC_KEYS, formBody, nonceError } from '../tools/homepage/cart-badge-browser.mjs';
 const root='https://staging.petish.biz';
 const input=validateInput({format:'petish-cart-badge-browser-v1',url:root,run:'12345-1',customer_id:12,login:'cart-proof-owner',password:'private-fixture-only',customer_email:'cart-proof@example.invalid',product_id:42,product_url:root+'/product/cart-proof/',safety:{environment_staging:true,woocommerce_test_mode:true,wcpay_dev_mode:true,account_is_live:false,guard_runtime_verified:true,suppliers_blocked:true,mail_capture_verified:true,webhooks_blocked:true}});
 let state={phase:'add',key:'a'.repeat(32),loginUsed:false};
@@ -35,4 +35,6 @@ state.phase='login';const login=new URLSearchParams({username:input.login,passwo
 const safe=publicReport({status:'success',category:'complete',checks:Object.fromEntries(CHECK_KEYS.map(k=>[k,true])),private_path:'sentinel'});assert.equal(safe.status,'success');assert.deepEqual(Object.keys(safe.diagnostics),DIAGNOSTIC_KEYS);
 const failure=publicReport({status:'failure',category:'update',checks:{},diagnostics:{update_request_seen:true,update_request_allowed:false,update_server_count_two:true,private_body:'sentinel'}});assert(failure.diagnostics.update_request_seen);assert(failure.diagnostics.update_server_count_two);assert(!failure.diagnostics.update_request_allowed);assert(!JSON.stringify(failure).includes('sentinel'));assert(!JSON.stringify(safe).includes('sentinel'));assert.equal(publicReport({status:'success',category:'complete',checks:{}}).status,'failure');
 for(const bad of [{...input,url:'https://petish.biz'},{...input,product_url:root+'/checkout/'},{...input,product_url:root+'/product/cart-proof/?add-to-cart=99'}])assert.throws(()=>validateInput(bad));
+assert(nonceError({code:'woocommerce_rest_invalid_nonce'}));assert(nonceError({responses:[{body:{code:'rest_cookie_invalid_nonce'}}]}));
+for(const value of [{message:'woocommerce_rest_invalid_nonce'},{code:'unknown_private_error'},{responses:[{body:{message:'rest_cookie_invalid_nonce'}}]},null,'rest_cookie_invalid_nonce'])assert(!nonceError(value));
 console.log('Cart badge request boundaries passed.');

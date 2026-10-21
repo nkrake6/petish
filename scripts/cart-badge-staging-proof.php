@@ -164,13 +164,19 @@ function cart_badge_publication_lock() {
  if((string)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,15)',$name))!=='1'||$wpdb->last_error!=='')cart_badge_fail();$held=true;
  register_shutdown_function(static function()use($wpdb,$name){try{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$name));}catch(Throwable$ignored){}});
 }
+function cart_badge_store_headers($headers) {
+ if(!is_array($headers)||count($headers)>3)return false;$seen=[];
+ foreach($headers as$name=>$value){if(!is_string($name))return false;$name=strtolower($name);
+  if(!in_array($name,['nonce','content-type','x-wc-store-api-nonce'],true)||isset($seen[$name])||!is_string($value)||!preg_match('/\A[\x20-\x7E]{1,256}\z/D',$value)||trim($value)==='')return false;$seen[$name]=true;
+ }return true;
+}
 function cart_badge_store_request($path,$method,$body,$key,$depth=0) {
  if($depth>1||!is_array($body))return false;
  if($path==='/wc/store/v1/cart')return $method==='GET'&&!$body;
  if($path==='/wc/store/v1/cart/update-item')return $method==='POST'&&count($body)===2&&!array_diff(array_keys($body),['key','quantity'])&&($body['key']??null)===$key&&is_int($body['quantity']??null)&&$body['quantity']>=1&&$body['quantity']<=3;
  if($path==='/wc/store/v1/cart/remove-item')return $method==='POST'&&array_keys($body)===['key']&&$body['key']===$key;
  if($path!=='/wc/store/v1/batch'||$method!=='POST'||$depth!==0||array_diff(array_keys($body),['requests','validation'])||!is_array($body['requests']??null)||!array_is_list($body['requests'])||count($body['requests'])<1||count($body['requests'])>3||isset($body['validation'])&&$body['validation']!=='require-all-validate')return false;
- foreach($body['requests']as$item)if(!is_array($item)||array_diff(array_keys($item),['path','method','body','headers'])||!isset($item['path'],$item['method'])||!is_string($item['path'])||!is_string($item['method'])||!cart_badge_store_request($item['path'],$item['method'],$item['body']??[],$key,1)||isset($item['headers'])&&$item['headers']!==[])return false;return true;
+ foreach($body['requests']as$item)if(!is_array($item)||array_diff(array_keys($item),['path','method','body','headers'])||!isset($item['path'],$item['method'])||!is_string($item['path'])||!is_string($item['method'])||!cart_badge_store_request($item['path'],$item['method'],$item['body']??[],$key,1)||array_key_exists('headers',$item)&&!cart_badge_store_headers($item['headers']))return false;return true;
 }
 /** Finite allowlist; WooCommerce retains its native nonce and cart validation. */
 function cart_badge_request_allowed($state,$method,$path,$query,$post,$json,$uid) {

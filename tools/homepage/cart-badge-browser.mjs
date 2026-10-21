@@ -15,7 +15,7 @@ export const CHECK_KEYS=Object.freeze(['browser_started','fixture_input_verified
  'badge_yellow_circle_14px','badge_accessible_quantity','desktop_header_height_preserved',
  'mobile_header_height_preserved','mobile_badge_visible','dark_mode_badge_verified','reload_quantity_preserved',
  'request_scope_enforced']);
-export const DIAGNOSTIC_KEYS=Object.freeze(['cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation']);
+export const DIAGNOSTIC_KEYS=Object.freeze(['cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce']);
 const CATEGORIES=new Set(['input','browser','login','assets','initial','add','update','remove','privacy','geometry','scope','complete']);
 function mark(report,key,value,category){report.checks[key]=value===true;if(!value)throw new Error(category);}
 export function validateInput(value){
@@ -101,6 +101,12 @@ async function geometry(page){return page.evaluate(()=>{const visible=e=>{const 
  const labels=all.every(e=>e.getAttribute('role')==='status'&&e.getAttribute('aria-live')==='polite'&&e.querySelector('.petish-cart-badge__number')?.getAttribute('aria-hidden')==='true'&&e.querySelector('.petish-cart-badge__label')?.textContent==='3 items in cart');
  const original=all.map(e=>e.style.display);all.forEach(e=>e.style.setProperty('display','none','important'));const after=header.map(e=>e.getBoundingClientRect().height);all.forEach((e,i)=>{e.style.display=original[i];});
  return {shown:shown.length,valid,labels,height:before.length>0&&before.every((n,i)=>Math.abs(n-after[i])<.1)};});}
+export function nonceError(value){
+ const known=new Set(['rest_cookie_invalid_nonce','woocommerce_rest_invalid_nonce','woocommerce_rest_missing_nonce']);
+ if(!value||typeof value!=='object'||Array.isArray(value))return false;
+ if(known.has(value.code))return true;
+ return Array.isArray(value.responses)&&value.responses.length<=3&&value.responses.some(item=>known.has(item?.body?.code));
+}
 function updateRequest(request,state){
  if(state.phase!=='update'||request.method()!=='POST')return false;
  try{const u=new URL(request.url());return u.origin===ORIGIN&&['/cart/','/wp-json/wc/store/v1/cart/update-item','/wp-json/wc/store/v1/batch'].includes(u.pathname);}catch{return false;}
@@ -116,7 +122,7 @@ async function updateObservation(page,context,report){
    blocks_pending_operation:typeof selectors?.hasPendingItemsOperations==='function'&&selectors.hasPendingItemsOperations()===true};
  }));}catch{}
 }
-async function main(args){let browser,context,guest,page;const report={status:'failure',category:'input',checks:{},diagnostics:{}};
+async function main(args){let browser,context,guest,page;const responseTasks=[];const report={status:'failure',category:'input',checks:{},diagnostics:{}};
  try{
   if(args.length!==2)throw new Error('input');const input=inputFile(args[0]);mark(report,'fixture_input_verified',true,'input');
   const require=createRequire(import.meta.url);const {chromium}=require('../staging-rehearsal/node_modules/playwright');
@@ -124,7 +130,7 @@ async function main(args){let browser,context,guest,page;const report={status:'f
   browser=await chromium.launch({headless:true,...(executable?{executablePath:executable}:{}),args:['--no-sandbox']});
   mark(report,'browser_started',true,'browser');context=await browser.newContext({viewport:{width:1280,height:900},serviceWorkers:'block',acceptDownloads:false,locale:'en-AU'});
   const state={phase:'initial',key:'',loginUsed:false,allowed:0,mutations:0,denied:0};
-  await context.route('**/*',async route=>{const r=route.request(),updating=updateRequest(r,state);if(updating)report.diagnostics.update_request_seen=true;
+  await context.route('**/*',async route=>{const r=route.request(),updating=updateRequest(r,state);if(updating){report.diagnostics.update_request_seen=true;if(new URL(r.url()).pathname==='/wp-json/wc/store/v1/batch')report.diagnostics.update_request_is_batch=true;}
    if(!allowedRequest(r.url(),r.method(),r.postData()??'',r.resourceType(),input,state)){state.denied++;return route.abort('blockedbyclient');}
    if(updating)report.diagnostics.update_request_allowed=true;
    state.allowed++;if(r.method()==='POST'&&state.phase==='login'&&['/my-account/','/wp-login.php'].includes(new URL(r.url()).pathname))state.loginUsed=true;
@@ -133,6 +139,10 @@ async function main(args){let browser,context,guest,page;const report={status:'f
   if(typeof context.routeWebSocket==='function')await context.routeWebSocket('**/*',socket=>socket.close());
   context.on('response',response=>{if(!updateRequest(response.request(),state))return;
    const status=response.status();report.diagnostics.update_response_received=true;
+   const headers=response.headers();if(headers['x-petish-cart-fixture']===input.run)report.diagnostics.update_response_fixture_header_present=true;
+   if((headers['content-type']??'').toLowerCase().includes('application/json')&&(!headers['content-length']||Number(headers['content-length'])<=65536)){
+    responseTasks.push((async()=>{try{const bytes=await response.body();if(bytes.length<=65536&&nonceError(JSON.parse(bytes.toString('utf8'))))report.diagnostics.update_error_invalid_nonce=true;}catch{}})());
+   }
    for(const [name,passed] of Object.entries({update_response_2xx:status>=200&&status<300,update_response_3xx:status>=300&&status<400,
     update_response_4xx:status>=400&&status<500,update_response_5xx:status>=500&&status<600,update_response_400:status===400,update_response_403:status===403,update_response_500:status===500}))if(passed)report.diagnostics[name]=true;
   });
@@ -189,7 +199,7 @@ async function main(args){let browser,context,guest,page;const report={status:'f
    &&!allowedRequest(ORIGIN+'/checkout/','GET','','document',input,state)&&!allowedRequest(ORIGIN+'/wp-json/wc/store/v1/checkout','POST','{}','fetch',input,state),'scope');
   report.status='success';report.category='complete';
  }catch(error){report.category=CATEGORIES.has(error?.message)?error.message:report.category;if(report.category==='update'&&page&&context&&!report.diagnostics.update_server_count_read)await updateObservation(page,context,report);}
- finally{await guest?.close().catch(()=>{});await context?.close().catch(()=>{});await browser?.close().catch(()=>{});}
+ finally{await Promise.allSettled(responseTasks);await guest?.close().catch(()=>{});await context?.close().catch(()=>{});await browser?.close().catch(()=>{});}
  const result=publicReport(report);if(args.length===2){const file=path.resolve(args[1]);if(fs.realpathSync(path.dirname(file))!==path.dirname(file))throw new Error('input');fs.writeFileSync(file,JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o600});}
  return result.status==='success'?0:1;
 }
