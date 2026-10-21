@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "index_plan",
+  "status": "success",
+  "category": "complete",
   "mode": "apply",
   "run_id": "39537501595-1",
   "source_commit": "c136035fe5d76538fbc0199a3f3a87ec8e5f5995",
-  "generated_utc": "2026-10-21T03:15:05.568578+00:00",
+  "generated_utc": "2026-10-21T03:15:37.880625+00:00",
   "source_hashes": {
     "assets/catalogue.css": "de7fe4e27cec268236905ead836b542476940b93d29e496c462d22e0cac9f03a",
     "assets/passport.css": "58ae61debf37356af35c47abc0881e2d393ae5f6330fa79afff1eb9e1b6732fd",
@@ -68,6 +68,167 @@
         "index_plan_verified": true,
         "index_read_only_verified": true
       }
+    },
+    "index_apply": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "index_private_runtime_cache_verified": true,
+        "index_journal_verified": true,
+        "index_maintenance_owned": true,
+        "index_lock_owned": true,
+        "index_apply_verified": true,
+        "index_exact_delta_verified": true
+      }
+    },
+    "index_verify": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "index_private_runtime_cache_verified": true,
+        "index_journal_verified": true,
+        "index_maintenance_owned": true,
+        "index_lock_owned": true,
+        "index_exact_delta_verified": true,
+        "index_read_only_verified": true
+      }
+    },
+    "resume": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": true,
+        "maintenance_guard_created": true,
+        "maintenance_guard_removed": true,
+        "maintenance_guard_retained": false,
+        "migration_journal_archived": false
+      },
+      "changed_file_count": 0
+    },
+    "apply_index": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": true,
+        "maintenance_guard_created": true,
+        "maintenance_guard_removed": false,
+        "maintenance_guard_retained": true,
+        "migration_journal_archived": false
+      },
+      "changed_file_count": 14
+    },
+    "verify": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "pet_club_classes_loaded": true,
+        "directory_index_migration_not_required": true,
+        "private_record_registration_verified": true,
+        "private_owner_access_verified": true,
+        "public_routes_registered": true,
+        "mutation_hooks_registered": true,
+        "legacy_assets_preserved": true,
+        "pet_club_assets_enqueued": true,
+        "synthetic_public_render_verified": true,
+        "orders_unchanged": true,
+        "users_and_authentication_unchanged": true,
+        "product_prices_and_stock_unchanged": true,
+        "settings_unchanged": true,
+        "existing_passports_unchanged": true,
+        "private_photo_files_unchanged": true,
+        "production_read_only_verified": true
+      }
+    },
+    "health": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "homepage_http_verified": true,
+        "shop_http_verified": true,
+        "product_http_verified": true,
+        "cart_http_verified": true,
+        "account_http_verified": true,
+        "approved_logo_http_verified": true,
+        "logo_http_fetch_succeeded": true,
+        "logo_http_is_png": true,
+        "logo_http_is_webp": false,
+        "logo_http_file_bytes_match": false,
+        "logo_http_dimensions_match": true,
+        "logo_http_pixels_match": true
+      }
+    },
+    "assets": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "pet_club_script_http_verified": true,
+        "pet_club_stylesheet_http_verified": true,
+        "pet_club_catalogue_stylesheet_http_verified": true,
+        "pet_club_navigation_stylesheet_http_verified": true
+      }
+    },
+    "commit": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": true,
+        "rollback_snapshot_created": true,
+        "files_deployed": true,
+        "rollback_completed": false,
+        "release_committed": true,
+        "lock_owned": true,
+        "maintenance_guard_created": false,
+        "maintenance_guard_removed": true,
+        "maintenance_guard_retained": false,
+        "migration_journal_archived": true
+      },
+      "changed_file_count": 0
     }
   },
   "preparation_stage": "complete",
