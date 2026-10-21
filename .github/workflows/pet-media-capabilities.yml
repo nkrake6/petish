@@ -1,0 +1,58 @@
+name: Inspect Petish media processing capabilities
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [inspect-pet-media]
+    paths:
+      - .github/workflows/pet-media-capabilities.yml
+      - scripts/hostinger-pet-media-capabilities.sh
+      - scripts/inspect-pet-media-remote.sh
+      - scripts/sanitize-pet-media-capabilities.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-media-capability-inspection
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - name: Check out the exact capability probe
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Prepare verified SSH access
+        id: prepare
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            if bash scripts/hostinger-connection-check.sh; then break; fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep "$((attempt * 5))"
+          done
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
+          fi
+      - name: Read host capabilities and publish screened receipt
+        if: always()
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          PETISH_MEDIA_PREREQUISITES: ${{ steps.prepare.outcome }}
+        run: bash scripts/hostinger-pet-media-capabilities.sh
+      - name: Remove private runner captures
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/petish-media-capabilities.*
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
