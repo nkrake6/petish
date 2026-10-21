@@ -13,7 +13,7 @@ const PETISH_CUSTOMER_REVIEWS_FILES = [
     'templates/customer-reviews-card.php'=>'fd93e21c0dcc9fe3ae25bc411982b8d989da8dc77f20743c0877178ceb2d69ad',
     'templates/customer-reviews-product.php'=>'782d8768acaf92eaa8a17b61cbe6f8b8f0cb20d0a26a1e7a55d517eb0294717c',
     'templates/customer-reviews-dashboard.php'=>'ed0702f68e94bb7ac6c102629b6c6b63d3ab570a2b13040906954893fece54d7',
-    'assets/customer-reviews.css'=>'ef60973cbfb496bfcb56343164c1482967c9a0eec3f972d025b6e741a4742afb',
+    'assets/customer-reviews.css'=>'b4159fb54cd1776b0cb9dad644b4d8655c02d01c2c9354bf4a633ed2ead23668',
     'assets/customer-reviews.js'=>'3a572b39471fa9c70ad89876758a6c08e1361d38a78a1c636328808345c585a2',
     'includes/class-petish-passport-video-inspector.php'=>'823946702ade6d028b2b643093bd6e23e98f285a5e3597c86dd9f21aa7ccbd26',
     'includes/class-petish-passport-video.php'=>'e9a48491498ef74e20f39518ac0f3a0001f42b27101e41c2980948b8a5f75cd7',
@@ -22,6 +22,7 @@ const PETISH_CUSTOMER_REVIEWS_FILES = [
     'petish-passport.php'=>'78b4ed9ea8dc265f32ff4074f42b7bc711e2cae982e5a1673ff7ca78d838b159',
 ];
 const PETISH_CUSTOMER_REVIEWS_BASELINES = [
+    'assets/customer-reviews.css'=>'ef60973cbfb496bfcb56343164c1482967c9a0eec3f972d025b6e741a4742afb',
     'includes/class-petish-passport-video-inspector.php'=>'b5a5a585a0bd2925614ff324af63c0d20ceca4daf8fa2aaff37b7bc038919cab',
     'includes/class-petish-passport-video.php'=>'da5ea805f7956d201985fe5ae4892ba4ef2aa4c857f43e98c5e63b29ac4d5f78',
     'assets/passport.js'=>'74a949e388871f852b674a4cd8029d0846e34122647d82759575417f41fd7ec4',
