@@ -5,6 +5,11 @@ This upgrades the existing Passport plugin and its My Pets endpoint, retaining
 the existing pet records, private photos, active-pet selection, account menu,
 and reviewed product collections.
 
+**Passport 0.3.0 is live**, released on 21 October 2026 at 00:32 UTC.
+Sign in at [My Pets](https://petish.biz/my-account/my-pets/) to use the upgraded
+Passport. [Pet Club](https://petish.biz/?petish_club=1) lists only profiles their
+owners explicitly publish; existing pets were not made public by this release.
+
 ## Owner experience
 
 My Pets uses the approved photo-led Pet Club layout: pet switches, a profile
@@ -108,5 +113,14 @@ owned test users and temporary browser guard were removed.
 | [Encrypted full backup 39511176722-1](https://github.com/nkrake6/petish/tree/automation-status/backup-39511176722-1) | Successful archive and restore check, including private Passport storage |
 | [Application recovery 39511541357-1](https://github.com/nkrake6/petish/tree/automation-status/recovery-39511541357-1) | Restored WordPress and private-photo protection verified in an isolated sandbox |
 | [Complete staging rehearsal 39521211067-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39521211067-1) | All 123 checks passed; exact fourteen application files verified |
+| [Production release 39521901384-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39521901384-1) | Fourteen files deployed; 22 native checks, public site/logo checks and both Passport assets passed; release committed |
 
-Production release is pending the final release-evidence validation and apply.
+Production source was `076f9425fc1af7131ed8a22e89f9436dc5fad6d9`; its fourteen
+application files exactly match the passing staging source. The production
+comparison preserved existing pets/photos, users/authentication, orders,
+product prices/stock and settings. The maintenance guard was removed and the
+private pre-release code snapshot retained. No rollback was needed.
+
+The production check made no test accounts, purchases, supplier orders or email
+deliveries. Upload, publication, hearts and unpublication were exercised through
+real browser requests on isolated staging; production verification was read-only.
