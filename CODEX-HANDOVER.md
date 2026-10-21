@@ -89,6 +89,14 @@ for the current cloud workflow. The Mac setup below is archived history.
   only, or exploring a separate express integration; no answer yet.
   [Inspection](docs/AFTERPAY-AVAILABILITY.md) and
   [concrete checkout-button proposal](docs/AFTERPAY-CHECKOUT-CTA-PROPOSAL.md).
+- **Customer reviews, proposed:** any signed-in customer can contribute, with
+  verified-purchase labels; ongoing 5%/10%/15% rewards at 100/250/500 qualifying
+  reviews, plus capped standard delivery at 500. Counting repeat reviews,
+  delivery minimum/cap amounts and above-cap treatment remain undecided.
+  [Programme proposal](docs/CUSTOMER-REVIEWS-PROPOSAL.md) and
+  [three interactive layout mockups](https://nkrake6.github.io/petish/review-concepts/)
+  are ready for design choice. The mockups use fictional data; no review,
+  voting, upload or reward features have been enabled on the live store.
 
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
 passed on source `3012a27`; the production release above matches its exact 18

@@ -1,0 +1,132 @@
+name: Check public customer review concepts
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - docs/review-concepts/**
+      - .github/workflows/check-review-concepts.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-public-review-concepts
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out the exact concept revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Verify the public pages, screenshots and shared assets
+        id: public
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, time, urllib.parse, urllib.request
+          from pathlib import Path
+
+          groups = {
+              'pages_and_preview_match_git': [
+                  'review-concepts/' + name for name in [
+                      'index.html', '01-product-stories.html', '02-community-wall.html',
+                      '03-reviewer-studio.html', 'assets/preview.js', 'README.md']],
+              'screenshots_match_git': [
+                  'review-concepts/assets/' + name for name in [
+                      '01-desktop.jpg', '02-desktop.jpg', '03-desktop.jpg',
+                      '01-mobile.jpg', '02-mobile.jpg', '03-mobile.jpg', 'comparison.jpg']],
+              'shared_render_assets_match_git': [
+                  'passport-concepts/assets/rabbit.webp',
+                  'passport-concepts/assets/hamster.webp',
+                  'passport-concepts/assets/guinea-pig.webp',
+                  'passport-concepts/assets/petish-logo.png',
+                  'cart-badge-preview/assets/dm-sans-400-latin.woff2'],
+          }
+          names = [name for group in groups.values() for name in group]
+          max_bytes = 5 * 1024 * 1024
+          source = os.environ['GITHUB_SHA']
+          report_path = Path(os.environ['RUNNER_TEMP']) / 'review-concepts-site-status.json'
+          report = {
+              'status': 'unavailable', 'scope': 'public-static-concepts-only',
+              'source_sha': source, 'expected_file_count': len(names),
+              'verified_file_count': 0, 'attempt_count': 0,
+              'all_public_files_match_git': False, **dict.fromkeys(groups, False),
+          }
+
+          # Only the fixed public Pages host is read; no store or secret is used.
+          class PagesRedirects(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, request, response, code, message, headers, new_url):
+                  target = urllib.parse.urlsplit(new_url)
+                  if target.scheme != 'https' or target.netloc != 'nkrake6.github.io':
+                      raise ValueError()
+                  return super().redirect_request(request, response, code, message, headers, new_url)
+
+          opener = urllib.request.build_opener(PagesRedirects())
+          checked = set()
+          try:
+              if not re.fullmatch(r'[a-f0-9]{40}', source) or len(names) != 18:
+                  raise ValueError()
+              expected = {}
+              for name in names:
+                  path = Path('docs') / name
+                  if path.is_symlink() or not path.is_file() or path.stat().st_size > max_bytes:
+                      raise ValueError()
+                  expected[name] = hashlib.sha256(path.read_bytes()).digest()
+              deadline = time.monotonic() + 180
+              for attempt in range(16):
+                  report['attempt_count'] = attempt + 1
+                  checked = set()
+                  try:
+                      for name in names:
+                          remaining = deadline - time.monotonic()
+                          if remaining <= 0:
+                              raise TimeoutError()
+                          request = urllib.request.Request(
+                              'https://nkrake6.github.io/petish/' + name + '?revision=' + source,
+                              headers={'User-Agent': 'Petish public review concept availability check',
+                                       'Cache-Control': 'no-cache'})
+                          with opener.open(request, timeout=min(8, remaining)) as response:
+                              raw = response.read(max_bytes + 1)
+                              if response.status != 200 or len(raw) > max_bytes \
+                                      or hashlib.sha256(raw).digest() != expected[name]:
+                                  raise ValueError()
+                          checked.add(name)
+                      report['status'] = 'success'
+                      break
+                  except Exception:
+                      remaining = deadline - time.monotonic()
+                      if attempt == 15 or remaining <= 0:
+                          break
+                      time.sleep(min(10, remaining))
+          except Exception:
+              pass
+          finally:
+              report['verified_file_count'] = len(checked)
+              for key, files in groups.items():
+                  report[key] = all(name in checked for name in files)
+              report['all_public_files_match_git'] = len(checked) == len(names)
+              report_path.write_text(json.dumps(report, indent=2) + '\n')
+          raise SystemExit(0 if report['all_public_files_match_git'] else 1)
+          PY
+      - name: Publish the finite public availability result
+        if: always()
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*-[1-9][0-9]*$ ]]
+          blob=$(git hash-object -w "$RUNNER_TEMP/review-concepts-site-status.json")
+          tree=$(printf '100644 blob %s\tstatus.json\n' "$blob" | git mktree)
+          export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
+          export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+          export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          commit=$(printf 'Check public customer review concepts\n' | git commit-tree "$tree")
+          git push origin "$commit:refs/heads/automation-status/review-concepts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Require matching public concepts
+        if: steps.public.outcome != 'success'
+        run: exit 1

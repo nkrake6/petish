@@ -5,6 +5,10 @@ shipping benefits or payment settings have been installed or enabled by this
 proposal. Names, colours and defaults below are recommendations unless marked
 as confirmed.
 
+[Compare three interactive layout mockups](https://nkrake6.github.io/petish/review-concepts/):
+Product stories, Community wall and Reviewer studio. These use fictional review
+content and preview-only interactions; no programme features are enabled.
+
 ## Confirmed owner choices
 
 - Any signed-in customer may submit reviews and earn status. Use a separate
