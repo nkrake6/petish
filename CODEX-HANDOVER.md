@@ -7,13 +7,16 @@ for the current cloud workflow. The Mac setup below is archived history.
 
 - The owner selected **Pet Club** from
   [the comparison gallery](https://nkrake6.github.io/petish/passport-concepts/).
-  Passport **0.3.1 is live**, released in
-  [production run 39526422172-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39526422172-1)
-  from source `a58472a`. It adds optional species-specific breeds/varieties and fixes form, tab and collection spacing. It implements the Pet Club direction with bios, personality tags, private
-  photo moments/journals and optional shared profiles with member hearts.
+  Passport **0.3.2 is live**, released in
+  [production run 39537501595-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537501595-1)
+  from source `c136035`. It adds favourites, directory filters, short video
+  moments and the selected Colour track account menu to the existing Pet Club
+  design, breeds/varieties, bios, personality tags, photos and journals.
   Existing pets remain private; sharing requires explicit per-pet consent.
-  Existing pets, photos and store data were preserved. All 123 staging checks,
-  22 production native checks and the live health/asset checks passed.
+  Existing pets, photos and store data were preserved. All 158 staging checks,
+  the scoped public-snapshot index migration, 23 production native checks and
+  the live health/asset checks passed. Maintenance was removed; no rollback was
+  needed.
   [My Pets](https://petish.biz/my-account/my-pets/) opens the upgraded Passport;
   [Pet Club](https://petish.biz/?petish_club=1) shows only owner-published profiles.
   See [Pet Club implementation and release status](docs/PET-CLUB.md) and
@@ -41,13 +44,9 @@ for the current cloud workflow. The Mac setup below is archived history.
   products have confirmed supplier-free evidence and matching zero checkout
   delivery. See [homepage release](docs/HOMEPAGE-FREE-DELIVERY.md).
 
-## Pending release work
+## Latest delivered features
 
-**Production remains on Passport 0.3.1.** The following changes are implemented
-in source but must not be described as live until their hosted release receipts
-pass:
-
-- **Passport 0.3.2:** existing hearts also act as favourites, with a private
+- **Passport 0.3.2, live:** existing hearts also act as favourites, with a private
   **My favourites** directory view and species, breed/variety and pet-name
   filters. Searches use published snapshots, not unpublished pet edits.
 - **Video moments:** progressive MP4 with H.264 video and optional AAC audio,
@@ -58,21 +57,32 @@ pass:
 - **Colour track account menu:** the owner chose design 3 from the
   [menu previews](https://nkrake6.github.io/petish/account-menu-concepts/).
   Its right-aligned icons, grouped colour rail and active marker are included in
-  the pending 18-file Passport candidate. Native labels, links and mobile
-  dropdown behavior remain unchanged. Local checks preserved menu/header
+  the released 18-file Passport scope. Native labels, links and mobile
+  dropdown behavior remain unchanged. Hosted checks preserved menu/header
   heights; see [implementation notes](docs/ACCOUNT-MENU-COLOUR.md).
-- **Homepage For your pet:** a separate child-theme release will match
+- **Homepage For your pet, live:** the separate child-theme release matches
   staff-curated products against the active pet's existing biography and
   personality tags; no new quirks/favourites fields are added. Show up to four
   matches newest first and exclude prior purchases, including variants. Initial
   HTML stays generic and personalised results load through a private read-only
   endpoint. See [matching and release scope](docs/FOR-YOUR-PET.md).
 
-The complete hosted rehearsal, directory-index migration proof, cleanup and
-exact production file receipt remain required for the final Passport candidate.
-Earlier partial candidate checks are recorded in [Pet Club](docs/PET-CLUB.md)
-and do not establish that this final file set is deployed. The homepage feature
-also requires its own passing hosted verification and release receipt.
+Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
+passed on source `3012a27`; the production release above matches its exact 18
+application files. Fourteen files changed. The migration populated only missing
+search fields from already-published snapshots and archived its exact rollback
+journal. It did not publish any private pet edits.
+
+The homepage passed all 126 hosted checks in
+[39534481202-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-39534481202-1)
+on source `44ef53e`. Production
+[39537785516-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-39537785516-1)
+committed from source `c136035`: five files changed within the seven-file scope,
+all 33 required native checks, five asset checks and public health passed,
+protected data was preserved and maintenance was removed. Staff must configure
+eligible product matching rules; deployment does not approve products or invent
+recommendations. The confirmed-free-delivery section remains hidden because no
+products currently meet its evidence and zero-checkout-delivery requirements.
 
 ## Working from this cloud session
 
@@ -80,11 +90,13 @@ GitHub Actions uses the existing repository secrets and pinned Hostinger key.
 Native HTTPS Git works; GitHub API access can be denied separately. Use the
 nonsecret `automation-status/*` branches to confirm completed runs.
 
-`main` changes validate staging only. The deployment workflow can apply changes
+`main` changes validate staging code and run read-only production inspections.
+The staging deployment workflow can apply changes
 to the existing child theme and two custom plugins on staging; it preserves
 configuration, private media, the guard and third-party integrations. Production
 MU plugins are not copied to staging. Failure rollback and private release
-snapshots are implemented. Production deployment is a separate task.
+snapshots are implemented. Production updates use the dedicated verified release
+branches described above.
 
 Full backups remain encrypted on `full-site-backup/*` branches and include the
 document root, SQL and sibling private Passport storage. A disposable database/

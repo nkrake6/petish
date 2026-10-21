@@ -1,8 +1,11 @@
 # Homepage: For your pet
 
-**Pending release:** the feature is implemented in source and awaits complete
-hosted verification and production deployment. It is not enabled by the live
-Passport 0.3.1 release, and this document is not a production release receipt.
+**Live on petish.biz:** production
+[run 39537785516-1](https://github.com/nkrake6/petish/actions/runs/39537785516)
+committed source `c136035fe5d76538fbc0199a3f3a87ec8e5f5995` on 21 October 2026.
+Five files changed within the seven-file homepage release scope. Staff still
+need to configure eligible product matching rules; deployment does not approve
+products or invent recommendations.
 
 The owner chose staff-curated matching against the existing Passport biography
 and personality tags. No additional quirks or favourite-things fields are added.
@@ -39,7 +42,7 @@ system does not invent products or automatically approve the catalogue.
 
 ## Staff setup
 
-After deployment, in the WooCommerce product editor, open
+To curate matching products, in the WooCommerce product editor, open
 **Product data → For your pet**:
 
 1. Confirm the product has a current eligible Petish review for the intended
@@ -67,10 +70,29 @@ generic links available and offers a retry.
 
 Verification covers matching, sorting, previous purchases and variants, separate
 customer sessions, inaccessible purchase history, generic guest content, and
-responsive layout. Hosted checks must also demonstrate that synthetic staging
-fixtures are removed and protected store records and private media are preserved
-before a production release can be recorded here.
+responsive layout. Hosted staging
+[run 39534481202-1](https://github.com/nkrake6/petish/actions/runs/39534481202)
+at source `44ef53e` passed all 126 required checks:
 
-This child-theme feature has a separate release scope from pending Passport
-0.3.2 favourites, filters, video moments and Colour track. Source changes or a
-passing local check alone do not establish that either release is live.
+- 16 preflight checks.
+- 33 native checks, including actual WooCommerce purchase-history fixtures.
+- 22 cleanup checks, confirming fixture removal and preservation of protected
+  store records and private media.
+- 22 browser checks.
+- 33 final verification checks.
+
+The production candidate matched those seven verified homepage application files;
+the separate account-menu CSS adjustment did not change this release scope.
+Production run `39537785516-1` passed all 33 required native checks, all five
+public asset checks, and site health checks. Protected store state and the prior
+account and email assets were preserved. The release was committed, maintenance
+mode is off, and no rollback was needed.
+
+The informational `free_delivery_products_available` observation was false:
+there were no qualifying products for the separate supplier free-delivery
+section. Its visibility matched that evidence; this was not a failed release
+check or an automatic approval of any product.
+
+This child-theme feature has a separate release scope from Passport 0.3.2
+favourites, directory filters, video moments and Colour track, which are also
+live following [production run 39537501595-1](https://github.com/nkrake6/petish/actions/runs/39537501595).

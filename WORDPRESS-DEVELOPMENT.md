@@ -65,11 +65,20 @@ separately agreed sample-order task.
 
 Pet Club has a separate, narrowly scoped release workflow in
 `.github/workflows/pet-club.yml`. `verify-pet-club` exercises the exact application
-on private staging; `deploy-pet-club` applies only its fifteen reviewed Passport
+on private staging; `deploy-pet-club` applies only its eighteen reviewed Passport
 files after matching staging proof and a fresh, successfully recovered encrypted
 backup. Main pushes inspect production without applying the upgrade. Native
 production verification is read-only, with public page/asset checks and rollback
-protection. See [Pet Club release evidence and privacy behavior](docs/PET-CLUB.md).
+protection. A separate migration fills missing directory search fields from
+already-published snapshots while the release holds maintenance. It records the
+exact inserted metadata rows for conditional rollback and preserves private pet
+edits. See [Pet Club release evidence and privacy behavior](docs/PET-CLUB.md).
+
+The personalised homepage has its own seven-file child-theme release through
+`.github/workflows/homepage.yml`. It requires the isolated order-history proof,
+browser checks, cleanup evidence and a fresh recovered backup. Deploy it after
+the Passport release because its protected-file checks expect that account UI.
+See [For your pet](docs/FOR-YOUR-PET.md) for matching and staff curation setup.
 
 ## Backups and recovery checks
 

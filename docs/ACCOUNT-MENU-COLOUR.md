@@ -36,4 +36,6 @@ Hosted rehearsal measured 160.39 px rows at 992 px. Adding the icon to the origi
 
 Font size, labels and vertical spacing are unchanged. Mobile caption, header, chevron, open/close behavior and scrolling limit are unchanged. The existing no-JavaScript link layout remains available.
 
-These are source and local verification notes; deployment and hosted verification are tracked by the Passport release.
+[Hosted rehearsal 39537031480, attempt 1](https://github.com/nkrake6/petish/actions/runs/39537031480/attempts/1) verified source `3012a27` successfully: all 46 browser checks and all 158 full-rehearsal checks passed, with all 17 cleanup checks passing. At 992 px in both themes, Payment methods measured 178.23 × 45 px with single-line text measuring 125 × 18 px. The original baseline row measured 160.39 × 45 px, confirming that the correction preserves its height. Responsive menu, icon and palette checks also passed on hosted staging.
+
+The Colour track menu is live in [My account](https://petish.biz/my-account/). [Production deployment 39537501595, attempt 1](https://github.com/nkrake6/petish/actions/runs/39537501595/attempts/1) successfully committed source `c136035fe5d76538fbc0199a3f3a87ec8e5f5995`: 14 changed files within the 18-file release manifest, directory-index migration applied and verified, all 23 native checks and all four asset checks passed, and site health passed. Maintenance mode is off, existing data was preserved, and no rollback was needed.
