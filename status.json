@@ -1,0 +1,76 @@
+{
+  "active_plugins": {
+    "afterpay_plugin": false,
+    "woocommerce_payments": true,
+    "woocommerce_paypal_payments": true,
+    "woocommerce_stripe": false
+  },
+  "cached_account": {
+    "afterpay_capability": "active",
+    "afterpay_requirements_present": false,
+    "age_seconds": 3088,
+    "country": "AU",
+    "default_currency": "AUD",
+    "errored": false,
+    "payments_enabled": true,
+    "present": true
+  },
+  "checkout_page_content": "block",
+  "public_ui": {
+    "anonymous_empty_cart": {
+      "afterpay_in_messaging_methods": true,
+      "base_product_minor_amount": null,
+      "blue_variation_minor_amount": null,
+      "empty_cart_markup": true,
+      "message_container_count": 0,
+      "messaging_asset_present": true,
+      "messaging_config_present": true,
+      "messaging_country": "AU",
+      "messaging_currency": "AUD",
+      "native_express_present": false,
+      "should_initialize_messaging": true,
+      "should_show_messaging": null,
+      "status": "success"
+    },
+    "blue_product": {
+      "afterpay_in_messaging_methods": true,
+      "base_product_minor_amount": 800,
+      "blue_variation_minor_amount": 800,
+      "empty_cart_markup": false,
+      "message_container_count": 1,
+      "messaging_asset_present": true,
+      "messaging_config_present": true,
+      "messaging_country": "AU",
+      "messaging_currency": "AUD",
+      "native_express_present": true,
+      "should_initialize_messaging": true,
+      "should_show_messaging": true,
+      "status": "success"
+    }
+  },
+  "source_matches_11_2_0": {
+    "definition": true,
+    "gateway": true,
+    "messaging": true,
+    "method": true
+  },
+  "status": "success",
+  "store_country": "AU",
+  "store_currency": "AUD",
+  "wcpay": {
+    "afterpay_gateway_enabled": "yes",
+    "afterpay_gateway_method_selected": "yes",
+    "afterpay_gateway_setting_present": true,
+    "enabled": "yes",
+    "enabled_methods": [
+      "afterpay_clearpay",
+      "card"
+    ],
+    "enabled_methods_setting_present": true,
+    "installed_version": "11.2.0",
+    "manual_capture": "no",
+    "settings_present": true,
+    "test_mode": "no",
+    "unknown_method_present": false
+  }
+}
