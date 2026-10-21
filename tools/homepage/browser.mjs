@@ -23,9 +23,13 @@ const PERSONAL = '[data-petish-for-your-pet]';
 const SECTION = '#petish-free-delivery';
 export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
 export const THEME_VIEWS = Object.freeze(['320_light', '320_dark', '390_light', '390_dark', '1280_light', '1280_dark']);
-export const THEME_GEOMETRY_KEYS = Object.freeze(['header_height', 'baseline_height', 'header_width', 'viewport_width',
+export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', 'baseline_height', 'header_width', 'viewport_width',
   'switch_left', 'switch_right', 'search_right', 'market_left', 'market_right', 'logo_right', 'logo_width', 'baseline_logo_width',
-  'logo_count', 'logo_parent_width', 'baseline_logo_parent_width', 'visible_count', 'overflow']);
+  'logo_count', 'logo_parent_width', 'baseline_logo_parent_width', 'visible_count', 'overflow', 'search_left',
+  'candidate_logo_width', 'candidate_header_height', 'candidate_baseline_height', 'candidate_fit',
+  ...['header', 'branding', 'widgets', 'menu'].flatMap(node => ['left', 'right', 'width', 'height', 'client_width', 'scroll_width',
+    'padding_left', 'padding_right', 'margin_left', 'margin_right', 'flex_basis', 'flex_grow', 'flex_shrink', 'min_width', 'max_width', 'gap'].map(metric => `${node}_${metric}`)),
+  ...['search', 'switch', 'market', 'other'].flatMap(node => ['width', 'margin_left', 'margin_right', 'count'].map(metric => `${node}_${metric}`))])]);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
@@ -373,14 +377,23 @@ async function checkPersonalisation(page, context, login, input, homeHTML, initi
 }
 
 /** Only bounded header measurements leave the page; never labels, URLs or account data. */
-export async function inspectThemeGeometry(page) {
-  return page.evaluate(() => {
+export async function inspectThemeGeometry(page, probeCandidate = false) {
+  const result = await page.evaluate(() => {
     const wrappers = [...document.querySelectorAll('[data-petish-theme-switch]')];
     const visible = node => {
       const rect = node.getBoundingClientRect(), css = getComputedStyle(node);
       return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight
         && rect.right > 0 && rect.left < innerWidth
         && css.visibility !== 'hidden' && css.display !== 'none' && Number(css.opacity) > 0;
+    };
+    const measure = node => {
+      if (!node) return {};
+      const box = node.getBoundingClientRect(), css = getComputedStyle(node);
+      const metric = key => Number.isFinite(parseFloat(css[key])) ? parseFloat(css[key]) : -1;
+      return { left: box.left, right: box.right, width: box.width, height: box.height,
+        client_width: node.clientWidth, scroll_width: node.scrollWidth, padding_left: metric('paddingLeft'), padding_right: metric('paddingRight'),
+        margin_left: metric('marginLeft'), margin_right: metric('marginRight'), flex_basis: metric('flexBasis'),
+        flex_grow: metric('flexGrow'), flex_shrink: metric('flexShrink'), min_width: metric('minWidth'), max_width: metric('maxWidth'), gap: metric('columnGap') };
     };
     const current = wrappers.filter(node => visible(node) && visible(node.querySelector('[data-petish-theme-toggle]')));
     const records = current.map(wrapper => {
@@ -391,11 +404,25 @@ export async function inspectThemeGeometry(page) {
       const market = siblings.slice(index + 1).find(node => node.matches('[data-petish-market]'));
       const logos = header ? [...header.querySelectorAll('.branding img,.mobile-branding img,[data-petish-logo]')].filter(visible) : [];
       const logo = logos[0];
+      const branding = logo?.closest('.branding,.mobile-branding') || header?.querySelector('.mobile-branding,.branding');
+      const menu = header && [...header.querySelectorAll('.dt-mobile-menu-icon,.mobile-navigation,.menu-toggle')].find(visible);
+      const layout = Object.fromEntries(Object.entries({ header, branding, widgets: wrapper.parentElement, menu }).flatMap(([name, node]) =>
+        Object.entries(measure(node)).map(([metric, value]) => [`${name}_${metric}`, value])));
+      for (const name of ['search', 'switch', 'market', 'other']) {
+        const children = [...wrapper.parentElement.children].filter(node => {
+          const category = node.matches('.mini-search') ? 'search' : node.matches('[data-petish-theme-switch]') ? 'switch' : node.matches('[data-petish-market]') ? 'market' : 'other';
+          return category === name;
+        });
+        layout[`${name}_count`] = children.length;
+        for (const metric of ['width', 'margin_left', 'margin_right']) layout[`${name}_${metric}`] = children.reduce((sum, node) =>
+          sum + (getComputedStyle(node).display === 'none' ? 0 : (measure(node)[metric] ?? 0)), 0);
+      }
       return { wrapper, button, header, search, market, logo, box: header?.getBoundingClientRect(),
+        layout, menuBox: menu?.getBoundingClientRect(),
         logoCount: logos.length, logoParentWidth: (logo?.closest('.branding,.mobile-branding') || logo?.parentElement)?.getBoundingClientRect().width,
         buttonBox: button.getBoundingClientRect(), searchBox: search?.getBoundingClientRect(),
         marketBox: market?.getBoundingClientRect(), logoBox: logo?.getBoundingClientRect(),
-        controls: header ? [...header.querySelectorAll('.mobile-navigation,.mobile-mini-widgets,.mini-search,[data-petish-theme-switch],[data-petish-market]')].filter(visible).map(node => node.getBoundingClientRect()) : [] };
+        controls: header ? [...header.querySelectorAll('.dt-mobile-menu-icon,.mobile-navigation,.menu-toggle,.mobile-mini-widgets,.mini-search,[data-petish-theme-switch],[data-petish-market]')].filter(visible).map(node => node.getBoundingClientRect()) : [] };
     });
     let order = records.length >= 1 && records.length <= 4, fit = order, height = order;
     const styles = wrappers.map(node => node.getAttribute('style'));
@@ -417,21 +444,38 @@ export async function inspectThemeGeometry(page) {
       height = height && !!box && Number.isFinite(baseline) && box.height <= baseline + 1;
       fit = fit && within(box) && within(b) && within(s) && within(m) && b.width >= 43 && b.height >= 43
         && b.top >= box.top - 1 && b.bottom <= box.bottom + 1 && !!l && within(l) && l.width >= 48 && l.right <= s.left + 1
+        && (innerWidth > 767 || !!record.menuBox)
+        && (!record.menuBox || (within(record.menuBox) && m.right <= record.menuBox.left + 1))
         && record.controls.every(within)
         && button.type === 'button' && button.getAttribute('role') === 'switch'
         && button.getAttribute('aria-label') === 'Dark mode' && button.querySelectorAll('svg[aria-hidden="true"]').length === 2;
     }
     const first = records[0], number = value => Number.isFinite(value) ? Math.round(Math.max(-4096, Math.min(4096, value)) * 100) / 100 : 0;
     return { order: !!order, fit: !!fit, height: !!height, geometry: {
+      ...Object.fromEntries(Object.entries(first?.layout ?? {}).map(([key, value]) => [key, number(value)])),
       header_height: number(first?.box?.height), baseline_height: number(first?.baseline), header_width: number(first?.box?.width),
       viewport_width: innerWidth, switch_left: number(first?.buttonBox?.left), switch_right: number(first?.buttonBox?.right),
-      search_right: number(first?.searchBox?.right), market_left: number(first?.marketBox?.left), market_right: number(first?.marketBox?.right),
+      search_left: number(first?.searchBox?.left), search_right: number(first?.searchBox?.right), market_left: number(first?.marketBox?.left), market_right: number(first?.marketBox?.right),
       logo_right: number(first?.logoBox?.right), logo_width: number(first?.logoBox?.width), baseline_logo_width: number(first?.baselineLogo),
       logo_count: first?.logoCount ?? 0, logo_parent_width: number(first?.logoParentWidth),
       baseline_logo_parent_width: number(first?.baselineLogoParent), visible_count: current.length,
       overflow: number(Math.max(0, ...records.flatMap(record => [record.box?.right - innerWidth, record.buttonBox?.right - innerWidth,
         record.marketBox?.right - innerWidth, record.logoBox?.right - innerWidth, ...record.controls.map(rect => rect.right - innerWidth)]).filter(Number.isFinite))) } };
   });
+  // Diagnostic only: the candidate is removed before the mandatory original
+  // layout gates are evaluated. No server or application file is changed.
+  if (probeCandidate && page.viewportSize()?.width <= 767) {
+    const candidateStyle = await page.addStyleTag({ content: '@media(max-width:767px){body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets{flex:0 0 auto;max-width:none;}body#the7-body.petish-site .mobile-header-bar .mobile-branding{flex:1 1 0;min-width:0;}body#the7-body.petish-site .mobile-header-bar .mobile-branding>a{min-width:0;max-width:100%;}body#the7-body.petish-site .mobile-header-bar .mobile-navigation{flex:0 0 auto;}}' });
+    try {
+      await settleHeader(page);
+      const candidate = await inspectThemeGeometry(page);
+      Object.assign(result.geometry, { candidate_logo_width: candidate.geometry.logo_width,
+        candidate_header_height: candidate.geometry.header_height, candidate_baseline_height: candidate.geometry.baseline_height,
+        candidate_fit: Number(candidate.fit && candidate.order && candidate.height
+          && candidate.geometry.header_height <= result.geometry.header_height + 1) });
+    } finally { await candidateStyle.evaluate(node => node.remove()); await settleHeader(page); }
+  }
+  return result;
 }
 
 async function themeState(page, mode, preference = mode) {
@@ -465,7 +509,7 @@ export async function checkThemeSwitch(page, checks, diagnostics, setCategory, t
     for (const mode of ['light', 'dark']) {
       if (await page.evaluate(() => document.documentElement.dataset.theme) !== mode) await button().click();
       await settleHeader(page);
-      const result = await inspectThemeGeometry(page);
+      const result = await inspectThemeGeometry(page, true);
       diagnostics[`theme_${width}_${mode}_order`] = result.order;
       diagnostics[`theme_${width}_${mode}_height`] = result.height;
       diagnostics[`theme_${width}_${mode}_fit`] = result.fit;

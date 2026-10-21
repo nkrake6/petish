@@ -129,6 +129,7 @@ class HomepageReleaseTests(unittest.TestCase):
             raw=copy.deepcopy(value);raw['theme_geometry']['320_light']['header_height']=invalid
             report,passed=self.screen('browser',raw)
             self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+
             self.assertNotIn('private-sentinel',json.dumps(report))
         for kind in ('extra_view','missing_view','extra_field','missing_field'):
             raw=copy.deepcopy(value)
@@ -138,6 +139,19 @@ class HomepageReleaseTests(unittest.TestCase):
             if kind=='missing_field':del raw['theme_geometry']['320_light']['header_height']
             report,passed=self.screen('browser',raw)
             self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+
+    def test_browser_geometry_export_matches_exact_fixed_numeric_schema(self):
+        code="import { THEME_GEOMETRY_KEYS } from './tools/homepage/browser.mjs'; process.stdout.write(JSON.stringify(THEME_GEOMETRY_KEYS));"
+        output=subprocess.run(['node','--input-type=module','-e',code],cwd=ROOT,
+            check=True,capture_output=True,text=True)
+        fields=json.loads(output.stdout)
+        self.assertEqual(len(fields),100)
+        self.assertEqual(len(fields),len(set(fields)))
+        self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
+        value=self.raw('browser')
+        value['theme_geometry']={view:dict.fromkeys(fields,-1) for view in safe.THEME_GEOMETRY_VIEWS}
+        self.assertLess(len(json.dumps(value)),65536)
+        self.assertTrue(self.screen('browser',value)[1])
 
     def test_private_extras_invalid_flags_or_file_counts_refuse(self):
         bad=[]

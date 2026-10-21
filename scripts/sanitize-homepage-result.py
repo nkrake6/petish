@@ -43,7 +43,15 @@ BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_t
 THEME_GEOMETRY_VIEWS={f'{width}_{mode}' for width in (320,390,1280) for mode in ('light','dark')}
 THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewport_width',
     'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','baseline_logo_width',
-    'logo_count','logo_parent_width','baseline_logo_parent_width','visible_count','overflow'}
+    'logo_count','logo_parent_width','baseline_logo_parent_width','visible_count','overflow','search_left',
+    'candidate_logo_width','candidate_header_height','candidate_baseline_height','candidate_fit'} | {
+    f'{node}_{metric}' for node in ('header','branding','widgets','menu')
+    for metric in ('left','right','width','height','client_width','scroll_width','padding_left','padding_right',
+                   'margin_left','margin_right','flex_basis','flex_grow','flex_shrink','min_width','max_width','gap')
+} | {
+    f'{node}_{metric}' for node in ('search','switch','market','other')
+    for metric in ('width','margin_left','margin_right','count')
+}
 VERIFY={
     'market_flag_markup_verified',
     'theme_switch_markup_verified', 'theme_switch_assets_enqueued',
