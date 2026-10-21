@@ -98,7 +98,20 @@ CACHE_FAILURES={
     'cache_path_api', 'cache_path_class',
     'cache_path_root', 'cache_preinitialized', 'cache_runtime',
 }
-CATEGORIES=navigation.CATEGORIES|CACHE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
+FIXTURE_STEPS={
+    'fixture_user_owner_lookup','fixture_user_owner_create','fixture_user_owner_journal',
+    'fixture_user_other_lookup','fixture_user_other_create','fixture_user_other_journal',
+    'fixture_owner_session','fixture_pet_create','fixture_pet_journal',
+    'fixture_product_construct','fixture_product_save','fixture_product_journal',
+    'fixture_product_review_input','fixture_product_review_editor','fixture_product_rules_editor',
+    'fixture_product_approval_save','fixture_product_review_verify','fixture_variation_construct',
+    'fixture_variation_save','fixture_variation_journal','fixture_order_construct',
+    'fixture_order_save','fixture_order_journal','fixture_order_verify',
+    'fixture_scope',
+}
+FIXTURE_FAILURE_TYPES={'sql_boundary','runtime'}
+FIXTURE_FAILURES=FIXTURE_STEPS|{step+'_'+kind for step in FIXTURE_STEPS for kind in FIXTURE_FAILURE_TYPES}|{'transaction_sql_boundary'}
+CATEGORIES=navigation.CATEGORIES|CACHE_FAILURES|FIXTURE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
     'personalisation','personalisation_error','personalisation_history','bootstrap','isolation','state'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
 
 

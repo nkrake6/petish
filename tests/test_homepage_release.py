@@ -69,6 +69,23 @@ class HomepageReleaseTests(unittest.TestCase):
             self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
             self.assertNotIn('private-sentinel',json.dumps(report))
 
+    def test_fixture_steps_and_failures_preserve_only_finite_diagnostics(self):
+        for category in safe.FIXTURE_FAILURES:
+            value={'status':'failure','category':category,'checks':{'for_your_pet_classes_available':True}}
+            report,passed=self.screen('native',value)
+            self.assertFalse(passed);self.assertEqual(report,value)
+        for category in ('fixture_user_private-sentinel','fixture_product_save_private-sentinel',
+                         'fixture_product_save_runtime_private-sentinel'):
+            value={'status':'failure','category':category,'checks':{'for_your_pet_classes_available':True}}
+            report,passed=self.screen('native',value)
+            self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+            self.assertNotIn('private-sentinel',json.dumps(report))
+        value={'status':'failure','category':'fixture_user_owner_create_runtime',
+               'checks':{'for_your_pet_classes_available':True},'exception':'private-sentinel'}
+        report,passed=self.screen('native',value)
+        self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+        self.assertNotIn('private-sentinel',json.dumps(report))
+
     def test_browser_diagnostics_preserve_only_fixed_boolean_observations(self):
         value=self.raw('browser');value['status']='failure';value['category']='assets'
         value['checks']['badge_png_image_matches']=False
@@ -175,6 +192,8 @@ class HomepageReleaseTests(unittest.TestCase):
         self.assertEqual(safe.NATIVE,common|names('PETISH_FYP_PROOF_VERIFY'))
         self.assertEqual(safe.CLEANUP,common)
         self.assertEqual(safe.CACHE_FAILURES,names('PETISH_FYP_CACHE_FAILURES'))
+        self.assertEqual(safe.FIXTURE_STEPS,names('PETISH_FYP_FIXTURE_STEPS'))
+        self.assertEqual(safe.FIXTURE_FAILURE_TYPES,names('PETISH_FYP_FIXTURE_FAILURE_TYPES'))
         browser=(ROOT/'tools/homepage/browser.mjs').read_text()
         match=re.search(r'CHECK_KEYS = Object.freeze\(\[(.*?)\]\)',browser,re.S)
         self.assertEqual(safe.BROWSER,set(re.findall(r"'([a-z0-9_]+)'",match.group(1))))

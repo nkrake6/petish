@@ -72,6 +72,16 @@ try{
  $GLOBALS['petish_fyp_control']='COMMIT';check('commit_control_not_supported',rejects(fn()=>petish_fyp_proof_query_guard('COMMIT')));unset($GLOBALS['petish_fyp_control']);
  petish_fyp_proof_control('START TRANSACTION');petish_fyp_proof_control('ROLLBACK');
  check('only_exact_owned_transaction_control',$wpdb->queries===['START TRANSACTION','ROLLBACK']&&!isset($GLOBALS['petish_fyp_control']));
+ petish_fyp_proof_fixture_step('fixture_user_owner_create');
+ check('fixture_sql_boundary_retains_exact_step',rejects(fn()=>petish_fyp_proof_query_guard('COMMIT'))
+  &&$report['category']==='fixture_user_owner_create_sql_boundary');
+ petish_fyp_proof_fixture_step('fixture_product_save');petish_fyp_proof_fixture_error('runtime');
+ check('fixture_runtime_is_separate_from_sql_boundary',$report['category']==='fixture_product_save_runtime');
+ check('fixture_step_rejects_private_runtime_values',rejects(fn()=>petish_fyp_proof_fixture_step('fixture_private-sentinel')));
+ check('fixture_failure_type_is_finite',rejects(fn()=>petish_fyp_proof_fixture_error('private-sentinel')));
+ $report['category']='purchases';
+ check('nonfixture_sql_boundary_remains_controlled',rejects(fn()=>petish_fyp_proof_query_guard('COMMIT'))
+  &&$report['category']==='transaction_sql_boundary');
  check('finite_marker_rejects_unlisted',rejects(fn()=>petish_fyp_proof_mark('customer_private_value',true)));
  check('finite_marker_rejects_nonboolean',rejects(fn()=>petish_fyp_proof_mark('fixture_scope_verified','secret')));
  petish_fyp_proof_mark('fixture_scope_verified',true);check('finite_marker_accepts_contract',$report['checks']['fixture_scope_verified']===true);

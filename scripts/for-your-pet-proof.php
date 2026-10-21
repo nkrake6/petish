@@ -42,7 +42,29 @@ const PETISH_FYP_CACHE_FAILURES=[
  'cache_api_source_add_global_groups','cache_api_source_add_non_persistent_groups','cache_api_source_reset',
 ];
 
-function petish_fyp_proof_fail(){throw new RuntimeException();}
+const PETISH_FYP_FIXTURE_STEPS=[
+ 'fixture_user_owner_lookup','fixture_user_owner_create','fixture_user_owner_journal',
+ 'fixture_user_other_lookup','fixture_user_other_create','fixture_user_other_journal',
+ 'fixture_owner_session','fixture_pet_create','fixture_pet_journal',
+ 'fixture_product_construct','fixture_product_save','fixture_product_journal',
+ 'fixture_product_review_input','fixture_product_review_editor','fixture_product_rules_editor',
+ 'fixture_product_approval_save','fixture_product_review_verify','fixture_variation_construct',
+ 'fixture_variation_save','fixture_variation_journal','fixture_order_construct',
+ 'fixture_order_save','fixture_order_journal','fixture_order_verify',
+ 'fixture_scope',
+];
+const PETISH_FYP_FIXTURE_FAILURE_TYPES=['sql_boundary','runtime'];
+class Petish_Fyp_Proof_Stop extends RuntimeException {}
+
+function petish_fyp_proof_fail(){throw new Petish_Fyp_Proof_Stop();}
+function petish_fyp_proof_fixture_step($step){
+ global $report;if(!in_array($step,PETISH_FYP_FIXTURE_STEPS,true))petish_fyp_proof_fail();$report['category']=$step;
+}
+function petish_fyp_proof_fixture_error($kind){
+ global $report;if(!in_array($kind,PETISH_FYP_FIXTURE_FAILURE_TYPES,true))petish_fyp_proof_fail();
+ if(in_array($report['category']??null,PETISH_FYP_FIXTURE_STEPS,true))$report['category'].='_'.$kind;
+ elseif($kind==='sql_boundary')$report['category']='transaction_sql_boundary';
+}
 function petish_fyp_proof_mark($name,$value){
  global $report;
  if(!in_array($name,array_merge(PETISH_FYP_PROOF_COMMON,PETISH_FYP_PROOF_VERIFY),true)||!is_bool($value))petish_fyp_proof_fail();
@@ -101,7 +123,7 @@ function petish_fyp_proof_query_guard($sql){
    return $sql;
   }
  }
- if($phase==='transaction'){$GLOBALS['petish_fyp_disallowed']=true;petish_fyp_proof_fail();}
+ if($phase==='transaction'){$GLOBALS['petish_fyp_disallowed']=true;petish_fyp_proof_fixture_error('sql_boundary');petish_fyp_proof_fail();}
  return 'SELECT 0 WHERE 1=0';
 }
 function petish_fyp_proof_control($command){
@@ -213,23 +235,29 @@ function petish_fyp_proof_remember($kind,$id){
  petish_club_verify_write_json($GLOBALS['petish_fyp_journal'],$GLOBALS['petish_fyp_state'],true);
 }
 function petish_fyp_proof_user($role){
+ if(!in_array($role,['owner','other'],true))petish_fyp_proof_fail();
+ petish_fyp_proof_fixture_step('fixture_user_'.$role.'_lookup');
  $token=$GLOBALS['petish_fyp_state']['token'];$login='petish-fyp-'.$token.'-'.$role;$email=$login.'@petish.invalid';
  if(username_exists($login)||email_exists($email))petish_fyp_proof_fail();
+ petish_fyp_proof_fixture_step('fixture_user_'.$role.'_create');
  $id=wp_insert_user(['user_login'=>$login,'user_email'=>$email,'user_pass'=>bin2hex(random_bytes(24)),
   'display_name'=>'Isolated Petish recommendation proof','role'=>'customer']);
- if(is_wp_error($id)||!$id)petish_fyp_proof_fail();petish_fyp_proof_remember('users',(int)$id);
+ if(is_wp_error($id)||!$id)petish_fyp_proof_fail();petish_fyp_proof_fixture_step('fixture_user_'.$role.'_journal');petish_fyp_proof_remember('users',(int)$id);
  return ['id'=>(int)$id,'email'=>$email];
 }
 function petish_fyp_proof_product($name,$species,$keyword,$rank=0,$type='simple',$review=true){
+ petish_fyp_proof_fixture_step('fixture_product_construct');
  $product=$type==='variable'?new WC_Product_Variable():new WC_Product_Simple();
  $product->set_name('Isolated FYP '.$name);$product->set_status('publish');$product->set_catalog_visibility('visible');
  $product->set_regular_price('1.00');$product->set_manage_stock(false);$product->set_stock_status('instock');
  $product->set_date_created(time()-$rank);$product->update_meta_data('_petish_fyp_fixture',$GLOBALS['petish_fyp_state']['token']);
- $id=$product->save();if(!$id)petish_fyp_proof_fail();petish_fyp_proof_remember('posts',(int)$id);
+ petish_fyp_proof_fixture_step('fixture_product_save');
+ $id=$product->save();if(!$id)petish_fyp_proof_fail();petish_fyp_proof_fixture_step('fixture_product_journal');petish_fyp_proof_remember('posts',(int)$id);
  petish_fyp_proof_approve($product,$species,$keyword,$review);
  return $product;
 }
 function petish_fyp_proof_approve($product,$species,$keyword,$review=true){
+ petish_fyp_proof_fixture_step('fixture_product_review_input');
  $current=wp_get_current_user();$caps=$current->allcaps;$post=$_POST;
  foreach(['manage_woocommerce','edit_products','edit_others_products','edit_published_products']as$cap)$current->allcaps[$cap]=true;
  try{
@@ -239,30 +267,38 @@ function petish_fyp_proof_approve($product,$species,$keyword,$review=true){
     'limits'=>'Synthetic isolated fixture; never offered for sale.']],
    'petish_fyp_marker'=>'1','petish_fyp_nonce'=>wp_create_nonce('petish_fyp_'.$product->get_id()),
    'petish_fyp_enabled'=>'1','petish_fyp_species'=>[$species],'petish_fyp_keywords'=>$keyword];
-  Petish_Product_Review::save_editor($product);Petish_For_Your_Pet::save_editor($product);$product->save();
+  petish_fyp_proof_fixture_step('fixture_product_review_editor');Petish_Product_Review::save_editor($product);
+  petish_fyp_proof_fixture_step('fixture_product_rules_editor');Petish_For_Your_Pet::save_editor($product);
+  petish_fyp_proof_fixture_step('fixture_product_approval_save');$product->save();
  }finally{$_POST=$post;$current->allcaps=$caps;}
+ petish_fyp_proof_fixture_step('fixture_product_review_verify');
  if($review&&(Petish_Product_Review::record(wc_get_product($product->get_id()),$species)['status']??'')!=='eligible')petish_fyp_proof_fail();
 }
 function petish_fyp_proof_order($customer,$email,$status,$product,$variation=null){
+ petish_fyp_proof_fixture_step('fixture_order_construct');
  $order=new WC_Order();$order->set_customer_id($customer);$order->set_billing_email($email);$order->set_currency('AUD');
  $order->set_created_via('petish-isolated-proof');$order->set_status($status);$order->set_total('1.00');
  $order->update_meta_data('_petish_fyp_fixture',$GLOBALS['petish_fyp_state']['token']);
  $item=new WC_Order_Item_Product();$item->set_name('Isolated synthetic fixture');$item->set_product_id($product->get_id());
  if($variation)$item->set_variation_id($variation->get_id());$item->set_quantity(1);$item->set_subtotal('1.00');$item->set_total('1.00');$order->add_item($item);
- $id=$order->save();if(!$id)petish_fyp_proof_fail();petish_fyp_proof_remember('orders',(int)$id);
+ petish_fyp_proof_fixture_step('fixture_order_save');
+ $id=$order->save();if(!$id)petish_fyp_proof_fail();petish_fyp_proof_fixture_step('fixture_order_journal');petish_fyp_proof_remember('orders',(int)$id);
+ petish_fyp_proof_fixture_step('fixture_order_verify');
  if($order->get_transaction_id()||$order->get_payment_method())petish_fyp_proof_fail();return $order;
 }
 function petish_fyp_proof_fixtures(){
  global $report;$report['category']='fixtures';
  petish_fyp_proof_mark('for_your_pet_classes_available',class_exists('Petish_For_Your_Pet')&&class_exists('Petish_Product_Review')&&class_exists('WC_Order_Item_Product'));
- $owner=petish_fyp_proof_user('owner');$other=petish_fyp_proof_user('other');wp_set_current_user($owner['id']);
+ $owner=petish_fyp_proof_user('owner');$other=petish_fyp_proof_user('other');petish_fyp_proof_fixture_step('fixture_owner_session');wp_set_current_user($owner['id']);
  $keyword='Fyp'.substr($GLOBALS['petish_fyp_state']['token'],0,12);
+ petish_fyp_proof_fixture_step('fixture_pet_create');
  $pet=Petish_Passport_Store::create($owner['id'],['name'=>'Isolated private pet','species'=>'rabbit','age'=>'1-3','interest'=>'browsing','bio'=>'Enjoys '.$keyword.'.','traits'=>[]]);
- if(is_wp_error($pet))petish_fyp_proof_fail();petish_fyp_proof_remember('posts',$pet['id']);
+ if(is_wp_error($pet))petish_fyp_proof_fail();petish_fyp_proof_fixture_step('fixture_pet_journal');petish_fyp_proof_remember('posts',$pet['id']);
  $products=[];$names=['paid','completed','refunded','guest_paid','guest_refunded','pending','failed','cancelled','foreign','fresh_old','fresh_new'];
  foreach($names as$i=>$name)$products[$name]=petish_fyp_proof_product($name,'rabbit',$keyword,30-$i,$name==='paid'?'variable':'simple');
- $variation=new WC_Product_Variation();$variation->set_parent_id($products['paid']->get_id());$variation->set_status('publish');$variation->set_regular_price('1.00');$variation->set_manage_stock(false);$variation->save();
- petish_fyp_proof_remember('posts',(int)$variation->get_id());petish_fyp_proof_approve($products['paid'],'rabbit',$keyword);
+ petish_fyp_proof_fixture_step('fixture_variation_construct');
+ $variation=new WC_Product_Variation();$variation->set_parent_id($products['paid']->get_id());$variation->set_status('publish');$variation->set_regular_price('1.00');$variation->set_manage_stock(false);petish_fyp_proof_fixture_step('fixture_variation_save');$variation->save();
+ petish_fyp_proof_fixture_step('fixture_variation_journal');petish_fyp_proof_remember('posts',(int)$variation->get_id());petish_fyp_proof_approve($products['paid'],'rabbit',$keyword);
  $unreviewed=petish_fyp_proof_product('unreviewed','rabbit',$keyword,0,'simple',false);
  $wrong_species=petish_fyp_proof_product('other species','hamster',$keyword,0);
  $wrong_keyword=petish_fyp_proof_product('other personality','rabbit','Unrelated'.substr($keyword,-6),0);
@@ -271,6 +307,7 @@ function petish_fyp_proof_fixtures(){
  petish_fyp_proof_order(0,$owner['email'],'completed',$products['guest_paid']);
  petish_fyp_proof_order(0,$owner['email'],'refunded',$products['guest_refunded']);
  petish_fyp_proof_order($other['id'],$owner['email'],'completed',$products['foreign']);
+ petish_fyp_proof_fixture_step('fixture_scope');
  petish_fyp_proof_mark('fixture_scope_verified',count($GLOBALS['petish_fyp_state']['ids']['users'])===2&&count($GLOBALS['petish_fyp_state']['ids']['orders'])===9);
  $report['category']='matching';
  petish_fyp_proof_mark('matching_rules_verified',Petish_For_Your_Pet::matches($pet,[$keyword])===true
@@ -326,7 +363,7 @@ function petish_fyp_proof_main($argv){
   $expected=array_merge(PETISH_FYP_PROOF_COMMON,$mode==='verify'?PETISH_FYP_PROOF_VERIFY:[]);
   if(array_diff($expected,array_keys($report['checks'])))petish_fyp_proof_fail();
   $report['status']='success';$report['category']='complete';
- }catch(Throwable$ignored){$report['status']='failure';}
+ }catch(Throwable$ignored){if(!($ignored instanceof Petish_Fyp_Proof_Stop))petish_fyp_proof_fixture_error('runtime');$report['status']='failure';}
  finally{if($started){try{petish_fyp_proof_control('ROLLBACK');}catch(Throwable$ignored){}$GLOBALS['petish_fyp_phase']='readonly';}}
  return $report['status']==='success'?0:1;
 }
