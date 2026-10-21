@@ -70,6 +70,7 @@ THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewpor
     for metric in ('width','margin_left','margin_right','count')
 }
 VERIFY={
+    'cart_badge_cacheable_shell_verified','cart_badge_assets_and_handler_registered',
     'market_flag_markup_verified',
     'theme_switch_markup_verified', 'theme_switch_assets_enqueued',
     'account_settings_unchanged', 'all_outbound_http_blocked', 'anonymous_render_context_verified',
@@ -107,14 +108,88 @@ CLEANUP={
     'transaction_rolled_back', 'transaction_tables_verified', 'users_and_authentication_unchanged',
     'woocommerce_runtime_verified',
 }
+CART_PREPARE={
+    'target_paths_verified',
+    'target_environment_verified',
+    'woocommerce_runtime_verified',
+    'staging_database_separate',
+    'staging_guard_verified',
+    'jetpack_sync_isolated',
+    'all_outbound_http_blocked',
+    'mail_calls_blocked',
+    'remote_file_access_disabled',
+    'cron_and_async_runner_disabled',
+    'fixed_fixture_paths',
+    'configuration_isolated',
+    'fixture_journal_written',
+    'owned_customer_created',
+    'owned_product_created',
+    'virtual_product_stock_verified',
+    'product_hidden_from_catalogue',
+    'test_mode_verified',
+    'browser_guard_installed',
+    'browser_input_written',
+}
+CART_CLEANUP={
+    'target_paths_verified',
+    'target_environment_verified',
+    'woocommerce_runtime_verified',
+    'staging_database_separate',
+    'staging_guard_verified',
+    'jetpack_sync_isolated',
+    'all_outbound_http_blocked',
+    'mail_calls_blocked',
+    'remote_file_access_disabled',
+    'cron_and_async_runner_disabled',
+    'fixed_fixture_paths',
+    'configuration_isolated',
+    'fixture_ownership_verified',
+    'owned_session_removed',
+    'owned_product_removed',
+    'owned_customer_removed',
+    'orders_unchanged',
+    'users_and_authentication_unchanged',
+    'product_prices_and_stock_unchanged',
+    'settings_unchanged',
+    'existing_passports_unchanged',
+    'private_photo_files_unchanged',
+    'existing_sessions_unchanged',
+    'comments_unchanged',
+    'protected_files_unchanged',
+    'browser_guard_removed',
+    'browser_input_removed',
+    'fixture_cleanup_verified',
+}
+CART_BROWSER={
+    'browser_started',
+    'fixture_input_verified',
+    'customer_login_verified',
+    'cart_assets_exact',
+    'initial_empty_hidden',
+    'add_two_quantity_verified',
+    'update_three_quantity_verified',
+    'remove_empty_verified',
+    'count_response_private',
+    'anonymous_session_isolated',
+    'count_get_denied',
+    'badge_yellow_circle_14px',
+    'badge_accessible_quantity',
+    'desktop_header_height_preserved',
+    'mobile_header_height_preserved',
+    'mobile_badge_visible',
+    'dark_mode_badge_verified',
+    'reload_quantity_preserved',
+    'request_scope_enforced',
+}
 OBSERVATIONS={'free_delivery_products_available'}
-ASSETS={'market_script_http_verified','market_stylesheet_http_verified','country_flag_sprite_http_verified','country_flag_license_http_verified',
+ASSETS={'cart_badge_script_http_verified','cart_badge_stylesheet_http_verified','cart_badge_public_config_verified','market_script_http_verified','market_stylesheet_http_verified','country_flag_sprite_http_verified','country_flag_license_http_verified',
     'homepage_country_flags_verified','cart_http_verified','cart_country_flags_verified','theme_switch_public_markup_verified','theme_script_http_verified','theme_stylesheet_http_verified','for_your_pet_script_http_verified','homepage_http_verified','hot_subtitle_absent','home_stylesheet_http_verified','free_delivery_badge_http_verified'}
 PREFLIGHT=navigation.PREFLIGHT
-FILE_COUNT=15
+FILE_COUNT=18
 DEPLOY=navigation.DEPLOY|{'candidate_badge_png_verified','maintenance_guard_created','maintenance_guard_removed'}
 REQUIRED={**{phase:navigation.REQUIRED[phase]|({'candidate_badge_png_verified'} if phase in {'inspect','apply'} else set())
     for phase in ('inspect','apply','rollback','commit')},
+    'cart_prepare':CART_PREPARE,'cart_browser':CART_BROWSER,'cart_cleanup':CART_CLEANUP,
     'preflight':PREFLIGHT,'native':NATIVE,'cleanup':CLEANUP,'browser':BROWSER,'verify':VERIFY,'health':navigation.email.HEALTH_CHECKS,'assets':ASSETS}
 REQUIRED['apply'] |= {'maintenance_guard_created','maintenance_guard_removed'}
 REQUIRED['rollback'] |= {'maintenance_guard_removed'}
@@ -161,7 +236,7 @@ REVIEW_DIAGNOSTICS={
     'raw_status_eligible','raw_record_complete','stored_signature_present','stored_valid_flag',
     'reread_product_available','reread_product_type_matches','reread_signed_review_valid','original_signed_review_valid',
 }
-CATEGORIES=navigation.CATEGORIES|CACHE_FAILURES|FIXTURE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
+CATEGORIES={'runtime','fixture','initial','add','update','remove','privacy','geometry','scope'}|navigation.CATEGORIES|CACHE_FAILURES|FIXTURE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
     'personalisation','personalisation_error','personalisation_history','bootstrap','isolation','state',
     'market_flag_assets','market_flag_layout','theme_assets','theme_layout','theme_interaction','theme_persistence','theme_system'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
 

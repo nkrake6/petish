@@ -2,6 +2,8 @@
 /** Keep the short header menu separate from the fuller footer navigation. */
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/cart-badge.php';
+
 // The7 fires this after search; the market selector follows at priority 10.
 add_action( 'presscore_render_header_element-search', function () {
     $classes = function_exists( 'presscore_get_mini_widget_class' )

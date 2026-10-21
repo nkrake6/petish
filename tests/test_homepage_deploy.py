@@ -1,4 +1,4 @@
-"""Exercise the fifteen-file homepage/header transaction against disposable filesystem fixtures."""
+"""Exercise the eighteen-file homepage/header transaction against disposable filesystem fixtures."""
 import base64
 import hashlib
 import json
@@ -20,8 +20,8 @@ spec = importlib.util.spec_from_file_location('homepage_evidence', ROOT / 'scrip
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
-BASELINE = 'c136035fe5d76538fbc0199a3f3a87ec8e5f5995'
-NEW_FILES = {'assets/images/ui/country-flags.svg','assets/images/ui/country-flags.LICENSE.txt'}
+BASELINE = 'f8be162'
+NEW_FILES = {'includes/cart-badge.php','assets/css/cart-badge.css','assets/js/cart-badge.js'}
 EXISTING = [name for name in FILES if name not in NEW_FILES]
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+bfr0AAAAASUVORK5CYII=')
 
@@ -373,13 +373,12 @@ class HomepageDeploymentTests(unittest.TestCase):
         before = self.snapshot()
         inspection=self.execute('inspect', script=SCRIPT)
         self.assertEqual(inspection['status'], 'success')
-        self.assertEqual(inspection['changed_file_count'],8)
+        self.assertEqual(inspection['changed_file_count'],4)
         self.assertEqual(self.execute('apply', script=SCRIPT)['status'], 'success')
         after=self.snapshot()
         self.assertEqual({name for name in set(before)|set(after) if before.get(name)!=after.get(name)},
                          {PREFIX.removeprefix('wordpress/')+name for name in
-                          ('includes/header-navigation.php','assets/js/theme.js','assets/css/petish.css',
-                           'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt') })
+                          ('includes/header-navigation.php','includes/cart-badge.php','assets/css/cart-badge.css','assets/js/cart-badge.js') })
         self.assertEqual(self.execute('rollback', script=SCRIPT)['status'], 'success')
         self.assertEqual(self.snapshot(), before)
 

@@ -18,6 +18,7 @@ on:
       - scripts/deploy-homepage-remote.php
       - scripts/verify-homepage.php
       - scripts/for-your-pet-proof.php
+      - scripts/cart-badge-staging-proof.php
       - scripts/verify-pet-club.php
       - scripts/verify-homepage-assets.py
       - scripts/sanitize-homepage-result.py
@@ -26,6 +27,7 @@ on:
       - scripts/consume-litespeed-html-purge.py
       - scripts/sanitize-litespeed-html-purge.py
       - tools/homepage/browser.mjs
+      - tools/homepage/cart-badge-browser.mjs
       - operations/homepage-release.json
       - wordpress/wp-content/themes/dt-the7-child/front-page.php
       - wordpress/wp-content/themes/dt-the7-child/functions.php
@@ -34,6 +36,9 @@ on:
       - wordpress/wp-content/themes/dt-the7-child/includes/supplier-popularity.php
       - wordpress/wp-content/themes/dt-the7-child/assets/css/home.css
       - wordpress/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png
+      - wordpress/wp-content/themes/dt-the7-child/includes/cart-badge.php
+      - wordpress/wp-content/themes/dt-the7-child/assets/css/cart-badge.css
+      - wordpress/wp-content/themes/dt-the7-child/assets/js/cart-badge.js
       - wordpress/wp-content/themes/dt-the7-child/includes/header-navigation.php
       - wordpress/wp-content/themes/dt-the7-child/assets/js/theme.js
       - wordpress/wp-content/themes/dt-the7-child/assets/css/petish.css

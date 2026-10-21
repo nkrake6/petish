@@ -17,6 +17,8 @@ mkdir -m 700 "$work/public" "$work/bundle" "$work/bundle/payload"
 ssh_ready=0
 fixture_cleanup_needed=0
 fixture_cleanup_verified=0
+cart_cleanup_needed=0
+cart_cleanup_verified=0
 rollback_needed=0
 rollback_attempted=0
 rollback_verified=0
@@ -88,10 +90,22 @@ fixture_phase() {
     [[ $status == 0 && $validation == 0 ]]
 }
 
+cart_fixture_phase() {
+    local operation=$1 phase status=0 validation=0
+    [[ $operation == prepare || $operation == cleanup ]] || return 1
+    phase=cart_$operation
+    "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
+      for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-homepage-deploy-'"$run"'/cart-badge-staging-proof.php" '"$operation $run" \
+        > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
+    screen_phase "$phase" || validation=$?
+    [[ $status == 0 && $validation == 0 ]]
+}
+
 verify_staging_source() {
     "${petish_ssh[@]}" 'set -eu; root="$HOME/domains/staging.petish.biz/public_html/wp-content/themes/dt-the7-child";
       test -d "$root" && test ! -L "$root" && test "$(readlink -f -- "$root")" = "$root" || exit 1;
-      for relative in assets/images/ui/free-delivery-van.png assets/css/home.css assets/js/for-your-pet.js includes/supplier-popularity.php includes/for-your-pet.php front-page.php functions.php includes/header-navigation.php assets/js/theme.js assets/css/petish.css includes/market-selector.php assets/js/market-selector.js assets/css/market-selector.css assets/images/ui/country-flags.svg assets/images/ui/country-flags.LICENSE.txt; do
+      for relative in assets/images/ui/free-delivery-van.png assets/css/home.css assets/js/for-your-pet.js includes/supplier-popularity.php includes/for-your-pet.php front-page.php functions.php includes/cart-badge.php assets/css/cart-badge.css assets/js/cart-badge.js includes/header-navigation.php assets/js/theme.js assets/css/petish.css includes/market-selector.php assets/js/market-selector.js assets/css/market-selector.css assets/images/ui/country-flags.svg assets/images/ui/country-flags.LICENSE.txt; do
         file="$root/$relative";
         test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %h "$file")" = 1 || exit 1;
         sha256sum "$file";
@@ -100,7 +114,7 @@ verify_staging_source() {
 import json,re,sys
 from pathlib import Path
 expected=json.loads(Path(sys.argv[1]).read_text());lines=Path(sys.argv[2]).read_text().splitlines()
-names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css', 'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt')
+names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/cart-badge.php', 'assets/css/cart-badge.css', 'assets/js/cart-badge.js', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css', 'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt')
 if len(lines)!=len(names):raise SystemExit(1)
 for name,line in zip(names,lines):
  parts=line.split('  ',1)
@@ -150,7 +164,7 @@ stage=os.environ.get('HOMEPAGE_PREPARATION_STAGE','unknown')
 result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
-for phase in ('inspect','preflight','native','cleanup','browser','cache_preflight','apply','verify',
+for phase in ('inspect','preflight','native','cleanup','browser','cart_prepare','cart_browser','cart_cleanup','cache_preflight','apply','verify',
  'cache_queue','cache_consume','cache_verify','health','assets','commit','rollback',
  'rollback_cache_queue','rollback_cache_consume','rollback_cache_verify'):
  path=root/(phase+'.safe.json')
@@ -258,13 +272,21 @@ finish() {
             failure_category=cleanup
         fi
     fi
+    if [[ $ssh_ready == 1 && $cart_cleanup_needed == 1 ]]; then
+        if cart_fixture_phase cleanup; then
+            cart_cleanup_verified=1
+        else
+            outcome=1
+            failure_category=cart_cleanup
+        fi
+    fi
     if [[ $mode == staging && $operation_verified == 1 ]] && ! verify_staging_source; then
         staging_source_verified=0
         outcome=1
         failure_category=staging_source
     fi
     # Retain exact recovery helpers and journals until rollback and fixture cleanup pass.
-    if [[ $ssh_ready == 1 && $rollback_needed == 0 && ( $fixture_cleanup_needed == 0 || $fixture_cleanup_verified == 1 ) ]] && ! remote_cleanup; then
+    if [[ $ssh_ready == 1 && $rollback_needed == 0 && ( $fixture_cleanup_needed == 0 || $fixture_cleanup_verified == 1 ) && ( $cart_cleanup_needed == 0 || $cart_cleanup_verified == 1 ) ]] && ! remote_cleanup; then
         outcome=1
         failure_category=cleanup
     fi
@@ -294,7 +316,7 @@ python3 - "$source_sha" "$work/bundle/payload" <<'PY' > "$work/payload.private.s
 import hashlib,json,subprocess,sys
 from pathlib import Path
 revision=sys.argv[1];destination=Path(sys.argv[2]);prefix='wordpress/wp-content/themes/dt-the7-child/'
-names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css', 'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt')
+names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/cart-badge.php', 'assets/css/cart-badge.css', 'assets/js/cart-badge.js', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css', 'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt')
 manifest={}
 for name in names:
  content=subprocess.run(['git','show',revision+':'+prefix+name],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout
@@ -313,11 +335,11 @@ fi
 if [[ $mode == staging ]]; then
     cp -- scripts/staging-rehearsal-remote.php "$work/bundle/driver.php"
     chmod 600 "$work/bundle/driver.php"
-    for name in verify-homepage.php verify-pet-club.php for-your-pet-proof.php email-branding-preview-remote.php; do
+    for name in verify-homepage.php verify-pet-club.php for-your-pet-proof.php cart-badge-staging-proof.php email-branding-preview-remote.php; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
-    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-homepage.php verify-pet-club.php for-your-pet-proof.php email-branding-preview-remote.php \
+    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-homepage.php verify-pet-club.php for-your-pet-proof.php cart-badge-staging-proof.php email-branding-preview-remote.php \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 else
     for name in deploy-homepage-remote.php verify-homepage.php verify-pet-club.php email-branding-preview-remote.php litespeed-html-purge.php; do
@@ -384,6 +406,25 @@ PY
         publish_badge_diagnostic
     fi
     [[ $browser_status == 0 && $browser_validation == 0 ]]
+    failure_category=cart_prepare
+    cart_cleanup_needed=1
+    cart_fixture_phase prepare
+    "${petish_ssh[@]}" 'set -eu; file="$HOME/.petish-staging/rehearsal-'"$run"'/cart-badge/browser-input.json";
+      test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %a "$file")" = 600 && test "$(stat -c %h "$file")" = 1 || exit 1;
+      size=$(stat -c %s "$file"); test "$size" -gt 0 && test "$size" -le 32768 || exit 1; cat "$file"' \
+        > "$work/cart-browser-input.json" 2> "$work/cart-input.private.stderr"
+    chmod 600 "$work/cart-browser-input.json"
+    failure_category=cart_browser
+    cart_status=0
+    node tools/homepage/cart-badge-browser.mjs "$work/cart-browser-input.json" "$work/cart_browser.private.json" \
+        > "$work/cart_browser.private.stdout" 2> "$work/cart_browser.private.stderr" || cart_status=$?
+    cart_validation=0
+    screen_phase cart_browser || cart_validation=$?
+    [[ $cart_status == 0 && $cart_validation == 0 ]]
+    failure_category=cart_cleanup
+    cart_fixture_phase cleanup
+    cart_cleanup_verified=1
+    cart_cleanup_needed=0
     operation_verified=1
     exit 0
 fi

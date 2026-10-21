@@ -42,7 +42,7 @@ class HomepageReleaseTests(unittest.TestCase):
         path=self.directory/'raw.json';path.write_text(json.dumps(value));return safe.screen(phase,path)
 
     def test_hidden_section_is_a_successful_verified_state(self):
-        for phase in ('inspect','apply','native','cleanup','verify','browser','health','assets','commit','rollback'):
+        for phase in ('inspect','apply','native','cleanup','verify','browser','cart_prepare','cart_browser','cart_cleanup','health','assets','commit','rollback'):
             with self.subTest(phase=phase):
                 value=self.raw(phase);report,passed=self.screen(phase,value)
                 self.assertTrue(passed);self.assertEqual(report,value)
@@ -227,7 +227,7 @@ class HomepageReleaseTests(unittest.TestCase):
             'backup_result_branch':'automation-status/backup-12345-1','recovery_result_branch':'automation-status/recovery-12346-1'}
         stage={'status':'success','category':'complete','mode':'staging','staging_source_verified':True,'source_commit':revision,
             'source_hashes':{name:hashlib.sha256((ROOT/(evidence.PREFIX+name)).read_bytes()).hexdigest() for name in evidence.FILES},
-            'phases':{phase:self.raw(phase) for phase in ('native','cleanup','verify','browser')}}
+            'phases':{phase:self.raw(phase) for phase in ('native','cleanup','verify','browser','cart_prepare','cart_browser','cart_cleanup')}}
         stage['phases']['preflight']={'status':'success','category':'complete','checks':dict.fromkeys(safe.PREFLIGHT,True)}
         backup={'AUTOMATION_KIND':'backup','AUTOMATION_RESULT':'success','GITHUB_RUN_ID':'12345','GITHUB_RUN_ATTEMPT':'1',
             'generated_utc':datetime.now(timezone.utc).isoformat(),
@@ -268,7 +268,7 @@ class HomepageReleaseTests(unittest.TestCase):
     def test_unrecognized_receipt_fields_cannot_satisfy_release_evidence(self):
         path,_,stage,_=self.fixture_evidence()
         original=copy.deepcopy(stage)
-        for phase in ('preflight','native','cleanup','verify','browser'):
+        for phase in ('preflight','native','cleanup','verify','browser','cart_prepare','cart_browser','cart_cleanup'):
             stage.clear();stage.update(copy.deepcopy(original))
             stage['phases'][phase]['private_path']='private-sentinel'
             with self.subTest(phase=phase),self.assertRaises(ValueError):evidence.validate(path)
@@ -320,7 +320,7 @@ class HomepageReleaseTests(unittest.TestCase):
                 work=self.directory/scenario;work.mkdir();log=self.directory/(scenario+'.log')
                 script='\n'.join([
                     'work=$1; log=$2; scenario=$3; rollback_needed=$4; fixture_cleanup_needed=$5; operation_verified=$6',
-                    'mode=staging; ssh_ready=1; fixture_cleanup_verified=0; failure_category=prerequisites; staging_source_verified=1',
+                    'mode=staging; ssh_ready=1; fixture_cleanup_verified=0; cart_cleanup_needed=0; cart_cleanup_verified=0; failure_category=prerequisites; staging_source_verified=1',
                     'remote_phase() { printf "rollback\\n" >> "$log"; [[ "$scenario" != rollback_failed ]]; }',
                     'purge_html_cache() { printf "purge:%s\\n" "$1" >> "$log"; [[ "$scenario" != rollback_cache_failed ]]; }',
                     'fixture_phase() { printf "cleanup\\n" >> "$log"; [[ "$scenario" != cleanup_failed ]]; }',
@@ -400,7 +400,7 @@ class HomepagePublicAssetsTests(unittest.TestCase):
                     raise AssertionError('Public verification must use anonymous GETs only')
                 url=request.full_url
                 if url=='https://petish.biz/':
-                    body=b'<h1 id="petish-home-title">Petish</h1>'
+                    body=b'<h1 id="petish-home-title">Petish</h1><script>window.petishCartBadge={"endpoint":"/?wc-ajax=petish_cart_count","cartUrl":"https://petish.biz/cart/"};</script>'
                     if not old_header:body+=HomepagePublicAssetsTests.HEADER.encode()
                     if subtitle:body+=b'<p>Selected by supplier-reported orders.</p>'
                 elif url=='https://petish.biz/cart/':
@@ -417,7 +417,7 @@ class HomepagePublicAssetsTests(unittest.TestCase):
         self.assertEqual(result['status'],'success');self.assertTrue(all(result['checks'].values()))
 
     def test_wrong_bytes_redirects_or_old_subtitle_refuse(self):
-        for arguments in ({'changed':'assets/js/theme.js'},{'changed':'assets/css/petish.css'},
+        for arguments in ({'changed':'assets/js/cart-badge.js'},{'changed':'assets/css/cart-badge.css'},{'changed':'assets/js/theme.js'},{'changed':'assets/css/petish.css'},
                           {'changed':'assets/js/market-selector.js'},{'changed':'assets/css/market-selector.css'},
                           {'changed':'assets/images/ui/country-flags.svg'},{'changed':'assets/images/ui/country-flags.LICENSE.txt'},
                           {'changed':'assets/js/for-your-pet.js'},{'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},

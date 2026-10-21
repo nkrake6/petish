@@ -16,7 +16,7 @@ spec.loader.exec_module(evidence)
 spec2 = importlib.util.spec_from_file_location('homepage_checks', Path(__file__).with_name('sanitize-homepage-result.py'))
 checks = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(checks)
-FILES = ('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css', 'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt')
+FILES = ('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/cart-badge.php', 'assets/css/cart-badge.css', 'assets/js/cart-badge.js', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css', 'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt')
 PREFIX = 'wordpress/wp-content/themes/dt-the7-child/'
 
 
@@ -47,7 +47,7 @@ def validate(source):
             or stage.get('source_commit') != request['staging_source_commit'] \
             or stage.get('source_hashes') != expected_hashes:
         raise ValueError()
-    for phase, required in [('preflight',checks.PREFLIGHT),('native',checks.NATIVE),('cleanup',checks.CLEANUP),('verify',checks.VERIFY),('browser',checks.BROWSER)]:
+    for phase, required in [('preflight',checks.PREFLIGHT),('native',checks.NATIVE),('cleanup',checks.CLEANUP),('verify',checks.VERIFY),('browser',checks.BROWSER),('cart_prepare',checks.CART_PREPARE),('cart_browser',checks.CART_BROWSER),('cart_cleanup',checks.CART_CLEANUP)]:
         result = stage.get('phases',{}).get(phase,{})
         # Preflight has already discarded its private raw fields when published.
         if phase == 'preflight':

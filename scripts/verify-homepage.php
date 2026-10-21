@@ -123,6 +123,8 @@ function petish_homepage_verify_html($html,$pool,$free) {
             &&$xpath->query('.//*[local-name()="svg" and @aria-hidden="true"]',$wrapper)->length===2;
     }
     petish_homepage_verify_mark('theme_switch_markup_verified',(bool)$switch_markup);
+    petish_homepage_verify_mark('cart_badge_cacheable_shell_verified', $xpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," petish-cart-badge ")]')->length===0
+        &&strpos($html,'window.petishCartBadge')!==false&&strpos($html,'petish_cart_count')!==false);
     $markets=$xpath->query('//*[@data-petish-market]');$flag_markup=$markets->length>=1&&$markets->length<=8;
     $base=wc_get_base_location();$symbol=Petish_Market_Selector::flag($base['country']??'');
     $sprite=get_stylesheet_directory_uri().'/assets/images/ui/country-flags.svg?ver='
@@ -217,6 +219,16 @@ function petish_homepage_verify_render($root) {
     petish_homepage_verify_mark('for_your_pet_script_enqueued',(wp_script_is('petish-for-your-pet','enqueued')||wp_script_is('petish-for-your-pet','done'))
         &&is_object($script)&&parse_url($script->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js'
         &&(string)$script->ver===(string)filemtime($root.'/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js'));
+    $cart_script=wp_scripts()->registered['petish-cart-badge']??null;$cart_style=wp_styles()->registered['petish-cart-badge']??null;
+    petish_homepage_verify_mark('cart_badge_assets_and_handler_registered',class_exists('Petish_Cart_Badge')
+        &&has_action('wc_ajax_petish_cart_count',['Petish_Cart_Badge','count'])!==false
+        &&is_object($cart_script)&&is_object($cart_style)
+        &&(wp_script_is('petish-cart-badge','enqueued')||wp_script_is('petish-cart-badge','done'))
+        &&(wp_style_is('petish-cart-badge','enqueued')||wp_style_is('petish-cart-badge','done'))
+        &&parse_url($cart_script->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/js/cart-badge.js'
+        &&parse_url($cart_style->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/css/cart-badge.css'
+        &&(string)$cart_script->ver===(string)filemtime($root.'/wp-content/themes/dt-the7-child/assets/js/cart-badge.js')
+        &&(string)$cart_style->ver===(string)filemtime($root.'/wp-content/themes/dt-the7-child/assets/css/cart-badge.css'));
     $theme_script=wp_scripts()->registered['petish-theme']??null;$design_style=wp_styles()->registered['petish-design']??null;
     petish_homepage_verify_mark('theme_switch_assets_enqueued',is_object($theme_script)&&is_object($design_style)
         &&(wp_script_is('petish-theme','enqueued')||wp_script_is('petish-theme','done'))
