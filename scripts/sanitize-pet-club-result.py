@@ -176,7 +176,9 @@ CATEGORIES = {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'gu
     'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
     'video_nojs_context',
 } | {f'video_{limit}_{step}' for limit in ('duration', 'size')
-     for step in ('form', 'submit', 'post_blocked', 'response', 'notice_missing', 'notice_content', 'unchanged')}
+     for step in ('form', 'form_invalid', 'submit', 'click', 'navigation', 'post_blocked', 'response', 'notice_missing', 'notice_content', 'unchanged')}
+CATEGORIES |= {f'video_{limit}_post_{reason}' for limit in ('duration', 'size')
+               for reason in ('body_unavailable', 'multipart', 'request', 'window', 'action', 'identity', 'nonce', 'kind', 'caption', 'unknown')}
 
 
 def safe_option_name(name):

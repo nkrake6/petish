@@ -31,9 +31,13 @@ export const FORM_CATEGORIES = Object.freeze([
   'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
   'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
 ]);
+export const MOMENT_POST_DENIALS = Object.freeze([
+  'body_unavailable', 'multipart', 'request', 'window', 'action', 'identity', 'nonce', 'kind', 'caption', 'unknown',
+]);
 export const VIDEO_LIMIT_CATEGORIES = Object.freeze([
   'video_nojs_context',
-  ...['duration', 'size'].flatMap(limit => ['form', 'submit', 'post_blocked', 'response', 'notice_missing', 'notice_content', 'unchanged']
+  ...['duration', 'size'].flatMap(limit => ['form', 'form_invalid', 'submit', 'click', 'navigation', 'post_blocked',
+    ...MOMENT_POST_DENIALS.map(reason => `post_${reason}`), 'response', 'notice_missing', 'notice_content', 'unchanged']
     .map(step => `video_${limit}_${step}`)),
 ]);
 const CATEGORIES = new Set(['input', 'browser', 'login', 'owner', 'mobile', 'desktop', 'navigation',
@@ -74,6 +78,25 @@ function fieldsFor(body, contentType) {
     fields.append(match[1], part.slice(separator + 4, -2));
   }
   return fields;
+}
+
+/** Finite diagnostics only; never returns request values or upload contents. */
+export function momentPostDenial(raw, method, state, body, type, contentType) {
+  if (typeof body !== 'string' || !body) return 'body_unavailable';
+  let fields;
+  try { fields = fieldsFor(body, contentType); } catch { return 'multipart'; }
+  let url;
+  try { url = new URL(raw); } catch { return 'request'; }
+  if (url.origin !== ORIGIN || url.pathname !== '/wp-admin/admin-post.php' || url.search
+      || method !== 'POST' || type !== 'document') return 'request';
+  if (state.operation !== 'petish_passport_create_moment' || state.used) return 'window';
+  if (fields.getAll('action').length !== 1 || fields.get('action') !== state.operation) return 'action';
+  if (!state.input || fields.getAll('pet_id').length !== 1
+      || fields.get('pet_id') !== String(state.input.pet_id)) return 'identity';
+  if (!/^[a-zA-Z0-9]{10}$/.test(fields.get('petish_passport_nonce') ?? '')) return 'nonce';
+  if (fields.get('kind') !== 'video' || fields.getAll('kind').length !== 1 || fields.get('moment_id') !== '0') return 'kind';
+  if (fields.get('caption') !== 'Synthetic browser video.') return 'caption';
+  return 'unknown';
 }
 
 /** POST windows allow only the submitted native form for the owned fixture pet. */
@@ -143,7 +166,14 @@ function ensure(value, category) { if (!value) throw new Error(category); }
 async function guard(context, state) {
   await context.route('**/*', async route => {
     const request = route.request();
-    if (!allowedRequest(request.url(), request.method(), state, request.postData() ?? '', request.resourceType(), request.headers()['content-type'] ?? '')) {
+    let body;
+    try { body = request.postData() ?? ''; } catch { body = null; }
+    const contentType = request.headers()['content-type'] ?? '';
+    if (body === null || !allowedRequest(request.url(), request.method(), state, body, request.resourceType(), contentType)) {
+      if (request.method() === 'POST') {
+        state.denied = true;
+        state.postDenial = momentPostDenial(request.url(), request.method(), state, body, request.resourceType(), contentType);
+      }
       await route.abort('blockedbyclient'); return;
     }
     if (request.method() === 'POST') state.used = true;
@@ -225,7 +255,9 @@ async function videoUploads(browser, owner, input, mark, setCategory) {
       ensure(formResponse?.ok() && await errorPage.locator('form[data-pp-form]').count() === 1, step);
       await errorPage.locator('#pc-moment-caption').fill('Synthetic browser video.');
       await errorPage.locator('#pp-video').setInputFiles({ name: 'synthetic-rejected.mp4', mimeType: 'video/mp4', buffer: bytes });
-      nojsState.operation = 'petish_passport_create_moment'; nojsState.used = false;
+      step = `video_${limit}_form_invalid`; setCategory(step);
+      ensure(await errorPage.locator('form[data-pp-form]').evaluate(form => form.checkValidity()), step);
+      nojsState.operation = 'petish_passport_create_moment'; nojsState.used = false; nojsState.denied = false; nojsState.postDenial = '';
       step = `video_${limit}_submit`; setCategory(step);
       let posted = null;
       const onResponse = response => {
@@ -233,9 +265,16 @@ async function videoUploads(browser, owner, input, mark, setCategory) {
       };
       errorPage.on('response', onResponse);
       try {
-        await Promise.all([errorPage.waitForNavigation({ waitUntil: 'domcontentloaded' }), errorPage.locator('form[data-pp-form] button[type="submit"]').click()]);
+        const navigated = errorPage.waitForNavigation({ waitUntil: 'domcontentloaded' }).then(response => ({ response }), error => ({ error }));
+        step = `video_${limit}_click`; setCategory(step);
+        await errorPage.locator('form[data-pp-form] button[type="submit"]').click();
+        step = `video_${limit}_navigation`; setCategory(step);
+        const navigation = await navigated; if (navigation.error) throw navigation.error;
       } catch (error) {
-        if (!nojsState.used) { setCategory(`video_${limit}_post_blocked`); throw new Error(`video_${limit}_post_blocked`); }
+        if (nojsState.denied) {
+          const deniedCategory = `video_${limit}_post_${MOMENT_POST_DENIALS.includes(nojsState.postDenial) ? nojsState.postDenial : 'blocked'}`;
+          setCategory(deniedCategory); throw new Error(deniedCategory);
+        }
         throw error;
       } finally { errorPage.off('response', onResponse); }
       step = `video_${limit}_response`; setCategory(step);

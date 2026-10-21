@@ -433,9 +433,11 @@ console.log(JSON.stringify(proof.VIDEO_LIMIT_CATEGORIES.map(category=>proof.publ
  status:'failure',category,privateValue:'must-not-escape',checks:{video_client_limits_verified:true}
 }))));
 """)
+        reasons = ('body_unavailable', 'multipart', 'request', 'window', 'action', 'identity', 'nonce', 'kind', 'caption', 'unknown')
         expected = ['video_nojs_context'] + [f'video_{limit}_{step}'
                     for limit in ('duration', 'size')
-                    for step in ('form', 'submit', 'post_blocked', 'response', 'notice_missing', 'notice_content', 'unchanged')]
+                    for step in ('form', 'form_invalid', 'submit', 'click', 'navigation', 'post_blocked',
+                                 *(f'post_{reason}' for reason in reasons), 'response', 'notice_missing', 'notice_content', 'unchanged')]
         self.assertEqual([entry['category'] for entry in result], expected)
         self.assertTrue(all(entry['status'] == 'failure'
                             and set(entry) == {'status', 'category', 'checks'} for entry in result))
@@ -444,6 +446,22 @@ console.log(JSON.stringify(proof.VIDEO_LIMIT_CATEGORIES.map(category=>proof.publ
         sanitizer = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(sanitizer)
         self.assertTrue(set(expected) <= sanitizer.CATEGORIES)
+
+    def test_video_post_denial_diagnostics_never_contain_request_values(self):
+        result = self.node(r"""
+const url='https://staging.petish.biz/wp-admin/admin-post.php';
+const state={input:{pet_id:123},operation:'petish_passport_create_moment',used:false};
+const original={action:state.operation,pet_id:'123',moment_id:'0',kind:'video',caption:'Synthetic browser video.',petish_passport_nonce:'123456789a'};
+const reason=(body,extra={})=>proof.momentPostDenial(url,'POST',{...state,...extra},body,'document','application/x-www-form-urlencoded');
+const out=[reason(null),proof.momentPostDenial(url,'POST',state,'secret','document','multipart/form-data; boundary=')];
+for(const [field,value] of [['action','PRIVATE'],['pet_id','999'],['petish_passport_nonce','SECRET'],['kind','photo'],['caption','PRIVATE CAPTION']]){
+ out.push(reason(new URLSearchParams({...original,[field]:value}).toString()));
+}
+const body=new URLSearchParams(original).toString();out.push(reason(body,{used:true}),reason(body));
+console.log(JSON.stringify(out));
+""")
+        self.assertEqual(result, ['body_unavailable', 'multipart', 'action', 'identity', 'nonce', 'kind', 'caption', 'window', 'unknown'])
+        self.assertNotIn('PRIVATE', json.dumps(result))
 
     def test_browser_video_fixtures_and_owned_request_boundaries(self):
         result = self.node(r"""
