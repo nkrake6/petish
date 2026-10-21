@@ -61,9 +61,10 @@ native_verification() {
 
 fixture_phase() {
     local operation=$1 phase=fixture status=0 validation=0
-    [[ $operation == prepare || $operation == cleanup || $operation == diagnose ]] || return 1
+    [[ $operation == prepare || $operation == cleanup || $operation == diagnose || $operation == retire ]] || return 1
     [[ $operation != cleanup ]] || phase=cleanup
     [[ $operation != diagnose ]] || phase=diagnose
+    [[ $operation != retire ]] || phase=retire
     "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
       for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
       tools="$HOME/.petish-pet-club-deploy-'"$target_run"'";
@@ -149,7 +150,7 @@ stage=os.environ.get('PET_CLUB_PREPARATION_STAGE','unknown')
 result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
-for phase in ('inspect','preflight','native','fixture','browser','cleanup','diagnose','apply','verify','health','assets','commit','rollback'):
+for phase in ('inspect','preflight','native','fixture','browser','cleanup','diagnose','retire','apply','verify','health','assets','commit','rollback'):
  path=root/(phase+'.safe.json')
  try:
   info=path.lstat()
@@ -281,13 +282,13 @@ if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or not 0<info.st_size<=409
 value=json.loads(path.read_bytes())
 if not isinstance(value,dict) or not {'format','run_id','operation'}<=set(value)<={'format','run_id','operation','encrypted_option_names'} or value['format']!='petish-pet-club-cleanup-v1' \
  or not isinstance(value['run_id'],str) or not re.fullmatch(r'[1-9][0-9]{0,31}-[1-9][0-9]{0,8}',value['run_id']) \
- or value['operation'] not in {'diagnose','cleanup'}:raise SystemExit(1)
+ or value['operation'] not in {'diagnose','cleanup','retire'}:raise SystemExit(1)
 private=value.get('encrypted_option_names',False)
 if type(private) is not bool or (private and value['operation']!='diagnose'):raise SystemExit(1)
 print(value['run_id'],value['operation'],int(private))
 PY_RECOVERY
     read -r target_run recovery_operation encrypted_option_names < "$work/recovery-request.private.txt"
-    [[ $target_run =~ ^[1-9][0-9]*-[1-9][0-9]*$ && $target_run != "$run" && ( $recovery_operation == diagnose || $recovery_operation == cleanup ) ]]
+    [[ $target_run =~ ^[1-9][0-9]*-[1-9][0-9]*$ && $target_run != "$run" && ( $recovery_operation == diagnose || $recovery_operation == cleanup || $recovery_operation == retire ) ]]
     retain_remote_tools=1
     recovery_helpers=(verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php)
     if [[ $encrypted_option_names == 1 ]]; then recovery_helpers+=(pet-club-private-option-names.php); fi
@@ -356,6 +357,9 @@ PY_RECOVERY
             encrypted_option_names_verified=1
             rm -f -- "$work/private-option-names.json"
         fi
+    elif [[ $recovery_operation == retire ]]; then
+        failure_category=retire
+        fixture_phase retire
     fi
     operation_verified=1
     exit 0

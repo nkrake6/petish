@@ -1,6 +1,5 @@
 {
   "format": "petish-pet-club-cleanup-v1",
   "run_id": "39519271900-1",
-  "operation": "diagnose",
-  "encrypted_option_names": true
+  "operation": "retire"
 }

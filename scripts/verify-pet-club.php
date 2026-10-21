@@ -34,6 +34,15 @@ const PETISH_CLUB_FIXTURE_DIAGNOSE = ['target_paths_verified','target_environmen
  'staging_database_separate','staging_guard_verified','jetpack_sync_isolated','diagnostic_completed','diagnostic_read_only',
  'fixture_journal_valid','owned_users_absent','orders_unchanged','users_and_authentication_unchanged',
  'product_prices_and_stock_unchanged','existing_passports_unchanged','private_photo_files_unchanged'];
+const PETISH_CLUB_FIXTURE_RETIRE = ['target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
+ 'all_outbound_http_blocked','mail_calls_blocked','remote_file_access_disabled','cron_and_async_runner_disabled',
+ 'staging_database_separate','staging_guard_verified','jetpack_sync_isolated','fixture_journal_valid','owned_users_absent',
+ 'orders_unchanged','users_and_authentication_unchanged','product_prices_and_stock_unchanged',
+ 'existing_passports_unchanged','private_photo_files_unchanged','only_known_runtime_cache_drift',
+ 'theme_update_check_timestamp_verified','retirement_read_only','owned_guard_retired','browser_input_retired',
+ 'original_journal_retained'];
+const PETISH_CLUB_RUNTIME_CACHE_KEYS = ['action_scheduler_lock_async-request-runner','the7_plugins_last_check',
+ 'wcpay_account_data','wcpay_multi_currency_cached_currencies'];
 const PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS = ['settings_unchanged','single_added_option_identified',
  'diagnostic_write_attempt_blocked',
  'only_new_nonce_key_and_salt_identified',
@@ -79,7 +88,7 @@ function petish_club_verify_mark($name,$value) {
  global $report;
  $allowed=array_unique(array_merge(PETISH_CLUB_VERIFY_COMMON,PETISH_CLUB_VERIFY_STAGING,
   PETISH_CLUB_VERIFY_PRODUCTION,PETISH_CLUB_FIXTURE_PREPARE,PETISH_CLUB_FIXTURE_CLEANUP,
-  PETISH_CLUB_FIXTURE_DIAGNOSE,PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS,petish_club_verify_known_option_checks()));
+  PETISH_CLUB_FIXTURE_DIAGNOSE,PETISH_CLUB_FIXTURE_RETIRE,PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS,petish_club_verify_known_option_checks()));
  if(!in_array($name,$allowed,true)||!is_bool($value))petish_club_verify_fail();
  $report['checks'][$name]=$value;if(!$value)petish_club_verify_fail();
 }
@@ -125,6 +134,14 @@ function petish_club_verify_read_only_scope($bootstrap_blocked) {
  return is_int($bootstrap_blocked)&&$bootstrap_blocked>=0
   &&($GLOBALS['petish_club_blocked_write_count']??null)===$bootstrap_blocked
   &&has_filter('query','petish_club_verify_query_guard')===PHP_INT_MAX;
+}
+/** AS acquires its option lock before checking allow_async_request_runner. */
+function petish_club_verify_disable_async_dispatch() {
+ if(!class_exists('ActionScheduler_QueueRunner',false))return;
+ $runner=ActionScheduler_QueueRunner::instance();
+ if(!is_callable([$runner,'unhook_dispatch_async_request']))petish_club_verify_fail();
+ $runner->unhook_dispatch_async_request();
+ if(has_action('shutdown',[$runner,'maybe_dispatch_async_request'])!==false)petish_club_verify_fail();
 }
 function petish_club_verify_photo_state($root) {
  $base=dirname($root).'/private/petish-passport';$files=[];
@@ -252,6 +269,39 @@ function petish_club_verify_option_delta($before,$after) {
  foreach($old as$name=>$hash)if(!isset($new[$name]))$delta['removed'][]=['option_name'=>$name,'before_hash'=>$hash];
  return $delta;
 }
+/** Classify the retained failed run without restoring or accepting its settings. */
+function petish_club_verify_retirement_delta($before,$current) {
+ foreach(['orders','accounts','products','passports','photos']as$key)
+  if(!array_key_exists($key,$before)||!array_key_exists($key,$current)||$before[$key]!==$current[$key])return false;
+ if(!isset($before['settings_rows'],$before['settings'],$current['settings_rows'],$current['settings'])
+  ||!hash_equals($before['settings'],hash('sha256',json_encode($before['settings_rows'],JSON_THROW_ON_ERROR)))
+  ||!hash_equals($current['settings'],hash('sha256',json_encode($current['settings_rows'],JSON_THROW_ON_ERROR)))
+  ||hash_equals($before['settings'],$current['settings']))return false;
+ $delta=petish_club_verify_option_delta($before['settings_rows'],$current['settings_rows']);
+ $keys=array_column($delta['modified'],'option_name');sort($keys);
+ return !$delta['added']&&!$delta['removed']&&$keys===PETISH_CLUB_RUNTIME_CACHE_KEYS;
+}
+/** Trusted installed theme code must actually write this key as time(). */
+function petish_club_verify_theme_timestamp_source($root) {
+ $path=$root.'/wp-content/themes/dt-the7/inc/mods/tgmpa/tgmpa.php';
+ if(!petish_club_verify_path($path)||filesize($path)>2097152)return false;
+ $source=file_get_contents($path);if(!is_string($source)||!str_contains($source,'the7_plugins_last_check'))return false;
+  $tokens=array_values(array_filter(token_get_all($source,TOKEN_PARSE),static fn($token)=>!is_array($token)
+   ||!in_array($token[0],[T_WHITESPACE,T_COMMENT,T_DOC_COMMENT,T_OPEN_TAG],true)));
+  foreach($tokens as$i=>$token){
+   if(!is_array($token)||!in_array($token[0],[T_STRING,T_NAME_FULLY_QUALIFIED],true)
+    ||!in_array(strtolower($token[1]),['update_site_option','\\update_site_option'],true))continue;
+   $previous=$tokens[$i-1]??null;
+   if(is_array($previous)&&in_array($previous[0],[T_OBJECT_OPERATOR,T_DOUBLE_COLON,T_NULLSAFE_OBJECT_OPERATOR],true))continue;
+   $key=$tokens[$i+2]??null;$time=$tokens[$i+4]??null;
+   if(($tokens[$i+1]??null)==='('&&is_array($key)&&$key[0]===T_CONSTANT_ENCAPSED_STRING
+    &&in_array($key[1],["'the7_plugins_last_check'",'"the7_plugins_last_check"'],true)
+    &&($tokens[$i+3]??null)===','&&is_array($time)&&in_array($time[0],[T_STRING,T_NAME_FULLY_QUALIFIED],true)
+    &&in_array(strtolower($time[1]),['time','\\time'],true)&&($tokens[$i+5]??null)==='('
+    &&($tokens[$i+6]??null)===')'&&in_array($tokens[$i+7]??null,[')',','],true))return true;
+  }
+ return false;
+}
 function petish_club_verify_observe_options($run,$kind) {
  $GLOBALS['petish_club_option_events']=['format'=>'petish-club-option-events-v1','run'=>$run,'kind'=>$kind,'events'=>[]];
  $file=__DIR__.'/pet-club-'.$kind.'-option-events.json';
@@ -340,8 +390,9 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
  add_filter('pre_http_request',$http,PHP_INT_MAX,3);add_filter('pre_wp_mail',$mail,PHP_INT_MAX,2);
  add_action('phpmailer_init',$stop,PHP_INT_MAX);add_filter('action_scheduler_allow_async_request_runner',$false,PHP_INT_MAX);
  add_filter('action_scheduler_queue_runner_concurrent_batches',$zero,PHP_INT_MAX);
- add_action('wp_loaded',static function(){remove_all_actions('action_scheduler_run_queue');},PHP_INT_MAX);
+ add_action('wp_loaded',static function(){remove_all_actions('action_scheduler_run_queue');petish_club_verify_disable_async_dispatch();},PHP_INT_MAX);
  add_action('all',static function($hook)use($http,$mail,$stop,$false,$zero,$read_only,$target){
+  if($hook==='shutdown')petish_club_verify_disable_async_dispatch();
   if($read_only&&$hook==='query'){
    remove_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
    add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
@@ -372,7 +423,10 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
  petish_club_verify_mark('all_outbound_http_blocked',is_wp_error($blocked)&&$blocked->get_error_code()==='petish_club_verify_http_blocked');
  petish_club_verify_mark('mail_calls_blocked',apply_filters('pre_wp_mail',null,[])===true);
  petish_club_verify_mark('remote_file_access_disabled',!ini_get('allow_url_fopen'));
- petish_club_verify_mark('cron_and_async_runner_disabled',DISABLE_WP_CRON===true&&apply_filters('action_scheduler_allow_async_request_runner',true)===false&&apply_filters('action_scheduler_queue_runner_concurrent_batches',1)===0);
+ $async_absent=!class_exists('ActionScheduler_QueueRunner',false)
+  ||has_action('shutdown',[ActionScheduler_QueueRunner::instance(),'maybe_dispatch_async_request'])===false;
+ petish_club_verify_mark('cron_and_async_runner_disabled',DISABLE_WP_CRON===true&&apply_filters('action_scheduler_allow_async_request_runner',true)===false
+  &&apply_filters('action_scheduler_queue_runner_concurrent_batches',1)===0&&$async_absent);
  require_once __DIR__.'/email-branding-preview-remote.php';return $root;
 }
 function petish_club_verify_capture($callback) { ob_start();try{$callback();return ob_get_contents();}finally{ob_end_clean();} }

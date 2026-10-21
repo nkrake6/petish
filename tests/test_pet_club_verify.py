@@ -193,6 +193,74 @@ echo json_encode($out);
 """)
         self.assertEqual(result, [True] * 7)
 
+    def test_async_dispatch_is_unhooked_before_lock_acquisition(self):
+        result = self.php(r"""
+$GLOBALS['async_hooked']=true;
+class ActionScheduler_QueueRunner {
+ static function instance(){static $runner;return $runner??=new self;}
+ function unhook_dispatch_async_request(){$GLOBALS['async_hooked']=false;}
+}
+function has_action($hook,$callback){return $GLOBALS['async_hooked']?10:false;}
+petish_club_verify_disable_async_dispatch();$first=$GLOBALS['async_hooked']===false;
+$GLOBALS['async_hooked']=true;petish_club_verify_disable_async_dispatch();
+echo json_encode([$first,$GLOBALS['async_hooked']===false]);
+""")
+        self.assertEqual(result, [True, True])
+
+    def test_retirement_classifies_exact_four_modified_keys_without_normalizing(self):
+        result = self.php(r"""
+$before=array_fill_keys(['orders','accounts','products','passports','photos'],'same');$rows=[];
+foreach(PETISH_CLUB_RUNTIME_CACHE_KEYS as$key)$rows[]=['option_name'=>$key,'value_state'=>hash('sha256','before-'.$key)];
+$rows[]=['option_name'=>'unrelated_configuration','value_state'=>hash('sha256','untouched')];
+$before['settings_rows']=$rows;$before['settings']=hash('sha256',json_encode($rows,JSON_THROW_ON_ERROR));
+$current=$before;for($i=0;$i<4;$i++)$current['settings_rows'][$i]['value_state']=hash('sha256','after-'.$i);
+$rehash=static function(&$state){$state['settings']=hash('sha256',json_encode($state['settings_rows'],JSON_THROW_ON_ERROR));};$rehash($current);
+$copy=$before;$out=[petish_club_verify_retirement_delta($before,$current),$before===$copy];
+foreach(['extra-modified','added','removed','protected','only-three','invalid-baseline']as$mode){$old=$before;$new=$current;
+ if($mode==='extra-modified')$new['settings_rows'][4]['value_state']=hash('sha256','changed');
+ if($mode==='added')$new['settings_rows'][]=['option_name'=>'new_setting','value_state'=>hash('sha256','new')];
+ if($mode==='removed')array_pop($new['settings_rows']);
+ if($mode==='protected')$new['accounts']='changed';
+ if($mode==='only-three')$new['settings_rows'][0]=$old['settings_rows'][0];
+ if($mode==='invalid-baseline')$old['settings']=str_repeat('a',64);
+ $rehash($new);$out[]=!petish_club_verify_retirement_delta($old,$new);
+}
+$out[]=!in_array('settings_unchanged',PETISH_CLUB_FIXTURE_RETIRE,true)
+ &&!in_array('fixture_cleanup_verified',PETISH_CLUB_FIXTURE_RETIRE,true);
+echo json_encode($out);
+""")
+        self.assertEqual(result, [True] * 9)
+
+    def test_theme_timestamp_proof_uses_executable_canonical_source(self):
+        root = self.directory / 'wordpress'
+        source = root / 'wp-content/themes/dt-the7/inc/mods/tgmpa/tgmpa.php'
+        source.parent.mkdir(parents=True)
+        cases = [
+            ("<?php update_site_option('the7_plugins_last_check', time());", True),
+            ("<?php // update_site_option('the7_plugins_last_check', time());\n", False),
+            ('''<?php $str = "update_site_option('the7_plugins_last_check', time())";''', False),
+            ("<?php update_option('the7_plugins_last_check', time());", False),
+            ("<?php $object->update_site_option('the7_plugins_last_check', time());", False),
+            ("<?php update_site_option('the7_plugins_last_check', $value);", False),
+        ]
+        for contents, expected in cases:
+            source.write_text(contents)
+            actual = self.php("echo json_encode(petish_club_verify_theme_timestamp_source(" + repr(str(root)) + "));\n")
+            self.assertEqual(actual, expected)
+
+    def test_retirement_preserves_original_evidence_and_does_not_claim_cleanup(self):
+        source = FIXTURE.read_text()
+        retired = source[source.index('function petish_club_fixture_retire'):
+                         source.index('function petish_club_fixture_diagnose')]
+        self.assertIn("petish_club_jetpack_guard_remove($run)", retired)
+        self.assertIn("hash_equals($entry['sha256'],hash_file('sha256',$entry['path']))", retired)
+        self.assertIn("hash_equals($diagnostic_hash,hash_file('sha256',$diagnostic))", retired)
+        self.assertIn("($value['pet_id']??null)!==$state['pet_id']", retired)
+        self.assertNotIn("unlink($entry", retired)
+        self.assertNotIn("fixture_cleanup_verified", retired)
+        self.assertNotIn("settings_unchanged", retired)
+        self.assertIn("in_array($mode,['diagnose','retire'],true)", source)
+
     def test_private_files_reject_links_modes_and_replacement(self):
         result = self.php("$base=" + repr(str(self.directory)) + ";\n" + r"""
 $path=$base.'/state.json';petish_club_verify_write_json($path,['private'=>'fixture']);

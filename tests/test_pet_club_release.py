@@ -47,7 +47,7 @@ class PetClubReleaseTests(unittest.TestCase):
         return safe.screen(phase, path)
 
     def test_finite_complete_phases_pass(self):
-        for phase in ('inspect', 'apply', 'native', 'fixture', 'browser', 'cleanup', 'diagnose', 'verify', 'assets', 'health', 'rollback', 'commit'):
+        for phase in ('inspect', 'apply', 'native', 'fixture', 'browser', 'cleanup', 'diagnose', 'retire', 'verify', 'assets', 'health', 'rollback', 'commit'):
             value = self.raw(phase)
             report, passed = self.screen(phase, value)
             self.assertTrue(passed)
@@ -155,6 +155,14 @@ class PetClubReleaseTests(unittest.TestCase):
         self.assertEqual(evidence.validate(path),
                          {'verified': True, **{key: value for key, value in request.items() if key != 'format'}})
 
+    def test_successful_retirement_is_not_staging_release_evidence(self):
+        path, _, stage, _, _ = self.fixture()
+        stage['mode'] = 'cleanup'
+        stage['recovery_operation'] = 'retire'
+        stage['phases'] = {'retire': self.raw('retire')}
+        with self.assertRaises(ValueError):
+            evidence.validate(path)
+
     def test_wrong_source_or_unverified_native_phase_refuses(self):
         path, _, stage, _, _ = self.fixture()
         original = copy.deepcopy(stage)
@@ -259,6 +267,8 @@ class PetClubReleaseTests(unittest.TestCase):
                 ({**valid, 'password': 'private-sentinel'}, False),
                 ({**valid, 'encrypted_option_names': True}, True),
                 ({**valid, 'encrypted_option_names': 'true'}, False),
+                ({**valid, 'operation': 'retire'}, True),
+                ({**valid, 'operation': 'retire', 'encrypted_option_names': True}, False),
                 ({**valid, 'operation': 'cleanup', 'encrypted_option_names': True}, False), ({**valid, 'run_id': 42}, False)]:
             request.write_text(json.dumps(value))
             result = subprocess.run(['python3', '-c', script], cwd=self.directory, capture_output=True)
@@ -341,7 +351,8 @@ class PetClubReleaseTests(unittest.TestCase):
                 ('successful_rollback', 1, 0, ['rollback', 'remote_cleanup', 'publish:failure:prerequisites']),
                 ('successful_fixture', 0, 1, ['fixture_cleanup', 'stage_source', 'remote_cleanup', 'publish:success:complete']),
                 ('stale_staging_source', 0, 1, ['fixture_cleanup', 'stage_source', 'remote_cleanup', 'publish:failure:staging_source']),
-                ('diagnostic_only', 0, 0, ['publish:success:complete'])):
+                ('diagnostic_only', 0, 0, ['publish:success:complete']),
+                ('retirement_only', 0, 0, ['publish:success:complete'])):
             with self.subTest(scenario=scenario):
                 work = self.directory / scenario
                 work.mkdir()
@@ -349,7 +360,7 @@ class PetClubReleaseTests(unittest.TestCase):
                 script = '\n'.join([
                     'work=$1; log=$2; scenario=$3; rollback_needed=$4; fixture_cleanup_needed=$5',
                     'mode=staging; ssh_ready=1; fixture_cleanup_verified=0; operation_verified=1; failure_category=prerequisites',
-                    'retain_remote_tools=0; if [[ "$scenario" == diagnostic_only ]]; then retain_remote_tools=1; fi',
+                    'retain_remote_tools=0; if [[ "$scenario" == diagnostic_only || "$scenario" == retirement_only ]]; then retain_remote_tools=1; fi',
                     'remote_phase() { printf "rollback\\n" >> "$log"; [[ "$scenario" != failed_rollback ]]; }',
                     'fixture_phase() { printf "fixture_%s\\n" "$1" >> "$log"; [[ "$scenario" != failed_fixture ]]; }',
                     'verify_staging_source() { printf "stage_source\\n" >> "$log"; [[ "$scenario" != stale_staging_source ]]; }',
@@ -360,7 +371,7 @@ class PetClubReleaseTests(unittest.TestCase):
                 completed = subprocess.run(['bash', '-c', script, 'fixture', str(work), str(log),
                                             scenario, str(rollback), str(fixture)], capture_output=True)
                 self.assertEqual(log.read_text().splitlines(), expected)
-                self.assertEqual(completed.returncode, 0 if scenario in {'successful_fixture', 'diagnostic_only'} else 1)
+                self.assertEqual(completed.returncode, 0 if scenario in {'successful_fixture', 'diagnostic_only', 'retirement_only'} else 1)
                 self.assertFalse(work.exists())
 
     def test_sanitizer_contract_matches_native_constants(self):
@@ -375,6 +386,7 @@ class PetClubReleaseTests(unittest.TestCase):
         self.assertEqual(safe.FIXTURE, names('PETISH_CLUB_FIXTURE_PREPARE'))
         self.assertEqual(safe.CLEANUP, names('PETISH_CLUB_FIXTURE_CLEANUP'))
         self.assertEqual(safe.DIAGNOSE, names('PETISH_CLUB_FIXTURE_DIAGNOSE'))
+        self.assertEqual(safe.RETIRE, names('PETISH_CLUB_FIXTURE_RETIRE'))
         known = {'changed_known_option_' + key.replace('.', '_').replace('-', '_')
                  for key in names('PETISH_CLUB_KNOWN_OPTION_KEYS')}
         self.assertEqual(safe.DIAGNOSTIC_OBSERVATIONS, names('PETISH_CLUB_DIAGNOSTIC_OBSERVATIONS') | known)

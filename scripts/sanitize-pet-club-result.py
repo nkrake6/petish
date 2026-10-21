@@ -68,6 +68,16 @@ DIAGNOSE = {
     'jetpack_sync_isolated', 'staging_database_separate', 'staging_guard_verified', 'target_environment_verified',
     'target_paths_verified', 'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
 }
+RETIRE = {
+    'all_outbound_http_blocked', 'browser_input_retired', 'cron_and_async_runner_disabled',
+    'existing_passports_unchanged', 'fixture_journal_valid', 'jetpack_sync_isolated',
+    'mail_calls_blocked', 'only_known_runtime_cache_drift', 'orders_unchanged',
+    'original_journal_retained', 'owned_guard_retired', 'owned_users_absent',
+    'private_photo_files_unchanged', 'product_prices_and_stock_unchanged', 'remote_file_access_disabled',
+    'retirement_read_only', 'staging_database_separate', 'staging_guard_verified',
+    'target_environment_verified', 'target_paths_verified', 'theme_update_check_timestamp_verified',
+    'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
+}
 DIAGNOSTIC_OBSERVATIONS = {
     'option_names_code_literals_verified',
     'added_option_other', 'added_option_petish',
@@ -135,7 +145,7 @@ ASSETS = {'pet_club_script_http_verified', 'pet_club_stylesheet_http_verified'}
 REQUIRED = {
     **{phase: navigation.REQUIRED[phase] for phase in ('inspect', 'apply', 'rollback', 'commit')},
     'preflight': PREFLIGHT, 'native': STAGING, 'verify': VERIFY,
-    'fixture': FIXTURE, 'browser': BROWSER, 'cleanup': CLEANUP, 'diagnose': DIAGNOSE,
+    'fixture': FIXTURE, 'browser': BROWSER, 'cleanup': CLEANUP, 'diagnose': DIAGNOSE, 'retire': RETIRE,
     'health': navigation.email.HEALTH_CHECKS, 'assets': ASSETS,
 }
 REQUIRED['apply'] = REQUIRED['apply'] | {'maintenance_guard_created', 'maintenance_guard_removed'}
@@ -143,7 +153,7 @@ REQUIRED['rollback'] = REQUIRED['rollback'] | {'maintenance_guard_removed'}
 REQUIRED['commit'] = REQUIRED['commit'] | {'maintenance_guard_removed'}
 CATEGORIES = {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'guard_receipt',
     'guard_pending', 'guard_publish', 'guard_verified'} | navigation.CATEGORIES | {'snapshot','verification','renderer','catalogue','fixture',
-    'maintenance','native','cleanup','diagnose','isolation','bootstrap','registration','routes','privacy',
+    'maintenance','native','cleanup','diagnose','retire','isolation','bootstrap','registration','routes','privacy',
     'contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'}
 
 

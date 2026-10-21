@@ -4,6 +4,52 @@ if (PHP_SAPI !== 'cli') exit(1);
 define('PETISH_CLUB_VERIFY_LIBRARY',true);
 require __DIR__.'/verify-pet-club.php';
 require __DIR__.'/pet-club-jetpack-guard.php';
+/** Retire owned files only. The failed settings proof and journal stay intact. */
+function petish_club_fixture_retire($root,$run) {
+ global $report,$wpdb;
+ $report['category']='retire';$states=[];
+ foreach(['native','browser']as$kind){$path=petish_club_verify_fixture_state_path($kind);
+  if(!file_exists($path)&&!is_link($path))continue;
+  $state=petish_club_verify_read_json($path);petish_club_verify_fixture_owned($state,$run,$kind);
+  $states[]=['path'=>$path,'sha256'=>hash_file('sha256',$path),'state'=>$state];
+ }
+ petish_club_verify_mark('fixture_journal_valid',count($states)===1&&$states[0]['state']['kind']==='browser');
+ $entry=$states[0];$state=$entry['state'];
+ $diagnostic=__DIR__.'/pet-club-diagnostic.json';$diagnostic_hash=null;
+ if(file_exists($diagnostic)||is_link($diagnostic)){
+  $details=petish_club_verify_read_json($diagnostic);
+  if(($details['format']??'')!=='petish-club-diagnostic-v1'||($details['run']??'')!==$run||($details['kind']??'')!=='browser')petish_club_verify_fail();
+  $diagnostic_hash=hash_file('sha256',$diagnostic);
+ }
+ foreach($state['users']as$user)if(get_user_by('login',$user['login']))petish_club_verify_fail();
+ petish_club_verify_mark('owned_users_absent',true);
+ $current=petish_club_verify_state($root);$before=$state['before'];
+ foreach(['orders_unchanged'=>'orders','users_and_authentication_unchanged'=>'accounts',
+  'product_prices_and_stock_unchanged'=>'products','existing_passports_unchanged'=>'passports',
+  'private_photo_files_unchanged'=>'photos']as$check=>$key)petish_club_verify_mark($check,$before[$key]===$current[$key]);
+ petish_club_verify_mark('only_known_runtime_cache_drift',petish_club_verify_retirement_delta($before,$current));
+ $timestamp=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM `{$wpdb->options}` WHERE BINARY option_name=%s",'the7_plugins_last_check'));
+ petish_club_verify_mark('theme_update_check_timestamp_verified',!is_multisite()&&is_string($timestamp)&&preg_match('/\A[0-9]{10}\z/D',$timestamp)
+  &&(int)$timestamp>=946684800&&(int)$timestamp<=time()+60&&petish_club_verify_theme_timestamp_source($root));
+ $input=__DIR__.'/pet-club-browser-input.json';
+ if(file_exists($input)||is_link($input)){
+  $value=petish_club_verify_read_json($input);
+  if(($value['format']??'')!=='petish-club-browser-v1'||($value['run']??'')!==$run
+   ||($value['owner']??null)!==$state['users']['owner']||($value['member']??null)!==$state['users']['member']
+   ||($value['pet_id']??null)!==$state['pet_id']||($value['photo_moment_id']??null)!==$state['moments']['photo']
+   ||($value['journal_moment_id']??null)!==$state['moments']['journal'])petish_club_verify_fail();
+ }
+ petish_club_verify_mark('retirement_read_only',has_filter('query','petish_club_verify_query_guard')===PHP_INT_MAX);
+ petish_club_jetpack_guard_remove($run);petish_club_verify_mark('owned_guard_retired',true);
+ if((file_exists($input)||is_link($input))&&!unlink($input))petish_club_verify_fail();
+ petish_club_verify_mark('browser_input_retired',!file_exists($input)&&!is_link($input));
+ // Compare against the current state only to prove artifact retirement itself
+ // changed no database state; the original settings mismatch stays unresolved.
+ if(petish_club_verify_state($root)!==$current)petish_club_verify_fail();
+ petish_club_verify_mark('original_journal_retained',petish_club_verify_path($entry['path'])
+  &&hash_equals($entry['sha256'],hash_file('sha256',$entry['path']))
+  &&($diagnostic_hash===null||(petish_club_verify_path($diagnostic)&&hash_equals($diagnostic_hash,hash_file('sha256',$diagnostic)))));
+}
 function petish_club_fixture_diagnose($root,$run) {
  global $report;
  $report['category']='diagnose';$states=[];
@@ -84,13 +130,15 @@ function petish_club_fixture_main($argv) {
  global $report;
  petish_club_verify_report_start();
  try {
-  if(count($argv)!==3||!in_array($argv[1],['prepare','cleanup','diagnose'],true)||!petish_club_verify_run($argv[2]))petish_club_verify_fail();
+  if(count($argv)!==3||!in_array($argv[1],['prepare','cleanup','diagnose','retire'],true)||!petish_club_verify_run($argv[2]))petish_club_verify_fail();
   $mode=$argv[1];$run=$argv[2];
   if($mode==='prepare')petish_club_jetpack_guard_verify($run);
-  $root=petish_club_verify_bootstrap('staging',$mode==='diagnose');
+  $root=petish_club_verify_bootstrap('staging',in_array($mode,['diagnose','retire'],true));
   if($mode==='prepare'&&(!defined('PETISH_PET_CLUB_JETPACK_GUARD_RUN')||PETISH_PET_CLUB_JETPACK_GUARD_RUN!==$run))petish_club_verify_fail();
   $input=__DIR__.'/pet-club-browser-input.json';
-  if($mode==='diagnose') {
+  if($mode==='retire') {
+   petish_club_fixture_retire($root,$run);$expected=PETISH_CLUB_FIXTURE_RETIRE;
+  } elseif($mode==='diagnose') {
    petish_club_fixture_diagnose($root,$run);$expected=PETISH_CLUB_FIXTURE_DIAGNOSE;
   } elseif($mode==='prepare') {
    $report['category']='fixture';
