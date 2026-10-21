@@ -97,8 +97,12 @@ for the current cloud workflow. The Mac setup below is archived history.
   [three interactive layout mockups](https://nkrake6.github.io/petish/review-concepts/)
   are ready for design choice. Green replaces lavender only for the 100-review
   Regular Reviewer badge and profile ring; general lavender styling is retained.
-  The mockups use fictional data; no review,
-  voting, upload or reward features have been enabled on the live store.
+  The owner confirmed product reviews below description/details, linked from
+  the rating summary near the product title. Reviewer studio now previews
+  separate published/pending review counts and Helpful/Not helpful totals
+  received, visible on desktop and mobile. Reactions do not affect status.
+  The mockups use fictional data; no review, voting, upload or reward features
+  have been enabled on the live store.
 
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
 passed on source `3012a27`; the production release above matches its exact 18

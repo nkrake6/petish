@@ -27,6 +27,12 @@ The local DM Sans font and its licence are in `../cart-badge-preview/assets/`.
 Recommended combination: Product stories on product pages and Reviewer studio
 under My Account. Community wall is an alternative discovery experience.
 
+The Reviewer studio shows published and pending review counts separately, plus
+Helpful (likes received) and Not helpful (dislikes received) totals. All four
+are visible on mobile. The fictional example has 97 published reviews, 3
+pending, 248 Helpful and 12 Not helpful reactions. Votes do not affect status;
+the milestone progress bar remains based on qualifying approved reviews.
+
 Local Chromium checks covered 320, 390, 768 and 1440px widths without horizontal
 overflow, all image loads, preview voting/filtering/sorting, dialogs, form
 confirmation, sample attachments and the gallery. All requests stayed on the

@@ -22,6 +22,11 @@ content and preview-only interactions; no programme features are enabled.
 - The delivery benefit has a minimum spend and a cost cap. Amounts and the
   treatment of charges above the cap are not decided.
 - Other customers can react positively or negatively to a review.
+- Reviews appear below the product description and details. The rating summary
+  near the product title links to the review section.
+- The reviewer dashboard shows review counts and likes/dislikes received.
+- The 100-review Regular Reviewer badge and profile ring are green; the general
+  lavender styling remains unchanged.
 
 ## Suggested customer experience
 
@@ -50,6 +55,24 @@ Public ratings should average approved ratings without giving higher-status
 members extra weight. Offer newest, rating, verified purchase and media filters.
 Keep each review tied to the product/variant actually discussed; record the
 variant even if the counting rule groups variants under their parent product.
+
+## Reviewer dashboard counts
+
+Show published and pending reviews separately, alongside **Helpful (likes)** and
+**Not helpful (dislikes)** totals received on the customer's published reviews.
+Keep all four counts visible on desktop and mobile. Retain reactions received
+on each published review in the customer's review list.
+
+The milestone progress bar shows qualifying approved contributions, separate
+from submission counts. Pending reviews and reaction totals do not advance a
+member's status or change their benefits. These reaction counters represent
+feedback received, not reactions the customer has given to other people.
+
+Recommended counting behaviour: count each review once in its current status;
+edits do not create another review. Count each voter's current valid choice,
+update both totals when they switch or withdraw it, and exclude invalidated
+votes and non-public reviews from the displayed reaction totals. Lifetime
+reward-credit retention is a separate policy still to be settled.
 
 ## Suggested milestone presentation
 
