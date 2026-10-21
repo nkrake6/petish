@@ -1,0 +1,55 @@
+{
+  "status": "in_progress",
+  "category": "inspect",
+  "mode": "inspect",
+  "run_id": "39589074773-1",
+  "source_commit": "c931434faaf7e36096e240c57c5636a830c246a1",
+  "generated_utc": "2026-10-21T11:03:19.146939+00:00",
+  "source_hashes": {
+    "assets/css/cart-badge.css": "e1e39ccad9b779d909946a8755363b435e2647176aa2277a7c2d58c61f7498c7",
+    "assets/css/home.css": "dc4f3606341c2eb44df505c54a192e07d2771e90a9e09c102ac2a6983789bd23",
+    "assets/css/market-selector.css": "0ff5c3d46eb4e400a613f721a1e1e1349d4f30b13edd46875eab75c7287fcee0",
+    "assets/css/petish.css": "71025e0f3c1b2fb3e70ce9be5ee85d3934269205b019be4d29e05e12331c24dc",
+    "assets/images/ui/country-flags.LICENSE.txt": "ca3b5f1132bd18fa0b6833d55fad881de51f25a0aac8cc8df89b56d93604c974",
+    "assets/images/ui/country-flags.svg": "ce61ad3847cdb156c2b5c6775921e1a8dbc2a40c94a2c7cd8b3ff93da939bf87",
+    "assets/images/ui/free-delivery-van.png": "4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af",
+    "assets/js/cart-badge.js": "3b8d1bd89142ccc846bc019383ff5f97eae0cc16270b242f0adfa5503c290bc7",
+    "assets/js/for-your-pet.js": "29cd41f2e0a646234fefea9d3a73bb2c53ebc11cb07f1362ca406a7ca9d22a0a",
+    "assets/js/market-selector.js": "dd59c4d4c17aa415e4c504a71fc31eb94d4349a8e69b0a838bd13d7b58a871ca",
+    "assets/js/theme.js": "677d7718c3e3d7385990ba59fcb21431589a08695bd34076bbc5e6bf1b2e3852",
+    "front-page.php": "7336764e7da8fc56132584564da7e4fe28da7fdec1839775dd131469b7f3f924",
+    "functions.php": "ef3372a1d00a28eb952953eaefb3793b82361195aa0d773373006aa5dfee170b",
+    "includes/cart-badge.php": "04987502e37e3c11ce669168c214078861906baff98add7e013c4b2b2dc14dc8",
+    "includes/for-your-pet.php": "eb3b9d59c63642770366db0c5c0d3375f4ce16539f0b94df01d12b7e87e54aa8",
+    "includes/header-navigation.php": "379531f871fd87aedb64f63b0b9bb2b4ba381f2e9b072eafad86edfbd90ac804",
+    "includes/market-selector.php": "d7675c569e4659b27c58aa686c4f372906224f8c9f0435843673dce47cf84147",
+    "includes/supplier-popularity.php": "54ef94d249292953c41a81291a5b5eb3f0760ef290f6ee19de79c691747b2e2b"
+  },
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "paths_verified": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "candidate_badge_png_verified": true,
+        "production_config_present": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false,
+        "maintenance_guard_created": false,
+        "maintenance_guard_removed": false
+      },
+      "changed_file_count": 4
+    }
+  },
+  "preparation_stage": "complete"
+}
