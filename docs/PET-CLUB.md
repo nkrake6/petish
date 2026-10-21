@@ -75,4 +75,23 @@ available for recovery. A retry for the same run checks the persisted guard
 receipt before adopting it. Unrelated guards and concurrent customer photo
 changes are preserved. Normal apply and rollback remove the owned guard.
 
+The staging rehearsal pauses Jetpack Sync only for its isolated test requests,
+without changing stored Jetpack settings or clearing existing queues. A temporary
+owned MU guard covers browser requests. Hostinger disables PHP's `link()` function,
+so the pinned SSH connection publishes that guard; PHP verifies its receipt,
+digest and inode before loading WordPress. Cleanup removes the guard and owned
+fixtures and requires the original protected-state hashes to match. Recovery of
+older test queues accepts only events tied to the exact fixture identities and
+only when their removal restores the original settings snapshot.
+
+Browser rehearsal also pauses Action Scheduler's asynchronous dispatcher and
+refreshes of the two WooPayments runtime caches and The7's plugin-check
+timestamp. These controls are temporary request filters; they do not rewrite
+stored values or exclude anything from the final settings comparison. The first
+successful browser exercise, run `39519271900-1`, remains recorded as a failed
+cleanup because those four runtime entries changed. Retirement
+`39520554535-1` removed its owned browser guard/input without database changes
+and retained its original private journal and diagnostic evidence. Retirement
+does not count as a passing staging release.
+
 Release evidence will be recorded here after the hosted checks complete.

@@ -52,6 +52,38 @@ CODE
  add_filter('jetpack_sync_listener_should_load','__return_false',PHP_INT_MAX);
  add_filter('jetpack_sync_sender_should_load','__return_false',PHP_INT_MAX);
  add_filter('pre_option_jetpack_sync_settings_disable','__return_true',PHP_INT_MAX);
+ // These exact runtime caches are unrelated to pet features. Prevent refresh
+ // writes during this owned fixture; never restore or normalize stored values.
+ $preserve=static fn($value,$old_value)=>$old_value;
+ $keys=['wcpay_account_data','wcpay_multi_currency_cached_currencies','the7_plugins_last_check'];
+ $preserve_global=static fn($value,$option,$old_value)=>in_array($option,$keys,true)?$old_value:$value;
+ add_filter('pre_update_option',$preserve_global,PHP_INT_MAX,3);
+ $frozen=['pre_update_option_wcpay_account_data','pre_update_option_wcpay_multi_currency_cached_currencies',
+  'pre_update_option_the7_plugins_last_check','pre_update_site_option_the7_plugins_last_check'];
+ foreach($frozen as$hook)add_filter($hook,$preserve,PHP_INT_MAX,2);
+ $http=static fn()=>new WP_Error('petish_club_verify_http_blocked','Pet Club verification blocks outbound requests.');
+ $zero=static fn()=>0;
+ add_filter('pre_http_request',$http,PHP_INT_MAX,3);
+ add_filter('action_scheduler_allow_async_request_runner','__return_false',PHP_INT_MAX);
+ add_filter('action_scheduler_queue_runner_concurrent_batches',$zero,PHP_INT_MAX);
+ $stop_async_dispatch=static function(){
+  if(!class_exists('ActionScheduler_QueueRunner',false))return;
+  $runner=ActionScheduler_QueueRunner::instance();
+  if(is_callable([$runner,'unhook_dispatch_async_request']))$runner->unhook_dispatch_async_request();
+ };
+ add_action('wp_loaded',$stop_async_dispatch,PHP_INT_MAX);
+ // Action Scheduler acquires its lock before its async-allow filter. Remove
+ // its public dispatcher before shutdown, including a later re-registration.
+ add_action('all',static function($hook)use($frozen,$preserve,$preserve_global,$http,$zero,$stop_async_dispatch){
+  if($hook==='shutdown')$stop_async_dispatch();
+  if(in_array($hook,$frozen,true)){
+   remove_filter($hook,$preserve,PHP_INT_MAX);add_filter($hook,$preserve,PHP_INT_MAX,2);
+  }
+  foreach(['pre_update_option'=>[$preserve_global,3],'pre_http_request'=>[$http,3],
+   'action_scheduler_allow_async_request_runner'=>['__return_false',1],
+   'action_scheduler_queue_runner_concurrent_batches'=>[$zero,1]]as$name=>$entry)
+   if($hook===$name){remove_filter($name,$entry[0],PHP_INT_MAX);add_filter($name,$entry[0],PHP_INT_MAX,$entry[1]);}
+ },PHP_INT_MAX,1);
  define('PETISH_PET_CLUB_JETPACK_GUARD_RUN',$run);
 })();
 CODE

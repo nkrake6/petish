@@ -50,7 +50,8 @@ class PetClubJetpackGuardTests(unittest.TestCase):
 
     def runtime(self, environment='staging', guard_active=True, root_override=None):
         code = '''$filters=[]; function wp_get_environment_type(){return $GLOBALS['environment'];}
-function add_filter($key,$callback,$priority){$GLOBALS['filters'][$key]=$callback;}
+function add_filter($key,$callback,$priority){$GLOBALS['filters'][$key]=is_string($callback)?$callback:'closure';}
+function add_action($key,$callback,$priority){}
 function __return_false(){return false;} function __return_true(){return true;}
 define('ABSPATH',$argv[4].'/');define('PETISH_STAGING_GUARD_ACTIVE',$argv[3]==='yes');
 $GLOBALS['environment']=$argv[2];require $argv[1].'/wp-content/mu-plugins/zz-petish-pet-club-fixture.php';
@@ -70,12 +71,74 @@ echo json_encode(['filters'=>$filters,'run'=>defined('PETISH_PET_CLUB_JETPACK_GU
         self.assertEqual(self.runtime(), {'filters': {
             'jetpack_sync_listener_should_load': '__return_false',
             'jetpack_sync_sender_should_load': '__return_false',
-            'pre_option_jetpack_sync_settings_disable': '__return_true'}, 'run': RUN})
+            'pre_option_jetpack_sync_settings_disable': '__return_true', 'pre_update_option': 'closure',
+            'pre_update_option_wcpay_account_data': 'closure',
+            'pre_update_option_wcpay_multi_currency_cached_currencies': 'closure',
+            'pre_update_option_the7_plugins_last_check': 'closure',
+            'pre_update_site_option_the7_plugins_last_check': 'closure',
+            'pre_http_request': 'closure', 'action_scheduler_allow_async_request_runner': '__return_false',
+            'action_scheduler_queue_runner_concurrent_batches': 'closure'}, 'run': RUN})
         self.php('petish_club_jetpack_guard_remove($argv[2]);')
         self.assertFalse(self.guard.exists())
         self.assertFalse(self.receipt.exists())
         self.assertEqual(self.baseline_guard.read_bytes(), before)
         self.php('petish_club_jetpack_guard_remove($argv[2]);')
+
+    def test_runtime_isolation_preserves_exact_caches_and_stops_async_and_http(self):
+        self.install()
+        code = r"""$hooks=[];
+function callback_id($cb){return is_string($cb)?$cb:(is_array($cb)?spl_object_id($cb[0]).$cb[1]:spl_object_id($cb));}
+function add_filter($name,$cb,$priority=10,$args=1){$GLOBALS['hooks'][$name][$priority][callback_id($cb)]=[$cb,$args];}
+function add_action($name,$cb,$priority=10,$args=1){add_filter($name,$cb,$priority,$args);}
+function remove_filter($name,$cb,$priority=10){unset($GLOBALS['hooks'][$name][$priority][callback_id($cb)]);}
+function remove_action($name,$cb,$priority=10){remove_filter($name,$cb,$priority);}
+function invoke_all($name){$groups=$GLOBALS['hooks']['all']??[];ksort($groups);foreach($groups as$items)foreach($items as[$cb,$count])$cb($name);}
+function apply_filters($name,$value,...$args){invoke_all($name);$groups=$GLOBALS['hooks'][$name]??[];ksort($groups);
+ foreach($groups as$items)foreach($items as[$cb,$count])$value=$cb(...array_slice([$value,...$args],0,$count));return $value;}
+function do_action($name){invoke_all($name);$groups=$GLOBALS['hooks'][$name]??[];ksort($groups);
+ foreach($groups as$items)foreach($items as[$cb,$count])$cb();}
+function __return_false(){return false;}function __return_true(){return true;}
+function wp_get_environment_type(){return 'staging';}
+class WP_Error{private $code;function __construct($code,$message){$this->code=$code;}function get_error_code(){return $this->code;}}
+class TestCache{public $disabled=false;public $calls=0;function disable_refresh(){$this->disabled=true;$this->calls++;}}
+class WC_Payments{public static $cache;static function get_database_cache(){return self::$cache;}}
+class ActionScheduler_QueueRunner{private static $runner;public $lock_writes=0;
+ static function instance(){return self::$runner??=new self;}
+ function hook(){add_action('shutdown',[$this,'maybe_dispatch_async_request']);}
+ function maybe_dispatch_async_request(){$this->lock_writes++;}
+ function unhook_dispatch_async_request(){remove_action('shutdown',[$this,'maybe_dispatch_async_request']);}}
+define('ABSPATH',$argv[1].'/');define('PETISH_STAGING_GUARD_ACTIVE',true);
+WC_Payments::$cache=new TestCache;
+require $argv[1].'/wp-content/mu-plugins/zz-petish-pet-club-fixture.php';
+$runner=ActionScheduler_QueueRunner::instance();$runner->hook();
+do_action('plugins_loaded');do_action('wp_loaded');$runner->hook();do_action('shutdown');
+$keys=['wcpay_account_data','wcpay_multi_currency_cached_currencies','the7_plugins_last_check'];
+$old=['data'=>['currency'=>'AUD'],'fetched'=>123,'errored'=>false,'consecutive_errors'=>0];$new=['data'=>'changed'];
+$checks=['other_cache_refresh_unchanged'=>!WC_Payments::$cache->disabled&&WC_Payments::$cache->calls===0,
+ 'async_lock_untouched'=>$runner->lock_writes===0,'exact_options_preserved'=>true];
+// Even later callbacks cannot replace the owned cache values after the guard.
+add_filter('pre_update_option',static fn($v)=>['changed'=>'late-global'],PHP_INT_MAX,3);
+foreach($keys as$key){add_filter('pre_update_option_'.$key,static fn($v)=>['changed'=>'late-key'],PHP_INT_MAX,2);
+ $value=apply_filters('pre_update_option_'.$key,$new,$old);
+ $value=apply_filters('pre_update_option',$value,$key,$old);
+ $checks['exact_options_preserved']=$checks['exact_options_preserved']&&$value===$old;}
+$checks['site_timestamp_preserved']=apply_filters('pre_update_site_option_the7_plugins_last_check',999999,123456)===123456;
+remove_filter('pre_update_option',array_values($hooks['pre_update_option'][PHP_INT_MAX])[0][0],PHP_INT_MAX);
+$checks['unrelated_app_option_writable']=apply_filters('pre_update_option','new-app-value','petish_club_app_option','old-app-value')==='new-app-value';
+add_filter('pre_http_request','__return_false',PHP_INT_MAX,3);
+$http=apply_filters('pre_http_request',false,[],'https://example.invalid/');
+$checks['outbound_http_blocked']=$http instanceof WP_Error&&$http->get_error_code()==='petish_club_verify_http_blocked';
+add_filter('action_scheduler_allow_async_request_runner','__return_true',PHP_INT_MAX);
+$checks['async_stays_disabled']=apply_filters('action_scheduler_allow_async_request_runner',true)===false
+ &&apply_filters('action_scheduler_queue_runner_concurrent_batches',3)===0;
+echo json_encode($checks);
+"""
+        result = subprocess.run([PHP, '-d', 'display_errors=0', '-r', code, str(self.root)],
+                                env=self.environment, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        checks = json.loads(result.stdout)
+        self.assertEqual(len(checks), 7)
+        self.assertTrue(all(checks.values()), checks)
 
     def test_runtime_is_inert_without_staging_and_matching_receipt(self):
         self.install()
