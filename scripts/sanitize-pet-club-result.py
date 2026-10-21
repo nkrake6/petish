@@ -18,7 +18,7 @@ def module(name):
 navigation = module('sanitize-account-navigation-result')
 DEPLOY = navigation.DEPLOY | {'maintenance_guard_created', 'maintenance_guard_removed'}
 PREFLIGHT = navigation.PREFLIGHT
-FILE_COUNT = 14
+FILE_COUNT = 15
 STAGING = {
     'all_outbound_http_blocked', 'anonymous_heart_denied', 'biography_and_traits_saved',
     'cron_and_async_runner_disabled', 'existing_passports_unchanged', 'explicit_public_snapshot_created',
@@ -141,7 +141,7 @@ BROWSER = {
     'tabs_keyboard_verified', 'tabs_mouse_verified', 'unpublish_verified',
     'unsafe_requests_blocked',
 }
-ASSETS = {'pet_club_script_http_verified', 'pet_club_stylesheet_http_verified'}
+ASSETS = {'pet_club_script_http_verified', 'pet_club_stylesheet_http_verified', 'pet_club_catalogue_stylesheet_http_verified'}
 REQUIRED = {
     **{phase: navigation.REQUIRED[phase] for phase in ('inspect', 'apply', 'rollback', 'commit')},
     'preflight': PREFLIGHT, 'native': STAGING, 'verify': VERIFY,

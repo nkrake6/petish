@@ -1,4 +1,4 @@
-"""Exercise the fourteen-file transaction against disposable filesystem fixtures."""
+"""Exercise the fifteen-file transaction against disposable filesystem fixtures."""
 import hashlib
 import json
 import os
@@ -19,10 +19,8 @@ spec = importlib.util.spec_from_file_location('club_evidence', ROOT / 'scripts/v
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
-BASELINE = '5a0255b96591df8840f19b0371938b5ef87f1661'
-EXISTING = ['assets/passport.js', 'includes/class-petish-passport-media.php',
-    'includes/class-petish-passport-store.php', 'includes/class-petish-passport-ui.php',
-    'templates/dashboard.php', 'templates/form.php', 'templates/delete.php', 'petish-passport.php']
+BASELINE = '5117f7ab0c84c475fc3ec657e44254b325853b9e'
+EXISTING = list(FILES)
 
 
 
@@ -127,11 +125,12 @@ class PetClubDeployTests(unittest.TestCase):
             backup = release / ('backup/' + str(FILES.index(name)))
             self.assertEqual(backup.read_bytes(), original)
             self.assertEqual(backup.stat().st_mode & 0o777, 0o600)
-        self.assertFalse((release / 'backup/0').exists())
+        self.assertEqual({item.name for item in (release / 'backup').iterdir()},
+                         {str(FILES.index(name)) for name in self.originals})
         self.assertTrue(self.execute('commit')['checks']['release_committed'])
         self.assertEqual(self.execute('rollback')['status'], 'failure')
 
-    def test_rollback_restores_bootstrap_removes_new_helpers_and_can_verify_retry(self):
+    def test_rollback_restores_deployed_files_and_can_verify_retry(self):
         before = self.snapshot()
         self.assertEqual(self.execute('apply')['status'], 'success')
         self.assertTrue(self.execute('rollback')['checks']['rollback_completed'])

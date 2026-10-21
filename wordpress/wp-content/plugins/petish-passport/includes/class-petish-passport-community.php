@@ -33,6 +33,7 @@ final class Petish_Passport_Community {
         return new WP_Error($code, __($message, 'petish-passport'));
     }
     private static function token_valid($token) { return is_string($token) && 1 === preg_match('/\A[a-f0-9]{32}\z/D', $token); }
+    private static function variety_valid($value) { return is_string($value) && 1 === preg_match('/\A.{0,60}\z/usD', $value); }
     private static function id_valid($value) { return (is_int($value) && $value > 0) || (is_string($value) && 1 === preg_match('/\A[1-9][0-9]{0,17}\z/D', $value)); }
     private static function file_key_valid($key, $uid) {
         return is_string($key) && 1 === preg_match('#\A' . preg_quote((string) absint($uid), '#') . '/[a-f0-9]{48}\.(?:jpg|png|webp)\z#D', $key);
@@ -85,6 +86,7 @@ final class Petish_Passport_Community {
         if (!is_array($value) || !self::token_valid($value['token'] ?? null)
             || get_post_meta($pet_id, self::TOKEN, true) !== $value['token']) return false;
         foreach (array('name', 'species', 'age', 'bio', 'photo', 'published') as $key) if (!isset($value[$key]) || !is_string($value[$key])) return false;
+        if (array_key_exists('variety', $value) && !self::variety_valid($value['variety'])) return false;
         if (!is_array($value['traits'] ?? null) || count($value['traits']) > 3 || !is_array($value['moments'] ?? null) || count($value['moments']) > 12) return false;
         if (!isset(Petish_Passport_Store::species()[$value['species']]) || ($value['age'] !== '' && !isset(Petish_Passport_Store::ages()[$value['age']]))) return false;
         if ($value['photo'] !== '' && !self::file_key_valid($value['photo'], $post->post_author)) return false;
@@ -144,6 +146,8 @@ final class Petish_Passport_Community {
         return self::with_pet_lock($pet_id, static function() use ($pet_id, $uid, $share_age, $moment_ids) {
             $pet = Petish_Passport_Store::get($pet_id, $uid);
             if (is_wp_error($pet)) return $pet;
+            $variety = Petish_Passport_Store::variety_label($pet);
+            if (!self::variety_valid($variety)) return self::error('petish_club_input', 'Choose a breed or variety of no more than 60 characters before sharing.');
             wp_cache_delete($uid, 'user_meta');
             if (!self::actor_available($uid)) return self::error('petish_club_signin', 'Your account is not available for sharing.');
             if (get_post_meta($pet_id, self::BLOCKED, true)) return self::error('petish_club_moderated', 'Sharing is paused while this Passport is reviewed.');
@@ -164,7 +168,7 @@ final class Petish_Passport_Community {
             try {
                 $token = $old ? $old['snapshot']['token'] : bin2hex(random_bytes(16));
                 $snapshot = array('token' => $token, 'name' => $pet['name'], 'species' => $pet['species'],
-                    'age' => $share_age ? $pet['age'] : '', 'bio' => $pet['bio'] ?? '', 'traits' => $pet['traits'] ?? array(),
+                    'variety' => $variety, 'age' => $share_age ? $pet['age'] : '', 'bio' => $pet['bio'] ?? '', 'traits' => $pet['traits'] ?? array(),
                     'photo' => '', 'moments' => array(), 'published' => gmdate('Y-m-d H:i:s'));
                 if ($pet['photo'] !== '') {
                     $copy = Petish_Passport_Media::duplicate($pet['photo'], $uid, $before_copy);
@@ -265,7 +269,7 @@ final class Petish_Passport_Community {
         foreach ($snapshot['moments'] as $moment) $moments[] = array('token' => $moment['token'], 'kind' => $moment['kind'],
             'caption' => $moment['caption'], 'photo_url' => $moment['photo'] !== '' ? self::photo_url($snapshot['token'], $moment['token']) : '', 'created' => $moment['created']);
         return array('token' => $snapshot['token'], 'url' => self::url($snapshot['token']), 'name' => $snapshot['name'], 'species' => $snapshot['species'],
-            'age' => $snapshot['age'], 'bio' => $snapshot['bio'], 'traits' => array_values($snapshot['traits']),
+            'variety' => $snapshot['variety'] ?? '', 'age' => $snapshot['age'], 'bio' => $snapshot['bio'], 'traits' => array_values($snapshot['traits']),
             'photo_url' => $snapshot['photo'] !== '' ? self::photo_url($snapshot['token']) : '', 'moments' => $moments,
             'published' => $snapshot['published'], 'hearts' => self::heart_count($raw['pet_id']),
             'hearted' => $uid > 0 && false !== get_option(self::HEART . $raw['pet_id'] . '_' . $uid, false),
@@ -480,7 +484,7 @@ final class Petish_Passport_Community {
                 continue;
             }
             $data = array(array('name' => 'Sharing', 'value' => $raw ? 'Public' : ($blocked ? 'Paused by moderation; cleanup pending' : 'Off; cleanup pending')));
-            foreach (array('name', 'species', 'age', 'bio', 'published') as $field) if (isset($snapshot[$field]) && is_string($snapshot[$field])) $data[] = array('name' => ucfirst($field), 'value' => $snapshot[$field]);
+            foreach (array('name', 'species', 'variety', 'age', 'bio', 'published') as $field) if (isset($snapshot[$field]) && is_string($snapshot[$field])) $data[] = array('name' => $field === 'variety' ? 'Breed / variety' : ucfirst($field), 'value' => $snapshot[$field]);
             $data[] = array('name' => 'Traits', 'value' => implode(', ', array_filter(is_array($snapshot['traits'] ?? null) ? $snapshot['traits'] : array(), 'is_string')));
             $data[] = array('name' => 'Shared profile', 'value' => $raw ? self::url($snapshot['token']) : 'Unavailable');
             $data[] = array('name' => 'Shared photo', 'value' => $raw && $snapshot['photo'] !== '' ? self::photo_url($snapshot['token']) : 'Unavailable or none');

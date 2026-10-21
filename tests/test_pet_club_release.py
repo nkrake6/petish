@@ -90,7 +90,7 @@ class PetClubReleaseTests(unittest.TestCase):
         del value['checks']['orders_unchanged']
         self.assertFalse(self.screen('verify', value)[1])
         value = self.raw('apply')
-        for count in (len(evidence.FILES) + 1, -1, True, '14'):
+        for count in (len(evidence.FILES) + 1, -1, True, '15'):
             value['changed_file_count'] = count
             self.assertFalse(self.screen('apply', value)[1])
 

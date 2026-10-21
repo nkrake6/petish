@@ -7,18 +7,47 @@ final class Petish_Passport_Store {
  public static function boot() { add_action('init',array(__CLASS__,'register')); add_filter('wp_privacy_personal_data_exporters',array(__CLASS__,'exporters')); add_filter('wp_privacy_personal_data_erasers',array(__CLASS__,'erasers')); add_action('delete_user',array(__CLASS__,'delete_user'),1); add_action('wpmu_delete_user',array(__CLASS__,'delete_user'),1); }
  public static function register() {
  register_post_type(self::TYPE,array('label'=>'Private Pet Passports','public'=>false,'publicly_queryable'=>false,'exclude_from_search'=>true,'show_ui'=>false,'show_in_menu'=>false,'show_in_nav_menus'=>false,'show_in_admin_bar'=>false,'show_in_rest'=>false,'query_var'=>false,'rewrite'=>false,'has_archive'=>false,'can_export'=>false,'delete_with_user'=>false,'supports'=>array(),'map_meta_cap'=>false,'capabilities'=>array('edit_post'=>'do_not_allow','read_post'=>'do_not_allow','delete_post'=>'do_not_allow','edit_posts'=>'do_not_allow','edit_others_posts'=>'do_not_allow','publish_posts'=>'do_not_allow','read_private_posts'=>'do_not_allow','create_posts'=>'do_not_allow','delete_posts'=>'do_not_allow')));
- foreach(array('species','age','interest','photo','bio') as $field) register_post_meta(self::TYPE,'_petish_'.$field,array('type'=>'string','single'=>true,'show_in_rest'=>false,'auth_callback'=>'__return_false'));
+ foreach(array('species','variety','variety_other','age','interest','photo','bio') as $field) register_post_meta(self::TYPE,'_petish_'.$field,array('type'=>'string','single'=>true,'show_in_rest'=>false,'auth_callback'=>'__return_false'));
  register_post_meta(self::TYPE,'_petish_photo_retirements',array('type'=>'array','single'=>true,'show_in_rest'=>false,'auth_callback'=>'__return_false'));
  register_post_meta(self::TYPE,'_petish_traits',array('type'=>'array','single'=>true,'show_in_rest'=>false,'auth_callback'=>'__return_false'));
  }
  public static function species(){return array('rabbit'=>'Rabbit','hamster'=>'Hamster','guinea-pig'=>'Guinea pig','chinchilla'=>'Chinchilla','other'=>'Other small pet');}
+ /** Optional species-specific breeds and varieties; existing profiles are never inferred. */
+ public static function varieties($species=null){
+  $common=array('mixed-unknown'=>'Mixed or unknown','other'=>'Other (please specify)');
+  $maps=array(
+   'rabbit'=>array('mini-lop'=>'Mini Lop','dwarf-lop'=>'Dwarf Lop','holland-lop'=>'Holland Lop',
+    'netherland-dwarf'=>'Netherland Dwarf','lionhead'=>'Lionhead','mini-rex'=>'Mini Rex','rex'=>'Rex',
+    'dutch'=>'Dutch','flemish-giant'=>'Flemish Giant','english-angora'=>'English Angora','french-lop'=>'French Lop'),
+   'hamster'=>array('syrian'=>'Syrian','roborovski'=>'Roborovski','campbells-dwarf'=>"Campbell's dwarf",
+    'winter-white-dwarf'=>'Winter White dwarf','chinese'=>'Chinese','dwarf-hybrid'=>'Dwarf hybrid'),
+   'guinea-pig'=>array('american-shorthaired'=>'American / shorthaired','abyssinian'=>'Abyssinian',
+    'peruvian'=>'Peruvian','silkie-sheltie'=>'Silkie / Sheltie','teddy'=>'Teddy','rex'=>'Rex',
+    'texel'=>'Texel','coronet'=>'Coronet','skinny'=>'Skinny','baldwin'=>'Baldwin'),
+   'chinchilla'=>array('standard-grey'=>'Standard grey','black-velvet'=>'Black velvet','beige'=>'Beige',
+    'white'=>'White','ebony'=>'Ebony','violet'=>'Violet','sapphire'=>'Sapphire','mosaic'=>'Mosaic'),
+   'other'=>array(),
+  );
+  foreach($maps as $key=>$choices)$maps[$key]=$choices+$common;
+  return null===$species?$maps:(is_string($species)?($maps[$species]??array()):array());
+ }
+ public static function variety_label($pet){
+  if(!is_array($pet)||!is_string($pet['species']??null)||!is_string($pet['variety']??null))return '';
+  $choices=self::varieties($pet['species']);$variety=$pet['variety'];
+  if(!isset($choices[$variety]))return '';
+  if('other'!==$variety)return $choices[$variety];
+  if(!is_string($pet['variety_other']??null))return '';
+  $custom=trim(sanitize_text_field($pet['variety_other']));$length=preg_match_all('/./us',$custom);
+  return false!==$length&&$length<=60?$custom:'';
+ }
  public static function ages(){return array('under-1'=>'Under 1 year','1-3'=>'1–3 years','over-3'=>'Over 3 years','unsure'=>'Unsure');}
  public static function interests(){return array('enrichment'=>'Enrichment toys','habitat'=>'Habitat accessories','essentials'=>'Everyday essentials','browsing'=>'Just browsing');}
  private static function missing(){return new WP_Error('petish_not_found','This Passport could not be found.',array('status'=>404));}
  private static function ids($uid){$uid=absint($uid);if(!$uid)return array();return get_posts(array('post_type'=>self::TYPE,'post_status'=>'any','author'=>$uid,'posts_per_page'=>-1,'fields'=>'ids','orderby'=>'ID','order'=>'ASC','suppress_filters'=>true,'no_found_rows'=>true));}
  private static function record($post){
   $bio=get_post_meta($post->ID,'_petish_bio',true);$traits=get_post_meta($post->ID,'_petish_traits',true);
-  return array('id'=>(int)$post->ID,'name'=>$post->post_title,'species'=>(string)get_post_meta($post->ID,'_petish_species',true),'age'=>(string)get_post_meta($post->ID,'_petish_age',true),'interest'=>(string)get_post_meta($post->ID,'_petish_interest',true),'photo'=>(string)get_post_meta($post->ID,'_petish_photo',true),'bio'=>is_string($bio)?$bio:'','traits'=>is_array($traits)?array_values(array_filter($traits,'is_string')):array(),'created'=>$post->post_date_gmt,'updated'=>$post->post_modified_gmt);
+  $variety=get_post_meta($post->ID,'_petish_variety',true);$variety_other=get_post_meta($post->ID,'_petish_variety_other',true);
+  return array('id'=>(int)$post->ID,'name'=>$post->post_title,'species'=>(string)get_post_meta($post->ID,'_petish_species',true),'variety'=>is_string($variety)?$variety:'','variety_other'=>is_string($variety_other)?$variety_other:'','age'=>(string)get_post_meta($post->ID,'_petish_age',true),'interest'=>(string)get_post_meta($post->ID,'_petish_interest',true),'photo'=>(string)get_post_meta($post->ID,'_petish_photo',true),'bio'=>is_string($bio)?$bio:'','traits'=>is_array($traits)?array_values(array_filter($traits,'is_string')):array(),'created'=>$post->post_date_gmt,'updated'=>$post->post_modified_gmt);
  }
  /** A shared, reentrant lock serializes owner edits and community snapshots. */
  public static function with_pet_lock($pet_id,$callback){
@@ -50,7 +79,7 @@ final class Petish_Passport_Store {
   return $uid&&get_user_by('id',$uid)&&'1'!==(string)get_user_meta($uid,'_petish_club_deleting',true);
  }
  private static function fields_meta($fields,$photo){
-  return array('_petish_species'=>$fields['species'],'_petish_age'=>$fields['age'],'_petish_interest'=>$fields['interest'],'_petish_photo'=>$photo,'_petish_bio'=>$fields['bio'],'_petish_traits'=>$fields['traits']);
+  return array('_petish_species'=>$fields['species'],'_petish_variety'=>$fields['variety'],'_petish_variety_other'=>$fields['variety_other'],'_petish_age'=>$fields['age'],'_petish_interest'=>$fields['interest'],'_petish_photo'=>$photo,'_petish_bio'=>$fields['bio'],'_petish_traits'=>$fields['traits']);
  }
  private static function unpublish($id,$uid){
   return class_exists('Petish_Passport_Community')?Petish_Passport_Community::unpublish($id,$uid):true;
@@ -60,10 +89,17 @@ final class Petish_Passport_Store {
  private static function validate($data){
   if(!is_array($data))return new WP_Error('petish_invalid','Please check your pet details.');
   foreach(array('name','species','age','interest','bio') as $key)if(isset($data[$key])&&!is_string($data[$key]))return new WP_Error('petish_invalid','Please check your pet details.');
+  foreach(array('variety','variety_other') as $key)if(array_key_exists($key,$data)&&!is_string($data[$key]))return new WP_Error('petish_variety','Please check the breed or variety.');
   $name=sanitize_text_field($data['name']??'');$length=preg_match_all('/./us',$name);
   if(''===$name||false===$length||$length>80)return new WP_Error('petish_name','Enter a pet name of 1 to 80 characters.');
   $species=$data['species']??'';$age=$data['age']??'unsure';$interest=$data['interest']??'browsing';
   if(!isset(self::species()[$species]))return new WP_Error('petish_species','Please choose a species.');
+  $variety=$data['variety']??'';$variety_other=trim(sanitize_text_field($data['variety_other']??''));
+  if(''!==$variety&&!isset(self::varieties($species)[$variety]))return new WP_Error('petish_variety','Choose a breed or variety for this species.');
+  $length=preg_match_all('/./us',$variety_other);
+  if(false===$length||$length>60)return new WP_Error('petish_variety_other','Keep the breed or variety to 60 characters.');
+  if('other'===$variety&&''===$variety_other)return new WP_Error('petish_variety_other','Please specify the breed or variety.');
+  if('other'!==$variety)$variety_other='';
   if(!isset(self::ages()[$age]))return new WP_Error('petish_age','Please choose an age range.');
   if(!isset(self::interests()[$interest]))return new WP_Error('petish_interest','Please choose a shopping interest.');
   $bio=sanitize_textarea_field($data['bio']??'');$length=preg_match_all('/./us',$bio);
@@ -77,7 +113,7 @@ final class Petish_Passport_Store {
    if(false===$length||$length>24)return new WP_Error('petish_traits','Keep each personality tag to 24 characters.');
    if(''!==$trait&&!in_array($trait,$traits,true))$traits[]=$trait;
   }
-  return compact('name','species','age','interest','bio','traits');
+  return compact('name','species','variety','variety_other','age','interest','bio','traits');
  }
  private static function has_file($file){return is_array($file)&&isset($file['error'])&&UPLOAD_ERR_NO_FILE!==$file['error'];}
  public static function create($uid,$data,$file=null){
@@ -117,7 +153,11 @@ final class Petish_Passport_Store {
    if(!self::may_write($uid))return self::missing();
    $cleaned=Petish_Passport_Media::flush_removals($pet['id'],$uid,$pet['photo']);if(is_wp_error($cleaned))return $cleaned;
    // Old integrations that do not submit the new optional fields preserve them.
-   if(is_array($data))$data=array_merge(array('bio'=>$pet['bio'],'traits'=>$pet['traits']),$data);
+   if(is_array($data)){
+    $same_species=($data['species']??'')===$pet['species'];
+    $data=array_merge(array('bio'=>$pet['bio'],'traits'=>$pet['traits'],
+     'variety'=>$same_species?$pet['variety']:'','variety_other'=>$same_species?$pet['variety_other']:''),$data);
+   }
    $fields=self::validate($data);if(is_wp_error($fields))return $fields;
    $photo=$pet['photo'];$replacement=false;
    if(self::has_file($file)){$photo=Petish_Passport_Media::save($file,$uid,static function($key)use($pet,$uid){return Petish_Passport_Media::queue_removal($pet['id'],$uid,$key);});if(is_wp_error($photo))return $photo;$replacement=true;}
@@ -177,7 +217,7 @@ final class Petish_Passport_Store {
  public static function erasers($erasers){$erasers['petish-passport']=array('eraser_friendly_name'=>'Petish Passport','callback'=>array(__CLASS__,'erase'));return $erasers;}
  public static function export($email,$page=1){
  $user=get_user_by('email',$email);$rows=array();$pets=$user?self::all_for_user($user->ID):array();foreach(array_slice($pets,(max(1,(int)$page)-1)*20,20) as $pet){$data=array();foreach(array('name'=>'Pet name','species'=>'Species','age'=>'Age range','interest'=>'Shopping interest','bio'=>'Introduction','created'=>'Created (UTC)','updated'=>'Updated (UTC)') as $key=>$label){$value=$pet[$key];if('species'===$key)$value=self::species()[$value]??$value;if('age'===$key)$value=self::ages()[$value]??$value;if('interest'===$key)$value=self::interests()[$value]??$value;$data[]=array('name'=>$label,'value'=>$value);}
- $data[]=array('name'=>'Personality tags','value'=>implode(', ',$pet['traits']));$data[]=array('name'=>'Private passport record','value'=>'Owner only');$data[]=array('name'=>'Active pet','value'=>(int)get_user_meta($user->ID,self::ACTIVE,true)===$pet['id']?'Yes':'No');$data[]=array('name'=>'Photo','value'=>$pet['photo']?Petish_Passport_Media::url($pet['id']).' (sign in as the owner to download)':'No photo stored');$rows[]=array('group_id'=>'petish-passport','group_label'=>'Petish Passport','item_id'=>'petish-pet-'.$pet['id'],'data'=>$data);
+ $data[]=array('name'=>'Breed or variety','value'=>self::variety_label($pet));$data[]=array('name'=>'Personality tags','value'=>implode(', ',$pet['traits']));$data[]=array('name'=>'Private passport record','value'=>'Owner only');$data[]=array('name'=>'Active pet','value'=>(int)get_user_meta($user->ID,self::ACTIVE,true)===$pet['id']?'Yes':'No');$data[]=array('name'=>'Photo','value'=>$pet['photo']?Petish_Passport_Media::url($pet['id']).' (sign in as the owner to download)':'No photo stored');$rows[]=array('group_id'=>'petish-passport','group_label'=>'Petish Passport','item_id'=>'petish-pet-'.$pet['id'],'data'=>$data);
  if(class_exists('Petish_Passport_Moments'))$rows=array_merge($rows,Petish_Passport_Moments::export_for_pet($pet['id'],$user->ID));
  }
  return array('data'=>$rows,'done'=>(int)$page*20>=count($pets));}

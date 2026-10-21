@@ -84,7 +84,7 @@ fixture_phase() {
 verify_staging_source() {
     "${petish_ssh[@]}" 'set -eu; root="$HOME/domains/staging.petish.biz/public_html/wp-content/plugins/petish-passport";
       test -d "$root" && test ! -L "$root" && test "$(readlink -f -- "$root")" = "$root" || exit 1;
-      for relative in includes/class-petish-passport-moments.php includes/class-petish-passport-community.php assets/pet-club.css assets/passport.js templates/public.php templates/community.php templates/moment-form.php includes/class-petish-passport-media.php includes/class-petish-passport-store.php includes/class-petish-passport-ui.php templates/dashboard.php templates/form.php templates/delete.php petish-passport.php; do
+      for relative in includes/class-petish-passport-moments.php includes/class-petish-passport-community.php assets/pet-club.css assets/catalogue.css assets/passport.js templates/public.php templates/community.php templates/moment-form.php includes/class-petish-passport-media.php includes/class-petish-passport-store.php includes/class-petish-passport-ui.php templates/dashboard.php templates/form.php templates/delete.php petish-passport.php; do
         file="$root/$relative";
         test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %h "$file")" = 1 || exit 1;
         sha256sum "$file";
@@ -456,7 +456,7 @@ python3 - "$work/assets.private.json" <<'PY_ASSETS' > "$work/assets.private.stdo
 import importlib.util,sys
 spec=importlib.util.spec_from_file_location('public_assets','scripts/verify-account-navigation-assets.py')
 assets=importlib.util.module_from_spec(spec);spec.loader.exec_module(assets)
-assets.ASSETS={'pet_club_script_http_verified':'passport.js','pet_club_stylesheet_http_verified':'pet-club.css'}
+assets.ASSETS={'pet_club_script_http_verified':'passport.js','pet_club_stylesheet_http_verified':'pet-club.css','pet_club_catalogue_stylesheet_http_verified':'catalogue.css'}
 raise SystemExit(assets.main([sys.argv[1]]))
 PY_ASSETS
 assets_validation=0

@@ -427,8 +427,11 @@ for(const raw of ['https://petish.biz/','https://outside.invalid/',origin+'/chec
 ok.push(proof.allowedRequest(origin+'/wp-admin/admin-post.php?action=petish_pet_photo&pet_id=123','GET',state));
 ok.push(!proof.allowedRequest(url,'DELETE',state,fields.toString()));
 state.operation='petish_passport_update';
-const body='--bound\r\nContent-Disposition: form-data; name="action"\r\n\r\npetish_passport_update\r\n--bound\r\nContent-Disposition: form-data; name="pet_id"\r\n\r\n123\r\n--bound\r\nContent-Disposition: form-data; name="petish_passport_nonce"\r\n\r\n123456789a\r\n--bound\r\nContent-Disposition: form-data; name="name"\r\n\r\nPetish Club Test Rabbit\r\n--bound\r\nContent-Disposition: form-data; name="species"\r\n\r\nrabbit\r\n--bound--\r\n';
+const body='--bound\r\nContent-Disposition: form-data; name="action"\r\n\r\npetish_passport_update\r\n--bound\r\nContent-Disposition: form-data; name="pet_id"\r\n\r\n123\r\n--bound\r\nContent-Disposition: form-data; name="petish_passport_nonce"\r\n\r\n123456789a\r\n--bound\r\nContent-Disposition: form-data; name="name"\r\n\r\nPetish Club Test Rabbit\r\n--bound\r\nContent-Disposition: form-data; name="species"\r\n\r\nrabbit\r\n--bound\r\nContent-Disposition: form-data; name="variety"\r\n\r\nmini-lop\r\n--bound--\r\n';
 ok.push(proof.allowedRequest(url,'POST',state,body,'document','multipart/form-data; boundary=bound'));
+ok.push(!proof.allowedRequest(url,'POST',state,body.replace('mini-lop','syrian'),'document','multipart/form-data; boundary=bound'));
+const edit=new URLSearchParams({action:'petish_passport_update',pet_id:'123',petish_passport_nonce:'123456789a',name:'Petish Club Test Rabbit',species:'rabbit',variety:'mini-lop',variety_other:'unexpected custom value'});
+ok.push(!proof.allowedRequest(url,'POST',state,edit.toString()));
 state.operation='petish_club_heart';state.token='a'.repeat(32);state.desiredHeart='1';
 const heart=new URLSearchParams({action:'petish_club_heart',token:state.token,hearted:'1',petish_club_nonce:'123456789a'});
 ok.push(proof.allowedRequest(url,'POST',state,heart.toString()));heart.set('token','b'.repeat(32));
@@ -436,7 +439,7 @@ ok.push(!proof.allowedRequest(url,'POST',state,heart.toString()));heart.set('tok
 ok.push(!proof.allowedRequest(url,'POST',state,heart.toString()));
 console.log(JSON.stringify(ok));
 """)
-        self.assertEqual(result, [True] * 17)
+        self.assertEqual(result, [True] * 19)
 
 
 if __name__ == "__main__":

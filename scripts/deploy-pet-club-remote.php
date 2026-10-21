@@ -6,8 +6,26 @@ ini_set('display_errors','0'); ini_set('log_errors','0'); error_reporting(0);
 // Exact reviewed Pet Club files. All application hashes must be frozen before release.
 const PETISH_PET_CLUB_FILES = [
     'includes/class-petish-passport-moments.php'=>'5c24f7f0d6c71df2c422f02eb6401fdca1365f2fbf99ac43f2e4124f2944881c',
+    'includes/class-petish-passport-community.php'=>'5d5aaab5d19c7c55d6fdbeb0f39bcd8ad4c4bcf0b79e90a07177bbdb9b0dde61',
+    'assets/pet-club.css'=>'736b25ddd199bb12d4d01a320c9fa06969ed2084f449f56d3e090153102619f8',
+    'assets/catalogue.css'=>'de7fe4e27cec268236905ead836b542476940b93d29e496c462d22e0cac9f03a',
+    'assets/passport.js'=>'764d78a7896cfa4291f09990a864c86a7b2569367a5bb39bc1660a5ab6222fe4',
+    'templates/public.php'=>'825b138f5e40a9b7b2d4040d7ff8e6a60598b17be0f743988449e9c0ad5ff84c',
+    'templates/community.php'=>'891ec1209ca12aba4fe7565c4bae06379caf8b2cb5c854cb16377fb952a5c286',
+    'templates/moment-form.php'=>'31028698f8698d4362434938ca8282a2aacfe5f7023047cd1fdcf9fcaece6d31',
+    'includes/class-petish-passport-media.php'=>'f45b48ad7239ed484c24438394f96cefac533de600daa7ccbe98f8404e3b4176',
+    'includes/class-petish-passport-store.php'=>'4a06a143e438e390456f6e279602a1341bf5615aa78aad7f1f049d500ed05fe9',
+    'includes/class-petish-passport-ui.php'=>'ce9d547ea004b8d96c98f850b99a0e03d68ea108d74bc7cd38988032b0f00138',
+    'templates/dashboard.php'=>'f3a47ee7cc7d5772b60ae891b42c3e6cfb0677be8cd5c6b10ee6c828f6f4611b',
+    'templates/form.php'=>'b8e11840b306bfc90c40df62bbf807f37e095f5d537166bd4279038ab68f66ed',
+    'templates/delete.php'=>'6067c76a295ff52d9f65d8f51a639a38af77d9ee532e91527c4fb1ad32eca1de',
+    'petish-passport.php'=>'432f3cbb73f19142178fbfc63fbbf95b2b0ccc16f0fd43b89e3c65ad0ea5d496',
+];
+const PETISH_PET_CLUB_BASELINES = [
+    'includes/class-petish-passport-moments.php'=>'5c24f7f0d6c71df2c422f02eb6401fdca1365f2fbf99ac43f2e4124f2944881c',
     'includes/class-petish-passport-community.php'=>'2d87be101757ed29a28eec2bdf9a59c04ec3a14d5037870f4a585601839f4f34',
     'assets/pet-club.css'=>'6871a9d7d2a87f7bc47be1d179e2cdb816228f70249379ff2adbd5c3b364be0f',
+    'assets/catalogue.css'=>'a91c6e4bb0972b5da98d16566011330deba0390dbc9b5c95daabac8733f06b99',
     'assets/passport.js'=>'97e0a4ecaddfd555ca779edec6a01685da268e9ee39e8a4555908d9becc26f49',
     'templates/public.php'=>'e73b60eb9a86affa924376a71c0356760cf4610ee3526e985ea29442c8a61dc8',
     'templates/community.php'=>'6e8c5ede57400b14f282df0d3fac3785b92b3cc8fd7e11ad640d03345823a947',
@@ -19,16 +37,6 @@ const PETISH_PET_CLUB_FILES = [
     'templates/form.php'=>'70974cf0e56a383c49bcce39498e77a10900504f7840b68ef120a8497f5656a1',
     'templates/delete.php'=>'6067c76a295ff52d9f65d8f51a639a38af77d9ee532e91527c4fb1ad32eca1de',
     'petish-passport.php'=>'daedeb5dfd4b995641f11ad2386d95967bfefa1c0c2e3b0e3b2d16086e6dd56c',
-];
-const PETISH_PET_CLUB_BASELINES = [
-    'assets/passport.js'=>'7deabb5cc00a265322b20ed6ff267125f8faa9bddb521a8a246c0109201b4cda',
-    'includes/class-petish-passport-media.php'=>'675099fbdd2bb2e8899de9f9fc7f82ca1613c033e10a1b2023a8510ef38da782',
-    'includes/class-petish-passport-store.php'=>'cf55dddcd3394783ca1b9bcccb25ae1682eea130c01139088a6b0a0b94955b46',
-    'includes/class-petish-passport-ui.php'=>'d5abfc66c9735470b7ed7e3dae728221bb28c78636b06e4bba5efa56dbfe58d5',
-    'templates/dashboard.php'=>'3bcd60132cbcad98accc599eaa9956b93a052fd4ecaef742bc504fa4ae77f34d',
-    'templates/form.php'=>'2c07cf4eac8e9ca31c0c6a497ddfe5d498ec3c61a0ede3d757a81dcbb2cd2381',
-    'templates/delete.php'=>'75653acccfa39af742480405b377ae7b4887643a27e369d93dba6069a8074c3a',
-    'petish-passport.php'=>'e74a310a1fc9bfc8d56ae62de973a75eb8f728885d585b8ba78bca488bb4c8bb',
 ];
 
 function pet_club_release_fail() { throw new RuntimeException(); }

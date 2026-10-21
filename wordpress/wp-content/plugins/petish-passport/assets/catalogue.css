@@ -30,7 +30,7 @@ body.petish-site .petish-catalogue .pc-secondary:hover{background:var(--color-se
 .petish-collection .pc-product .pp-button{margin-top:auto}
 .petish-collection .pc-product .pc-price{color:var(--color-text);margin:0;font-weight:600}
 .petish-collection .pc-product del{color:var(--color-text-muted)}
-.pc-collection-reset{margin-top:28px}
+.petish-collection .pc-collection-reset{margin-top:28px}
 .pc-pagination{display:flex;justify-content:center;flex-wrap:wrap;gap:8px}
 .pc-pagination .page-numbers{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:4px 10px;border:1px solid var(--color-control-border);border-radius:10px}
 .pc-pagination .current{background:var(--color-lavender);color:var(--color-secondary-text)}

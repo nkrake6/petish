@@ -85,7 +85,7 @@ final class Petish_Passport_UI {
   echo '<div class="petish-passport petish-club" id="petish-passport">';
   if('create'===$view || 'edit'===$view) {
    $editing='edit'===$view;
-   $values=$pet?:array('name'=>'','species'=>'','age'=>'unsure','interest'=>'browsing','bio'=>'','traits'=>array());
+   $values=$pet?:array('name'=>'','species'=>'','variety'=>'','variety_other'=>'','age'=>'unsure','interest'=>'browsing','bio'=>'','traits'=>array());
    $draft=self::read_draft($view,$editing?$id:0);if($draft) $values=array_merge($values,$draft);
    self::template('form',array('pet'=>$pet,'editing'=>$editing,'values'=>$values));
   } elseif('delete'===$view) self::template('delete',array('pet'=>$pet));
@@ -164,7 +164,7 @@ final class Petish_Passport_UI {
  }
  private static function value($key) { return isset($_POST[$key])&&is_string($_POST[$key])?sanitize_text_field(wp_unslash($_POST[$key])):''; }
  private static function textarea_value($key) { return isset($_POST[$key])&&is_string($_POST[$key])?sanitize_textarea_field(wp_unslash($_POST[$key])):''; }
- private static function data() { return array('name'=>self::value('name'),'species'=>self::value('species'),'age'=>self::value('age'),'interest'=>self::value('interest'),'remove_photo'=>'1'===self::value('remove_photo'),'bio'=>self::textarea_value('bio'),'traits'=>self::value('traits')); }
+ private static function data() { return array('name'=>self::value('name'),'species'=>self::value('species'),'variety'=>self::value('variety'),'variety_other'=>self::value('variety_other'),'age'=>self::value('age'),'interest'=>self::value('interest'),'remove_photo'=>'1'===self::value('remove_photo'),'bio'=>self::textarea_value('bio'),'traits'=>self::value('traits')); }
  private static function authorize($operation,$id=0) {
   if(!is_user_logged_in()) self::guest_redirect();
   if(!function_exists('wc_add_notice')) require_once WC_ABSPATH.'includes/wc-notice-functions.php';

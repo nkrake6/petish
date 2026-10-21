@@ -32,6 +32,7 @@ class Petish_Passport_Store {
  public static function with_user_lock($id,$cb){if($GLOBALS['lock_fail'])return new WP_Error('busy');return $cb();}
  public static function get($id,$uid){$p=get_post($id);return $p&&$p->post_author===$uid&&$p->post_type===self::TYPE&&$p->post_status==='private'?$GLOBALS['pets'][$id]:new WP_Error('missing');}
  public static function species(){return ['rabbit'=>'Rabbit','hamster'=>'Hamster'];}public static function ages(){return ['under-1'=>'Under1','1-3'=>'1–3years','unsure'=>'Unsure'];}
+ public static function variety_label($pet){return ($pet['variety']??'')==='other'?($pet['variety_other']??''):(['mini-lop'=>'Mini Lop','rex'=>'Rex'][$pet['variety']??'']??'');}
  public static function all_for_user($uid){return array_values(array_filter($GLOBALS['pets'],fn($p)=>get_post($p['id'])->post_author===$uid));}
 }
 class Petish_Passport_Moments {public static function get($id,$uid){$m=$GLOBALS['moments'][$id]??null;return $m&&!is_wp_error(Petish_Passport_Store::get($m['pet_id'],$uid))?$m:new WP_Error('missing');}}
@@ -112,4 +113,17 @@ reset_fixture();for($i=1;$i<=203;$i++)add_option('petish_club_heart_'.$i.'_22','
 $page1=Petish_Passport_Community::export('member@example.invalid',1);$page2=Petish_Passport_Community::export('member@example.invalid',2);$page3=Petish_Passport_Community::export('member@example.invalid',3);
 check(count($page1['data'])===100&&count($page2['data'])===100&&count($page3['data'])===3&&!$page1['done']&&!$page2['done']&&$page3['done'],'Privacy export pages all member interactions');
 check(count(array_unique(array_column(array_merge($page1['data'],$page2['data'],$page3['data']),'item_id')))===203,'Privacy export pages do not duplicate interactions');
+reset_fixture();$GLOBALS['pets'][101]['variety']='mini-lop';$s=shared();$token=$s['token'];
+check($s['profile']['variety']==='Mini Lop'&&get_post_meta(101,Petish_Passport_Community::META,true)['variety']==='Mini Lop','Explicit publication saves breed display label');
+$GLOBALS['pets'][101]['variety']='rex';
+check(Petish_Passport_Community::public_profile($token)['variety']==='Mini Lop','Private breed edit does not change shared snapshot');
+$snapshot=get_post_meta(101,Petish_Passport_Community::META,true);unset($snapshot['variety']);update_post_meta(101,Petish_Passport_Community::META,wp_slash($snapshot));
+check(Petish_Passport_Community::public_profile($token)['variety']===''&&count(Petish_Passport_Community::discover())===1,'Legacy snapshot without breed stays readable and does not expose private breed');
+$s=shared();check($s['profile']['variety']==='Rex','Explicit republish updates breed from private record');
+$export=Petish_Passport_Community::export('owner@example.invalid');check(str_contains(json_encode($export),'Breed \/ variety')&&str_contains(json_encode($export),'Rex'),'Privacy export includes saved breed label');
+$valid=get_post_meta(101,Petish_Passport_Community::META,true);
+foreach([null,[],str_repeat('a',61)]as$invalid){$bad=$valid;$bad['variety']=$invalid;update_post_meta(101,Petish_Passport_Community::META,wp_slash($bad));check(is_wp_error(Petish_Passport_Community::public_profile($token)),'Invalid shared breed type or length is rejected');}
+update_post_meta(101,Petish_Passport_Community::META,wp_slash($valid));$GLOBALS['pets'][101]['variety']='other';$GLOBALS['pets'][101]['variety_other']=str_repeat('é',60);
+$s=shared();check($s['profile']['variety']===str_repeat('é',60),'Breed limit counts Unicode characters');
+$GLOBALS['pets'][101]['variety_other']=str_repeat('é',61);check(is_wp_error(shared())&&Petish_Passport_Community::public_profile($token)['variety']===str_repeat('é',60),'Oversized breed cannot replace current public snapshot');
 echo json_encode(['checks'=>$checks,'status'=>'success'])."\n";

@@ -440,7 +440,9 @@ function petish_club_verify_contracts($root) {
  petish_club_verify_mark('private_record_registration_verified',(bool)$private);
  petish_club_verify_mark('private_owner_access_verified',is_wp_error(Petish_Passport_Store::get(0,0))
   &&Petish_Passport_Store::all_for_user(0)===[]&&is_wp_error(Petish_Passport_Moments::get(0,0))
-  &&Petish_Passport_Media::file_for_owner('1/'.str_repeat('a',48).'.png',0)===false);
+  &&Petish_Passport_Media::file_for_owner('1/'.str_repeat('a',48).'.png',0)===false
+  &&(Petish_Passport_Store::varieties('rabbit')['mini-lop']??null)==='Mini Lop'
+  &&Petish_Passport_Store::variety_label(['species'=>'rabbit','variety'=>'mini-lop','variety_other'=>''])==='Mini Lop');
  petish_club_verify_mark('public_routes_registered',has_action('template_redirect',['Petish_Passport_Community','route'])!==false
   &&has_action('admin_post_petish_club_photo',['Petish_Passport_Community','serve_photo'])!==false
   &&has_action('admin_post_nopriv_petish_club_photo',['Petish_Passport_Community','serve_photo'])!==false
@@ -459,13 +461,13 @@ function petish_club_verify_contracts($root) {
    &&wp_script_is('petish-account-navigation','enqueued')&&wp_script_is('petish-passport','enqueued'));
  }finally{$wp->query_vars=$query;remove_filter('woocommerce_is_account_page',$account,PHP_INT_MAX);}
  $sample=['token'=>str_repeat('a',32),'url'=>home_url('/?petish_pet='.str_repeat('a',32)),
-  'name'=>'Synthetic <img src=x onerror=alert(1)> pet','species'=>'rabbit','age'=>'','bio'=>'A <script>alert(1)</script> sample biography.',
+  'name'=>'Synthetic <img src=x onerror=alert(1)> pet','species'=>'rabbit','variety'=>'Mini Lop <svg onload=alert(1)>','age'=>'','bio'=>'A <script>alert(1)</script> sample biography.',
   'traits'=>['<b>Curious</b>'],'photo_url'=>'','moments'=>[],'published'=>'2026-10-21 00:00:00',
   'hearts'=>0,'hearted'=>false,'is_owner'=>false,'can_heart'=>false];
  $html=petish_club_verify_capture(static fn()=>Petish_Passport_UI::render_public($sample,[]));
  petish_club_verify_mark('synthetic_public_render_verified',is_string($html)&&strlen($html)>100&&strlen($html)<1048576
-  &&str_contains($html,'Synthetic')&&!preg_match('~<(?:script|img)\b[^>]*(?:alert\(|src=x)~i',$html)
-  &&!str_contains($html,'onerror=alert(1)>')&&!str_contains($html,'@petish.invalid'));
+  &&str_contains($html,'Synthetic')&&str_contains($html,'Mini Lop')&&!preg_match('~<(?:script|img|svg)\b[^>]*(?:alert\(|src=x)~i',$html)
+  &&!str_contains($html,'onerror=alert(1)>')&&!str_contains($html,'onload=alert(1)>')&&!str_contains($html,'@petish.invalid'));
 }
 
 function petish_club_verify_fixture_state_path($kind) {
@@ -687,10 +689,20 @@ function petish_club_verify_staging($root,$run) {
  try{
   $owner=$state['users']['owner']['id'];$member=$state['users']['member']['id'];$id=$state['pet_id'];
   $pet=Petish_Passport_Store::get($id,$owner);
-  petish_club_verify_mark('legacy_defaults_preserved',($pet['bio']??null)===''&&($pet['traits']??null)===[]);
+  petish_club_verify_mark('legacy_defaults_preserved',($pet['bio']??null)===''&&($pet['traits']??null)===[]
+   &&($pet['variety']??null)===''&&($pet['variety_other']??null)===''&&Petish_Passport_Store::variety_label($pet)==='');
   $pet=Petish_Passport_Store::update($id,$owner,['name'=>'Petish Club Test Rabbit','species'=>'rabbit','age'=>'1-3',
-   'interest'=>'browsing','bio'=>'A curious synthetic rabbit.','traits'=>['Curious','Gentle']]);
-  petish_club_verify_mark('biography_and_traits_saved',!is_wp_error($pet)&&$pet['bio']==='A curious synthetic rabbit.'&&$pet['traits']===['Curious','Gentle']);
+   'interest'=>'browsing','bio'=>'A curious synthetic rabbit.','traits'=>['Curious','Gentle'],'variety'=>'mini-lop','variety_other'=>'']);
+  if(is_wp_error($pet))petish_club_verify_fail();
+  $created=Petish_Passport_Store::create($owner,['name'=>'Synthetic Mini Lop','species'=>'rabbit','age'=>'1-3','interest'=>'browsing','variety'=>'mini-lop']);
+  $created_variety=!is_wp_error($created)&&$created['variety']==='mini-lop'&&Petish_Passport_Store::variety_label($created)==='Mini Lop';
+  if(!$created_variety||Petish_Passport_Store::delete($created['id'],$owner)!==true)petish_club_verify_fail();
+  $invalid=Petish_Passport_Store::update($id,$owner,['name'=>$pet['name'],'species'=>'hamster','age'=>'1-3','interest'=>'browsing','variety'=>'mini-lop']);
+  $unchanged=Petish_Passport_Store::get($id,$owner);
+  petish_club_verify_mark('biography_and_traits_saved',$pet['bio']==='A curious synthetic rabbit.'&&$pet['traits']===['Curious','Gentle']
+   &&$created_variety&&$pet['variety']==='mini-lop'&&Petish_Passport_Store::variety_label($pet)==='Mini Lop'
+   &&is_wp_error($invalid)&&$invalid->get_error_code()==='petish_variety'&&!is_wp_error($unchanged)
+   &&$unchanged['species']==='rabbit'&&$unchanged['variety']==='mini-lop');
   petish_club_verify_mark('foreign_owner_denied',is_wp_error(Petish_Passport_Store::get($id,$member))
    &&is_wp_error(Petish_Passport_Store::get($id,0))&&is_wp_error(Petish_Passport_Store::update($id,$member,['name'=>'Foreign'])));
   $pet=petish_club_verify_fixture_content($root,$state);$private=Petish_Passport_Media::file_for_owner($pet['photo'],$owner);
@@ -708,10 +720,20 @@ function petish_club_verify_staging($root,$run) {
   petish_club_verify_mark('explicit_public_snapshot_created',!is_wp_error($sharing)&&$sharing['shared']===true
    &&preg_match('/\A[a-f0-9]{32}\z/D',$sharing['token'])===1);
   $token=$sharing['token'];$public=Petish_Passport_Community::public_profile($token);
-  $allowed=['token','url','name','species','age','bio','traits','photo_url','moments','published','hearts','hearted','is_owner','can_heart'];
+  if(is_wp_error($public)||($public['variety']??null)!=='Mini Lop')petish_club_verify_fail();
+  $pet=Petish_Passport_Store::update($id,$owner,['name'=>$pet['name'],'species'=>'rabbit','age'=>'1-3',
+   'interest'=>'browsing','variety'=>'other','variety_other'=>'Curly-eared rabbit']);
+  $frozen=Petish_Passport_Community::public_profile($token);
+  $snapshot_frozen=!is_wp_error($pet)&&Petish_Passport_Store::variety_label($pet)==='Curly-eared rabbit'
+   &&!is_wp_error($frozen)&&$frozen['variety']==='Mini Lop';
+  if(!$snapshot_frozen)petish_club_verify_fail();
+  $sharing=Petish_Passport_Community::publish($id,$owner,false,[$state['moments']['photo']]);
+  if(is_wp_error($sharing))petish_club_verify_fail();$token=$sharing['token'];$public=Petish_Passport_Community::public_profile($token);
+  $allowed=['token','url','name','species','variety','age','bio','traits','photo_url','moments','published','hearts','hearted','is_owner','can_heart'];
   $copy=get_post_meta($id,Petish_Passport_Community::META,true);
   petish_club_verify_mark('public_projection_allowlisted',!is_wp_error($public)&&!array_diff(array_keys($public),$allowed)
    &&count($public)===count($allowed)&&$public['age']===''&&$public['name']===$pet['name']
+   &&$snapshot_frozen&&$public['variety']==='Curly-eared rabbit'&&($copy['variety']??null)==='Curly-eared rabbit'
    &&!str_contains(json_encode($public),$state['users']['owner']['email'])&&!str_contains(json_encode($public),$pet['photo'])
    &&!str_contains(json_encode($public),'/private/')&&!str_contains(json_encode($public),'Private synthetic journal'));
   $photo=Petish_Passport_Community::resolve_photo($token);
@@ -756,7 +778,8 @@ function petish_club_verify_staging($root,$run) {
   wp_set_current_user($owner);$republished=Petish_Passport_Community::publish($id,$owner,false,[]);
   if(is_wp_error($republished))petish_club_verify_fail();$newtoken=$republished['token'];
   $changed=Petish_Passport_Store::update($id,$owner,['name'=>$pet['name'],'species'=>$pet['species'],'age'=>$pet['age'],
-   'interest'=>$pet['interest'],'bio'=>$pet['bio'],'traits'=>$pet['traits'],'remove_photo'=>true]);
+   'interest'=>$pet['interest'],'bio'=>$pet['bio'],'traits'=>$pet['traits'],'variety'=>$pet['variety'],
+   'variety_other'=>$pet['variety_other'],'remove_photo'=>true]);
   petish_club_verify_mark('photo_change_unpublishes',!is_wp_error($changed)&&$changed['photo']===''
    &&is_wp_error(Petish_Passport_Community::public_profile($newtoken)));
  }finally{

@@ -19,6 +19,7 @@ FILES = (
     'includes/class-petish-passport-moments.php',
     'includes/class-petish-passport-community.php',
     'assets/pet-club.css',
+    'assets/catalogue.css',
     'assets/passport.js',
     'templates/public.php',
     'templates/community.php',

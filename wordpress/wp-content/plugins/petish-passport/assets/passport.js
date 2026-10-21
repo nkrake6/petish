@@ -3,6 +3,34 @@
   'use strict';
   var root = document.querySelector('.petish-passport');
   if (!root) return;
+  var species = root.querySelector('#pp-species');
+  var variety = root.querySelector('[data-pp-variety]');
+  var otherField = root.querySelector('[data-pp-variety-other]');
+  if (species && variety && otherField) {
+    var otherInput = otherField.querySelector('input');
+    var groups = Array.from(variety.querySelectorAll('optgroup')).map(function (group) { return group.cloneNode(true); });
+    var blank = variety.querySelector('option[value=""]').cloneNode(true);
+    function showOther() {
+      var isOther = variety.value === 'other';
+      otherField.hidden = !isOther;
+      otherInput.disabled = !isOther;
+      otherInput.required = isOther;
+    }
+    function filterVarieties(changedSpecies) {
+      var selected = changedSpecies ? '' : variety.value;
+      while (variety.firstChild) variety.removeChild(variety.firstChild);
+      variety.appendChild(blank.cloneNode(true));
+      groups.forEach(function (group) {
+        if (group.dataset.species === species.value) variety.appendChild(group.cloneNode(true));
+      });
+      variety.value = Array.from(variety.options).some(function (option) { return option.value === selected; }) ? selected : '';
+      if (changedSpecies) otherInput.value = '';
+      showOther();
+    }
+    species.addEventListener('change', function () { filterVarieties(true); });
+    variety.addEventListener('change', showOther);
+    filterVarieties(false);
+  }
   var upload = root.querySelector('[data-pp-photo]');
   var feedback = root.querySelector('[data-pp-photo-feedback]');
   if (upload && feedback) upload.addEventListener('change', function () {

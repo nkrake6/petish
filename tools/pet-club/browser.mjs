@@ -94,7 +94,9 @@ export function allowedRequest(raw, method = 'GET', state = {}, body = '', type 
     if (fields.getAll('pet_id').length !== 1
         || fields.get('pet_id') !== String(input.pet_id)) return false;
     if (state.operation === 'petish_passport_update') return /^[a-zA-Z0-9]{10}$/.test(fields.get('petish_passport_nonce') ?? '')
-      && fields.get('name') === input.name && fields.get('species') === 'rabbit';
+      && fields.get('name') === input.name && fields.get('species') === 'rabbit'
+      && fields.getAll('variety').length === 1 && fields.get('variety') === 'mini-lop'
+      && fields.getAll('variety_other').length <= 1 && (fields.get('variety_other') ?? '') === '';
     if (!/^[a-zA-Z0-9]{10}$/.test(fields.get('petish_club_nonce') ?? '')) return false;
     if (state.operation === 'petish_club_unpublish') return true;
     return state.operation === 'petish_club_publish' && fields.get('confirm_share') === '1'
@@ -183,12 +185,27 @@ export async function run(input, chromium) {
     category = 'mobile'; mark('mobile_390_verified', await fit(page, 390)); mark('mobile_320_verified', await fit(page, 320));
     category = 'navigation'; const menu = page.locator('.pp-account-navigation-toggle'); await menu.waitFor({ state: 'visible' });
     await menu.click(); ensure(await menu.getAttribute('aria-expanded') === 'true', category);
-    await page.keyboard.press('Escape'); mark('account_menu_verified', await menu.getAttribute('aria-expanded') === 'false');
+    await page.keyboard.press('Escape'); const menuClosed = await menu.getAttribute('aria-expanded') === 'false';
+    const collection = await page.goto(ORIGIN + '/my-account/for-my-pet/', { waitUntil: 'domcontentloaded' });
+    mark('account_menu_verified', menuClosed && collection?.ok()
+      && await page.locator('.petish-collection .pc-collection-reset').evaluate(node => {
+        const box = node.getBoundingClientRect(), previous = node.previousElementSibling?.getBoundingClientRect();
+        return parseFloat(getComputedStyle(node).marginTop) === 28 && !!previous
+          && box.top >= previous.bottom + 24 && box.left >= -1 && box.right <= innerWidth + 1;
+      }));
+    await dashboard(page);
     category = 'tabs'; await page.locator('[data-pc-tab="about"]').click();
     ensure(await page.locator('#pc-panel-about').isVisible() && !await page.locator('#pc-panel-moments').isVisible(), category);
     await page.locator('[data-pc-tab="journal"]').click();
     mark('tabs_mouse_verified', await page.locator('#pc-panel-journal').isVisible()
-      && (await page.locator('#pc-panel-journal').textContent()).includes('Private synthetic journal entry.'));
+      && (await page.locator('#pc-panel-journal').textContent()).includes('Private synthetic journal entry.')
+      && await page.locator('[data-pc-tabs]').evaluate(node => {
+        const style = getComputedStyle(node), original = node.scrollLeft;
+        node.scrollLeft = node.scrollWidth; const horizontallyUsable = node.scrollWidth <= node.clientWidth || node.scrollLeft > 0;
+        node.scrollLeft = original;
+        return style.overflowY === 'hidden' && style.overflowX === 'auto' && horizontallyUsable
+          && (style.scrollbarWidth === 'none' || getComputedStyle(node, '::-webkit-scrollbar').display === 'none');
+      }));
     await page.locator('[data-pc-tab="journal"]').focus(); await page.keyboard.press('Home');
     mark('tabs_keyboard_verified', await page.locator('[data-pc-tab="moments"]').getAttribute('aria-selected') === 'true'
       && await page.locator('[data-pc-tab="moments"]').evaluate(node => node === document.activeElement));
@@ -223,14 +240,38 @@ export async function run(input, chromium) {
       && await nojsPage.locator('#pc-panel-about').isVisible() && await nojsPage.locator('#pc-panel-journal').isVisible()); await fallback.close();
     category = 'form'; await page.getByRole('link', { name: 'Edit Passport', exact: false }).click();
     const form = page.locator('form[data-pp-form]');
-    mark('edit_form_verified', await form.locator('[name="pet_id"]').inputValue() === String(input.pet_id)
+    ensure(await form.locator('[name="pet_id"]').inputValue() === String(input.pet_id)
       && await form.locator('[name="action"]').inputValue() === 'petish_passport_update'
       && await form.locator('[name="bio"]').inputValue() === 'A curious synthetic rabbit.'
-      && await form.locator('[name="traits"]').inputValue() === 'Curious, Gentle');
+      && await form.locator('[name="traits"]').inputValue() === 'Curious, Gentle'
+      && await form.locator('#pp-variety').inputValue() === ''
+      && !await form.locator('#pp-variety-other').isVisible(), category);
+    ensure(await form.locator('.pp-photo-field>label.pp-checkbox').evaluate(node => {
+      const style = getComputedStyle(node);
+      return style.display === 'flex' && parseFloat(style.columnGap) === 11;
+    }), category);
+    await form.locator('#pp-variety').selectOption('other');
+    ensure(await form.locator('#pp-variety-other').isVisible()
+      && await form.locator('#pp-variety-other').getAttribute('maxlength') === '60', category);
+    await form.locator('#pp-variety-other').fill('Temporary private variety');
+    await form.locator('#pp-species').selectOption('hamster');
+    ensure(await form.locator('#pp-variety').inputValue() === ''
+      && await form.locator('#pp-variety option[value="mini-lop"]').count() === 0
+      && await form.locator('#pp-variety-other').inputValue() === ''
+      && await form.locator('#pp-variety-other').isDisabled(), category);
+    await form.locator('#pp-species').selectOption('rabbit');
+    await form.locator('#pp-variety').selectOption('mini-lop');
+    ensure(await form.locator('#pp-variety-other').isDisabled(), category);
     category = 'upload'; await form.locator('input[type="file"]').setInputFiles({ name: 'synthetic-passport.png', mimeType: 'image/png', buffer: syntheticPng() });
     state.operation = 'petish_passport_update'; state.used = false;
     await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), form.locator('button[type="submit"]').click()]);
-    ensure(state.used && await page.locator('#pp-pet-name').isVisible() && await page.locator('.woocommerce-error').count() === 0, category); state.operation = '';
+    ensure(state.used && await page.locator('#pp-pet-name').isVisible() && await page.locator('.woocommerce-error').count() === 0
+      && (await page.locator('.pc-profile-info .pc-pet-details').textContent()).includes('Mini Lop'), category); state.operation = '';
+    category = 'form'; await page.getByRole('link', { name: 'Edit Passport', exact: false }).click();
+    mark('edit_form_verified', await page.locator('#pp-species').inputValue() === 'rabbit'
+      && await page.locator('#pp-variety').inputValue() === 'mini-lop'
+      && await page.locator('#pp-variety-other').inputValue() === '');
+    await dashboard(page);
     category = 'private_photos';
     for (const url of [input.private_photo_url, input.private_moment_url]) {
       const own = await safeGet(owner.context, state, url); ensure(own.ok() && /^image\//.test(own.headers()['content-type'] ?? '') && noStore(own.headers()), category);
@@ -256,6 +297,7 @@ export async function run(input, chromium) {
     mark('public_profile_http_verified', profile?.ok() && await member.page.locator(ROOT).isVisible());
     const text = await member.page.locator(ROOT).textContent();
     mark('public_projection_verified', text.includes(input.name) && text.includes('A curious synthetic rabbit.')
+      && text.includes('Mini Lop')
       && !text.includes('Private synthetic journal entry.') && !text.includes(input.owner.email)
       && !text.includes('1–3 years') && !text.includes('Just browsing'));
     category = 'public_photo'; const publicPhotos = [
