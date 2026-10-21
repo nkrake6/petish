@@ -511,6 +511,19 @@ console.log(JSON.stringify({foreignIgnored,matched,mismatch,reports,categories:p
         spec.loader.exec_module(sanitizer)
         self.assertTrue(set(result['categories']) <= sanitizer.CATEGORIES)
 
+    def test_menu_measurements_wait_for_transitions_but_reject_stable_wrong_styles(self):
+        result = self.node(r"""
+let attempts=0;
+const values=[false,true,false,true,true,true];
+const page={evaluate:async()=>true,waitForTimeout:async ms=>new Promise(resolve=>setTimeout(resolve,ms)),
+ locator:()=>({evaluate:async()=>{const icons=values[Math.min(attempts++,values.length-1)];return{icons,height:true,palette:{cyan:icons}};}})};
+const settled=await proof.settledAccountColourTrackFacts(page), transitioned=attempts;
+page.locator=()=>({evaluate:async()=>({icons:false,height:true,palette:{cyan:false}})});
+const wrong=await proof.settledAccountColourTrackFacts(page);
+console.log(JSON.stringify([transitioned>=6,settled.icons,settled.height,!wrong.icons,wrong.height,!wrong.palette.cyan]));
+""")
+        self.assertEqual(result, [True] * 6)
+
     def test_browser_form_failures_report_only_finite_steps(self):
         result = self.node(r"""
 console.log(JSON.stringify(proof.FORM_CATEGORIES.map(category=>proof.publicReport({

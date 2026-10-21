@@ -346,6 +346,23 @@ export function menuToggleFacts(toggle) {
   return { visible: box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility === 'visible',
     receives_pointer: !!hit && (hit === toggle || toggle.contains(hit)) };
 }
+/** Measure settled styles without disabling the theme's animations or changing expectations. */
+export async function settledAccountColourTrackFacts(page) {
+  const navigation = page.locator('.woocommerce-MyAccount-navigation');
+  const deadline = performance.now() + 2000;
+  let iconsReady = 0, heightReady = 0, facts;
+  do {
+    const fontsReady = await page.evaluate(() => !document.fonts || document.fonts.status === 'loaded');
+    facts = await navigation.evaluate(accountColourTrackFacts);
+    iconsReady = fontsReady && facts.icons ? iconsReady + 1 : 0;
+    heightReady = fontsReady && facts.height ? heightReady + 1 : 0;
+    if (iconsReady >= 3 && heightReady >= 3) return facts;
+    if (performance.now() >= deadline) break;
+    await page.waitForTimeout(50);
+  } while (performance.now() < deadline);
+  // Preserve the actual failing measurements for the finite diagnostic report.
+  return { ...facts, icons: facts.icons && iconsReady >= 3, height: facts.height && heightReady >= 3 };
+}
 export async function checkAccountColourTrack(page, diagnostics = {}, setCategory = () => {}) {
   const viewport = page.viewportSize(), original = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   let icons = true, height = true;
@@ -357,6 +374,7 @@ export async function checkAccountColourTrack(page, diagnostics = {}, setCategor
     for (const width of [320, 390, 992, 1440]) {
       setCategory(`menu_viewport_${width}`);
       await page.setViewportSize({ width, height: 900 });
+      await settled(page);
       const toggle = page.locator('.pp-account-navigation-toggle');
       if (width <= 991 && await toggle.getAttribute('aria-expanded') !== 'true') {
         setCategory(`menu_open_${width}`);
@@ -368,7 +386,8 @@ export async function checkAccountColourTrack(page, diagnostics = {}, setCategor
       for (const theme of ['light', 'dark']) {
         setCategory(`menu_measure_${width}_${theme}`);
         await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
-        const facts = await page.locator('.woocommerce-MyAccount-navigation').evaluate(accountColourTrackFacts);
+        await settled(page);
+        const facts = await settledAccountColourTrackFacts(page);
         diagnostics[`menu_${width}_${theme}_icons`] = facts.icons;
         diagnostics[`menu_${width}_${theme}_height`] = facts.height;
         for (const group of Object.keys(palette)) {
