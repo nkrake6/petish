@@ -98,14 +98,16 @@ WooPayments does not provide Afterpay as an express wallet like Google Pay.
 Do not treat the proposed normal-checkout shortcut as an implemented payment
 flow or change processors without the owner's choice.
 
-## Customer reviews candidate
+## Customer reviews on private staging
 
-The opt-in customer review module is being added to Passport 0.4.0. It uses
+The opt-in customer review module is included in Passport 0.4.0. It uses
 native WooCommerce comments, private moderated media and separate reaction
 records; staff species-suitability reviews are unchanged. The dedicated
 `customer-reviews.yml` workflow targets private staging only. Product reviews
 appear below description/details, and My reviews provides the member dashboard.
-The application flag defaults off; discount/delivery rewards are not implemented
+Private staging is enabled after 47 native, 43 browser and 8 fixture-cleanup
+checks passed on source `cacc02b`, run `39578596321-1`.
+The application flag defaults off elsewhere; discount/delivery rewards are not implemented
 or enabled. See [the implementation and rollout scope](docs/CUSTOMER-REVIEWS.md).
 Do not infer production acceptance from the static design previews.
 

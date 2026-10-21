@@ -1,7 +1,7 @@
 # Petish customer reviews and member rewards — proposal
 
 Status: programme proposal, 21 October 2026. The first review implementation is
-being verified on private staging; see [scope and evidence](CUSTOMER-REVIEWS.md).
+verified and enabled on private staging; see [scope and evidence](CUSTOMER-REVIEWS.md).
 Live customer reviews, rewards and shipping benefits are not enabled. Names,
 colours and defaults below are recommendations unless marked as confirmed.
 
