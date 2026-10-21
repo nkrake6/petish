@@ -76,10 +76,49 @@ fixture_phase() {
           printf "%s\n" '"'"'{"status":"failure","category":"guard_publish","checks":{}}'"'"'; exit 1;
         fi;
       fi;
-      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/pet-club-fixture.php" '"$operation $target_run" \
+      if php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/pet-club-fixture.php" '"$operation $target_run"'; then :; else exit 71; fi' \
         > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
     screen_phase "$phase" || validation=$?
+    if [[ $operation == prepare && $status != 0 ]]; then
+        case "$status" in
+            255) failure_category=fixture_prepare_transport ;;
+            71) failure_category=fixture_prepare_runtime ;;
+            *) failure_category=fixture_prepare_setup ;;
+        esac
+    elif [[ $operation == prepare && $validation != 0 ]]; then
+        failure_category=fixture_prepare_validation
+    fi
     [[ $status == 0 && $validation == 0 ]]
+}
+
+# Retrying this bounded read cannot duplicate fixture users or any site change.
+# Never retry prepare, or accept input whose path/permissions checks failed.
+fetch_browser_input() {
+    local attempt status
+    for attempt in 1 2 3; do
+        status=0
+        "${petish_ssh[@]}" 'set -eu; file="$HOME/.petish-pet-club-deploy-'"$target_run"'/pet-club-browser-input.json";
+          test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" || exit 41;
+          test "$(stat -c %a "$file")" = 600 && test "$(stat -c %h "$file")" = 1 || exit 42;
+          size=$(stat -c %s "$file"); test "$size" -gt 0 && test "$size" -le 65536 || exit 43;
+          cat "$file" || exit 44' > "$work/browser-input.json" 2> "$work/input.private.stderr" || status=$?
+        if [[ $status == 0 ]]; then
+            failure_category=fixture_input_permissions
+            chmod 600 "$work/browser-input.json" || return 1
+            return 0
+        fi
+        case "$status" in
+            41) failure_category=fixture_input_path ;;
+            42) failure_category=fixture_input_permissions ;;
+            43) failure_category=fixture_input_size ;;
+            44) failure_category=fixture_input_read ;;
+            255) failure_category=fixture_input_transport ;;
+            *) failure_category=fixture_input_fetch ;;
+        esac
+        [[ $status == 255 && $attempt != 3 ]] || return 1
+        sleep "$((attempt * 2))"
+    done
+    return 1
 }
 
 verify_staging_source() {
@@ -419,11 +458,8 @@ if [[ $mode == staging ]]; then
     native_verification staging
     failure_category=fixture
     fixture_phase prepare
-    "${petish_ssh[@]}" 'set -eu; file="$HOME/.petish-pet-club-deploy-'"$run"'/pet-club-browser-input.json";
-      test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %a "$file")" = 600 && test "$(stat -c %h "$file")" = 1 || exit 1;
-      size=$(stat -c %s "$file"); test "$size" -gt 0 && test "$size" -le 65536 || exit 1; cat "$file"' \
-        > "$work/browser-input.json" 2> "$work/input.private.stderr"
-    chmod 600 "$work/browser-input.json"
+    failure_category=fixture_input_fetch
+    fetch_browser_input
     failure_category=browser
     browser_status=0
     node tools/pet-club/browser.mjs "$work/browser-input.json" "$work/browser.private.json" \
