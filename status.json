@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "index_plan",
+  "status": "success",
+  "category": "complete",
   "mode": "inspect",
   "run_id": "39538087702-1",
   "source_commit": "f9b88eb38f58bb05913a15bb6d4e5f43879d870b",
-  "generated_utc": "2026-10-21T03:21:23.363692+00:00",
+  "generated_utc": "2026-10-21T03:21:25.353942+00:00",
   "source_hashes": {
     "assets/catalogue.css": "de7fe4e27cec268236905ead836b542476940b93d29e496c462d22e0cac9f03a",
     "assets/passport.css": "58ae61debf37356af35c47abc0881e2d393ae5f6330fa79afff1eb9e1b6732fd",
