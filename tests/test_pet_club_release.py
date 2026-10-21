@@ -119,11 +119,11 @@ class PetClubReleaseTests(unittest.TestCase):
         recovered = {'wordpress_application_recovery_passed', 'database_import_verified',
                      'wordpress_bootstrap_verified', 'homepage_http_verified', 'shop_http_verified',
                      'product_http_verified', 'cart_http_verified', 'account_http_verified',
-                     'private_photo_references_verified', 'anonymous_private_photo_denied', 'application_outbound_http_blocked',
+                     'anonymous_private_photo_denied', 'application_outbound_http_blocked',
                      'application_email_blocked', 'application_container_removed', 'private_sandbox_removed'}
         recovery = {
             'AUTOMATION_KIND': 'recovery', 'AUTOMATION_RESULT': 'success',
-            'backup_branch': request['backup_branch'], 'recovery_check': dict.fromkeys(recovered, True),
+            'backup_branch': request['backup_branch'], 'recovery_check': {**dict.fromkeys(recovered, True), 'private_photo_references_verified': 1},
         }
         reports = {
             request['staging_status_branch']: stage,
@@ -154,6 +154,18 @@ class PetClubReleaseTests(unittest.TestCase):
         path, request, _, _, _ = self.fixture()
         self.assertEqual(evidence.validate(path),
                          {'verified': True, **{key: value for key, value in request.items() if key != 'format'}})
+
+    def test_recovery_private_photo_count_requires_a_positive_bounded_integer(self):
+        path, _, _, _, recovery = self.fixture()
+        self.assertTrue(evidence.validate(path)['verified'])
+        for value in (True, False, None, 0, -1, 20001, '1', 1.0):
+            with self.subTest(value=value):
+                recovery['recovery_check']['private_photo_references_verified'] = value
+                with self.assertRaises(ValueError):
+                    evidence.validate(path)
+        del recovery['recovery_check']['private_photo_references_verified']
+        with self.assertRaises(ValueError):
+            evidence.validate(path)
 
     def test_successful_retirement_is_not_staging_release_evidence(self):
         path, _, stage, _, _ = self.fixture()

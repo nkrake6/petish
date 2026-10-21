@@ -90,8 +90,13 @@ def validate(source):
     recovery = evidence.report(request['recovery_result_branch'],'pet-club-recovery')
     required = {'wordpress_application_recovery_passed','database_import_verified','wordpress_bootstrap_verified',
                 'homepage_http_verified','shop_http_verified','product_http_verified','cart_http_verified','account_http_verified',
-                'private_photo_references_verified','anonymous_private_photo_denied','application_outbound_http_blocked',
+                'anonymous_private_photo_denied','application_outbound_http_blocked',
                 'application_email_blocked','application_container_removed','private_sandbox_removed'}
+    # The recovery tool reports a count of verified private photo references,
+    # not a boolean. This known backup must exercise at least one reference.
+    private_references = recovery.get('recovery_check', {}).get('private_photo_references_verified')
+    if type(private_references) is not int or not 1 <= private_references <= 20000:
+        raise ValueError()
     if recovery.get('AUTOMATION_KIND') != 'recovery' or recovery.get('AUTOMATION_RESULT') != 'success' \
             or recovery.get('backup_branch') != request['backup_branch'] \
             or any(recovery.get('recovery_check',{}).get(key) is not True for key in required):

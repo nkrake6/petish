@@ -94,4 +94,19 @@ cleanup because those four runtime entries changed. Retirement
 and retained its original private journal and diagnostic evidence. Retirement
 does not count as a passing staging release.
 
-Release evidence will be recorded here after the hosted checks complete.
+## Hosted release evidence
+
+The complete staging rehearsal passed on application source
+`c67bbd655e1643b4caf61767947880d7b8f071f2`: 16 environment checks, 46 native
+checks, 13 fixture checks, 31 browser checks and 17 cleanup checks. The final
+comparison included the full protected settings snapshot, existing pets and
+private photos, users/authentication, orders, product prices and stock. The
+owned test users and temporary browser guard were removed.
+
+| Evidence | Result |
+| --- | --- |
+| [Encrypted full backup 39511176722-1](https://github.com/nkrake6/petish/tree/automation-status/backup-39511176722-1) | Successful archive and restore check, including private Passport storage |
+| [Application recovery 39511541357-1](https://github.com/nkrake6/petish/tree/automation-status/recovery-39511541357-1) | Restored WordPress and private-photo protection verified in an isolated sandbox |
+| [Complete staging rehearsal 39521211067-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39521211067-1) | All 123 checks passed; exact fourteen application files verified |
+
+Production release is pending the final release-evidence validation and apply.

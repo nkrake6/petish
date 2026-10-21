@@ -63,6 +63,14 @@ the affected feature on staging after deployment. Production deployment is not
 implemented by this workflow. Real purchases and supplier orders require a
 separately agreed sample-order task.
 
+Pet Club has a separate, narrowly scoped release workflow in
+`.github/workflows/pet-club.yml`. `verify-pet-club` exercises the exact application
+on private staging; `deploy-pet-club` applies only its fourteen reviewed Passport
+files after matching staging proof and a fresh, successfully recovered encrypted
+backup. Main pushes inspect production without applying the upgrade. Native
+production verification is read-only, with public page/asset checks and rollback
+protection. See [Pet Club release evidence and privacy behavior](docs/PET-CLUB.md).
+
 ## Backups and recovery checks
 
 See [FULL-SITE-BACKUP.md](FULL-SITE-BACKUP.md). The encrypted archive includes the
