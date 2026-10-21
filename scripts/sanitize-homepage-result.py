@@ -111,6 +111,13 @@ FIXTURE_STEPS={
 }
 FIXTURE_FAILURE_TYPES={'sql_boundary','runtime'}
 FIXTURE_FAILURES=FIXTURE_STEPS|{step+'_'+kind for step in FIXTURE_STEPS for kind in FIXTURE_FAILURE_TYPES}|{'transaction_sql_boundary'}
+REVIEW_DIAGNOSTICS={
+    'can_manage_woocommerce','can_edit_product','nonce_valid','supported_product_type',
+    'autosave_disabled','revision_absent','input_complete','before_save_hook_present','after_save_hook_present',
+    'review_class_source_matches','queued_status_eligible','queued_signature_present',
+    'raw_status_eligible','raw_record_complete','stored_signature_present','stored_valid_flag',
+    'reread_product_available','reread_product_type_matches','reread_signed_review_valid','original_signed_review_valid',
+}
 CATEGORIES=navigation.CATEGORIES|CACHE_FAILURES|FIXTURE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
     'personalisation','personalisation_error','personalisation_history','bootstrap','isolation','state'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
 
@@ -122,6 +129,10 @@ def screen(phase,path):
         raw=navigation.rehearsal.read_report(path)
         deploy=phase in {'inspect','apply','rollback','commit'}
         fields={'status','category','checks'}|({'changed_file_count'} if deploy else {'section_present'} if phase=='browser' else set())
+        if phase=='native' and 'review_diagnostics' in raw:
+            fields.add('review_diagnostics')
+            if not isinstance(raw['review_diagnostics'],dict) or set(raw['review_diagnostics'])!=REVIEW_DIAGNOSTICS \
+                or any(type(value) is not bool for value in raw['review_diagnostics'].values()):raise ValueError()
         if phase=='browser' and 'diagnostics' in raw:
             fields.add('diagnostics')
             if not isinstance(raw['diagnostics'],dict) or set(raw['diagnostics'])!=BROWSER_DIAGNOSTICS \

@@ -79,6 +79,11 @@ try{
  check('fixture_runtime_is_separate_from_sql_boundary',$report['category']==='fixture_product_save_runtime');
  check('fixture_step_rejects_private_runtime_values',rejects(fn()=>petish_fyp_proof_fixture_step('fixture_private-sentinel')));
  check('fixture_failure_type_is_finite',rejects(fn()=>petish_fyp_proof_fixture_error('private-sentinel')));
+ petish_fyp_proof_review_diagnostic('can_edit_product',false);
+ check('review_snapshot_has_complete_finite_boolean_shape',array_keys($report['review_diagnostics'])===PETISH_FYP_REVIEW_DIAGNOSTICS
+  &&count(array_filter($report['review_diagnostics'],'is_bool'))===count(PETISH_FYP_REVIEW_DIAGNOSTICS));
+ check('review_diagnostic_name_is_finite',rejects(fn()=>petish_fyp_proof_review_diagnostic('private-sentinel',true)));
+ check('review_diagnostic_value_is_boolean',rejects(fn()=>petish_fyp_proof_review_diagnostic('nonce_valid','private-sentinel')));
  $report['category']='purchases';
  check('nonfixture_sql_boundary_remains_controlled',rejects(fn()=>petish_fyp_proof_query_guard('COMMIT'))
   &&$report['category']==='transaction_sql_boundary');

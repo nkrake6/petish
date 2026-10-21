@@ -54,6 +54,13 @@ const PETISH_FYP_FIXTURE_STEPS=[
  'fixture_scope',
 ];
 const PETISH_FYP_FIXTURE_FAILURE_TYPES=['sql_boundary','runtime'];
+const PETISH_FYP_REVIEW_DIAGNOSTICS=[
+ 'can_manage_woocommerce','can_edit_product','nonce_valid','supported_product_type',
+ 'autosave_disabled','revision_absent','input_complete','before_save_hook_present','after_save_hook_present',
+ 'review_class_source_matches','queued_status_eligible','queued_signature_present',
+ 'raw_status_eligible','raw_record_complete','stored_signature_present','stored_valid_flag',
+ 'reread_product_available','reread_product_type_matches','reread_signed_review_valid','original_signed_review_valid',
+];
 class Petish_Fyp_Proof_Stop extends RuntimeException {}
 
 function petish_fyp_proof_fail(){throw new Petish_Fyp_Proof_Stop();}
@@ -64,6 +71,12 @@ function petish_fyp_proof_fixture_error($kind){
  global $report;if(!in_array($kind,PETISH_FYP_FIXTURE_FAILURE_TYPES,true))petish_fyp_proof_fail();
  if(in_array($report['category']??null,PETISH_FYP_FIXTURE_STEPS,true))$report['category'].='_'.$kind;
  elseif($kind==='sql_boundary')$report['category']='transaction_sql_boundary';
+}
+function petish_fyp_proof_review_diagnostic($name,$value){
+ global $report;
+ if(!in_array($name,PETISH_FYP_REVIEW_DIAGNOSTICS,true)||!is_bool($value))petish_fyp_proof_fail();
+ if(!isset($report['review_diagnostics']))$report['review_diagnostics']=array_fill_keys(PETISH_FYP_REVIEW_DIAGNOSTICS,false);
+ $report['review_diagnostics'][$name]=$value;
 }
 function petish_fyp_proof_mark($name,$value){
  global $report;
@@ -257,6 +270,7 @@ function petish_fyp_proof_product($name,$species,$keyword,$rank=0,$type='simple'
  return $product;
 }
 function petish_fyp_proof_approve($product,$species,$keyword,$review=true){
+ global $report;$report['review_diagnostics']=array_fill_keys(PETISH_FYP_REVIEW_DIAGNOSTICS,false);
  petish_fyp_proof_fixture_step('fixture_product_review_input');
  $current=wp_get_current_user();$caps=$current->allcaps;$post=$_POST;
  foreach(['manage_woocommerce','edit_products','edit_others_products','edit_published_products']as$cap)$current->allcaps[$cap]=true;
@@ -267,12 +281,37 @@ function petish_fyp_proof_approve($product,$species,$keyword,$review=true){
     'limits'=>'Synthetic isolated fixture; never offered for sale.']],
    'petish_fyp_marker'=>'1','petish_fyp_nonce'=>wp_create_nonce('petish_fyp_'.$product->get_id()),
    'petish_fyp_enabled'=>'1','petish_fyp_species'=>[$species],'petish_fyp_keywords'=>$keyword];
+  petish_fyp_proof_review_diagnostic('can_manage_woocommerce',current_user_can('manage_woocommerce'));
+  petish_fyp_proof_review_diagnostic('can_edit_product',current_user_can('edit_post',$product->get_id()));
+  petish_fyp_proof_review_diagnostic('nonce_valid',false!==wp_verify_nonce($_POST['petish_review_nonce'],'petish_review_'.$product->get_id()));
+  petish_fyp_proof_review_diagnostic('supported_product_type',$product->is_type(['simple','variable']));
+  petish_fyp_proof_review_diagnostic('autosave_disabled',!defined('DOING_AUTOSAVE')||!DOING_AUTOSAVE);
+  petish_fyp_proof_review_diagnostic('revision_absent',false===wp_is_post_revision($product->get_id()));
+  petish_fyp_proof_review_diagnostic('input_complete',Petish_Product_Review::complete(Petish_Product_Review::normalise($_POST['petish_reviews'][$species])));
+  petish_fyp_proof_review_diagnostic('before_save_hook_present',false!==has_action('woocommerce_before_product_object_save',['Petish_Product_Review','before_save']));
+  petish_fyp_proof_review_diagnostic('after_save_hook_present',false!==has_action('woocommerce_after_product_object_save',['Petish_Product_Review','after_save']));
+  $review_source=(new ReflectionClass('Petish_Product_Review'))->getFileName();
+  petish_fyp_proof_review_diagnostic('review_class_source_matches',is_string($review_source)&&is_file($review_source)
+   &&hash_equals('59307680539e8f2dab90058578930bc6d7765beb2c963200e896219a78f630fd',hash_file('sha256',$review_source)));
   petish_fyp_proof_fixture_step('fixture_product_review_editor');Petish_Product_Review::save_editor($product);
+  petish_fyp_proof_review_diagnostic('queued_status_eligible',$product->get_meta(Petish_Product_Review::key($species,'status'),true,'edit')==='eligible');
+  $queued_signature=$product->get_meta(Petish_Product_Review::key($species,'signature'),true,'edit');
+  petish_fyp_proof_review_diagnostic('queued_signature_present',is_string($queued_signature)&&$queued_signature!=='');
   petish_fyp_proof_fixture_step('fixture_product_rules_editor');Petish_For_Your_Pet::save_editor($product);
   petish_fyp_proof_fixture_step('fixture_product_approval_save');$product->save();
  }finally{$_POST=$post;$current->allcaps=$caps;}
  petish_fyp_proof_fixture_step('fixture_product_review_verify');
- if($review&&(Petish_Product_Review::record(wc_get_product($product->get_id()),$species)['status']??'')!=='eligible')petish_fyp_proof_fail();
+ $reread=wc_get_product($product->get_id());$raw=Petish_Product_Review::raw($product,$species);
+ petish_fyp_proof_review_diagnostic('raw_status_eligible',($raw['status']??null)==='eligible');
+ petish_fyp_proof_review_diagnostic('raw_record_complete',Petish_Product_Review::complete($raw));
+ $signature=get_post_meta($product->get_id(),Petish_Product_Review::key($species,'signature'),true);
+ petish_fyp_proof_review_diagnostic('stored_signature_present',is_string($signature)&&$signature!=='');
+ petish_fyp_proof_review_diagnostic('stored_valid_flag',get_post_meta($product->get_id(),Petish_Product_Review::key($species,'valid'),true)==='1');
+ petish_fyp_proof_review_diagnostic('reread_product_available',$reread instanceof WC_Product);
+ petish_fyp_proof_review_diagnostic('reread_product_type_matches',$reread instanceof WC_Product&&$reread->get_type()===$product->get_type());
+ petish_fyp_proof_review_diagnostic('reread_signed_review_valid',(Petish_Product_Review::record($reread,$species,false)['status']??'')==='eligible');
+ petish_fyp_proof_review_diagnostic('original_signed_review_valid',(Petish_Product_Review::record($product,$species,false)['status']??'')==='eligible');
+ if($review&&(Petish_Product_Review::record($reread,$species)['status']??'')!=='eligible')petish_fyp_proof_fail();
 }
 function petish_fyp_proof_order($customer,$email,$status,$product,$variation=null){
  petish_fyp_proof_fixture_step('fixture_order_construct');
