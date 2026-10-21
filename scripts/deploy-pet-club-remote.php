@@ -10,6 +10,7 @@ const PETISH_PET_CLUB_FILES = [
     'includes/class-petish-passport-moments.php'=>'02964cd3f2a2f56cc317888d8c238da1ce40559e4e36fbce40605465dfab56bf',
     'includes/class-petish-passport-community.php'=>'93763310909b9ba6838c3f89931148f88bbff60b728ccefe17e8655084d05b74',
     'assets/pet-club.css'=>'eae68551ca76942ba500470cc1d8871f3ad3c8920b343dd8c488c9ced6f03497',
+    'assets/passport.css'=>'7bfaba1d23ea4ca07fbdb009aceec36efbefb194e1bdafff60c46f012c8a237d',
     'assets/catalogue.css'=>'de7fe4e27cec268236905ead836b542476940b93d29e496c462d22e0cac9f03a',
     'assets/passport.js'=>'74a949e388871f852b674a4cd8029d0846e34122647d82759575417f41fd7ec4',
     'templates/public.php'=>'edb30db3a0502788caafab121abe18a1d7e2199d4f5802033f1295236675852c',
@@ -27,6 +28,7 @@ const PETISH_PET_CLUB_BASELINES = [
     'includes/class-petish-passport-moments.php'=>'5c24f7f0d6c71df2c422f02eb6401fdca1365f2fbf99ac43f2e4124f2944881c',
     'includes/class-petish-passport-community.php'=>'5d5aaab5d19c7c55d6fdbeb0f39bcd8ad4c4bcf0b79e90a07177bbdb9b0dde61',
     'assets/pet-club.css'=>'736b25ddd199bb12d4d01a320c9fa06969ed2084f449f56d3e090153102619f8',
+    'assets/passport.css'=>'e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076',
     'assets/catalogue.css'=>'de7fe4e27cec268236905ead836b542476940b93d29e496c462d22e0cac9f03a',
     'assets/passport.js'=>'764d78a7896cfa4291f09990a864c86a7b2569367a5bb39bc1660a5ab6222fe4',
     'templates/public.php'=>'825b138f5e40a9b7b2d4040d7ff8e6a60598b17be0f743988449e9c0ad5ff84c',
@@ -178,7 +180,8 @@ function pet_club_release_journal($release,$run) {
     $journal=pet_club_release_json($release.'/journal.json');
     if(($journal['run']??null)!==$run || !is_array($journal['files']??null)
         || array_keys($journal['files'])!==array_keys(PETISH_PET_CLUB_FILES)
-        || !is_array($journal['protected']??null) || !is_array($journal['created_directories']??null)) pet_club_release_fail();
+        || !is_array($journal['protected']??null) || !is_array($journal['created_directories']??null)
+        || !is_bool($journal['index_migration_required']??null)) pet_club_release_fail();
     foreach($journal['files'] as$name=>$entry) {
         if(!is_array($entry)||array_keys($entry)!==['present','sha256','mode']||!is_bool($entry['present'])) pet_club_release_fail();
         if($entry['present']) {
@@ -280,13 +283,33 @@ function pet_club_release_rollback($plugin,$root,$release,$run) {
     if(!file_exists($release.'/rolled-back')) pet_club_release_write($release.'/rolled-back',"verified\n");
 }
 
+/** Retain the exact private migration receipt beside the release's code backups. */
+function pet_club_release_archive_migration($home,$release,$run) {
+    $tools=$home.'/.petish-pet-club-deploy-'.$run;
+    pet_club_release_path($tools,true); pet_club_release_path($tools.'/.pet-club-owned');
+    if((fileperms($tools)&07777)!==0700||(fileperms($tools.'/.pet-club-owned')&07777)!==0600
+        ||file_get_contents($tools.'/.pet-club-owned')!==$run."\n") pet_club_release_fail();
+    $source=$tools.'/pet-club-index-migration.json'; $value=pet_club_release_json($source);
+    if(array_keys($value)!==['format','run','scope','status','entries','plan_hash','before','inserted']
+        ||$value['format']!=='petish-club-index-migration-v1'||$value['run']!==$run
+        ||$value['scope']!=='production'||$value['status']!=='applied'
+        ||!is_array($value['entries'])||count($value['entries'])>100||!is_array($value['before'])
+        ||!is_array($value['inserted'])||count($value['inserted'])>300
+        ||!is_string($value['plan_hash'])||!preg_match('/\A[a-f0-9]{64}\z/D',$value['plan_hash'])) pet_club_release_fail();
+    $raw=file_get_contents($source); $target=$release.'/index-migration.json';
+    if(file_exists($target)||is_link($target)) {
+        pet_club_release_json($target);
+        if(!hash_equals(hash('sha256',$raw),hash_file('sha256',$target))) pet_club_release_fail();
+    }else pet_club_release_write($target,$raw);
+}
+
 $report=['status'=>'failure','category'=>'input','checks'=>array_fill_keys([
     'paths_verified','candidate_manifest_verified','candidate_syntax_verified',
     'production_config_present','live_files_compatible','protected_state_unchanged',
     'rollback_snapshot_created','files_deployed','rollback_completed','release_committed','lock_owned',
-    'maintenance_guard_created','maintenance_guard_removed'],false),'changed_file_count'=>0];
-$rollback_on_exit=false; $live_mutation_started=false; $maintenance_owned=false; $lock=null; $plugin=null; $root=null; $release=null; $run=null;
-$finish=static function()use(&$report,&$rollback_on_exit,&$maintenance_owned,&$lock,&$plugin,&$root,&$release,&$run) {
+    'maintenance_guard_created','maintenance_guard_removed','maintenance_guard_retained','migration_journal_archived'],false),'changed_file_count'=>0];
+$rollback_on_exit=false; $live_mutation_started=false; $maintenance_owned=false; $hold_maintenance=false; $lock=null; $plugin=null; $root=null; $release=null; $run=null;
+$finish=static function()use(&$report,&$rollback_on_exit,&$maintenance_owned,&$hold_maintenance,&$lock,&$plugin,&$root,&$release,&$run) {
     if($rollback_on_exit) {
         try {
             pet_club_release_rollback($plugin,$root,$release,$run);
@@ -295,7 +318,7 @@ $finish=static function()use(&$report,&$rollback_on_exit,&$maintenance_owned,&$l
             $rollback_on_exit=false;
         }catch(Throwable $ignored) { $report['category']='rollback'; }
     }
-    if($maintenance_owned && (!$rollback_on_exit || pet_club_release_coherent($plugin,$release,$run))) {
+    if($maintenance_owned && !$hold_maintenance && (!$rollback_on_exit || pet_club_release_coherent($plugin,$release,$run))) {
         try { pet_club_release_maintenance($root,$run,$release,true); $maintenance_owned=false; $report['checks']['maintenance_guard_removed']=true; }
         catch(Throwable $ignored) { $report['status']='failure'; $report['category']='maintenance'; }
     }
@@ -305,7 +328,7 @@ register_shutdown_function(static function()use($finish,&$report) {
 });
 
 try {
-    if($argc!==4||!in_array($argv[1],['inspect','apply','rollback','commit'],true)||!preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[2])) pet_club_release_fail();
+    if($argc!==4||!in_array($argv[1],['inspect','apply','apply-index','pause','resume','rollback','commit'],true)||!preg_match('/\A[1-9][0-9]{0,31}-[1-9][0-9]{0,8}\z/D',$argv[2])) pet_club_release_fail();
     [$script,$operation,$run,$payload]=$argv;
     $report['category']='paths';
     $home=getenv('HOME'); pet_club_release_path($home,true);
@@ -318,7 +341,7 @@ try {
     $report['changed_file_count']=$changed; $report['checks']['live_files_compatible']=true;
     $base=$home.'/.petish-pet-club-releases'; $release=$base.'/'.$run;
     if($operation==='inspect') { pet_club_release_protected($root,$plugin); }
-    elseif($operation==='apply') {
+    elseif(in_array($operation,['apply','apply-index'],true)) {
         $report['category']='maintenance';
         if(file_exists($root.'/.maintenance')||is_link($root.'/.maintenance')) pet_club_release_fail();
         $report['category']='lock';
@@ -333,7 +356,7 @@ try {
         foreach($live as$name=>$entry) if($entry['present']) {
             pet_club_release_write($release.'/backup/'.array_search($name,array_keys(PETISH_PET_CLUB_FILES),true),file_get_contents($plugin.'/'.$name));
         }
-        $journal=['run'=>$run,'files'=>$live,'protected'=>$protected,'created_directories'=>$created];
+        $journal=['run'=>$run,'files'=>$live,'protected'=>$protected,'created_directories'=>$created,'index_migration_required'=>$operation==='apply-index'];
         pet_club_release_write($release.'/journal.json',json_encode($journal,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
         pet_club_release_journal($release,$run); $report['checks']['rollback_snapshot_created']=true;
         $report['category']='maintenance';
@@ -353,7 +376,12 @@ try {
         if(pet_club_release_protected($root,$plugin)!==$protected) pet_club_release_fail();
         $report['checks']['protected_state_unchanged']=true;
         pet_club_release_write($release.'/pending',"verified\n");
-        pet_club_release_maintenance($root,$run,$release,true); $maintenance_owned=false; $report['checks']['maintenance_guard_removed']=true;
+        if($operation==='apply-index') {
+            // The migration helper will prove its exact row changes while this guard remains owned.
+            $hold_maintenance=true; $report['checks']['maintenance_guard_retained']=true;
+        }else {
+            pet_club_release_maintenance($root,$run,$release,true); $maintenance_owned=false; $report['checks']['maintenance_guard_removed']=true;
+        }
         $rollback_on_exit=false;
     }else {
         $report['category']='lock'; pet_club_release_path($base,true); pet_club_release_path($release,true);
@@ -366,7 +394,22 @@ try {
         }
         $report['category']=$operation;
         $journal=pet_club_release_journal($release,$run); $report['checks']['rollback_snapshot_created']=true;
-        if($operation==='rollback') {
+        if(in_array($operation,['pause','resume'],true)) {
+            pet_club_release_path($release.'/pending'); pet_club_release_require_candidates($plugin);
+            $protected_now=pet_club_release_protected($root,$plugin); $expected=$journal['protected'];
+            // A later rollback must preserve legitimate customer media created after reopening.
+            if($operation==='pause') $expected['private_passport']=$protected_now['private_passport'];
+            if($protected_now!==$expected) pet_club_release_fail();
+            $report['checks']['files_deployed']=true; $report['checks']['protected_state_unchanged']=true;
+            pet_club_release_maintenance($root,$run,$release,false,true); $maintenance_owned=true;
+            $report['checks']['maintenance_guard_created']=true;
+            if($operation==='pause') {
+                $hold_maintenance=true; $report['checks']['maintenance_guard_retained']=true;
+            }else {
+                pet_club_release_maintenance($root,$run,$release,true); $maintenance_owned=false;
+                $report['checks']['maintenance_guard_removed']=true;
+            }
+        }elseif($operation==='rollback') {
             if($already_rolled_back) {
                 pet_club_release_path($release.'/rolled-back');
                 if((fileperms($release.'/rolled-back')&07777)!==0600||file_get_contents($release.'/rolled-back')!=="verified\n") pet_club_release_fail();
@@ -391,16 +434,20 @@ try {
             pet_club_release_path($release.'/pending'); pet_club_release_require_candidates($plugin);
             if(pet_club_release_protected($root,$plugin)!==$journal['protected']) pet_club_release_fail();
             $report['checks']['protected_state_unchanged']=true; $report['checks']['files_deployed']=true;
+            if($journal['index_migration_required']) {
+                pet_club_release_archive_migration($home,$release,$run);
+                $report['checks']['migration_journal_archived']=true;
+            }
             pet_club_release_write($release.'/committed',"verified\n");
             $report['checks']['release_committed']=true;
         }
-        if($lock!==null) { pet_club_release_unlock($lock); $lock=null; }
+        if($lock!==null&&!in_array($operation,['pause','resume'],true)) { pet_club_release_unlock($lock); $lock=null; }
     }
     $report['status']='success'; $report['category']='complete';
 }catch(Throwable $ignored) {
     $finish();
     // An aborted preparation or preimage check changed no live application file.
-    if(($operation??null)==='apply'&&!$rollback_on_exit&&$lock!==null&&!$live_mutation_started) {
+    if(in_array($operation??null,['apply','apply-index'],true)&&!$rollback_on_exit&&$lock!==null&&!$live_mutation_started) {
         try { pet_club_release_unlock($lock); $lock=null; }catch(Throwable $ignored_again) {}
     }
 }

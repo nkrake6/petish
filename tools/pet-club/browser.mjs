@@ -13,6 +13,7 @@ const SAFETY = ['environment_staging', 'staging_database_separate', 'guard_runti
 export const CHECK_KEYS = Object.freeze([
   'browser_started', 'owner_login_verified', 'member_login_verified', 'owned_passport_displayed',
   'mobile_390_verified', 'mobile_320_verified', 'desktop_layout_verified', 'account_menu_verified',
+  'account_menu_colour_track_verified', 'account_menu_height_preserved',
   'tabs_mouse_verified', 'tabs_keyboard_verified', 'private_preview_verified',
   'lightbox_verified', 'lightbox_escape_focus_verified', 'edit_form_verified',
   'real_photo_upload_verified', 'owner_private_photo_http_verified',
@@ -27,6 +28,28 @@ export const CHECK_KEYS = Object.freeze([
   'real_video_upload_verified', 'private_video_playback_verified', 'private_video_http_verified',
   'private_video_unauthorized_denied', 'public_video_http_verified', 'video_ranges_verified', 'revoked_video_http_denied',
 ]);
+export const DIAGNOSTIC_KEYS = Object.freeze(['member', 'owner', 'guest'].flatMap(actor =>
+  ['status_200', 'status_404', 'status_redirect', 'status_403', 'status_other',
+    'no_store_header', 'litespeed_hit', 'redirect_to_staging_login'].map(fact => `favourites_${actor}_${fact}`)));
+/** Response classification only: never publish headers, URLs, or response bodies. */
+export function favouritesHttpFacts(actor, status, headers) {
+  if (!['member', 'owner', 'guest'].includes(actor)) throw new Error('input');
+  const redirect = Number.isInteger(status) && status >= 300 && status < 400;
+  let login = false;
+  try { const url = new URL(headers?.location ?? '', ORIGIN);
+    login = redirect && url.origin === ORIGIN && url.pathname === '/wp-login.php' && !url.username && !url.password;
+  } catch {}
+  const facts = [status === 200, status === 404, redirect, status === 403,
+    ![200, 404, 403].includes(status) && !redirect,
+    /\bno-store\b/i.test(headers?.['cache-control'] ?? ''), /hit/i.test(headers?.['x-litespeed-cache'] ?? ''), login];
+  return Object.fromEntries(DIAGNOSTIC_KEYS.filter(key => key.startsWith(`favourites_${actor}_`)).map((key, index) => [key, facts[index]]));
+}
+/** Parse without running response scripts; filter URLs may legitimately echo a search term. */
+export function guestFavouriteMarkup(html) {
+  const document = new DOMParser().parseFromString(html, 'text/html');
+  return { no_cards: document.querySelectorAll('.pc-community-card, .pc-heart-form').length === 0,
+    sign_in_prompt: [...document.querySelectorAll('.pc-welcome a')].some(link => link.textContent.trim() === 'Sign in to see favourites') };
+}
 export const FORM_CATEGORIES = Object.freeze([
   'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
   'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
@@ -158,9 +181,10 @@ export function allowedRequest(raw, method = 'GET', state = {}, body = '', type 
 
 export function publicReport(value) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, value?.checks?.[key] === true]));
+  const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, value?.diagnostics?.[key] === true]));
   const success = value?.status === 'success' && value?.category === 'complete' && Object.values(checks).every(Boolean);
   return { status: success ? 'success' : 'failure', category: success ? 'complete'
-    : (CATEGORIES.has(value?.category) && value.category !== 'complete' ? value.category : 'input'), checks };
+    : (CATEGORIES.has(value?.category) && value.category !== 'complete' ? value.category : 'input'), checks, diagnostics };
 }
 function ensure(value, category) { if (!value) throw new Error(category); }
 async function guard(context, state) {
@@ -253,6 +277,63 @@ export function requestNativeVideoLimit(form) {
   HTMLFormElement.prototype.requestSubmit.call(form, submitter);
   return observations;
 }
+/** Inspect actual native links. Decorative icons must not enlarge a row. */
+export function accountColourTrackFacts(navigation) {
+  const dark = document.documentElement.dataset.theme === 'dark', mobile = innerWidth <= 991;
+  const groups = [
+    [['dashboard', 'orders', 'downloads'], dark ? 'rgb(32, 198, 247)' : 'rgb(15, 76, 92)'],
+    [['edit-address', 'payment-methods', 'edit-account'], dark ? 'rgb(233, 213, 255)' : 'rgb(101, 50, 161)'],
+    [['my-pets', 'for-my-pet'], dark ? 'rgb(255, 91, 167)' : 'rgb(178, 45, 105)'],
+    [['customer-logout'], dark ? 'rgb(249, 168, 37)' : 'rgb(139, 91, 5)'],
+  ];
+  let icons = true, height = true;
+  for (const [endpoints, colour] of groups) for (const endpoint of endpoints) {
+    const item = navigation.querySelector(`.woocommerce-MyAccount-navigation-link--${endpoint}`), link = item?.querySelector('a');
+    if (!link) return { icons: false, height: false };
+    const active = item.classList.contains('is-active'), icon = getComputedStyle(link, '::after');
+    const circle = getComputedStyle(link, '::before'), rail = getComputedStyle(item, '::before');
+    icons = icons && icon.display === 'block' && icon.position === 'absolute' && icon.pointerEvents === 'none'
+      && icon.width === '20px' && icon.height === '20px' && icon.maskImage.includes('data:image/svg+xml')
+      && rail.backgroundColor === colour && icon.backgroundColor === (active ? (dark ? 'rgb(11, 20, 38)' : 'rgb(248, 249, 252)') : colour)
+      && (active ? circle.display === 'block' && circle.width === '26px' && circle.height === '26px'
+        && circle.backgroundColor === colour && icon.maskSize === '17px 17px' : circle.display === 'none');
+    const style = getComputedStyle(link), box = link.getBoundingClientRect(), range = document.createRange();
+    range.selectNodeContents(link); const text = range.getBoundingClientRect();
+    height = height && Math.abs(box.height - (mobile ? 44 : 45)) < 1
+      && style.paddingTop === (mobile ? '11px' : '12px') && style.paddingBottom === style.paddingTop
+      && text.height <= parseFloat(style.lineHeight) + 1 && text.right <= box.right - parseFloat(style.paddingRight) + 1;
+  }
+  if (mobile) {
+    const toggle = navigation.querySelector('.pp-account-navigation-toggle'), style = toggle && getComputedStyle(toggle);
+    const box = toggle?.getBoundingClientRect();
+    height = height && !!style && style.paddingTop === '12px' && style.paddingBottom === '12px'
+      && style.paddingLeft === '16px' && style.paddingRight === '16px' && style.minHeight === '64px'
+      && box.height >= 64 && box.height <= 68;
+  }
+  return { icons, height };
+}
+async function checkAccountColourTrack(page) {
+  const viewport = page.viewportSize(), original = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  let icons = true, height = true;
+  try {
+    await page.waitForFunction(() => !document.fonts || document.fonts.status === 'loaded');
+    for (const width of [320, 390, 992, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      const toggle = page.locator('.pp-account-navigation-toggle');
+      if (width <= 991 && await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
+        const facts = await page.locator('.woocommerce-MyAccount-navigation').evaluate(accountColourTrackFacts);
+        icons = icons && facts.icons; height = height && facts.height;
+      }
+      if (width <= 991) await page.keyboard.press('Escape');
+    }
+  } finally {
+    await page.evaluate(value => { if (value === null) document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', value); }, original);
+    await page.setViewportSize(viewport);
+  }
+  return { icons, height };
+}
 async function videoUploads(browser, owner, input, mark, setCategory) {
   const { page, state } = owner, valid = videoFixture('synthetic-valid.mp4'), long = videoFixture('synthetic-over-duration.mp4');
   const oversized = oversizedVideo(valid), createURL = `${ORIGIN}/my-account/my-pets/?passport=moment-create&pet_id=${input.pet_id}&kind=video`;
@@ -344,6 +425,7 @@ function syntheticPng() {
 
 export async function run(input, chromium) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false])); let browser, category = 'input';
+  const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
   const mark = (key, value = true) => { checks[key] = !!value; ensure(checks[key], category); };
   try {
     validateInput(input); category = 'browser';
@@ -359,6 +441,8 @@ export async function run(input, chromium) {
       && (await page.locator('.pc-status').textContent()).includes('Private'));
     category = 'mobile'; mark('mobile_390_verified', await fit(page, 390)); mark('mobile_320_verified', await fit(page, 320));
     category = 'navigation'; const menu = page.locator('.pp-account-navigation-toggle'); await menu.waitFor({ state: 'visible' });
+    const menuFacts = await checkAccountColourTrack(page);
+    mark('account_menu_colour_track_verified', menuFacts.icons); mark('account_menu_height_preserved', menuFacts.height);
     await menu.click(); ensure(await menu.getAttribute('aria-expanded') === 'true', category);
     await page.keyboard.press('Escape'); const menuClosed = await menu.getAttribute('aria-expanded') === 'false';
     const collection = await page.goto(ORIGIN + '/my-account/for-my-pet/', { waitUntil: 'domcontentloaded' });
@@ -564,11 +648,16 @@ export async function run(input, chromium) {
         const memberResponse = await safeGet(member.context, member.state, favouriteURL);
         const ownerResponse = await page.goto(favouriteURL + `&club_uid=${input.member.id}`, { waitUntil: 'domcontentloaded' });
         const guestResponse = await safeGet(anonymous, anonymousState, favouriteURL + `&club_uid=${input.member.id}`);
+        const ownerHeaders = ownerResponse ? await ownerResponse.allHeaders() : {};
+        Object.assign(diagnostics, favouritesHttpFacts('member', memberResponse.status(), memberResponse.headers()),
+          favouritesHttpFacts('owner', ownerResponse?.status(), ownerHeaders),
+          favouritesHttpFacts('guest', guestResponse.status(), guestResponse.headers()));
+        const guestMarkup = await page.evaluate(guestFavouriteMarkup, await guestResponse.text());
         mark('favourites_session_isolation_verified', await member.page.locator('.pc-community-card').count() === 1
           && await page.locator('.pc-community-card').count() === 0
-          && !((await guestResponse.text()).includes(input.name) && guestResponse.status() === 200));
+          && guestMarkup.no_cards && (guestResponse.status() === 404 || (guestResponse.status() === 200 && guestMarkup.sign_in_prompt)));
         mark('favourites_responses_uncacheable', memberResponse.status() === 200 && noStore(memberResponse.headers())
-          && ownerResponse?.ok() && noStore(await ownerResponse.allHeaders()) && noStore(guestResponse.headers())
+          && ownerResponse?.ok() && noStore(ownerHeaders) && noStore(guestResponse.headers())
           && [200, 404].includes(guestResponse.status()));
         // Remove via the rendered directory form, checking its native return target.
         member.state.directoryFilters = { view: 'favourites', species: 'rabbit', variety: 'Mini Lop', name: input.name, page: '1' };
@@ -609,8 +698,8 @@ export async function run(input, chromium) {
       && !allowedRequest(ORIGIN + '/?add-to-cart=1', 'GET', state)
       && !allowedRequest(ORIGIN + '/wp-admin/admin-post.php', 'POST', state, 'action=petish_club_publish')
       && !allowedRequest(ORIGIN + '/my-account/edit-account/', 'POST', state));
-    return publicReport({ status: 'success', category: 'complete', checks });
-  } catch (error) { return publicReport({ status: 'failure', category: CATEGORIES.has(error.message) ? error.message : category, checks }); }
+    return publicReport({ status: 'success', category: 'complete', checks, diagnostics });
+  } catch (error) { return publicReport({ status: 'failure', category: CATEGORIES.has(error.message) ? error.message : category, checks, diagnostics }); }
   finally { if (browser) await browser.close().catch(() => {}); }
 }
 

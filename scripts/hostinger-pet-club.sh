@@ -23,6 +23,8 @@ ssh_ready=0
 fixture_cleanup_needed=0
 fixture_cleanup_verified=0
 rollback_needed=0
+migration_started=0
+migration_rollback_verified=0
 rollback_attempted=0
 rollback_verified=0
 staging_source_verified=0
@@ -38,10 +40,22 @@ screen_phase() {
 }
 
 remote_phase() {
-    local phase=$1 status=0 validation=0
-    case "$phase" in inspect|apply|rollback|commit) ;; *) return 1 ;; esac
+    local phase=$1 status=0 validation=0 operation=$1
+    case "$phase" in inspect|apply|apply_index|pause|resume|rollback|commit) ;; *) return 1 ;; esac
+    [[ $phase != apply_index ]] || operation=apply-index
     "${petish_ssh[@]}" 'set -eu; tools="$HOME/.petish-pet-club-deploy-'"$target_run"'";
-      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/deploy-pet-club-remote.php" '"$phase $target_run"' "$tools/payload"' \
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$tools/deploy-pet-club-remote.php" '"$operation $target_run"' "$tools/payload"' \
+        > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
+    screen_phase "$phase" || validation=$?
+    [[ $status == 0 && $validation == 0 ]]
+}
+
+index_phase() {
+    local operation=$1 phase=index_$1 status=0 validation=0
+    case "$operation" in plan|apply|verify|rollback) ;; *) return 1 ;; esac
+    "${petish_ssh[@]}" 'set -eu; export WP_CLI_DISABLE_AUTO_CHECK_UPDATE=1;
+      for name in DB_NAME DB_HOST; do value=$(wp --path="$HOME/domains/petish.biz/public_html" --no-color config get "$name" --type=constant 2>/dev/null) || exit 1; export "PETISH_REHEARSAL_PRODUCTION_$name=$value"; done; unset value;
+      php -d display_errors=0 -d log_errors=0 -d allow_url_fopen=0 "$HOME/.petish-pet-club-deploy-'"$target_run"'/pet-club-index-migration.php" '"$target_run $operation" \
         > "$work/$phase.private.json" 2> "$work/$phase.private.stderr" || status=$?
     screen_phase "$phase" || validation=$?
     [[ $status == 0 && $validation == 0 ]]
@@ -124,7 +138,7 @@ fetch_browser_input() {
 verify_staging_source() {
     "${petish_ssh[@]}" 'set -eu; root="$HOME/domains/staging.petish.biz/public_html/wp-content/plugins/petish-passport";
       test -d "$root" && test ! -L "$root" && test "$(readlink -f -- "$root")" = "$root" || exit 1;
-      for relative in includes/class-petish-passport-video-inspector.php includes/class-petish-passport-video.php includes/class-petish-passport-moments.php includes/class-petish-passport-community.php assets/pet-club.css assets/catalogue.css assets/passport.js templates/public.php templates/community.php templates/moment-form.php includes/class-petish-passport-media.php includes/class-petish-passport-store.php includes/class-petish-passport-ui.php templates/dashboard.php templates/form.php templates/delete.php petish-passport.php; do
+      for relative in includes/class-petish-passport-video-inspector.php includes/class-petish-passport-video.php includes/class-petish-passport-moments.php includes/class-petish-passport-community.php assets/pet-club.css assets/passport.css assets/catalogue.css assets/passport.js templates/public.php templates/community.php templates/moment-form.php includes/class-petish-passport-media.php includes/class-petish-passport-store.php includes/class-petish-passport-ui.php templates/dashboard.php templates/form.php templates/delete.php petish-passport.php; do
         file="$root/$relative";
         test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %h "$file")" = 1 || exit 1;
         sha256sum "$file";
@@ -168,6 +182,7 @@ publish_result() {
     export PETISH_PET_CLUB_WORK=$work PETISH_PET_CLUB_RUN=$run PETISH_PET_CLUB_MODE=$mode
     export PETISH_PET_CLUB_STATUS=$result_status PETISH_PET_CLUB_CATEGORY=$failure_category
     export PETISH_PET_CLUB_SOURCE=$source_sha PETISH_PET_CLUB_STAGE_VERIFIED=$staging_source_verified
+    export PETISH_PET_CLUB_MIGRATION_ROLLBACK=$migration_rollback_verified
     export PETISH_PET_CLUB_ROLLBACK_ATTEMPTED=$rollback_attempted PETISH_PET_CLUB_ROLLBACK_VERIFIED=$rollback_verified
     export PETISH_PET_CLUB_TARGET_RUN=$target_run PETISH_PET_CLUB_RECOVERY_OPERATION=$recovery_operation
     export PETISH_PET_CLUB_PRIVATE_ENCRYPTED=$encrypted_option_names_verified
@@ -182,6 +197,7 @@ result={'status':os.environ['PETISH_PET_CLUB_STATUS'],'category':os.environ['PET
  'source_hashes':{},'staging_source_verified':os.environ['PETISH_PET_CLUB_STAGE_VERIFIED']=='1',
  'rollback_attempted':os.environ['PETISH_PET_CLUB_ROLLBACK_ATTEMPTED']=='1',
  'rollback_verified':os.environ['PETISH_PET_CLUB_ROLLBACK_VERIFIED']=='1',
+ 'migration_rollback_verified':os.environ['PETISH_PET_CLUB_MIGRATION_ROLLBACK']=='1',
  'private_option_names_encrypted':os.environ['PETISH_PET_CLUB_PRIVATE_ENCRYPTED']=='1','phases':{}}
 if result['mode']=='cleanup':
  result['recovery_run_id']=os.environ['PETISH_PET_CLUB_TARGET_RUN']
@@ -190,7 +206,7 @@ stage=os.environ.get('PET_CLUB_PREPARATION_STAGE','unknown')
 result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
-for phase in ('inspect','index','preflight','native','fixture','browser','cleanup','diagnose','retire','apply','verify','health','assets','commit','rollback'):
+for phase in ('inspect','index','index_plan','index_apply','index_verify','index_rollback','pause','resume','apply_index','preflight','native','fixture','browser','cleanup','diagnose','retire','apply','verify','health','assets','commit','rollback'):
  path=root/(phase+'.safe.json')
  try:
   info=path.lstat()
@@ -244,11 +260,24 @@ finish() {
     trap - EXIT HUP INT TERM
     if [[ $rollback_needed == 1 ]]; then
         rollback_attempted=1
-        if remote_phase rollback; then
-            rollback_verified=1
-            rollback_needed=0
-        else
-            failure_category=rollback
+        migration_safe=1
+        if [[ $migration_started == 1 ]]; then
+            # Restore only journal-owned index rows while candidate classes still exist.
+            if remote_phase pause && index_phase rollback; then
+                migration_rollback_verified=1
+                migration_started=0
+            else
+                migration_safe=0
+                failure_category=index_rollback
+            fi
+        fi
+        if [[ $migration_safe == 1 ]]; then
+            if remote_phase rollback; then
+                rollback_verified=1
+                rollback_needed=0
+            else
+                failure_category=rollback
+            fi
         fi
         outcome=1
     fi
@@ -412,7 +441,7 @@ fi
 if [[ $mode == staging ]]; then
     cp -- scripts/staging-rehearsal-remote.php "$work/bundle/driver.php"
     chmod 600 "$work/bundle/driver.php"
-    for name in verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php pet-club-directory-proof.php pet-club-video-proof.php email-branding-preview-remote.php; do
+    for name in verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php pet-club-directory-proof.php pet-club-video-proof.php pet-club-index-proof.php pet-club-index-migration.php email-branding-preview-remote.php; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
@@ -420,14 +449,14 @@ if [[ $mode == staging ]]; then
         cp -- "tools/pet-club/fixtures/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
-    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php pet-club-directory-proof.php pet-club-video-proof.php email-branding-preview-remote.php synthetic-valid.mp4 synthetic-over-duration.mp4 payload \
+    tar -C "$work/bundle" -cf "$work/bundle.tar" driver.php verify-pet-club.php pet-club-fixture.php pet-club-jetpack-guard.php pet-club-directory-proof.php pet-club-video-proof.php pet-club-index-proof.php pet-club-index-migration.php email-branding-preview-remote.php synthetic-valid.mp4 synthetic-over-duration.mp4 payload \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 else
-    for name in deploy-pet-club-remote.php verify-pet-club.php email-branding-preview-remote.php; do
+    for name in deploy-pet-club-remote.php verify-pet-club.php pet-club-index-migration.php email-branding-preview-remote.php; do
         cp -- "scripts/$name" "$work/bundle/$name"
         chmod 600 "$work/bundle/$name"
     done
-    tar -C "$work/bundle" -cf "$work/bundle.tar" deploy-pet-club-remote.php verify-pet-club.php email-branding-preview-remote.php payload \
+    tar -C "$work/bundle" -cf "$work/bundle.tar" deploy-pet-club-remote.php verify-pet-club.php pet-club-index-migration.php email-branding-preview-remote.php payload \
         > "$work/archive.private.stdout" 2> "$work/archive.private.stderr"
 fi
 failure_category=transport
@@ -473,17 +502,24 @@ fi
 
 failure_category=inspect
 remote_phase inspect
-failure_category=index
-native_verification production-index
+failure_category=index_plan
+index_phase plan
 result_status=in_progress
 publish_result > "$work/progress.private.stdout" 2> "$work/progress.private.stderr"
 if [[ $mode == inspect ]]; then
     operation_verified=1
     exit 0
 fi
-failure_category=apply
+failure_category=apply_index
 rollback_needed=1
-remote_phase apply
+remote_phase apply_index
+failure_category=index_apply
+migration_started=1
+index_phase apply
+failure_category=index_verify
+index_phase verify
+failure_category=resume
+remote_phase resume
 failure_category=verify
 native_verification production
 failure_category=health
@@ -499,7 +535,7 @@ python3 - "$work/assets.private.json" <<'PY_ASSETS' > "$work/assets.private.stdo
 import importlib.util,sys
 spec=importlib.util.spec_from_file_location('public_assets','scripts/verify-account-navigation-assets.py')
 assets=importlib.util.module_from_spec(spec);spec.loader.exec_module(assets)
-assets.ASSETS={'pet_club_script_http_verified':'passport.js','pet_club_stylesheet_http_verified':'pet-club.css','pet_club_catalogue_stylesheet_http_verified':'catalogue.css'}
+assets.ASSETS={'pet_club_script_http_verified':'passport.js','pet_club_stylesheet_http_verified':'pet-club.css','pet_club_catalogue_stylesheet_http_verified':'catalogue.css','pet_club_navigation_stylesheet_http_verified':'passport.css'}
 raise SystemExit(assets.main([sys.argv[1]]))
 PY_ASSETS
 assets_validation=0

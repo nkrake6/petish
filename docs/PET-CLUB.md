@@ -140,17 +140,18 @@ passed the 15-file transaction, 22 read-only native checks, public health and
 three exact asset checks, then committed and removed its maintenance guard.
 The existing encrypted backup/recovery evidence above was still fresh.
 
-Favourites, directory filters, short videos and a personalised homepage section
-are subsequent work in progress; this release does not enable them.
+Favourites, directory filters, short videos, the selected Colour track account
+menu and the personalised homepage section are pending work; live 0.3.1 does
+not enable them.
 
-## Candidate 0.3.2: favourites, filters and video moments
+## Pending 0.3.2: favourites, filters, video moments and Colour track
 
-Application source `233a641f87d2aed34f43121db8024715b39b3455` is installed on
-private staging. It is not yet a production release. The candidate adds species,
-breed/variety and pet-name filters, paginated results, and a **My favourites**
-view using the existing hearts. Only the signed-in member's favourites are
-returned. Directory matching uses explicitly published snapshot fields; private
-profile edits do not change search results until the owner shares them again.
+**0.3.2 is implemented in source but is not a production release.** It adds
+species, breed/variety and pet-name filters, paginated results, and a
+**My favourites** view using the existing hearts. Only the signed-in member's
+favourites are returned; guests are asked to sign in. Directory matching uses
+explicitly published snapshot fields, so private profile edits do not change
+search results until the owner shares them again.
 
 Video moments accept progressive MP4 files with H.264 video and optional AAC
 audio, up to 20 seconds and 20,971,520 bytes (shown as 20 MB). The existing quota
@@ -160,6 +161,21 @@ bounded byte-range responses. Sharing a clip requires explicit selection and
 creates a separate public snapshot; withdrawal revokes access before cleanup.
 Original video bytes are retained, so the publication screen explains that
 embedded device or location metadata may remain. No host transcoder is needed.
+
+The owner selected **Colour track** from the
+[account-menu concepts](account-menu-concepts/index.html). Its endpoint-specific
+icons, grouped colour rail and active circular marker are included in the
+pending Passport release. Labels, link order, destinations and the mobile
+dropdown script are unchanged. Local checks preserved the existing menu and
+collapsed-header heights in both themes; see
+[Colour track implementation notes](ACCOUNT-MENU-COLOUR.md).
+
+An earlier candidate, application source
+`233a641f87d2aed34f43121db8024715b39b3455`, was installed on private staging.
+The current 18-file candidate also includes Colour track and still requires a
+complete passing hosted rehearsal, the scoped derived-directory-index migration
+proof, fixture cleanup and an exact production receipt. Earlier candidate runs
+do not establish that this final file set is deployed.
 
 Hosted rehearsal `39530335101-1` found that clicking the upload form's submit
 button with site JavaScript disabled did not send a request, despite native
@@ -175,5 +191,8 @@ but the run stopped before browser verification. It is a failed release gate,
 not evidence that the candidate is ready for production. A complete passing
 rehearsal and exact production receipt are still required.
 
-The separate homepage matching work is described in
-[For your pet](FOR-YOUR-PET.md).
+The separate, also-pending homepage feature matches staff-curated products
+against the active pet's existing biography and personality tags. It shows the
+newest matches first and excludes prior purchases, including variants. No new
+Passport fields are added. See [For your pet](FOR-YOUR-PET.md) for its separate
+release and verification scope.

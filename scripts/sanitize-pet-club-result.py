@@ -16,9 +16,9 @@ def module(name):
 
 
 navigation = module('sanitize-account-navigation-result')
-DEPLOY = navigation.DEPLOY | {'maintenance_guard_created', 'maintenance_guard_removed'}
+DEPLOY = navigation.DEPLOY | {'maintenance_guard_created', 'maintenance_guard_removed', 'maintenance_guard_retained', 'migration_journal_archived'}
 PREFLIGHT = navigation.PREFLIGHT
-FILE_COUNT = 17
+FILE_COUNT = 18
 STAGING = {
     'all_outbound_http_blocked', 'anonymous_heart_denied', 'biography_and_traits_saved',
     'cron_and_async_runner_disabled', 'directory_explicit_reshare_filters_verified', 'directory_fixture_scope_verified',
@@ -27,6 +27,8 @@ STAGING = {
     'directory_visibility_revocation_verified', 'existing_passports_unchanged', 'explicit_public_snapshot_created',
     'favourites_session_isolation_verified', 'fixture_cleanup_verified', 'foreign_owner_denied',
     'heart_idempotent', 'heart_removal_verified', 'jetpack_sync_isolated',
+    'index_migration_plan_verified', 'index_migration_apply_verified',
+    'index_migration_exact_delta_verified', 'index_migration_rollback_verified',
     'legacy_assets_preserved', 'legacy_defaults_preserved', 'mail_calls_blocked',
     'moderation_hides_profile', 'mutation_hooks_registered', 'only_selected_moments_shared',
     'orders_unchanged', 'owned_fixture_pet_created', 'owned_fixture_users_created',
@@ -58,6 +60,20 @@ INDEX = {
     'private_photo_files_unchanged', 'product_prices_and_stock_unchanged', 'production_read_only_verified',
     'remote_file_access_disabled', 'settings_unchanged', 'target_environment_verified',
     'target_paths_verified', 'users_and_authentication_unchanged', 'woocommerce_runtime_verified',
+}
+MIGRATION_BOOTSTRAP = {
+    'target_paths_verified', 'target_environment_verified', 'woocommerce_runtime_verified',
+    'all_outbound_http_blocked', 'mail_calls_blocked', 'remote_file_access_disabled',
+    'cron_and_async_runner_disabled', 'index_private_runtime_cache_verified',
+}
+MIGRATION = {
+    'index_plan': MIGRATION_BOOTSTRAP | {'index_plan_verified', 'index_read_only_verified'},
+    'index_apply': MIGRATION_BOOTSTRAP | {'index_journal_verified', 'index_maintenance_owned',
+        'index_lock_owned', 'index_apply_verified', 'index_exact_delta_verified'},
+    'index_verify': MIGRATION_BOOTSTRAP | {'index_journal_verified', 'index_maintenance_owned',
+        'index_lock_owned', 'index_exact_delta_verified', 'index_read_only_verified'},
+    'index_rollback': MIGRATION_BOOTSTRAP | {'index_journal_verified', 'index_maintenance_owned',
+        'index_lock_owned', 'index_rollback_verified'},
 }
 FIXTURE = {
     'all_outbound_http_blocked', 'browser_input_written', 'cron_and_async_runner_disabled',
@@ -142,7 +158,8 @@ OPTION_PREFIXES = {
     'woocommerce_', 'wp_',
 }
 BROWSER = {
-    'account_menu_verified', 'anonymous_private_photos_denied', 'browser_started',
+    'account_menu_verified', 'account_menu_colour_track_verified', 'account_menu_height_preserved',
+    'anonymous_private_photos_denied', 'browser_started',
     'dark_mode_readable', 'desktop_layout_verified', 'directory_filters_verified',
     'directory_return_preserved', 'edit_form_verified', 'explicit_publish_verified',
     'favourites_responses_uncacheable', 'favourites_session_isolation_verified', 'foreign_private_photos_denied',
@@ -158,19 +175,37 @@ BROWSER = {
     'unpublish_verified', 'unsafe_requests_blocked', 'video_client_limits_verified',
     'video_ranges_verified', 'video_server_limits_verified',
 }
-ASSETS = {'pet_club_script_http_verified', 'pet_club_stylesheet_http_verified', 'pet_club_catalogue_stylesheet_http_verified'}
+# Non-sensitive response facts aid diagnosis without affecting required checks.
+BROWSER_DIAGNOSTICS = {
+    f'favourites_{actor}_{fact}' for actor in ('member', 'owner', 'guest')
+    for fact in ('status_200', 'status_404', 'status_redirect', 'status_403', 'status_other',
+                 'no_store_header', 'litespeed_hit', 'redirect_to_staging_login')
+}
+
+
+def browser_diagnostics(value):
+    if not isinstance(value, dict) or set(value) != BROWSER_DIAGNOSTICS \
+            or any(type(fact) is not bool for fact in value.values()):
+        raise ValueError()
+
+
+ASSETS = {'pet_club_navigation_stylesheet_http_verified', 'pet_club_script_http_verified', 'pet_club_stylesheet_http_verified', 'pet_club_catalogue_stylesheet_http_verified'}
 REQUIRED = {
     **{phase: navigation.REQUIRED[phase] for phase in ('inspect', 'apply', 'rollback', 'commit')},
+    **MIGRATION,
     'preflight': PREFLIGHT, 'native': STAGING, 'verify': VERIFY, 'index': INDEX,
     'fixture': FIXTURE, 'browser': BROWSER, 'cleanup': CLEANUP, 'diagnose': DIAGNOSE, 'retire': RETIRE,
     'health': navigation.email.HEALTH_CHECKS, 'assets': ASSETS,
 }
+REQUIRED['apply_index'] = REQUIRED['apply'] | {'maintenance_guard_created', 'maintenance_guard_retained'}
+REQUIRED['pause'] = REQUIRED['inspect'] | {'files_deployed', 'protected_state_unchanged', 'lock_owned', 'maintenance_guard_created', 'maintenance_guard_retained'}
+REQUIRED['resume'] = REQUIRED['inspect'] | {'files_deployed', 'protected_state_unchanged', 'lock_owned', 'maintenance_guard_removed'}
 REQUIRED['apply'] = REQUIRED['apply'] | {'maintenance_guard_created', 'maintenance_guard_removed'}
 REQUIRED['rollback'] = REQUIRED['rollback'] | {'maintenance_guard_removed'}
-REQUIRED['commit'] = REQUIRED['commit'] | {'maintenance_guard_removed'}
-CATEGORIES = {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'guard_receipt',
+REQUIRED['commit'] = REQUIRED['commit'] | {'maintenance_guard_removed', 'migration_journal_archived'}
+CATEGORIES = set(MIGRATION) | {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'guard_receipt',
     'guard_pending', 'guard_publish', 'guard_verified'} | navigation.CATEGORIES | {'snapshot','verification','renderer','catalogue','fixture',
-    'maintenance','native','cleanup','diagnose','retire','isolation','bootstrap','registration','routes','privacy',
+    'maintenance','apply-index','pause','resume','native','cleanup','diagnose','retire','isolation','bootstrap','registration','routes','privacy',
     'index','directory','video','favourites','video_input','video_limits','video_upload','video_http','video_playback','contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'} | {
     'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
     'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
@@ -212,8 +247,11 @@ def screen(phase, path):
         if phase == 'preflight':
             return navigation.screen(phase, path)
         raw = navigation.rehearsal.read_report(path)
-        deploy = phase in {'inspect', 'apply', 'rollback', 'commit'}
+        deploy = phase in {'inspect', 'apply', 'apply_index', 'pause', 'resume', 'rollback', 'commit'}
         fields = {'status', 'category', 'checks'} | ({'changed_file_count'} if deploy else set())
+        if phase == 'browser' and isinstance(raw, dict):
+            browser_diagnostics(raw.get('diagnostics'))
+            fields.add('diagnostics')
         if phase == 'diagnose' and isinstance(raw, dict):
             diagnostic_names(raw)
             fields |= set(raw) & {'option_names', 'option_name_prefixes'}

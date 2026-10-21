@@ -54,6 +54,66 @@ echo json_encode(['rejected'=>$out,'common'=>PETISH_CLUB_VERIFY_COMMON,'staging'
         self.assertIn("browser_input_written", result["prepare"])
         self.assertIn("fixture_cleanup_verified", result["cleanup"])
 
+    def test_index_migration_proof_requires_owned_staging_pet_before_loading_migration(self):
+        result = self.php(r'''
+require ''' + repr(str(ROOT / 'scripts/pet-club-index-proof.php')) + r''';
+$GLOBALS['environment']='production';$GLOBALS['foreign']=false;$GLOBALS['missing_marker']=false;$GLOBALS['pending_calls']=0;
+function wp_get_environment_type(){return $GLOBALS['environment'];}
+class Petish_Passport_Store{const TYPE='petish_pet';}
+class Petish_Passport_Community{static function pending_index_count(){$GLOBALS['pending_calls']++;return 0;}}
+function get_user_by($field,$value){
+ foreach($GLOBALS['proof_state']['users']as$user)if(($field==='id'&&$user['id']===$value)||($field==='login'&&$user['login']===$value))
+  return(object)['ID'=>$user['id'],'user_login'=>$user['login'],'user_email'=>$user['email'],'user_pass'=>'synthetic'];
+ return false;
+}
+function wp_check_password(){return true;}
+function get_user_meta(){return $GLOBALS['missing_marker']?'':$GLOBALS['proof_state']['ownership'];}
+function get_post($id){return(object)['ID'=>$id,'post_author'=>$GLOBALS['foreign']?999:10,'post_type'=>'petish_pet','post_status'=>'private'];}
+$state=['format'=>'petish-club-fixture-v1','run'=>'123-1','kind'=>'native','created'=>time(),'ownership'=>str_repeat('a',48),'pet_id'=>30,'users'=>[]];
+foreach(['owner'=>10,'member'=>20]as$role=>$id){$login='petish-club-'.$role.'-'.str_repeat($role==='owner'?'b':'c',18);
+ $state['users'][$role]=['id'=>$id,'login'=>$login,'email'=>$login.'@petish.invalid','password'=>str_repeat('d',48)];}
+$GLOBALS['proof_state']=$state;$out=[];
+foreach(['production','foreign','marker']as$case){
+ $GLOBALS['environment']=$case==='production'?'production':'staging';$GLOBALS['foreign']=$case==='foreign';$GLOBALS['missing_marker']=$case==='marker';
+ try{petish_club_verify_index_migration('/unused',$state);$out[]=false;}catch(Throwable$ignored){$out[]=true;}
+}
+$out[]=$GLOBALS['pending_calls']===0;
+echo json_encode($out);
+''')
+        self.assertEqual(result, [True] * 4)
+
+    def test_cli_cache_accepts_only_isolated_core_provenance(self):
+        for foreign in (False, True):
+            result = self.php(r'''
+$base=__DIR__.'/core';mkdir($base);mkdir($base.'/wp-includes');mkdir($base.'/wp-content');
+file_put_contents($base.'/wp-includes/class-wp-object-cache.php','<?php class WP_Object_Cache {}');
+$api='<?php ';foreach(['init','get','get_multiple','set','set_multiple','add','add_multiple','replace','delete','delete_multiple',
+ 'incr','decr','flush','flush_runtime','flush_group','supports','close','switch_to_blog','add_global_groups','add_non_persistent_groups','reset']as$suffix)
+ $api.='function wp_cache_'.$suffix.'(){return true;}';
+file_put_contents($base.'/wp-includes/cache.php',$api);file_put_contents($base.'/foreign.php',$api);
+require$base.'/wp-includes/class-wp-object-cache.php';require$base.''' + ("'/foreign.php';" if foreign else "'/wp-includes/cache.php';") + r'''
+function wp_using_ext_object_cache(){return $GLOBALS['external']??null;}
+function apply_filters(){return $GLOBALS['filter']??false;}
+$GLOBALS['wp_object_cache']=new WP_Object_Cache();$out=[];
+''' + (r'''
+$out[]=!petish_club_verify_runtime_cache($base);
+''' if foreign else r'''
+$out[]=petish_club_verify_runtime_cache($base);$GLOBALS['external']=false;$out[]=petish_club_verify_runtime_cache($base);
+foreach([true,0,'false']as$value){$GLOBALS['external']=$value;$out[]=!petish_club_verify_runtime_cache($base);}
+$GLOBALS['external']=false;$GLOBALS['filter']=true;$out[]=!petish_club_verify_runtime_cache($base);$GLOBALS['filter']=false;
+$GLOBALS['wp_object_cache']=new stdClass();$out[]=!petish_club_verify_runtime_cache($base);$GLOBALS['wp_object_cache']=new WP_Object_Cache();
+file_put_contents($base.'/wp-content/advanced-cache.php','<?php /* inert fixture */');require$base.'/wp-content/advanced-cache.php';
+$out[]=!petish_club_verify_runtime_cache($base);
+''') + r'''
+unlink($base.'/wp-content/advanced-cache.php');unlink($base.'/foreign.php');unlink($base.'/wp-includes/cache.php');unlink($base.'/wp-includes/class-wp-object-cache.php');
+rmdir($base.'/wp-includes');rmdir($base.'/wp-content');rmdir($base);echo json_encode($out);
+'''.replace("unlink($base.'/wp-content/advanced-cache.php');", "if(is_file($base.'/wp-content/advanced-cache.php'))unlink($base.'/wp-content/advanced-cache.php');"))
+            self.assertEqual(result, [True] * (1 if foreign else 8))
+        source = VERIFY.read_text()
+        bootstrap = source[source.index('function petish_club_verify_bootstrap('):]
+        self.assertLess(bootstrap.index('enable_loading_object_cache_dropin'), bootstrap.index("require$root.'/wp-load.php'"))
+        self.assertIn('petish_club_verify_runtime_cache($root)', bootstrap)
+
     def test_sql_mutation_and_export_cannot_execute(self):
         result = self.php(r"""
 $out=[];foreach(['SELECT ID FROM wp_posts','/* private */ SELECT 1;'," -- comment\n SHOW TABLES",
@@ -407,11 +467,26 @@ const bad = proof.publicReport({status:'success',category:'private-error',checks
 console.log(JSON.stringify({good,bad}));
 """)
         self.assertEqual(result["good"]["status"], "success")
-        self.assertEqual(len(result["good"]["checks"]), 44)
+        self.assertEqual(len(result["good"]["checks"]), 46)
         self.assertNotIn("must-not-escape", json.dumps(result))
         self.assertEqual(result["bad"]["status"], "failure")
         self.assertEqual(result["bad"]["category"], "input")
         self.assertFalse(result["bad"]["checks"]["browser_started"])
+
+    def test_favourites_http_diagnostics_are_finite_and_private(self):
+        result = self.node(r"""
+const facts=proof.favouritesHttpFacts('guest',302,{'location':'/wp-login.php?redirect_to=PRIVATE','cache-control':'private, no-store','x-litespeed-cache':'miss'});
+const report=proof.publicReport({category:'favourites',diagnostics:{...facts,owner:'PRIVATE',favourites_member_status_200:'true'}});
+const cached=proof.favouritesHttpFacts('member',200,{'x-litespeed-cache':'hit'});
+console.log(JSON.stringify({report,cached,keys:proof.DIAGNOSTIC_KEYS}));
+""")
+        self.assertEqual(len(result['keys']), 24)
+        self.assertEqual(set(result['report']['diagnostics']), set(result['keys']))
+        self.assertTrue(result['report']['diagnostics']['favourites_guest_redirect_to_staging_login'])
+        self.assertTrue(result['report']['diagnostics']['favourites_guest_no_store_header'])
+        self.assertFalse(result['report']['diagnostics']['favourites_member_status_200'])
+        self.assertTrue(result['cached']['favourites_member_litespeed_hit'])
+        self.assertNotIn('PRIVATE', json.dumps(result))
 
     def test_browser_form_failures_report_only_finite_steps(self):
         result = self.node(r"""
@@ -424,7 +499,7 @@ console.log(JSON.stringify(proof.FORM_CATEGORIES.map(category=>proof.publicRepor
                     'variety_selection', 'form_saved']
         self.assertEqual([entry['category'] for entry in result], expected)
         self.assertTrue(all(entry['status'] == 'failure'
-                            and set(entry) == {'status', 'category', 'checks'} for entry in result))
+                            and set(entry) == {'status', 'category', 'checks', 'diagnostics'} for entry in result))
         self.assertNotIn('must-not-escape', json.dumps(result))
 
     def test_browser_video_limit_failures_report_only_finite_steps(self):
@@ -440,7 +515,7 @@ console.log(JSON.stringify(proof.VIDEO_LIMIT_CATEGORIES.map(category=>proof.publ
                                  *(f'post_{reason}' for reason in reasons), 'response', 'notice_missing', 'notice_content', 'unchanged')]
         self.assertEqual([entry['category'] for entry in result], expected)
         self.assertTrue(all(entry['status'] == 'failure'
-                            and set(entry) == {'status', 'category', 'checks'} for entry in result))
+                            and set(entry) == {'status', 'category', 'checks', 'diagnostics'} for entry in result))
         self.assertNotIn('must-not-escape', json.dumps(result))
         spec = importlib.util.spec_from_file_location('petish_video_limit_sanitizer', ROOT / 'scripts/sanitize-pet-club-result.py')
         sanitizer = importlib.util.module_from_spec(spec)

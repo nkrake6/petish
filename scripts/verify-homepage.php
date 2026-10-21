@@ -16,7 +16,7 @@ const PETISH_HOMEPAGE_PREVIOUS_FILES = [
     'wp-content/themes/dt-the7-child/woocommerce/emails/email-footer.php'=>'a156a16e09b8a2db0257ff2a3a8514a3d3095b4d222f6f657f62f3a6e0dc6f8c',
     'wp-content/themes/dt-the7-child/woocommerce/emails/email-button.php'=>'d913f0696089c47252dfb04f51f4d6988305f6702924675092af2d8f7d09d116',
     'wp-content/plugins/petish-passport/assets/account-navigation.js'=>'5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75',
-    'wp-content/plugins/petish-passport/assets/passport.css'=>'e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076',
+    'wp-content/plugins/petish-passport/assets/passport.css'=>'7bfaba1d23ea4ca07fbdb009aceec36efbefb194e1bdafff60c46f012c8a237d',
     'wp-content/plugins/petish-passport/includes/class-petish-passport-ui.php'=>'f3b878854d38a6a4fc83c5b5908a2429a84da2a7d1155609f83fae55a37dceac',
     'wp-content/themes/dt-the7-child/assets/brand/repaired/combined-light-v2.png'=>'45b8ab50ef5fd0b4bc98fb7994d3a4583d0d013db1b253bf7f870496cd5cf615',
 ];

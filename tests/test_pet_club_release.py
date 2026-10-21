@@ -37,7 +37,9 @@ class PetClubReleaseTests(unittest.TestCase):
     def raw(self, phase):
         value = {'status': 'success', 'category': 'complete',
                  'checks': dict.fromkeys(safe.REQUIRED[phase], True)}
-        if phase in {'inspect', 'apply', 'rollback', 'commit'}:
+        if phase == 'browser':
+            value['diagnostics'] = dict.fromkeys(safe.BROWSER_DIAGNOSTICS, False)
+        if phase in {'inspect', 'apply', 'apply_index', 'pause', 'resume', 'rollback', 'commit'}:
             value['changed_file_count'] = len(evidence.FILES)
         return value
 
@@ -47,11 +49,32 @@ class PetClubReleaseTests(unittest.TestCase):
         return safe.screen(phase, path)
 
     def test_finite_complete_phases_pass(self):
-        for phase in ('inspect', 'index', 'apply', 'native', 'fixture', 'browser', 'cleanup', 'diagnose', 'retire', 'verify', 'assets', 'health', 'rollback', 'commit'):
+        for phase in ('inspect', 'index', 'index_plan', 'index_apply', 'index_verify', 'index_rollback', 'apply', 'apply_index', 'pause', 'resume', 'native', 'fixture', 'browser', 'cleanup', 'diagnose', 'retire', 'verify', 'assets', 'health', 'rollback', 'commit'):
             value = self.raw(phase)
             report, passed = self.screen(phase, value)
             self.assertTrue(passed)
             self.assertEqual(report, value)
+
+    def test_browser_response_diagnostics_are_exact_booleans_and_not_success_checks(self):
+        value = self.raw('browser')
+        self.assertTrue(self.screen('browser', value)[1])
+        value['diagnostics']['favourites_guest_status_redirect'] = True
+        self.assertTrue(self.screen('browser', value)[1])
+        for mutation in ('missing', 'extra', 'string', 'number'):
+            changed = copy.deepcopy(value)
+            if mutation == 'missing': del changed['diagnostics']['favourites_guest_status_redirect']
+            if mutation == 'extra': changed['diagnostics']['customer_email'] = False
+            if mutation == 'string': changed['diagnostics']['favourites_guest_status_redirect'] = 'private-sentinel'
+            if mutation == 'number': changed['diagnostics']['favourites_guest_status_redirect'] = 1
+            result, passed = self.screen('browser', changed)
+            self.assertFalse(passed)
+            self.assertEqual(result['category'], 'invalid_report')
+            self.assertNotIn('private-sentinel', json.dumps(result))
+        value['checks']['favourites_responses_uncacheable'] = False
+        self.assertFalse(self.screen('browser', value)[1])
+        path, _, stage, _, _ = self.fixture()
+        stage['phases']['browser']['diagnostics']['private_value'] = 'private-sentinel'
+        with self.assertRaises(ValueError): evidence.validate(path)
 
     def test_guard_failures_publish_only_fixed_categories(self):
         for category in ('guard_paths', 'guard_link_unavailable', 'guard_cross_device',
@@ -65,6 +88,25 @@ class PetClubReleaseTests(unittest.TestCase):
         self.assertFalse(passed)
         self.assertEqual(result['category'], 'invalid_report')
         self.assertNotIn('private-path-sentinel', json.dumps(result))
+
+    def test_migration_phases_and_held_maintenance_cannot_substitute_for_resume(self):
+        for phase, required in safe.MIGRATION.items():
+            for key in required:
+                value = self.raw(phase)
+                value['checks'][key] = False
+                self.assertFalse(self.screen(phase, value)[1])
+            value = self.raw(phase)
+            value['inserted_rows'] = [{'pet_id': 'private-sentinel'}]
+            result, passed = self.screen(phase, value)
+            self.assertFalse(passed)
+            self.assertNotIn('private-sentinel', json.dumps(result))
+        held = self.raw('apply_index')
+        held['checks']['maintenance_guard_removed'] = False
+        self.assertTrue(self.screen('apply_index', held)[1])
+        self.assertFalse(self.screen('resume', held)[1])
+        committed = self.raw('commit')
+        committed['checks']['migration_journal_archived'] = False
+        self.assertFalse(self.screen('commit', committed)[1])
 
     def test_private_values_and_unknown_fields_never_reach_public_report(self):
         bad = []
@@ -94,15 +136,15 @@ class PetClubReleaseTests(unittest.TestCase):
             value['changed_file_count'] = count
             self.assertFalse(self.screen('apply', value)[1])
 
-    def test_directory_index_gate_stops_before_production_mutation(self):
+    def test_directory_index_plan_stops_before_production_mutation(self):
         source = (ROOT / 'scripts/hostinger-pet-club.sh').read_text()
         start = source.index('failure_category=inspect\nremote_phase inspect')
-        end = source.index('\nremote_phase apply', start) + len('\nremote_phase apply')
+        end = source.index('\nremote_phase apply_index', start) + len('\nremote_phase apply_index')
         gate = source[start:end]
         for ready, mode, expected in (
-                (False, 'apply', ['inspect', 'production-index', 'rollback_needed:0']),
-                (True, 'apply', ['inspect', 'production-index', 'publish', 'apply', 'rollback_needed:1']),
-                (True, 'inspect', ['inspect', 'production-index', 'publish', 'rollback_needed:0'])):
+                (False, 'apply', ['inspect', 'index_plan', 'rollback_needed:0']),
+                (True, 'apply', ['inspect', 'index_plan', 'publish', 'apply_index', 'rollback_needed:1']),
+                (True, 'inspect', ['inspect', 'index_plan', 'publish', 'rollback_needed:0'])):
             with self.subTest(ready=ready, mode=mode):
                 log = self.directory / 'index-gate.log'
                 log.unlink(missing_ok=True)
@@ -110,18 +152,18 @@ class PetClubReleaseTests(unittest.TestCase):
                     'work=$1; log=$2; ready=$3; mode=$4; rollback_needed=0',
                     'trap \'printf "rollback_needed:%s\\n" "$rollback_needed" >> "$log"\' EXIT',
                     'remote_phase() { printf "%s\\n" "$1" >> "$log"; }',
-                    'native_verification() { printf "%s\\n" "$1" >> "$log"; [[ "$ready" == 1 ]]; }',
+                    'index_phase() { printf "index_%s\\n" "$1" >> "$log"; [[ "$ready" == 1 ]]; }',
                     'publish_result() { printf "publish\\n" >> "$log"; }', gate,
                 ])
                 completed = subprocess.run(['bash', '-euc', script, 'fixture', str(self.directory), str(log),
                                             str(int(ready)), mode], capture_output=True)
                 self.assertEqual(completed.returncode, 0 if ready else 1)
                 self.assertEqual(log.read_text().splitlines(), expected)
-        value = self.raw('index')
-        value['checks']['directory_index_migration_not_required'] = False
-        self.assertFalse(self.screen('index', value)[1])
+        value = self.raw('index_plan')
+        value['checks']['index_read_only_verified'] = False
+        self.assertFalse(self.screen('index_plan', value)[1])
         value['pending_private_pet_count'] = 3
-        self.assertEqual(self.screen('index', value)[0]['category'], 'invalid_report')
+        self.assertEqual(self.screen('index_plan', value)[0]['category'], 'invalid_report')
 
     def fixture(self):
         revision = 'a' * 40
@@ -203,6 +245,22 @@ class PetClubReleaseTests(unittest.TestCase):
         stage['phases'] = {'retire': self.raw('retire')}
         with self.assertRaises(ValueError):
             evidence.validate(path)
+
+    def test_migration_and_colour_track_staging_proofs_are_mandatory(self):
+        path, _, stage, _, _ = self.fixture()
+        original = copy.deepcopy(stage)
+        required = {'native': {'index_migration_plan_verified', 'index_migration_apply_verified',
+                              'index_migration_exact_delta_verified', 'index_migration_rollback_verified'},
+                    'browser': {'account_menu_colour_track_verified', 'account_menu_height_preserved'}}
+        for phase, keys in required.items():
+            for key in keys:
+                with self.subTest(phase=phase, key=key):
+                    stage.clear(); stage.update(copy.deepcopy(original))
+                    del stage['phases'][phase]['checks'][key]
+                    with self.assertRaises(ValueError): evidence.validate(path)
+                    stage.clear(); stage.update(copy.deepcopy(original))
+                    stage['phases'][phase]['checks'][key] = False
+                    with self.assertRaises(ValueError): evidence.validate(path)
 
     def test_wrong_source_or_unverified_native_phase_refuses(self):
         path, _, stage, _, _ = self.fixture()
@@ -400,7 +458,7 @@ class PetClubReleaseTests(unittest.TestCase):
                 log = self.directory / (scenario + '.log')
                 script = '\n'.join([
                     'work=$1; log=$2; scenario=$3; rollback_needed=$4; fixture_cleanup_needed=$5',
-                    'mode=staging; ssh_ready=1; fixture_cleanup_verified=0; operation_verified=1; failure_category=prerequisites',
+                    'mode=staging; ssh_ready=1; migration_started=0; fixture_cleanup_verified=0; operation_verified=1; failure_category=prerequisites',
                     'retain_remote_tools=0; if [[ "$scenario" == diagnostic_only || "$scenario" == retirement_only ]]; then retain_remote_tools=1; fi',
                     'remote_phase() { printf "rollback\\n" >> "$log"; [[ "$scenario" != failed_rollback ]]; }',
                     'fixture_phase() { printf "fixture_%s\\n" "$1" >> "$log"; [[ "$scenario" != failed_fixture ]]; }',
@@ -415,6 +473,33 @@ class PetClubReleaseTests(unittest.TestCase):
                 self.assertEqual(completed.returncode, 0 if scenario in {'successful_fixture', 'diagnostic_only', 'retirement_only'} else 1)
                 self.assertFalse(work.exists())
 
+    def test_index_rollback_precedes_code_rollback_and_preserves_failed_recovery(self):
+        source = (ROOT / 'scripts/hostinger-pet-club.sh').read_text()
+        function = source[source.index('finish() {'):source.index('\ntrap finish EXIT')]
+        for scenario, expected in (
+                ('pause_failed', ['pause', 'publish:failure:index_rollback']),
+                ('index_failed', ['pause', 'index_rollback', 'publish:failure:index_rollback']),
+                ('code_failed', ['pause', 'index_rollback', 'rollback', 'publish:failure:rollback']),
+                ('recovered', ['pause', 'index_rollback', 'rollback', 'remove_tools', 'publish:failure:verification'])):
+            with self.subTest(scenario=scenario):
+                work = self.directory / scenario; work.mkdir()
+                log = self.directory / (scenario + '.log')
+                script = '\n'.join([
+                    'work=$1; log=$2; scenario=$3; rollback_needed=1; migration_started=1; migration_rollback_verified=0',
+                    'mode=apply; ssh_ready=1; fixture_cleanup_needed=0; operation_verified=0; failure_category=verification',
+                    'retain_remote_tools=0',
+                    'remote_phase() { printf "%s\\n" "$1" >> "$log"; '
+                    '[[ !( "$scenario" == pause_failed && "$1" == pause ) && !( "$scenario" == code_failed && "$1" == rollback ) ]]; }',
+                    'index_phase() { printf "index_%s\\n" "$1" >> "$log"; [[ "$scenario" != index_failed ]]; }',
+                    'remote_cleanup() { printf "remove_tools\\n" >> "$log"; }',
+                    'publish_result() { printf "publish:%s:%s\\n" "$result_status" "$failure_category" >> "$log"; }',
+                    function, 'true', 'finish',
+                ])
+                result = subprocess.run(['bash', '-c', script, 'fixture', str(work), str(log), scenario], capture_output=True)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(log.read_text().splitlines(), expected)
+                self.assertFalse(work.exists())
+
     def test_sanitizer_contract_matches_native_constants(self):
         source = (ROOT / 'scripts/verify-pet-club.php').read_text()
         def names(name):
@@ -425,6 +510,23 @@ class PetClubReleaseTests(unittest.TestCase):
         self.assertEqual(safe.STAGING, common | names('PETISH_CLUB_VERIFY_STAGING'))
         self.assertEqual(safe.VERIFY, common | names('PETISH_CLUB_VERIFY_PRODUCTION'))
         self.assertEqual(safe.INDEX, names('PETISH_CLUB_VERIFY_INDEX'))
+        migration = (ROOT / 'scripts/pet-club-index-migration.php').read_text()
+        contract = re.search(r'const PETISH_CLUB_INDEX_CHECKS = \[(.*?)\];', migration, re.S)
+        self.assertIsNotNone(contract)
+        index_checks = set(re.findall(r"'([a-z0-9_]+)'", contract.group(1)))
+        all_migration = set().union(*safe.MIGRATION.values())
+        self.assertEqual({key for key in all_migration if key.startswith('index_')}, index_checks)
+        common_contract = re.search(r'const PETISH_CLUB_INDEX_COMMON = \[(.*?)\];', migration, re.S)
+        self.assertIsNotNone(common_contract)
+        self.assertEqual(safe.MIGRATION_BOOTSTRAP, set(re.findall(r"'([a-z0-9_]+)'", common_contract.group(1))))
+        operation_contract = re.search(r'const PETISH_CLUB_INDEX_REQUIRED = \[(.*?)\n\];', migration, re.S)
+        self.assertIsNotNone(operation_contract)
+        operations = dict(re.findall(r"'(plan|apply|verify|rollback)'\s*=>\s*\[(.*?)\]", operation_contract.group(1), re.S))
+        self.assertEqual(set(operations), {'plan', 'apply', 'verify', 'rollback'})
+        for operation, fields in operations.items():
+            self.assertEqual(safe.MIGRATION['index_' + operation],
+                             safe.MIGRATION_BOOTSTRAP | set(re.findall(r"'([a-z0-9_]+)'", fields)))
+
         self.assertEqual(safe.FIXTURE, names('PETISH_CLUB_FIXTURE_PREPARE'))
         self.assertEqual(safe.CLEANUP, names('PETISH_CLUB_FIXTURE_CLEANUP'))
         self.assertEqual(safe.DIAGNOSE, names('PETISH_CLUB_FIXTURE_DIAGNOSE'))
@@ -438,6 +540,12 @@ class PetClubReleaseTests(unittest.TestCase):
         contract = re.search(r'CHECK_KEYS = Object.freeze\(\[(.*?)\]\)', browser, re.S)
         self.assertIsNotNone(contract)
         self.assertEqual(safe.BROWSER, set(re.findall(r"'([a-z0-9_]+)'", contract.group(1))))
+        if shutil.which('node'):
+            exported = subprocess.check_output(['node', '--input-type=module', '-e',
+                "import { DIAGNOSTIC_KEYS } from './tools/pet-club/browser.mjs'; console.log(JSON.stringify(DIAGNOSTIC_KEYS));"],
+                cwd=ROOT, timeout=10)
+            self.assertEqual(safe.BROWSER_DIAGNOSTICS, set(json.loads(exported)))
+
 
     def test_expired_backup_or_unproven_recovery_refuses(self):
         path, _, _, backup, recovery = self.fixture()

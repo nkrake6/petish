@@ -1,11 +1,17 @@
 # Homepage: For your pet
 
-Implementation is in progress; this document is not a production release receipt.
+**Pending release:** the feature is implemented in source and awaits complete
+hosted verification and production deployment. It is not enabled by the live
+Passport 0.3.1 release, and this document is not a production release receipt.
 
 The owner chose staff-curated matching against the existing Passport biography
 and personality tags. No additional quirks or favourite-things fields are added.
 The homepage introduces the section with “Products curated for your pet’s species,
 personality, quirks and favourite things.”
+It appears after the category section and before Hot items. The section title
+stays visible while the customer's picks load privately; guests see sign-in and
+Passport guidance. Without JavaScript, the generic links still open My Pets and
+the existing broader pet collection.
 
 ## Matching and purchase history
 
@@ -33,7 +39,8 @@ system does not invent products or automatically approve the catalogue.
 
 ## Staff setup
 
-In the WooCommerce product editor, open **Product data → For your pet**:
+After deployment, in the WooCommerce product editor, open
+**Product data → For your pet**:
 
 1. Confirm the product has a current eligible Petish review for the intended
    species, including the existing source, dimensions and limitations checks.
@@ -54,10 +61,16 @@ The initial homepage contains a generic section. The customer’s selection load
 from a same-origin, read-only endpoint using the current session, with private
 no-store headers. The endpoint accepts no customer or pet identity from the
 browser. Pet biographies and order history are not sent to external services or
-browser storage. Restoring a page from browser history refreshes the selection.
+browser storage. Leaving the page clears the personalised fragment; restoring a
+page from browser history refreshes the selection. A failed request keeps the
+generic links available and offers a retry.
 
 Verification covers matching, sorting, previous purchases and variants, separate
 customer sessions, inaccessible purchase history, generic guest content, and
 responsive layout. Hosted checks must also demonstrate that synthetic staging
 fixtures are removed and protected store records and private media are preserved
 before a production release can be recorded here.
+
+This child-theme feature has a separate release scope from pending Passport
+0.3.2 favourites, filters, video moments and Colour track. Source changes or a
+passing local check alone do not establish that either release is live.

@@ -23,6 +23,7 @@ const PETISH_CLUB_VERIFY_STAGING = [
  'directory_fixture_scope_verified','directory_legacy_snapshot_index_verified','directory_public_snapshot_filters_verified',
  'directory_explicit_reshare_filters_verified','directory_literal_search_verified','directory_pagination_verified',
  'favourites_session_isolation_verified','directory_visibility_revocation_verified','directory_return_url_verified',
+ 'index_migration_plan_verified','index_migration_apply_verified','index_migration_exact_delta_verified','index_migration_rollback_verified',
 ];
 const PETISH_CLUB_VERIFY_PRODUCTION = ['production_read_only_verified'];
 const PETISH_CLUB_VERIFY_INDEX = ['target_paths_verified','target_environment_verified','woocommerce_runtime_verified',
@@ -364,6 +365,31 @@ function petish_club_verify_state_equal($before,$after) {
  petish_club_verify_mark('existing_passports_unchanged',hash_equals($before['passports'],$after['passports']));
  petish_club_verify_mark('private_photo_files_unchanged',hash_equals($before['photos'],$after['photos']));
 }
+/** CLI proof must never load a persistent cache or invalidate shared entries. */
+function petish_club_verify_runtime_cache($root) {
+ try{
+  if(!petish_club_verify_path($root,true)||!function_exists('wp_using_ext_object_cache'))return false;
+  $external=wp_using_ext_object_cache();
+  if($external!==false&&$external!==null)return false;
+  if(!isset($GLOBALS['wp_object_cache'])||!is_object($GLOBALS['wp_object_cache'])
+   ||get_class($GLOBALS['wp_object_cache'])!=='WP_Object_Cache')return false;
+  $class=$root.'/wp-includes/class-wp-object-cache.php';$functions=$root.'/wp-includes/cache.php';
+  if(!petish_club_verify_path($class)||!petish_club_verify_path($functions)
+   ||(new ReflectionClass($GLOBALS['wp_object_cache']))->getFileName()!==$class)return false;
+  foreach(['init','get','get_multiple','set','set_multiple','add','add_multiple','replace','delete','delete_multiple',
+   'incr','decr','flush','flush_runtime','flush_group','supports','close','switch_to_blog',
+   'add_global_groups','add_non_persistent_groups','reset']as$suffix){
+   $name='wp_cache_'.$suffix;
+   if(!function_exists($name)||(new ReflectionFunction($name))->getFileName()!==$functions)return false;
+  }
+  $content=defined('WP_CONTENT_DIR')?WP_CONTENT_DIR:$root.'/wp-content';
+  foreach(['object','advanced']as$kind){
+   if(apply_filters('enable_loading_'.$kind.'_cache_dropin',true)!==false
+    ||in_array($content.'/'.$kind.'-cache.php',get_included_files(),true))return false;
+  }
+  return true;
+ }catch(Throwable$ignored){return false;}
+}
 function petish_club_verify_bootstrap($target,$read_only=false) {
  global $report;
  if(!in_array($target,['staging','production'],true)||ini_get('allow_url_fopen'))petish_club_verify_fail();
@@ -385,6 +411,9 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
  $_SERVER['HTTP_HOST']=$host;$_SERVER['SERVER_NAME']=$host;$_SERVER['SERVER_PORT']='443';$_SERVER['HTTPS']='on';
  $_SERVER['REQUEST_METHOD']='GET';$_SERVER['REQUEST_URI']='/my-account/my-pets/';$_SERVER['SERVER_PROTOCOL']='HTTP/1.1';$_SERVER['REMOTE_ADDR']='127.0.0.1';
  require_once$root.'/wp-includes/plugin.php';
+ if(function_exists('wp_cache_init')||class_exists('WP_Object_Cache',false)||isset($GLOBALS['wp_object_cache']))petish_club_verify_fail();
+ $no_dropin=static fn()=>false;
+ foreach(['enable_loading_object_cache_dropin','enable_loading_advanced_cache_dropin']as$hook)add_filter($hook,$no_dropin,PHP_INT_MAX);
  if($read_only){$GLOBALS['petish_club_write_attempted']=false;$GLOBALS['petish_club_blocked_write_count']=0;
   add_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);}
  $http=static fn()=>new WP_Error('petish_club_verify_http_blocked','Pet Club verification blocks outbound requests.');
@@ -401,7 +430,10 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
  add_action('phpmailer_init',$stop,PHP_INT_MAX);add_filter('action_scheduler_allow_async_request_runner',$false,PHP_INT_MAX);
  add_filter('action_scheduler_queue_runner_concurrent_batches',$zero,PHP_INT_MAX);
  add_action('wp_loaded',static function(){remove_all_actions('action_scheduler_run_queue');petish_club_verify_disable_async_dispatch();},PHP_INT_MAX);
- add_action('all',static function($hook)use($http,$mail,$stop,$false,$zero,$read_only,$target){
+ add_action('all',static function($hook)use($http,$mail,$stop,$false,$zero,$read_only,$target,$no_dropin){
+  if(in_array($hook,['enable_loading_object_cache_dropin','enable_loading_advanced_cache_dropin'],true)){
+   remove_filter($hook,$no_dropin,PHP_INT_MAX);add_filter($hook,$no_dropin,PHP_INT_MAX);
+  }
   if($hook==='shutdown')petish_club_verify_disable_async_dispatch();
   if($read_only&&$hook==='query'){
    remove_filter('query','petish_club_verify_query_guard',PHP_INT_MAX);
@@ -415,6 +447,7 @@ function petish_club_verify_bootstrap($target,$read_only=false) {
    if($hook===$name){remove_filter($name,$callback,PHP_INT_MAX);add_filter($name,$callback,PHP_INT_MAX);}
  },PHP_INT_MAX,1);
  require$root.'/wp-load.php';$report['category']='runtime';
+ if(!petish_club_verify_runtime_cache($root))petish_club_verify_fail();
  petish_club_verify_mark('target_environment_verified',wp_get_environment_type()===$target
   &&parse_url(home_url('/'),PHP_URL_HOST)===$host&&parse_url(site_url('/'),PHP_URL_HOST)===$host
   &&($target==='staging'?(defined('PETISH_STAGING_GUARD_ACTIVE')&&PETISH_STAGING_GUARD_ACTIVE===true)
@@ -483,7 +516,7 @@ function petish_club_verify_contracts($root) {
  petish_club_verify_mark('mutation_hooks_registered',$actions);
  $base=$root.'/wp-content/plugins/petish-passport/assets/';
  petish_club_verify_mark('legacy_assets_preserved',hash_equals('5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75',hash_file('sha256',$base.'account-navigation.js'))
-  &&hash_equals('e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076',hash_file('sha256',$base.'passport.css')));
+  &&hash_equals('7bfaba1d23ea4ca07fbdb009aceec36efbefb194e1bdafff60c46f012c8a237d',hash_file('sha256',$base.'passport.css')));
  $query=$wp->query_vars;$account=static fn()=>true;add_filter('woocommerce_is_account_page',$account,PHP_INT_MAX);
  try{$wp->query_vars=['my-pets'=>''];Petish_Passport_UI::enqueue();
   $styles=wp_styles();$club=false;foreach($styles->registered as$item)
@@ -817,6 +850,7 @@ function petish_club_verify_staging($root,$run) {
   petish_club_verify_mark('photo_change_unpublishes',!is_wp_error($changed)&&$changed['photo']===''
    &&is_wp_error(Petish_Passport_Community::public_profile($newtoken)));
   require_once __DIR__.'/pet-club-directory-proof.php';petish_club_verify_directory($state);
+  require_once __DIR__.'/pet-club-index-proof.php';petish_club_verify_index_migration($root,$state);
   require_once __DIR__.'/pet-club-video-proof.php';petish_club_verify_video($root,$state);
  }finally{
   $previous=$report['category'];$report['category']='cleanup';petish_club_verify_fixture_cleanup($root,$run,'native');$report['category']=$previous;

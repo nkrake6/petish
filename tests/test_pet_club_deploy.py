@@ -1,4 +1,4 @@
-"""Exercise the seventeen-file transaction against disposable filesystem fixtures."""
+"""Exercise the eighteen-file transaction against disposable filesystem fixtures."""
 import hashlib
 import json
 import os
@@ -43,7 +43,7 @@ class PetClubDeployTests(unittest.TestCase):
             'wp-content/themes/dt-the7-child/front-page.php': '<?php /* Approved homepage. */',
             'wp-content/themes/dt-the7-child/inc/petish-email-branding.php': '<?php /* Approved email. */',
             'wp-content/plugins/petish-fulfilment/petish-fulfilment.php': '<?php /* Existing fulfilment. */',
-            'wp-content/plugins/petish-passport/assets/passport.css': '/* Existing account navigation */',
+            'wp-content/plugins/petish-passport/assets/legacy-protected.css': '/* Existing protected stylesheet */',
             'wp-content/plugins/petish-passport/assets/account-navigation.js': '/* Existing menu */',
             'wp-content/mu-plugins/petish-mailer.php': '<?php /* Existing transport. */',
             'wp-config.php': '<?php /* Private configuration. */',
@@ -108,6 +108,98 @@ class PetClubDeployTests(unittest.TestCase):
         self.assertEqual(self.snapshot(), before)
         self.assertFalse((self.home / '.petish-pet-club-releases').exists())
 
+    def test_index_release_holds_maintenance_until_explicit_resume(self):
+        report = self.execute('apply-index')
+        self.assertEqual(report['status'], 'success')
+        self.assertTrue(report['checks']['maintenance_guard_retained'])
+        self.assertFalse(report['checks']['maintenance_guard_removed'])
+        guard = self.root / '.maintenance'
+        self.assertTrue(guard.is_file())
+        self.assertEqual(self.execute('commit')['status'], 'failure')
+        self.assertTrue(guard.is_file())
+        resumed = self.execute('resume')
+        self.assertEqual(resumed['status'], 'success')
+        self.assertTrue(resumed['checks']['maintenance_guard_removed'])
+        self.assertFalse(guard.exists())
+        self.assertTrue((self.home / '.petish-pet-club-releases/deploy.lock').is_dir())
+        # The migration helper's exact private receipt must survive runner cleanup.
+        self.assertEqual(self.execute('commit')['status'], 'failure')
+        tools = self.home / ('.petish-pet-club-deploy-' + self.run_id)
+        tools.mkdir(mode=0o700)
+        marker = tools / '.pet-club-owned'; marker.write_text(self.run_id + '\n'); marker.chmod(0o600)
+        journal = tools / 'pet-club-index-migration.json'
+        data = {'format':'petish-club-index-migration-v1','run':self.run_id,'scope':'production',
+                'status':'applied','entries':[],'plan_hash':'a'*64,'before':{},'inserted':[]}
+        journal.write_text(json.dumps(data)); journal.chmod(0o600)
+        committed = self.execute('commit')
+        self.assertTrue(committed['checks']['release_committed'])
+        self.assertTrue(committed['checks']['migration_journal_archived'])
+        saved = self.home / '.petish-pet-club-releases' / self.run_id / 'index-migration.json'
+        self.assertEqual(saved.read_bytes(), journal.read_bytes())
+        self.assertEqual(saved.stat().st_mode & 0o777, 0o600)
+
+    def test_migration_archive_rejects_foreign_linked_or_conflicting_receipts(self):
+        self.assertEqual(self.execute('apply-index')['status'], 'success')
+        self.assertEqual(self.execute('resume')['status'], 'success')
+        tools = self.home / ('.petish-pet-club-deploy-' + self.run_id)
+        tools.mkdir(mode=0o700)
+        marker = tools / '.pet-club-owned'; marker.write_text(self.run_id + '\n'); marker.chmod(0o600)
+        journal = tools / 'pet-club-index-migration.json'
+        release = self.home / '.petish-pet-club-releases' / self.run_id
+        archive = release / 'index-migration.json'
+        data = {'format':'petish-club-index-migration-v1','run':self.run_id,'scope':'production',
+                'status':'applied','entries':[],'plan_hash':'a'*64,'before':{},'inserted':[]}
+        original = json.dumps(data).encode()
+        for scenario in ('foreign_run', 'fixture_scope', 'unapplied', 'linked', 'hardlinked', 'conflicting_archive'):
+            with self.subTest(scenario=scenario):
+                candidate = dict(data)
+                if scenario == 'foreign_run': candidate['run'] = '12346-1'
+                if scenario == 'fixture_scope': candidate['scope'] = 'fixture'
+                if scenario == 'unapplied': candidate['status'] = 'prepared'
+                journal.write_text(json.dumps(candidate)); journal.chmod(0o600)
+                extra = tools / 'foreign-journal.json'
+                if scenario == 'linked':
+                    journal.rename(extra); journal.symlink_to(extra)
+                if scenario == 'hardlinked': os.link(journal, extra)
+                if scenario == 'conflicting_archive':
+                    archive.write_bytes(b'foreign-archive-sentinel'); archive.chmod(0o600)
+                report = self.execute('commit')
+                self.assertEqual(report['status'], 'failure')
+                self.assertFalse(report['checks']['release_committed'])
+                self.assertFalse((release / 'committed').exists())
+                self.assertTrue((release.parent / 'deploy.lock').is_dir())
+                if scenario == 'conflicting_archive':
+                    self.assertEqual(archive.read_bytes(), b'foreign-archive-sentinel'); archive.unlink()
+                else: self.assertFalse(archive.exists())
+                journal.unlink(); extra.unlink(missing_ok=True)
+        journal.write_bytes(original); journal.chmod(0o600)
+        archive.write_bytes(original); archive.chmod(0o600)
+        self.assertEqual(self.execute('commit')['status'], 'success')
+        self.assertEqual(archive.read_bytes(), original)
+
+    def test_pause_recreates_owned_guard_for_index_then_file_rollback(self):
+        before = self.snapshot()
+        self.assertEqual(self.execute('apply-index')['status'], 'success')
+        self.assertEqual(self.execute('resume')['status'], 'success')
+        self.private.write_bytes(b'concurrent-customer-media')
+        paused = self.execute('pause')
+        self.assertEqual(paused['status'], 'success')
+        self.assertTrue(paused['checks']['maintenance_guard_retained'])
+        self.assertTrue((self.root / '.maintenance').exists())
+        # The separately tested migration helper restores its exact rows first.
+        self.assertTrue(self.execute('rollback')['checks']['rollback_completed'])
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.private.read_bytes(), b'concurrent-customer-media')
+
+    def test_resume_preserves_foreign_or_modified_maintenance(self):
+        self.assertEqual(self.execute('apply-index')['status'], 'success')
+        guard = self.root / '.maintenance'
+        guard.write_text('<?php /* Concurrent operator maintenance. */')
+        self.assertEqual(self.execute('resume')['status'], 'failure')
+        self.assertEqual(guard.read_text(), '<?php /* Concurrent operator maintenance. */')
+        self.assertEqual(self.execute('pause')['status'], 'failure')
+        self.assertEqual(guard.read_text(), '<?php /* Concurrent operator maintenance. */')
+
     def test_apply_commit_only_selected_files_and_keep_originals_private(self):
         before = self.snapshot()
         report = self.execute('apply')
@@ -168,7 +260,7 @@ class PetClubDeployTests(unittest.TestCase):
 
     def test_protected_changes_block_commit_and_rollback(self):
         self.assertEqual(self.execute('apply')['status'], 'success')
-        target = self.plugin / 'assets/passport.css'
+        target = self.plugin / 'assets/legacy-protected.css'
         target.write_text('<?php /* Operator changed rates code concurrently. */')
         before = self.snapshot()
         self.assertEqual(self.execute('commit')['status'], 'failure')

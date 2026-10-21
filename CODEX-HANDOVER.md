@@ -41,6 +41,39 @@ for the current cloud workflow. The Mac setup below is archived history.
   products have confirmed supplier-free evidence and matching zero checkout
   delivery. See [homepage release](docs/HOMEPAGE-FREE-DELIVERY.md).
 
+## Pending release work
+
+**Production remains on Passport 0.3.1.** The following changes are implemented
+in source but must not be described as live until their hosted release receipts
+pass:
+
+- **Passport 0.3.2:** existing hearts also act as favourites, with a private
+  **My favourites** directory view and species, breed/variety and pet-name
+  filters. Searches use published snapshots, not unpublished pet edits.
+- **Video moments:** progressive MP4 with H.264 video and optional AAC audio,
+  up to **20 seconds and 20 MB** (20,971,520 bytes). The existing limit is
+  **12 combined photos, videos and journal entries per pet**. Clips stay private
+  until explicitly selected for sharing; videos may retain embedded device or
+  location metadata.
+- **Colour track account menu:** the owner chose design 3 from the
+  [menu previews](https://nkrake6.github.io/petish/account-menu-concepts/).
+  Its right-aligned icons, grouped colour rail and active marker are included in
+  the pending 18-file Passport candidate. Native labels, links and mobile
+  dropdown behavior remain unchanged. Local checks preserved menu/header
+  heights; see [implementation notes](docs/ACCOUNT-MENU-COLOUR.md).
+- **Homepage For your pet:** a separate child-theme release will match
+  staff-curated products against the active pet's existing biography and
+  personality tags; no new quirks/favourites fields are added. Show up to four
+  matches newest first and exclude prior purchases, including variants. Initial
+  HTML stays generic and personalised results load through a private read-only
+  endpoint. See [matching and release scope](docs/FOR-YOUR-PET.md).
+
+The complete hosted rehearsal, directory-index migration proof, cleanup and
+exact production file receipt remain required for the final Passport candidate.
+Earlier partial candidate checks are recorded in [Pet Club](docs/PET-CLUB.md)
+and do not establish that this final file set is deployed. The homepage feature
+also requires its own passing hosted verification and release receipt.
+
 ## Working from this cloud session
 
 GitHub Actions uses the existing repository secrets and pinned Hostinger key.
@@ -129,7 +162,7 @@ quantity and destination scope.
 
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,
-delivery and payout. Video reviews, social syncing and a Discord-style community
+delivery and payout. Product-linked video reviews, social syncing and a Discord-style community
 remain future work. Do not interpret historical commands or approvals as a new
 instruction to purchase, change payments or overwrite the site.
 

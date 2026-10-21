@@ -21,6 +21,7 @@ FILES = (
     'includes/class-petish-passport-moments.php',
     'includes/class-petish-passport-community.php',
     'assets/pet-club.css',
+    'assets/passport.css',
     'assets/catalogue.css',
     'assets/passport.js',
     'templates/public.php',
@@ -66,7 +67,10 @@ def validate(source):
         raise ValueError()
     for phase, required in [('preflight',checks.PREFLIGHT),('native',checks.STAGING),('fixture',checks.FIXTURE),('browser',checks.BROWSER),('cleanup',checks.CLEANUP)]:
         result = stage.get('phases',{}).get(phase,{})
-        if not isinstance(result,dict) or set(result) != {'status','category','checks'} \
+        fields = {'status','category','checks'} | ({'diagnostics'} if phase == 'browser' else set())
+        if phase == 'browser':
+            checks.browser_diagnostics(result.get('diagnostics') if isinstance(result,dict) else None)
+        if not isinstance(result,dict) or set(result) != fields \
                 or result.get('status') != 'success' or result.get('category') != 'complete' \
                 or not isinstance(result.get('checks'),dict) or set(result['checks']) != required \
                 or any(result['checks'].get(key) is not True for key in required):
