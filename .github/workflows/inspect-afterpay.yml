@@ -8,6 +8,7 @@ on:
       - .github/workflows/inspect-afterpay.yml
       - scripts/inspect-afterpay-remote.sh
       - scripts/afterpay-report.py
+      - scripts/afterpay-public-report.py
 
 permissions:
   contents: write
@@ -65,6 +66,9 @@ jobs:
           python3 scripts/afterpay-report.py \
             "$RUNNER_TEMP/petish-afterpay-private.json" \
             "$RUNNER_TEMP/petish-afterpay-public.json"
+      - name: Inspect fixed anonymous product and empty cart markup
+        if: steps.validate.outcome == 'success'
+        run: python3 scripts/afterpay-public-report.py "$RUNNER_TEMP/petish-afterpay-public.json"
       - name: Publish the report or a static unavailable status
         if: always()
         env:
