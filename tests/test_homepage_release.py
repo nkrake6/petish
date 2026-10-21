@@ -120,6 +120,25 @@ class HomepageReleaseTests(unittest.TestCase):
         report,passed=self.screen('browser',invalid)
         self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
 
+    def test_theme_geometry_accepts_only_fixed_bounded_numeric_fields(self):
+        value=self.raw('browser')
+        value['theme_geometry']={view:dict.fromkeys(safe.THEME_GEOMETRY_FIELDS,0) for view in safe.THEME_GEOMETRY_VIEWS}
+        report,passed=self.screen('browser',value)
+        self.assertTrue(passed);self.assertEqual(report,value)
+        for invalid in ('private-sentinel',True,float('nan'),float('inf'),4097,-4097):
+            raw=copy.deepcopy(value);raw['theme_geometry']['320_light']['header_height']=invalid
+            report,passed=self.screen('browser',raw)
+            self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+            self.assertNotIn('private-sentinel',json.dumps(report))
+        for kind in ('extra_view','missing_view','extra_field','missing_field'):
+            raw=copy.deepcopy(value)
+            if kind=='extra_view':raw['theme_geometry']['private-sentinel']={}
+            if kind=='missing_view':del raw['theme_geometry']['320_light']
+            if kind=='extra_field':raw['theme_geometry']['320_light']['private-sentinel']=1
+            if kind=='missing_field':del raw['theme_geometry']['320_light']['header_height']
+            report,passed=self.screen('browser',raw)
+            self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+
     def test_private_extras_invalid_flags_or_file_counts_refuse(self):
         bad=[]
         value=self.raw('verify');value['customer_email']='private-sentinel@petish.invalid';bad.append(('verify',value))
@@ -273,18 +292,20 @@ class Response:
 
 
 class HomepagePublicAssetsTests(unittest.TestCase):
+    HEADER='<div class="header-bar"><div class="mini-widgets"><div class="mini-search"></div><div data-petish-theme-switch hidden><button data-petish-theme-toggle type="button" role="switch" aria-checked="false" aria-label="Dark mode"><svg></svg></button></div><div data-petish-market></div></div></div>'
     @staticmethod
     def png(color=(123,45,67,128),level=0):
         stream=io.BytesIO();Image.new('RGBA',(3,2),color).save(stream,format='PNG',compress_level=level)
         return stream.getvalue()
 
-    def fixture(self,changed=None,subtitle=False,redirect=False):
+    def fixture(self,changed=None,subtitle=False,redirect=False,old_header=False):
         expected={name:self.png() if name.endswith('.png') else ('Reviewed '+name).encode() for name in assets.ASSETS.values()}
         class Opener:
             def open(self,request,timeout):
                 url=request.full_url
                 if url=='https://petish.biz/':
                     body=b'<h1 id="petish-home-title">Petish</h1>'
+                    if not old_header:body+=HomepagePublicAssetsTests.HEADER.encode()
                     if subtitle:body+=b'<p>Selected by supplier-reported orders.</p>'
                 else:
                     name=next(name for name in expected if name in url);body=expected[name]
@@ -297,9 +318,18 @@ class HomepagePublicAssetsTests(unittest.TestCase):
         self.assertEqual(result['status'],'success');self.assertTrue(all(result['checks'].values()))
 
     def test_wrong_bytes_redirects_or_old_subtitle_refuse(self):
-        for arguments in ({'changed':'assets/js/for-your-pet.js'},{'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},
-                          {'subtitle':True},{'redirect':True}):
+        for arguments in ({'changed':'assets/js/theme.js'},{'changed':'assets/css/petish.css'},
+                          {'changed':'assets/js/for-your-pet.js'},{'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},
+                          {'subtitle':True},{'redirect':True},{'old_header':True}):
             opener,expected=self.fixture(**arguments);self.assertEqual(assets.verify(opener,expected)['status'],'failure')
+
+    def test_public_switch_markup_requires_header_order_and_accessible_control(self):
+        self.assertTrue(assets.theme_switch_markup(self.HEADER))
+        self.assertTrue(assets.theme_switch_markup(self.HEADER+self.HEADER.replace('header-bar','mobile-header-bar')))
+        for before,after in [('mini-search','wrong-position'),('data-petish-market','data-other'),
+                             ('header-bar','footer'),('role="switch"','role="button"'),
+                             ('aria-label="Dark mode"','aria-label=""'),('type="button"','type="submit"')]:
+            self.assertFalse(assets.theme_switch_markup(self.HEADER.replace(before,after)))
 
     def test_png_recompression_preserves_exact_pixels_but_pixel_changes_refuse(self):
         original=self.png(level=0);compressed=self.png(level=9)

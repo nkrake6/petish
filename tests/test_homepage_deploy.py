@@ -1,4 +1,4 @@
-"""Exercise the seven-file homepage transaction against disposable filesystem fixtures."""
+"""Exercise the ten-file homepage/header transaction against disposable filesystem fixtures."""
 import base64
 import hashlib
 import json
@@ -20,8 +20,8 @@ spec = importlib.util.spec_from_file_location('homepage_evidence', ROOT / 'scrip
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
-BASELINE = '233a641f87d2aed34f43121db8024715b39b3455'
-NEW_FILES = {'assets/js/for-your-pet.js', 'includes/for-your-pet.php'}
+BASELINE = 'c136035fe5d76538fbc0199a3f3a87ec8e5f5995'
+NEW_FILES = set()
 EXISTING = [name for name in FILES if name not in NEW_FILES]
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+bfr0AAAAASUVORK5CYII=')
 
@@ -371,8 +371,14 @@ class HomepageDeploymentTests(unittest.TestCase):
             manifest[name] = hashlib.sha256(content).hexdigest()
         (self.payload / 'manifest.json').write_text(json.dumps(manifest))
         before = self.snapshot()
-        self.assertEqual(self.execute('inspect', script=SCRIPT)['status'], 'success')
+        inspection=self.execute('inspect', script=SCRIPT)
+        self.assertEqual(inspection['status'], 'success')
+        self.assertEqual(inspection['changed_file_count'],3)
         self.assertEqual(self.execute('apply', script=SCRIPT)['status'], 'success')
+        after=self.snapshot()
+        self.assertEqual({name for name in set(before)|set(after) if before.get(name)!=after.get(name)},
+                         {PREFIX.removeprefix('wordpress/')+name for name in
+                          ('includes/header-navigation.php','assets/js/theme.js','assets/css/petish.css')})
         self.assertEqual(self.execute('rollback', script=SCRIPT)['status'], 'success')
         self.assertEqual(self.snapshot(), before)
 

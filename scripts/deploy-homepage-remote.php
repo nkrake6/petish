@@ -1,9 +1,9 @@
 <?php
-/** Narrow production homepage release. Standalone CLI; never boots WordPress. */
+/** Narrow production homepage and header release. Standalone CLI; never boots WordPress. */
 if (PHP_SAPI !== 'cli') exit(1);
 ini_set('display_errors','0'); ini_set('log_errors','0'); error_reporting(0);
 
-// Exact reviewed homepage files. All application hashes must be frozen before release.
+// Exact reviewed homepage and header files. All application hashes must be frozen before release.
 const PETISH_HOMEPAGE_FILES = [
     'assets/images/ui/free-delivery-van.png'=>'4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af',
     'assets/css/home.css'=>'dc4f3606341c2eb44df505c54a192e07d2771e90a9e09c102ac2a6983789bd23',
@@ -12,13 +12,21 @@ const PETISH_HOMEPAGE_FILES = [
     'includes/for-your-pet.php'=>'eb3b9d59c63642770366db0c5c0d3375f4ce16539f0b94df01d12b7e87e54aa8',
     'front-page.php'=>'7336764e7da8fc56132584564da7e4fe28da7fdec1839775dd131469b7f3f924',
     'functions.php'=>'ef3372a1d00a28eb952953eaefb3793b82361195aa0d773373006aa5dfee170b',
+    'includes/header-navigation.php'=>'a05b9a05401639266742f381d2acf102999df155973dd3d4bbb810df62caf1c3',
+    'assets/js/theme.js'=>'677d7718c3e3d7385990ba59fcb21431589a08695bd34076bbc5e6bf1b2e3852',
+    'assets/css/petish.css'=>'e1cedca3280a48b90c736f43380112123a55803d9e7b6ab697eb3a0c4a26100e',
 ];
 const PETISH_HOMEPAGE_BASELINES = [
     'assets/images/ui/free-delivery-van.png'=>'4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af',
-    'assets/css/home.css'=>'11aa02b5a3890e3023753bb2acfd024cf9e520a74737ee1d4ac8a9b1c2dca557',
+    'assets/css/home.css'=>'dc4f3606341c2eb44df505c54a192e07d2771e90a9e09c102ac2a6983789bd23',
+    'assets/js/for-your-pet.js'=>'29cd41f2e0a646234fefea9d3a73bb2c53ebc11cb07f1362ca406a7ca9d22a0a',
     'includes/supplier-popularity.php'=>'54ef94d249292953c41a81291a5b5eb3f0760ef290f6ee19de79c691747b2e2b',
-    'front-page.php'=>'50828b31df5a89a5a31308f3fb4bac6d01412afcab379d4b53bbecb45c46280c',
-    'functions.php'=>'3c89e235558d1fe17cfa8ef0b6c7bdc50b80e4ccf09326e4ee19dd30961ef824',
+    'includes/for-your-pet.php'=>'eb3b9d59c63642770366db0c5c0d3375f4ce16539f0b94df01d12b7e87e54aa8',
+    'front-page.php'=>'7336764e7da8fc56132584564da7e4fe28da7fdec1839775dd131469b7f3f924',
+    'functions.php'=>'ef3372a1d00a28eb952953eaefb3793b82361195aa0d773373006aa5dfee170b',
+    'includes/header-navigation.php'=>'a25e2f4cbab70beb05d8a495dca151e3a6e6b2b73fa3659b88e726673bc00bba',
+    'assets/js/theme.js'=>'c2a6aa6a1861d5d953a231206946ae6fb1873e7a65ab30d72f7674e36d00e31e',
+    'assets/css/petish.css'=>'6091293d48b3e11d93764abb702e6f4c766abd7d569f674e62dc8a3a85e566ae',
 ];
 
 function homepage_release_fail() { throw new RuntimeException(); }

@@ -11,18 +11,25 @@ const ORIGIN = 'https://staging.petish.biz';
 const THEME = new URL('../../wordpress/wp-content/themes/dt-the7-child/', import.meta.url);
 const CSS_PATH = '/wp-content/themes/dt-the7-child/assets/css/home.css';
 const BADGE_PATH = '/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png';
+const THEME_SCRIPT_PATH = '/wp-content/themes/dt-the7-child/assets/js/theme.js';
+const DESIGN_CSS_PATH = '/wp-content/themes/dt-the7-child/assets/css/petish.css';
+const THEME_SWITCH = '[data-petish-theme-toggle]';
 const PERSONAL_SCRIPT_PATH = '/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js';
 const PERSONAL_ENDPOINT = `${ORIGIN}/wp-admin/admin-ajax.php?action=petish_for_your_pet`;
 const PERSONAL = '[data-petish-for-your-pet]';
 const SECTION = '#petish-free-delivery';
 export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
-const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history']);
+export const THEME_VIEWS = Object.freeze(['320_light', '320_dark', '390_light', '390_dark', '1280_light', '1280_dark']);
+export const THEME_GEOMETRY_KEYS = Object.freeze(['header_height', 'baseline_height', 'header_width', 'viewport_width',
+  'switch_left', 'switch_right', 'search_right', 'market_left', 'market_right', 'logo_right', 'logo_width', 'visible_count', 'overflow']);
+const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
   'badge_response_signature_png', 'badge_response_signature_webp', 'badge_response_signature_avif',
   'badge_response_bytes_match', 'badge_response_size_bounded', 'badge_fetch_versioned',
   'badge_expected_decode_ok', 'badge_response_decode_ok', 'badge_canvas_context_available',
-  'badge_dimensions_match', 'badge_pixels_match', 'badge_comparison_completed', 'badge_versioned_image_matches']);
+  'badge_dimensions_match', 'badge_pixels_match', 'badge_comparison_completed', 'badge_versioned_image_matches',
+  ...[320, 390, 1280].flatMap(width => ['light', 'dark'].flatMap(mode => ['order', 'height', 'fit'].map(fact => `theme_${width}_${mode}_${fact}`)))]);
 export const CHECK_KEYS = Object.freeze(['browser_started', 'customer_login_verified',
   'homepage_http_ok', 'hot_subtitle_absent', 'home_css_http_ok', 'home_css_hash_matches',
   'badge_png_http_ok', 'badge_png_image_matches', 'conditional_section_valid',
@@ -30,7 +37,10 @@ export const CHECK_KEYS = Object.freeze(['browser_started', 'customer_login_veri
   'badges_bottom_right', 'badges_nonoverlap_hot', 'readonly_requests_enforced',
   'personalisation_script_http_verified', 'personalisation_shell_private_verified',
   'personalisation_ajax_verified', 'personalisation_no_store_verified', 'personalisation_layout_verified',
-  'personalisation_error_retry_verified', 'personalisation_history_reset_verified']);
+  'personalisation_error_retry_verified', 'personalisation_history_reset_verified',
+  'theme_assets_http_verified', 'theme_switch_order_verified', 'theme_switch_geometry_verified',
+  'theme_switch_pointer_verified', 'theme_switch_keyboard_verified', 'theme_switch_persistence_verified',
+  'theme_switch_select_sync_verified', 'theme_switch_system_verified', 'theme_switch_clones_verified']);
 
 export function publicReport(value) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, value?.checks?.[key] === true]));
@@ -42,6 +52,9 @@ export function publicReport(value) {
     image_dimensions: Object.fromEntries(IMAGE_DIMENSION_KEYS.map(key => [key,
       Number.isInteger(value?.image_dimensions?.[key]) && value.image_dimensions[key] >= 0
         && value.image_dimensions[key] <= 4096 ? value.image_dimensions[key] : 0])),
+    theme_geometry: Object.fromEntries(THEME_VIEWS.map(view => [view, Object.fromEntries(THEME_GEOMETRY_KEYS.map(key => [key,
+      Number.isFinite(value?.theme_geometry?.[view]?.[key]) && Math.abs(value.theme_geometry[view][key]) <= 4096
+        ? Math.round(value.theme_geometry[view][key] * 100) / 100 : 0]))])),
     diagnostics: Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, value?.diagnostics?.[key] === true])), checks };
 }
 
@@ -350,17 +363,169 @@ async function checkPersonalisation(page, context, login, input, homeHTML, initi
   requireCheck(checks.personalisation_history_reset_verified, 'personalisation_history');
 }
 
+/** Only bounded header measurements leave the page; never labels, URLs or account data. */
+export async function inspectThemeGeometry(page) {
+  return page.evaluate(() => {
+    const wrappers = [...document.querySelectorAll('[data-petish-theme-switch]')];
+    const visible = node => {
+      const rect = node.getBoundingClientRect(), css = getComputedStyle(node);
+      return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight
+        && css.visibility !== 'hidden' && css.display !== 'none' && Number(css.opacity) > 0;
+    };
+    const current = wrappers.filter(node => visible(node) && visible(node.querySelector('[data-petish-theme-toggle]')));
+    const records = current.map(wrapper => {
+      const button = wrapper.querySelector('[data-petish-theme-toggle]');
+      const header = wrapper.closest('.header-bar,.mobile-header-bar') || wrapper.closest('#phantom,.masthead');
+      const siblings = [...wrapper.parentElement.children], index = siblings.indexOf(wrapper);
+      const search = siblings.slice(0, index).reverse().find(node => node.matches('.mini-search'));
+      const market = siblings.slice(index + 1).find(node => node.matches('[data-petish-market]'));
+      const logo = header && [...header.querySelectorAll('.branding img,[data-petish-logo]')].find(visible);
+      return { wrapper, button, header, search, market, logo, box: header?.getBoundingClientRect(),
+        buttonBox: button.getBoundingClientRect(), searchBox: search?.getBoundingClientRect(),
+        marketBox: market?.getBoundingClientRect(), logoBox: logo?.getBoundingClientRect(),
+        controls: header ? [...header.querySelectorAll('.mobile-navigation,.mobile-mini-widgets,.mini-search,[data-petish-theme-switch],[data-petish-market]')].filter(visible).map(node => node.getBoundingClientRect()) : [] };
+    });
+    let order = records.length >= 1 && records.length <= 4, fit = order, height = order;
+    const styles = wrappers.map(node => node.getAttribute('style'));
+    try {
+      wrappers.forEach(node => node.style.setProperty('display', 'none', 'important'));
+      records.forEach(record => { record.baseline = record.header?.getBoundingClientRect().height; });
+    } finally {
+      wrappers.forEach((node, index) => styles[index] === null ? node.removeAttribute('style') : node.setAttribute('style', styles[index]));
+    }
+    const within = rect => rect && rect.width > 0 && rect.height > 0 && rect.left >= -1 && rect.right <= innerWidth + 1;
+    for (const record of records) {
+      const { button, box, buttonBox: b, searchBox: s, marketBox: m, logoBox: l, baseline } = record;
+      order = order && !!s && !!m && s.right <= b.left + 1 && b.right <= m.left + 1;
+      height = height && !!box && Number.isFinite(baseline) && box.height <= baseline + 1;
+      fit = fit && within(box) && within(b) && within(s) && within(m) && b.width >= 43 && b.height >= 43
+        && b.top >= box.top - 1 && b.bottom <= box.bottom + 1 && (!l || (within(l) && l.width >= 48 && l.right <= s.left + 1))
+        && record.controls.every(within)
+        && button.type === 'button' && button.getAttribute('role') === 'switch'
+        && button.getAttribute('aria-label') === 'Dark mode' && button.querySelectorAll('svg[aria-hidden="true"]').length === 2;
+    }
+    const first = records[0], number = value => Number.isFinite(value) ? Math.round(Math.max(-4096, Math.min(4096, value)) * 100) / 100 : 0;
+    return { order: !!order, fit: !!fit, height: !!height, geometry: {
+      header_height: number(first?.box?.height), baseline_height: number(first?.baseline), header_width: number(first?.box?.width),
+      viewport_width: innerWidth, switch_left: number(first?.buttonBox?.left), switch_right: number(first?.buttonBox?.right),
+      search_right: number(first?.searchBox?.right), market_left: number(first?.marketBox?.left), market_right: number(first?.marketBox?.right),
+      logo_right: number(first?.logoBox?.right), logo_width: number(first?.logoBox?.width), visible_count: current.length,
+      overflow: number(Math.max(0, ...records.flatMap(record => [record.box?.right - innerWidth, record.buttonBox?.right - innerWidth,
+        record.marketBox?.right - innerWidth, record.logoBox?.right - innerWidth, ...record.controls.map(rect => rect.right - innerWidth)]).filter(Number.isFinite))) } };
+  });
+}
+
+async function themeState(page, mode, preference = mode) {
+  return page.evaluate(({ mode, preference }) => {
+    const root = document.documentElement, switches = [...document.querySelectorAll('[data-petish-theme-toggle]')];
+    const logos = [...document.querySelectorAll('[data-petish-logo]')];
+    return root.dataset.theme === mode && root.dataset.themePreference === preference && switches.length >= 1 && switches.length <= 20
+      && switches.every(button => button.getAttribute('aria-checked') === String(mode === 'dark')
+        && button.title === `Switch to ${mode === 'dark' ? 'light' : 'dark'} mode` && !button.closest('[data-petish-theme-switch]').hidden)
+      && logos.length >= 1 && logos.every(logo => logo.getAttribute('src') === logo.dataset[mode])
+      && [...document.querySelectorAll('[data-petish-theme]')].every(select => select.value === preference);
+  }, { mode, preference });
+}
+
+async function settleHeader(page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+}
+
+/** Browser-only appearance choices; no forms are submitted and no market endpoint is opened. */
+export async function checkThemeSwitch(page, checks, diagnostics, setCategory, themeGeometry = {}) {
+  const button = () => page.locator(`${THEME_SWITCH}:visible`).first();
+  setCategory('theme_layout');
+  let order = true, fit = true, height = true;
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await settleHeader(page);
+    for (const mode of ['light', 'dark']) {
+      if (await page.evaluate(() => document.documentElement.dataset.theme) !== mode) await button().click();
+      await settleHeader(page);
+      const result = await inspectThemeGeometry(page);
+      diagnostics[`theme_${width}_${mode}_order`] = result.order;
+      diagnostics[`theme_${width}_${mode}_height`] = result.height;
+      diagnostics[`theme_${width}_${mode}_fit`] = result.fit;
+      themeGeometry[`${width}_${mode}`] = result.geometry;
+      order = order && result.order; height = height && result.height; fit = fit && result.fit;
+    }
+  }
+  checks.theme_switch_order_verified = order;
+  checks.theme_switch_geometry_verified = height && fit;
+  requireCheck(order && height && fit, 'theme_layout');
+  setCategory('theme_interaction');
+  await button().click();
+  const pointerLight = await themeState(page, 'light');
+  await button().click();
+  checks.theme_switch_pointer_verified = pointerLight && await themeState(page, 'dark');
+  await button().focus(); await button().press('Enter');
+  const enterLight = await themeState(page, 'light');
+  await button().press('Space');
+  checks.theme_switch_keyboard_verified = enterLight && await themeState(page, 'dark')
+    && await button().evaluate(node => document.activeElement === node && getComputedStyle(node).outlineStyle !== 'none');
+  requireCheck(checks.theme_switch_pointer_verified && checks.theme_switch_keyboard_verified, 'theme_interaction');
+  setCategory('theme_persistence');
+  const stored = await page.evaluate(() => localStorage.getItem('petish-theme') === 'dark');
+  await page.reload({ waitUntil: 'load' });
+  checks.theme_switch_persistence_verified = stored && await themeState(page, 'dark');
+  requireCheck(checks.theme_switch_persistence_verified, 'theme_persistence');
+  // Use the existing account Appearance select; navigation is read-only.
+  await page.goto(ORIGIN + '/my-account/edit-account/', { waitUntil: 'load' });
+  const select = page.locator('.petish-account-appearance [data-petish-theme]');
+  await select.selectOption('light');
+  const selectedLight = await themeState(page, 'light');
+  await page.evaluate(() => window.scrollTo(0, 0)); await button().click();
+  checks.theme_switch_select_sync_verified = selectedLight && await themeState(page, 'dark') && await select.inputValue() === 'dark';
+  requireCheck(checks.theme_switch_select_sync_verified, 'theme_interaction');
+  setCategory('theme_system');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await select.selectOption('system');
+  const systemDark = await themeState(page, 'dark', 'system');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+  const systemLight = await themeState(page, 'light', 'system');
+  await page.evaluate(() => localStorage.removeItem('petish-theme'));
+  await page.reload({ waitUntil: 'load' });
+  checks.theme_switch_system_verified = systemDark && systemLight && await themeState(page, 'light', 'system');
+  requireCheck(checks.theme_switch_system_verified, 'theme_system');
+  setCategory('theme_interaction');
+  // Exercise a late The7-style copy in the actual page; remove this inert DOM fixture before leaving.
+  try {
+    await page.evaluate(() => {
+      const source = document.querySelector('[data-petish-theme-switch]');
+      const clone = source.cloneNode(true); clone.id = 'petish-theme-proof-clone'; clone.hidden = true;
+      clone.style.cssText = 'position:fixed!important;left:4px!important;bottom:4px!important;z-index:2147483647!important';
+      clone.querySelector('[data-petish-theme-toggle]').setAttribute('aria-checked', 'true');
+      document.body.append(clone);
+    });
+    const cloneButton = page.locator('#petish-theme-proof-clone [data-petish-theme-toggle]');
+    await cloneButton.waitFor({ state: 'visible' });
+    const clonedState = await themeState(page, 'light', 'system');
+    await cloneButton.click();
+    checks.theme_switch_clones_verified = clonedState && await themeState(page, 'dark')
+      && await page.evaluate(() => localStorage.getItem('petish-theme') === 'dark');
+  } finally { await page.locator('#petish-theme-proof-clone').evaluateAll(nodes => nodes.forEach(node => node.remove())); }
+  requireCheck(checks.theme_switch_clones_verified, 'theme_interaction');
+}
+
 export async function run(input, chromium, options = {}) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, false]));
   const diagnostics = Object.fromEntries(DIAGNOSTIC_KEYS.map(key => [key, false]));
   const imageDimensions = Object.fromEntries(IMAGE_DIMENSION_KEYS.map(key => [key, 0]));
+  const themeGeometry = {};
   let browser, category = 'input', sectionPresent = false;
-  const report = (status, category) => publicReport({ status, category, section_present: sectionPresent, image_dimensions: imageDimensions, diagnostics, checks });
+  const report = (status, category) => publicReport({ status, category, section_present: sectionPresent, image_dimensions: imageDimensions, theme_geometry: themeGeometry, diagnostics, checks });
   try {
     validateInput(input);
     if (input.expected_section_present !== undefined && typeof input.expected_section_present !== 'boolean') throw new Error('input');
     if (input.capture_badge_response !== undefined && typeof input.capture_badge_response !== 'boolean') throw new Error('input');
     const expectedCSS = hash(fs.readFileSync(new URL('assets/css/home.css', THEME)));
+    const expectedThemeScript = hash(fs.readFileSync(new URL('assets/js/theme.js', THEME)));
+    const expectedDesignCSS = hash(fs.readFileSync(new URL('assets/css/petish.css', THEME)));
     const expectedPersonalScript = hash(fs.readFileSync(new URL('assets/js/for-your-pet.js', THEME)));
     const expectedBadgeBytes = fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME));
     const expectedBadge = hash(expectedBadgeBytes);
@@ -400,7 +565,7 @@ export async function run(input, chromium, options = {}) {
     const assetRecords = new Map(), assetTasks = [];
     page.on('response', response => {
       const url = new URL(response.url());
-      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH].includes(url.pathname)) return;
+      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH, THEME_SCRIPT_PATH, DESIGN_CSS_PATH].includes(url.pathname)) return;
       const task = response.body().then(body => assetRecords.set(url.pathname, { ok: response.ok(), hash: hash(body) }))
         .catch(() => assetRecords.set(url.pathname, { ok: false, hash: null }));
       assetTasks.push(task);
@@ -425,6 +590,10 @@ export async function run(input, chromium, options = {}) {
     checks.home_css_hash_matches = cssEnqueued && css?.hash === expectedCSS;
     checks.personalisation_script_http_verified = assetRecords.get(PERSONAL_SCRIPT_PATH)?.ok === true
       && assetRecords.get(PERSONAL_SCRIPT_PATH)?.hash === expectedPersonalScript;
+    checks.theme_assets_http_verified = assetRecords.get(THEME_SCRIPT_PATH)?.ok === true
+      && assetRecords.get(THEME_SCRIPT_PATH)?.hash === expectedThemeScript
+      && assetRecords.get(DESIGN_CSS_PATH)?.ok === true && assetRecords.get(DESIGN_CSS_PATH)?.hash === expectedDesignCSS;
+    requireCheck(checks.theme_assets_http_verified, 'theme_assets');
     // Request the reviewed PNG even when no supplier products qualify, so an
     // intentionally absent section cannot hide an unreadable deployment asset.
     const fetchBadge = pathname => page.evaluate(async target => {
@@ -486,6 +655,7 @@ export async function run(input, chromium, options = {}) {
     checks.badges_bottom_right = bottomRight;
     checks.badges_nonoverlap_hot = nonoverlap;
     await checkPersonalisation(page, context, login, input, homeHTML, personalResponse, checks, value => { category = value; });
+    await checkThemeSwitch(page, checks, diagnostics, value => { category = value; }, themeGeometry);
     requireCheck(Object.values(checks).every(Boolean), 'layout');
     return report('success', 'complete');
   } catch (error) {

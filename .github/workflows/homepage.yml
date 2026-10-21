@@ -1,10 +1,10 @@
-name: Verify and release Petish homepage
+name: Verify and release Petish homepage and header
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Verify staging, inspect production, or apply the verified homepage files
+        description: Verify staging, inspect production, or apply the verified homepage and header files
         required: true
         default: staging
         type: choice
@@ -31,6 +31,9 @@ on:
       - wordpress/wp-content/themes/dt-the7-child/includes/supplier-popularity.php
       - wordpress/wp-content/themes/dt-the7-child/assets/css/home.css
       - wordpress/wp-content/themes/dt-the7-child/assets/images/ui/free-delivery-van.png
+      - wordpress/wp-content/themes/dt-the7-child/includes/header-navigation.php
+      - wordpress/wp-content/themes/dt-the7-child/assets/js/theme.js
+      - wordpress/wp-content/themes/dt-the7-child/assets/css/petish.css
 
 permissions:
   contents: write

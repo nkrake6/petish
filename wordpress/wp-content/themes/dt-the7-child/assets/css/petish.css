@@ -303,6 +303,19 @@ body#the7-body.petish-site [aria-disabled="true"] {
 .petish-site .petish-theme-control select { font: 500 .875rem/1.5 var(--font-label); width: 240px; padding-right: 22px; margin: 0; }
 .petish-site .petish-account-appearance .petish-caption { margin: 10px 0 0; }
 .no-js .petish-theme-control { display: none; }
+/* A single appearance button fits the existing search/location control row. */
+.petish-site .petish-theme-switch-wrapper { display: inline-flex; flex: 0 0 auto; align-items: center; margin-inline-start: 8px; vertical-align: middle; }
+.petish-site .petish-theme-switch-wrapper[hidden] { display: none !important; }
+.petish-site button.petish-theme-switch { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex: 0 0 44px; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; margin: 0; border: 1px solid transparent; border-radius: 50%; background: transparent; color: var(--color-text); box-shadow: none; cursor: pointer; line-height: 1; }
+.petish-site button.petish-theme-switch:hover { background: var(--color-lavender); color: var(--color-secondary-text); }
+.petish-site button.petish-theme-switch:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.petish-site .petish-theme-switch svg { display: block; width: 20px; height: 20px; pointer-events: none; }
+.petish-site .petish-theme-switch__sun { display: none !important; }
+[data-theme="dark"] .petish-site .petish-theme-switch__moon { display: none; }
+[data-theme="dark"] .petish-site .petish-theme-switch__sun { display: block !important; }
+@media (max-width: 767px) {
+  body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets > .petish-theme-switch-wrapper { margin: 0; }
+}
 .petish-site .scroll-top { background: var(--color-button-primary); color: var(--color-button-primary-on); border: 1px solid var(--color-button-primary-border); border-radius: var(--radius-control); }
 .petish-site .petish-preview { padding-bottom: 36px; }
 .petish-site .petish-preview > section + section { margin-top: 40px; }

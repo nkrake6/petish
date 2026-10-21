@@ -2,6 +2,7 @@
 """Keep homepage release output finite; application output stays private."""
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -15,6 +16,9 @@ def module(name):
 
 navigation=module('sanitize-account-navigation-result')
 BROWSER={
+    'theme_assets_http_verified', 'theme_switch_order_verified', 'theme_switch_geometry_verified',
+    'theme_switch_pointer_verified', 'theme_switch_keyboard_verified', 'theme_switch_persistence_verified',
+    'theme_switch_select_sync_verified', 'theme_switch_system_verified', 'theme_switch_clones_verified',
     'badge_png_http_ok', 'badge_png_image_matches', 'badges_bottom_right',
     'badges_nonoverlap_hot', 'browser_started', 'conditional_section_valid',
     'customer_login_verified', 'home_css_hash_matches', 'home_css_http_ok',
@@ -29,8 +33,14 @@ BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_t
     'badge_response_signature_webp','badge_response_signature_avif','badge_response_bytes_match',
     'badge_response_size_bounded','badge_fetch_versioned','badge_expected_decode_ok',
     'badge_response_decode_ok','badge_canvas_context_available','badge_dimensions_match',
-    'badge_pixels_match','badge_comparison_completed','badge_versioned_image_matches'}
+    'badge_pixels_match','badge_comparison_completed','badge_versioned_image_matches'} | {
+    f'theme_{width}_{mode}_{fact}' for width in (320,390,1280)
+    for mode in ('light','dark') for fact in ('order','height','fit')}
+THEME_GEOMETRY_VIEWS={f'{width}_{mode}' for width in (320,390,1280) for mode in ('light','dark')}
+THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewport_width',
+    'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','visible_count','overflow'}
 VERIFY={
+    'theme_switch_markup_verified', 'theme_switch_assets_enqueued',
     'account_settings_unchanged', 'all_outbound_http_blocked', 'anonymous_render_context_verified',
     'authentication_state_unchanged', 'cron_and_async_runner_disabled', 'for_your_pet_cacheable_shell_verified',
     'for_your_pet_script_enqueued', 'free_delivery_badge_asset_verified', 'free_delivery_helpers_available',
@@ -67,9 +77,9 @@ CLEANUP={
     'woocommerce_runtime_verified',
 }
 OBSERVATIONS={'free_delivery_products_available'}
-ASSETS={'for_your_pet_script_http_verified','homepage_http_verified','hot_subtitle_absent','home_stylesheet_http_verified','free_delivery_badge_http_verified'}
+ASSETS={'theme_switch_public_markup_verified','theme_script_http_verified','theme_stylesheet_http_verified','for_your_pet_script_http_verified','homepage_http_verified','hot_subtitle_absent','home_stylesheet_http_verified','free_delivery_badge_http_verified'}
 PREFLIGHT=navigation.PREFLIGHT
-FILE_COUNT=7
+FILE_COUNT=10
 DEPLOY=navigation.DEPLOY|{'candidate_badge_png_verified','maintenance_guard_created','maintenance_guard_removed'}
 REQUIRED={**{phase:navigation.REQUIRED[phase]|({'candidate_badge_png_verified'} if phase in {'inspect','apply'} else set())
     for phase in ('inspect','apply','rollback','commit')},
@@ -119,7 +129,8 @@ REVIEW_DIAGNOSTICS={
     'reread_product_available','reread_product_type_matches','reread_signed_review_valid','original_signed_review_valid',
 }
 CATEGORIES=navigation.CATEGORIES|CACHE_FAILURES|FIXTURE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
-    'personalisation','personalisation_error','personalisation_history','bootstrap','isolation','state'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
+    'personalisation','personalisation_error','personalisation_history','bootstrap','isolation','state',
+    'theme_assets','theme_layout','theme_interaction','theme_persistence','theme_system'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
 
 
 def screen(phase,path):
@@ -137,6 +148,14 @@ def screen(phase,path):
             fields.add('diagnostics')
             if not isinstance(raw['diagnostics'],dict) or set(raw['diagnostics'])!=BROWSER_DIAGNOSTICS \
                 or any(type(value) is not bool for value in raw['diagnostics'].values()):raise ValueError()
+        if phase=='browser' and 'theme_geometry' in raw:
+            fields.add('theme_geometry')
+            geometry=raw['theme_geometry']
+            if not isinstance(geometry,dict) or set(geometry)!=THEME_GEOMETRY_VIEWS:raise ValueError()
+            for measurements in geometry.values():
+                if not isinstance(measurements,dict) or set(measurements)!=THEME_GEOMETRY_FIELDS \
+                    or any(type(value) not in (int,float) or not math.isfinite(value) or not -4096<=value<=4096
+                           for value in measurements.values()):raise ValueError()
         if phase=='browser' and 'image_dimensions' in raw:
             fields.add('image_dimensions')
             dimensions=raw['image_dimensions']

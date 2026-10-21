@@ -3,8 +3,8 @@
     'use strict';
     const root = document.documentElement;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    let preference = root.dataset.themePreference || 'system';
     const valid = value => ['light', 'dark', 'system'].includes(value);
+    let preference = valid(root.dataset.themePreference) ? root.dataset.themePreference : 'system';
     function syncLogos(node) {
         const images = [];
         if (node.nodeType === 1 && node.matches('[data-petish-logo]')) images.push(node);
@@ -13,6 +13,16 @@
         if (node.nodeType === 1 && node.matches('[data-petish-theme]')) controls.push(node);
         if (node.querySelectorAll) controls.push(...node.querySelectorAll('[data-petish-theme]'));
         controls.forEach(select => { select.value = preference; });
+        const switches = [];
+        if (node.nodeType === 1 && node.matches('[data-petish-theme-toggle]')) switches.push(node);
+        if (node.querySelectorAll) switches.push(...node.querySelectorAll('[data-petish-theme-toggle]'));
+        switches.forEach(button => {
+            const dark = root.dataset.theme === 'dark';
+            button.setAttribute('aria-checked', String(dark));
+            button.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+            const wrapper = button.closest('[data-petish-theme-switch]');
+            if (wrapper) wrapper.hidden = false;
+        });
         images.forEach(img => {
             const next = root.dataset.theme === 'dark' ? img.dataset.dark : img.dataset.light;
             if (next && img.getAttribute('src') !== next) img.setAttribute('src', next);
@@ -29,6 +39,12 @@
     }
     function ready() {
         apply();
+        document.addEventListener('click', event => {
+            if (!(event.target instanceof Element) || !event.target.closest('[data-petish-theme-toggle]')) return;
+            preference = root.dataset.theme === 'dark' ? 'light' : 'dark';
+            try { localStorage.setItem('petish-theme', preference); } catch (_) {}
+            apply();
+        });
         document.addEventListener('change', event => {
             if (!event.target.matches('[data-petish-theme]') || !valid(event.target.value)) return;
             preference = event.target.value;
@@ -42,7 +58,7 @@
                 apply();
             }
         });
-        // The7 can insert a floating logo after scrolling.
+        // The7 can insert floating logos and copies of the header controls.
         new MutationObserver(records => records.forEach(record =>
             record.addedNodes.forEach(node => syncLogos(node))
         )).observe(document.body, { childList: true, subtree: true });

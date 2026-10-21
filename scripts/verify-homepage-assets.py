@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Read only the public homepage and three fixed reviewed theme assets."""
+"""Read only the public homepage and five fixed reviewed theme assets."""
 import hashlib
+from html.parser import HTMLParser
 import io
 import importlib.util
 import json
@@ -17,10 +18,58 @@ ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('asset_http',ROOT/'scripts/verify-account-navigation-assets.py')
 http=importlib.util.module_from_spec(spec);spec.loader.exec_module(http)
 http.MAX_BYTES=8388608
-ASSETS={'home_stylesheet_http_verified':'assets/css/home.css',
+ASSETS={'theme_script_http_verified':'assets/js/theme.js',
+    'theme_stylesheet_http_verified':'assets/css/petish.css',
+    'home_stylesheet_http_verified':'assets/css/home.css',
     'for_your_pet_script_http_verified':'assets/js/for-your-pet.js',
     'free_delivery_badge_http_verified':'assets/images/ui/free-delivery-van.png'}
-CHECKS={'homepage_http_verified','hot_subtitle_absent',*ASSETS}
+CHECKS={'homepage_http_verified','hot_subtitle_absent','theme_switch_public_markup_verified',*ASSETS}
+
+
+def theme_switch_markup(body):
+    """Check only public static header structure; never execute page scripts."""
+    class HeaderParser(HTMLParser):
+        void={'area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'}
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.root={'tag':'root','attrs':{},'children':[],'parent':None}
+            self.stack=[self.root];self.switches=[];self.count=0
+        def handle_starttag(self,tag,attrs):
+            self.count+=1
+            if self.count>50000:raise ValueError()
+            attrs={key:value for key,value in attrs if key in {'class','id','type','role','aria-label','aria-checked','data-petish-theme-switch','data-petish-theme-toggle','data-petish-market'}}
+            node={'tag':tag,'attrs':attrs,'children':[],'parent':self.stack[-1]}
+            self.stack[-1]['children'].append(node)
+            if 'data-petish-theme-switch' in attrs:self.switches.append(node)
+            if len(self.switches)>20 or len(self.stack)>256:raise ValueError()
+            if tag not in self.void:self.stack.append(node)
+        def handle_endtag(self,tag):
+            for index in range(len(self.stack)-1,0,-1):
+                if self.stack[index]['tag']==tag:
+                    del self.stack[index:];break
+        def handle_startendtag(self,tag,attrs):
+            self.handle_starttag(tag,attrs)
+            if tag not in self.void:self.handle_endtag(tag)
+    try:
+        parser=HeaderParser();parser.feed(body);parser.close()
+        if not parser.switches:return False
+        classes=lambda node:set((node['attrs'].get('class') or '').split())
+        for wrapper in parser.switches:
+            siblings=wrapper['parent']['children'];position=next(i for i,item in enumerate(siblings) if item is wrapper)
+            if position==0 or position+1>=len(siblings) or 'mini-search' not in classes(siblings[position-1]) \
+                    or 'data-petish-market' not in siblings[position+1]['attrs']:return False
+            ancestor=wrapper['parent'];header=False
+            while ancestor is not None:
+                header=header or bool(classes(ancestor)&{'header-bar','mobile-header-bar'}) or ancestor['attrs'].get('id')=='phantom'
+                ancestor=ancestor['parent']
+            if not header:return False
+            buttons=[node for node in wrapper['children'] if node['tag']=='button' and 'data-petish-theme-toggle' in node['attrs']]
+            if len(buttons)!=1:return False
+            attrs=buttons[0]['attrs']
+            if attrs.get('type')!='button' or attrs.get('role')!='switch' or attrs.get('aria-checked') not in {'true','false'} \
+                    or not (attrs.get('aria-label') or '').strip():return False
+        return True
+    except (ValueError,TypeError,KeyError,StopIteration,AssertionError):return False
 
 
 def png_matches(expected,fetched):
@@ -60,6 +109,7 @@ def verify(opener,expected):
             body=http.decoded_body(response).decode('utf-8')
         report['checks']['homepage_http_verified']='petish-home-title' in body
         report['checks']['hot_subtitle_absent']='Selected by supplier-reported orders.' not in body
+        report['checks']['theme_switch_public_markup_verified']=theme_switch_markup(body)
     except (HTTPError,URLError,TimeoutError,OSError):failures.append('http')
     except (ValueError,UnicodeError,zlib.error):failures.append('assets')
     if all(report['checks'].values()):report.update(status='success',category='complete')

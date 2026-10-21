@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify the public homepage on staging or release its seven reviewed files.
+# Verify the public homepage on staging or release its reviewed homepage and header files.
 set +x
 set -euo pipefail
 umask 077
@@ -66,7 +66,7 @@ fixture_phase() {
 verify_staging_source() {
     "${petish_ssh[@]}" 'set -eu; root="$HOME/domains/staging.petish.biz/public_html/wp-content/themes/dt-the7-child";
       test -d "$root" && test ! -L "$root" && test "$(readlink -f -- "$root")" = "$root" || exit 1;
-      for relative in assets/images/ui/free-delivery-van.png assets/css/home.css assets/js/for-your-pet.js includes/supplier-popularity.php includes/for-your-pet.php front-page.php functions.php; do
+      for relative in assets/images/ui/free-delivery-van.png assets/css/home.css assets/js/for-your-pet.js includes/supplier-popularity.php includes/for-your-pet.php front-page.php functions.php includes/header-navigation.php assets/js/theme.js assets/css/petish.css; do
         file="$root/$relative";
         test -f "$file" && test ! -L "$file" && test "$(readlink -f -- "$file")" = "$file" && test "$(stat -c %h "$file")" = 1 || exit 1;
         sha256sum "$file";
@@ -75,7 +75,7 @@ verify_staging_source() {
 import json,re,sys
 from pathlib import Path
 expected=json.loads(Path(sys.argv[1]).read_text());lines=Path(sys.argv[2]).read_text().splitlines()
-names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php')
+names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css')
 if len(lines)!=len(names):raise SystemExit(1)
 for name,line in zip(names,lines):
  parts=line.split('  ',1)
@@ -267,7 +267,7 @@ python3 - "$source_sha" "$work/bundle/payload" <<'PY' > "$work/payload.private.s
 import hashlib,json,subprocess,sys
 from pathlib import Path
 revision=sys.argv[1];destination=Path(sys.argv[2]);prefix='wordpress/wp-content/themes/dt-the7-child/'
-names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php')
+names=('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css')
 manifest={}
 for name in names:
  content=subprocess.run(['git','show',revision+':'+prefix+name],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout

@@ -111,6 +111,18 @@ function petish_homepage_verify_html($html,$pool,$free) {
     if(!$loaded)petish_homepage_verify_fail();
     $xpath=new DOMXPath($dom);$products=[];
     foreach($pool as$product)$products[$product->get_permalink()]=$product;
+    $switches=$xpath->query('//*[@data-petish-theme-switch]');$switch_markup=$switches->length>=1&&$switches->length<=8;
+    foreach($switches as$wrapper){
+        $buttons=$xpath->query('./button[@data-petish-theme-toggle and @type="button" and @role="switch" and @aria-label="Dark mode" and @aria-checked="false"]',$wrapper);
+        $previous=$wrapper->previousSibling;$next=$wrapper->nextSibling;
+        while($previous&&!$previous instanceof DOMElement)$previous=$previous->previousSibling;
+        while($next&&!$next instanceof DOMElement)$next=$next->nextSibling;
+        $switch_markup=$switch_markup&&$wrapper->hasAttribute('hidden')&&$buttons->length===1
+            &&$previous instanceof DOMElement&&preg_match('/(?:^|\s)mini-search(?:\s|$)/',$previous->getAttribute('class'))===1
+            &&$next instanceof DOMElement&&$next->hasAttribute('data-petish-market')
+            &&$xpath->query('.//*[local-name()="svg" and @aria-hidden="true"]',$wrapper)->length===2;
+    }
+    petish_homepage_verify_mark('theme_switch_markup_verified',(bool)$switch_markup);
     petish_homepage_verify_mark('full_homepage_rendered',$xpath->query('//*[@id="petish-home-title"]')->length===1
         &&$xpath->query('//*[@id="petish-collection"]')->length===1);
     $personal=$xpath->query('//*[@id="petish-for-your-pet"]');
@@ -191,6 +203,14 @@ function petish_homepage_verify_render($root) {
     petish_homepage_verify_mark('for_your_pet_script_enqueued',(wp_script_is('petish-for-your-pet','enqueued')||wp_script_is('petish-for-your-pet','done'))
         &&is_object($script)&&parse_url($script->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js'
         &&(string)$script->ver===(string)filemtime($root.'/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js'));
+    $theme_script=wp_scripts()->registered['petish-theme']??null;$design_style=wp_styles()->registered['petish-design']??null;
+    petish_homepage_verify_mark('theme_switch_assets_enqueued',is_object($theme_script)&&is_object($design_style)
+        &&(wp_script_is('petish-theme','enqueued')||wp_script_is('petish-theme','done'))
+        &&(wp_style_is('petish-design','enqueued')||wp_style_is('petish-design','done'))
+        &&parse_url($theme_script->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/js/theme.js'
+        &&parse_url($design_style->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/css/petish.css'
+        &&(string)$theme_script->ver===(string)filemtime($root.'/wp-content/themes/dt-the7-child/assets/js/theme.js')
+        &&(string)$design_style->ver===(string)filemtime($root.'/wp-content/themes/dt-the7-child/assets/css/petish.css'));
 }
 
 try {
