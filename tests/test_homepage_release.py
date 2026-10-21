@@ -148,9 +148,10 @@ class HomepageReleaseTests(unittest.TestCase):
         self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
-        self.assertEqual(len(exports['diagnostics']),83)
+        self.assertEqual(len(exports['diagnostics']),91)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))
         self.assertEqual(set(exports['diagnostics']),safe.BROWSER_DIAGNOSTICS)
+        self.assertEqual(len(exports['cart_keys']),13)
         self.assertEqual(set(exports['cart_keys']),set(safe.CART_METRIC_LIMITS))
         self.assertEqual(set(exports['cart_engines']),safe.CART_METRIC_ENGINES)
         value=self.raw('browser')
@@ -180,14 +181,17 @@ class HomepageReleaseTests(unittest.TestCase):
 
     def test_cart_metrics_accept_only_fixed_bounded_counts(self):
         value=self.raw('browser')
-        value['cart_metrics']={engine:{'http_status_class':2,'empty_marker_count':1,'visible_cart_row_count':0,
+        value['cart_metrics']={engine:{**dict.fromkeys(safe.CART_METRIC_LIMITS,0),
+                                      'http_status_class':2,'empty_marker_count':1,'visible_cart_row_count':0,
                                       'min_flag_in_view_count':1,'max_flag_offscreen_count':2}
                               for engine in ('chromium','webkit')}
         self.assertTrue(self.screen('browser',value)[1])
         for key,invalid in (('http_status_class',6),('http_status_class',True),('http_status_class',2.5),
                             ('empty_marker_count',101),('visible_cart_row_count',-1),
                             ('empty_marker_count','private-sentinel'),('min_flag_in_view_count',9),
-                            ('max_flag_offscreen_count',-1),('max_flag_offscreen_count',True)):
+                            ('max_flag_offscreen_count',-1),('max_flag_offscreen_count',True),
+                            ('geometry_failed_header_height',4097),('geometry_failed_visible_count',9),
+                            ('geometry_failed_mode',3),('geometry_failed_logo_width',True)):
             raw=copy.deepcopy(value);raw['cart_metrics']['chromium'][key]=invalid
             report,passed=self.screen('browser',raw)
             self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')

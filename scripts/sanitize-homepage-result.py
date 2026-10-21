@@ -48,10 +48,14 @@ BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_t
     for suffix in ('http_ok','route_ok','empty_marker','items_absent','block_shell','header_present','geometry_verified','paint_verified',
                    'flag_markup_verified','flag_dimensions_verified','flag_bbox_verified','flag_pixels_verified',
                    'initial_empty_marker_present','store_api_get_blocked','hydration_wait_completed','native_empty_state',
-                   'native_skeleton_state','real_or_unknown_rows_absent','cart_action_controls_absent')}
+                   'native_skeleton_state','real_or_unknown_rows_absent','cart_action_controls_absent',
+                   'geometry_order_verified','geometry_fit_verified','geometry_height_verified','geometry_stable_verified')}
 CART_METRIC_ENGINES={'chromium','webkit'}
 CART_METRIC_LIMITS={'http_status_class':5,'empty_marker_count':100,'visible_cart_row_count':100,
-    'min_flag_in_view_count':8,'max_flag_offscreen_count':8}
+    'min_flag_in_view_count':8,'max_flag_offscreen_count':8,
+    'geometry_failed_viewport':4096,'geometry_failed_header_height':4096,'geometry_failed_baseline_height':4096,
+    'geometry_failed_logo_width':4096,'geometry_failed_overflow':4096,'geometry_failed_switch_width':4096,
+    'geometry_failed_visible_count':8,'geometry_failed_mode':2}
 THEME_GEOMETRY_VIEWS={f'{width}_{mode}' for width in (320,390,1280) for mode in ('light','dark')}
 THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewport_width',
     'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','baseline_logo_width',

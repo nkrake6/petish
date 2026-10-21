@@ -23,7 +23,9 @@ const PERSONAL = '[data-petish-for-your-pet]';
 const SECTION = '#petish-free-delivery';
 export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
 export const CART_METRIC_ENGINES = Object.freeze(['chromium', 'webkit']);
-export const CART_METRIC_KEYS = Object.freeze(['http_status_class', 'empty_marker_count', 'visible_cart_row_count', 'min_flag_in_view_count', 'max_flag_offscreen_count']);
+export const CART_METRIC_KEYS = Object.freeze(['http_status_class', 'empty_marker_count', 'visible_cart_row_count', 'min_flag_in_view_count', 'max_flag_offscreen_count',
+  'geometry_failed_viewport', 'geometry_failed_header_height', 'geometry_failed_baseline_height', 'geometry_failed_logo_width',
+  'geometry_failed_overflow', 'geometry_failed_switch_width', 'geometry_failed_visible_count', 'geometry_failed_mode']);
 export const THEME_VIEWS = Object.freeze(['320_light', '320_dark', '390_light', '390_dark', '1280_light', '1280_dark']);
 export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', 'baseline_height', 'header_width', 'viewport_width',
   'switch_left', 'switch_right', 'search_right', 'market_left', 'market_right', 'logo_right', 'logo_width', 'baseline_logo_width',
@@ -38,7 +40,8 @@ export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   ...['market_cart', 'market_webkit_cart'].flatMap(prefix => ['http_ok', 'route_ok', 'empty_marker', 'items_absent', 'block_shell',
     'header_present', 'geometry_verified', 'paint_verified', 'flag_markup_verified', 'flag_dimensions_verified', 'flag_bbox_verified',
     'flag_pixels_verified', 'initial_empty_marker_present', 'store_api_get_blocked', 'hydration_wait_completed',
-    'native_empty_state', 'native_skeleton_state', 'real_or_unknown_rows_absent', 'cart_action_controls_absent'].map(suffix => `${prefix}_${suffix}`)),
+    'native_empty_state', 'native_skeleton_state', 'real_or_unknown_rows_absent', 'cart_action_controls_absent',
+    'geometry_order_verified', 'geometry_fit_verified', 'geometry_height_verified', 'geometry_stable_verified'].map(suffix => `${prefix}_${suffix}`)),
   'market_webkit_homepage_verified', 'market_webkit_cart_verified',
   'native_other_cart_present', 'native_other_login_present', 'native_cart_link_present', 'native_cart_amount_present',
   'native_cart_icon_present', 'native_cart_counter_present', 'native_login_link_present', 'native_login_icon_present',
@@ -73,7 +76,9 @@ export function publicReport(value) {
         && value.image_dimensions[key] <= 4096 ? value.image_dimensions[key] : 0])),
     cart_metrics: Object.fromEntries(CART_METRIC_ENGINES.map(engine => [engine, Object.fromEntries(CART_METRIC_KEYS.map(key => [key,
       Number.isInteger(value?.cart_metrics?.[engine]?.[key]) && value.cart_metrics[engine][key] >= 0
-        && value.cart_metrics[engine][key] <= (key === 'http_status_class' ? 5 : key.includes('_flag_') ? 8 : 100) ? value.cart_metrics[engine][key] : 0]))])),
+        && value.cart_metrics[engine][key] <= (key === 'http_status_class' ? 5 : key === 'geometry_failed_mode' ? 2
+          : key.includes('_flag_') || key === 'geometry_failed_visible_count' ? 8 : key.startsWith('geometry_failed_') ? 4096 : 100)
+        ? value.cart_metrics[engine][key] : 0]))])),
     theme_geometry: Object.fromEntries(THEME_VIEWS.map(view => [view, Object.fromEntries(THEME_GEOMETRY_KEYS.map(key => [key,
       Number.isFinite(value?.theme_geometry?.[view]?.[key]) && Math.abs(value.theme_geometry[view][key]) <= 4096
         ? Math.round(value.theme_geometry[view][key] * 100) / 100 : 0]))])),
@@ -528,6 +533,26 @@ async function settleHeader(page) {
   });
 }
 
+/** The7 resize/clone work and theme wordmark decoding can finish after two frames. */
+export async function inspectSettledThemeGeometry(page) {
+  await page.evaluate(async () => {
+    const logos = [...document.querySelectorAll('.branding img,.mobile-branding img,[data-petish-logo]')]
+      .filter(node => { const box = node.getBoundingClientRect(); return box.width > 0 && box.height > 0 && box.left < innerWidth && box.right > 0; });
+    await Promise.race([Promise.all(logos.map(node => node.decode().catch(() => {}))), new Promise(resolve => setTimeout(resolve, 1500))]);
+  });
+  const started = Date.now(); let previous = '', stableCount = 0, result;
+  do {
+    await settleHeader(page);
+    result = await inspectThemeGeometry(page);
+    const signature = JSON.stringify(result.geometry);
+    stableCount = result.order && result.fit && result.height ? (signature === previous ? stableCount + 1 : 1) : 0;
+    previous = signature;
+    if (stableCount >= 3) return { ...result, stable: true };
+    await page.waitForTimeout(125);
+  } while (Date.now() - started < 2500);
+  return { ...result, stable: false };
+}
+
 /** Browser-only appearance choices; no forms are submitted and no market endpoint is opened. */
 export async function checkThemeSwitch(page, checks, diagnostics, setCategory, themeGeometry = {}) {
   const button = () => page.locator(`${THEME_SWITCH}:visible`).first();
@@ -739,15 +764,29 @@ export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 12
   if (!facts.header_present) return false;
   if (pathname === '/cart/') for (const suffix of ['markup', 'dimensions', 'bbox', 'pixels']) diagnostics[`${prefix}_flag_${suffix}_verified`] = true;
   let layout = true, painted = true;
+  const geometryFacts = { geometry_order_verified: true, geometry_fit_verified: true, geometry_height_verified: true, geometry_stable_verified: true };
   for (const width of widths) for (const mode of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(() => scrollTo(0, 0));
+    await settleHeader(page);
     if (await page.locator('html').getAttribute('data-theme') !== mode) await page.locator(`${THEME_SWITCH}:visible`).first().click();
-    await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
-    const geometry = await inspectThemeGeometry(page);
-    layout = layout && geometry.order && geometry.height && geometry.fit;
+    const geometry = await inspectSettledThemeGeometry(page);
+    geometryFacts.geometry_order_verified &&= geometry.order;
+    geometryFacts.geometry_fit_verified &&= geometry.fit;
+    geometryFacts.geometry_height_verified &&= geometry.height;
+    geometryFacts.geometry_stable_verified &&= geometry.stable;
+    const valid = geometry.order && geometry.height && geometry.fit && geometry.stable;
+    if (pathname === '/cart/' && !valid && !metrics.geometry_failed_viewport) {
+      const values = geometry.geometry;
+      Object.assign(metrics, { geometry_failed_viewport: width, geometry_failed_mode: mode === 'dark' ? 2 : 1,
+        geometry_failed_header_height: Math.round(values.header_height), geometry_failed_baseline_height: Math.round(values.baseline_height),
+        geometry_failed_logo_width: Math.round(values.logo_width), geometry_failed_overflow: Math.round(values.overflow),
+        geometry_failed_switch_width: Math.round(values.switch_right - values.switch_left), geometry_failed_visible_count: values.visible_count });
+    }
+    layout = layout && valid;
     painted = await inspectMarketFlags(page, diagnostics, pathname === '/cart/' ? prefix : '', metrics) && painted;
   }
+  if (pathname === '/cart/') for (const [name, value] of Object.entries(geometryFacts)) diagnostics[`${prefix}_${name}`] = value;
   facts.geometry_verified = layout; facts.paint_verified = painted;
   if (pathname === '/cart/') {
     const state = await inspectCartHeaderFixture(page);
