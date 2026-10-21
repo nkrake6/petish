@@ -63,7 +63,7 @@ jobs:
           for attempt in 1 2 3; do
             if bash scripts/hostinger-connection-check.sh; then break; fi
             if [ "$attempt" = 3 ]; then exit 1; fi
-            sleep $((attempt * 5))
+            sleep $((attempt * 15))
           done
           preparation_stage=ssh_tools
           if ! command -v sshpass >/dev/null 2>&1; then

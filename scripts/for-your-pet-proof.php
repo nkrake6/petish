@@ -86,13 +86,44 @@ function petish_fyp_proof_control($command){
  try{if(false===$wpdb->query($command))petish_fyp_proof_fail();}
  finally{unset($GLOBALS['petish_fyp_control']);}
 }
+/** Verify the cache implementation, not only WordPress's external-cache flag. */
+function petish_fyp_proof_runtime_cache($root){
+ try{
+  if(!petish_club_verify_path($root,true)||!function_exists('wp_using_ext_object_cache')
+   ||wp_using_ext_object_cache()!==false||!isset($GLOBALS['wp_object_cache'])
+   ||!is_object($GLOBALS['wp_object_cache'])||get_class($GLOBALS['wp_object_cache'])!=='WP_Object_Cache')return false;
+  $class=$root.'/wp-includes/class-wp-object-cache.php';$functions=$root.'/wp-includes/cache.php';
+  if(!petish_club_verify_path($class)||!petish_club_verify_path($functions)
+   ||(new ReflectionClass($GLOBALS['wp_object_cache']))->getFileName()!==$class)return false;
+  foreach(['init','get','get_multiple','set','set_multiple','add','add_multiple','replace','delete','delete_multiple',
+   'incr','decr','flush','flush_runtime','flush_group','supports','close','switch_to_blog',
+   'add_global_groups','add_non_persistent_groups','reset']as$suffix){
+   $name='wp_cache_'.$suffix;
+   if(!function_exists($name)||(new ReflectionFunction($name))->getFileName()!==$functions)return false;
+  }
+  foreach(['enable_loading_object_cache_dropin','enable_loading_advanced_cache_dropin']as$hook)
+   if(apply_filters($hook,true)!==false)return false;
+  $content=defined('WP_CONTENT_DIR')?WP_CONTENT_DIR:$root.'/wp-content';
+  foreach(['object-cache.php','advanced-cache.php']as$file)
+   if(in_array($content.'/'.$file,get_included_files(),true))return false;
+  return true;
+ }catch(Throwable$ignored){return false;}
+}
 function petish_fyp_proof_isolate(){
+ // These core filters are designed for non-web runtimes. Install them before
+ // wp-load; advanced-cache.php can otherwise preload a persistent object cache.
+ if(function_exists('wp_cache_init')||class_exists('WP_Object_Cache',false)||isset($GLOBALS['wp_object_cache']))petish_fyp_proof_fail();
+ $no_dropin=static fn()=>false;
+ foreach(['enable_loading_object_cache_dropin','enable_loading_advanced_cache_dropin']as$hook)add_filter($hook,$no_dropin,PHP_INT_MAX);
  // No status transition, stock reduction, sales-counter or integration event is
  // needed to test history queries. The fixture never calls a gateway or refund API.
  $stock=static fn()=>false;$zero=static fn()=>0;
  foreach(['woocommerce_can_reduce_order_stock','woocommerce_can_restore_order_stock']as$hook)add_filter($hook,$stock,PHP_INT_MAX);
  foreach(['pre_as_enqueue_async_action','pre_as_schedule_single_action','pre_as_schedule_recurring_action','pre_as_schedule_cron_action']as$hook)add_filter($hook,$zero,PHP_INT_MAX);
- add_action('all',static function($hook){
+ add_action('all',static function($hook)use($no_dropin){
+  if(in_array($hook,['enable_loading_object_cache_dropin','enable_loading_advanced_cache_dropin'],true)){
+   remove_filter($hook,$no_dropin,PHP_INT_MAX);add_filter($hook,$no_dropin,PHP_INT_MAX);
+  }
   if($hook==='query'){remove_filter('query','petish_fyp_proof_query_guard',PHP_INT_MAX);add_filter('query','petish_fyp_proof_query_guard',PHP_INT_MAX);}
   if(str_starts_with($hook,'woocommerce_order_status_')||in_array($hook,[
    'woocommerce_new_order','woocommerce_update_order','woocommerce_new_order_item','woocommerce_update_order_item',
@@ -235,7 +266,7 @@ function petish_fyp_proof_main($argv){
   if(!petish_club_verify_path($plugin))petish_fyp_proof_fail();require_once $plugin;
   add_filter('query','petish_fyp_proof_query_guard',PHP_INT_MAX);petish_fyp_proof_isolate();
   $root=petish_club_verify_bootstrap('staging',false);
-  petish_fyp_proof_mark('private_runtime_cache_verified',wp_using_ext_object_cache()===false);
+  petish_fyp_proof_mark('private_runtime_cache_verified',petish_fyp_proof_runtime_cache($root));
   petish_fyp_proof_tables();$report['category']='snapshot';
   if($mode==='cleanup'){
    if(file_exists($journal)||is_link($journal))$state=petish_fyp_proof_state($run);
@@ -251,7 +282,7 @@ function petish_fyp_proof_main($argv){
    finally{
     petish_fyp_proof_control('ROLLBACK');$started=false;$GLOBALS['petish_fyp_phase']='readonly';wp_set_current_user(0);
     // Only the process-local WordPress cache is active. Clear stale rolled-back objects.
-    if(wp_using_ext_object_cache()!==false||!function_exists('wp_cache_flush_runtime')||!wp_cache_flush_runtime())petish_fyp_proof_fail();
+    if(!petish_fyp_proof_runtime_cache($root)||!wp_cache_flush_runtime())petish_fyp_proof_fail();
    }
    $report['category']='cleanup';petish_fyp_proof_compare($root,$GLOBALS['petish_fyp_state']);
   }
