@@ -1,0 +1,102 @@
+name: Inspect Petish Afterpay availability
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [inspect-afterpay]
+    paths:
+      - .github/workflows/inspect-afterpay.yml
+      - scripts/inspect-afterpay-remote.sh
+      - scripts/afterpay-report.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-inspect-afterpay
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - name: Check out the exact reviewed probe
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Check connectivity and prepare SSH helper
+        id: prepare
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          umask 077
+          bash scripts/hostinger-connection-check.sh
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends sshpass
+          fi
+      - name: Read fixed payment settings without loading WordPress
+        id: lookup
+        if: steps.prepare.outcome == 'success'
+        continue-on-error: true
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+        run: |
+          set +x
+          set -euo pipefail
+          umask 077
+          source scripts/hostinger-ssh-common.sh
+          petish_prepare_ssh
+          "${petish_ssh[@]}" 'bash -s' < scripts/inspect-afterpay-remote.sh \
+            > "$RUNNER_TEMP/petish-afterpay-private.json" \
+            2> "$RUNNER_TEMP/petish-afterpay-private.stderr"
+      - name: Validate the bounded public configuration report
+        id: validate
+        if: steps.lookup.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python3 scripts/afterpay-report.py \
+            "$RUNNER_TEMP/petish-afterpay-private.json" \
+            "$RUNNER_TEMP/petish-afterpay-public.json"
+      - name: Publish the report or a static unavailable status
+        if: always()
+        env:
+          PREPARE_RESULT: ${{ steps.prepare.outcome }}
+          LOOKUP_RESULT: ${{ steps.lookup.outcome }}
+          VALIDATE_RESULT: ${{ steps.validate.outcome }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ['RUNNER_TEMP']) / 'petish-afterpay-public.json'
+          if os.environ['VALIDATE_RESULT'] != 'success':
+              category = 'connection_unavailable' if os.environ['PREPARE_RESULT'] != 'success' else ('settings_lookup_unavailable' if os.environ['LOOKUP_RESULT'] != 'success' else 'report_validation_failed')
+              path.write_text(json.dumps({'status': 'unavailable', 'category': category}, indent=2) + '\n')
+          PY
+          [[ "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+-[0-9]+$ ]]
+          blob=$(git hash-object -w "$RUNNER_TEMP/petish-afterpay-public.json")
+          tree=$(printf '100644 blob %s\tstatus.json\n' "$blob" | git mktree)
+          export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
+          export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+          export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          commit=$(printf 'Read-only Petish Afterpay configuration report\n' | git commit-tree "$tree")
+          report_branch="automation-status/afterpay-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git push origin "$commit:refs/heads/$report_branch"
+          printf '[Afterpay configuration report](https://github.com/%s/blob/%s/status.json)\n' "$GITHUB_REPOSITORY" "$report_branch" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove private runner output
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/petish-afterpay-private.json" "$RUNNER_TEMP/petish-afterpay-private.stderr" \
+            "$RUNNER_TEMP/petish-afterpay-public.json" "$RUNNER_TEMP/petish-verified-automation-host-keys" "$RUNNER_TEMP/petish-candidate-host-keys"
+      - name: Report an unavailable inspection as failed
+        if: always() && steps.validate.outcome != 'success'
+        run: exit 1
