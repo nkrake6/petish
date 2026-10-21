@@ -74,11 +74,29 @@ already-published snapshots while the release holds maintenance. It records the
 exact inserted metadata rows for conditional rollback and preserves private pet
 edits. See [Pet Club release evidence and privacy behavior](docs/PET-CLUB.md).
 
-The personalised homepage has its own seven-file child-theme release through
-`.github/workflows/homepage.yml`. It requires the isolated order-history proof,
-browser checks, cleanup evidence and a fresh recovered backup. Deploy it after
-the Passport release because its protected-file checks expect that account UI.
-See [For your pet](docs/FOR-YOUR-PET.md) for matching and staff curation setup.
+The personalised homepage and header use the fifteen-file child-theme release
+through `.github/workflows/homepage.yml`: the original seven homepage files plus
+eight appearance-control/country-flag files. It requires the isolated order-history
+proof, browser checks, cleanup evidence and a fresh recovered backup. Deploy it
+after the Passport release because its protected-file checks expect that account
+UI. See [For your pet](docs/FOR-YOUR-PET.md) for matching and staff curation, and
+[header appearance and flags](docs/HEADER-THEME-AND-FLAGS.md) for the current
+candidate/release status. The yellow Cart-count preview is separate.
+
+The editable delivery page uses `.github/workflows/delivery-page.yml`. Its
+explicit `inspect-delivery-page`, `rehearse-delivery-page` and
+`deploy-delivery-page` branches intentionally have no path filter: deployment
+may reference a commit already present on another branch. Apply requires a
+successful save-and-rollback rehearsal at the exact same commit. It changes only
+the fixed page's content and modification dates, preserves unrelated fields,
+refreshes that URL's LiteSpeed cache and verifies the canonical public copy.
+See [delivery copy and evidence](docs/DELIVERY-PAGE-COPY.md).
+
+Afterpay availability and the separate product/Cart checkout-button proposal
+are documented in [the read-only inspection](docs/AFTERPAY-AVAILABILITY.md).
+WooPayments does not provide Afterpay as an express wallet like Google Pay.
+Do not treat the proposed normal-checkout shortcut as an implemented payment
+flow or change processors without the owner's choice.
 
 ## Backups and recovery checks
 

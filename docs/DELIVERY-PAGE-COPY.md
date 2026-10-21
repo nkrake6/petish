@@ -1,13 +1,31 @@
 # Delivery & shipping page copy
 
-Draft for the existing WordPress page at `/delivery-shipping/`. The owner chose
-supplier-specific estimates and no fixed delivery-time range. Keep this content
-editable in WordPress; this draft does not change delivery rates or tracking
-integrations.
+Published to [Delivery & shipping](https://petish.biz/delivery-shipping/) on
+21 October 2026 at 04:50 UTC. The owner chose supplier-specific estimates and
+no fixed delivery-time range. The content remains editable on the existing
+WordPress page, ID `1002`. The reviewed HTML is
+[`operations/delivery-page-content.html`](../operations/delivery-page-content.html).
+
+The release changed only the page content and its modified timestamps. The
+complete original row was saved privately on the host before committing. The
+updater checks the previous content hash and preserves every other page field.
+Mail, outbound HTTP, Jetpack sync and cron were blocked in the update process.
+
+Release evidence:
+
+- Source: `511e3ea229018cca6c5a1772feb7568b88166d2e`.
+- [Rehearsal `39546008385-1`](https://github.com/nkrake6/petish/blob/automation-status/delivery-page-39546008385-1/status.json): the actual update succeeded inside a transaction, the original full row was restored, and the original canonical public copy was verified twice.
+- [Production `39546227600-1`](https://github.com/nkrake6/petish/blob/automation-status/delivery-page-39546227600-1/status.json): private before-image and committed row verified; only this URL's LiteSpeed cache was purged, consumed and checked; the new canonical public copy was verified twice. Temporary helper cleanup succeeded. No rollback or manual recovery was needed.
+- Published content SHA256: `e5c6e2575f72e4bd5c1c9e45fb05dd33f27f816c7db0ae3b63b2805e41b9b065`.
+
+The private page before-image is retained at
+`~/.petish-delivery-page-backups/39546227600-1.json` on the host. A rollback must
+match the exact owned after-row before restoring that snapshot, so it cannot
+overwrite a later WordPress edit.
 
 ---
 
-## Delivery & shipping
+## Delivery for small-pet adventures
 
 Little essentials, delivered to your door. We work with a range of suppliers to
 bring you products for your small pets. Items may be sent directly from our
@@ -27,9 +45,12 @@ holidays, customs checks and local carrier delays can affect timing.
 ### Delivery options and costs
 
 Enter your delivery address at checkout to see the available delivery options
-and charges for your order. Availability varies by item and destination. Review
-the full order total before paying. Free delivery applies only where it is
-offered for the item and destination.
+and charges for your order. Availability varies by item and destination. If no
+delivery option is shown, we do not currently have a delivery rate for every
+item in your cart at that address. Contact us before ordering if you need help.
+
+Review the delivery charge, applicable taxes and full order total before paying.
+Free delivery applies only where it is offered for the item and destination.
 
 ### Separate parcels
 
@@ -57,3 +78,5 @@ mistake, your parcel is delayed, or you need delivery information, email
 [orders@petish.biz](mailto:orders@petish.biz) with your order number, if you have
 one. We'll help you check the next steps. Address changes may not be possible
 once an order has been dispatched.
+
+[View cart](https://petish.biz/cart/) · [Browse products](https://petish.biz/shop/)

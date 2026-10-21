@@ -66,6 +66,29 @@ for the current cloud workflow. The Mac setup below is archived history.
   matches newest first and exclude prior purchases, including variants. Initial
   HTML stays generic and personalised results load through a private read-only
   endpoint. See [matching and release scope](docs/FOR-YOUR-PET.md).
+- **Delivery & shipping, live:** the existing editable page now explains
+  supplier-specific estimates, checkout delivery availability/costs, split
+  parcels, tracking and support. No fixed delivery range was introduced.
+  [Production run 39546227600-1](https://github.com/nkrake6/petish/tree/automation-status/delivery-page-39546227600-1)
+  passed native row-preservation, targeted cache purge and canonical-page checks.
+  See [the published copy and rollback evidence](docs/DELIVERY-PAGE-COPY.md).
+- **Header appearance/flags, live:** the light/dark switch sits between Search
+  and location; SVG country flags replace emoji, including on Cart. Chromium and
+  WebKit staging checks passed with the original header height preserved.
+  [Production run 39550192872-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-39550192872-1)
+  passed native, cache, canonical page/asset and release-commit checks. See
+  [header release evidence](docs/HEADER-THEME-AND-FLAGS.md).
+- **Yellow Cart count:** preview only, awaiting design approval. The revised
+  circle is 14px, matching the Cart label's font height, with a smaller numeral.
+  [View the smaller preview](https://github.com/nkrake6/petish/blob/c914f2a/docs/cart-badge-preview/assets/yellow-cart-dark.png).
+  Do not treat the preview as an implemented count feature.
+- **Afterpay:** enabled and active in WooPayments, and present at checkout.
+  The selected Blue brush already includes native instalment-message markup.
+  WooPayments does not offer Afterpay as a G Pay-style express wallet. The owner
+  has been asked to choose between normal-checkout shortcut buttons, messaging
+  only, or exploring a separate express integration; no answer yet.
+  [Inspection](docs/AFTERPAY-AVAILABILITY.md) and
+  [concrete checkout-button proposal](docs/AFTERPAY-CHECKOUT-CTA-PROPOSAL.md).
 
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
 passed on source `3012a27`; the production release above matches its exact 18
