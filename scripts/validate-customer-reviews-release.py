@@ -23,8 +23,8 @@ def module(filename, name):
 
 evidence = module('validate-email-release-request.py', 'customer_reviews_evidence')
 checks = module('sanitize-customer-reviews-result.py', 'customer_reviews_checks')
-STAGING_SOURCE = 'f16690d087cfe5c5808e65f28e48db1e21525a7c'
-STAGING_STATUS = 'automation-status/customer-reviews-39583147075-1'
+STAGING_SOURCE = 'f8be162e21e5be48102d096c5cdc31ec535629aa'
+STAGING_STATUS = 'automation-status/customer-reviews-39585759430-1'
 PREFIX = 'wordpress/wp-content/plugins/petish-passport/'
 # The bootstrap is published last by the production runner.
 FILES = (

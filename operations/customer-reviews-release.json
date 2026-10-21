@@ -1,7 +1,7 @@
 {
   "format": "petish-customer-reviews-v1",
-  "staging_source_commit": "f16690d087cfe5c5808e65f28e48db1e21525a7c",
-  "staging_status_branch": "automation-status/customer-reviews-39583147075-1",
+  "staging_source_commit": "f8be162e21e5be48102d096c5cdc31ec535629aa",
+  "staging_status_branch": "automation-status/customer-reviews-39585759430-1",
   "backup_branch": "full-site-backup/39581268288-1",
   "backup_result_branch": "automation-status/backup-39581268288-1",
   "recovery_result_branch": "automation-status/recovery-39581752689-1"
