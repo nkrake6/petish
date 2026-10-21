@@ -9,14 +9,9 @@ on:
         type: choice
         options: [inspect, rehearse, apply]
   push:
+    # These branches explicitly request an operation. A rehearsed SHA may already
+    # exist remotely when the deploy branch is created, leaving no path diff.
     branches: [inspect-delivery-page, rehearse-delivery-page, deploy-delivery-page]
-    paths:
-      - .github/workflows/delivery-page.yml
-      - scripts/*delivery-page*
-      - scripts/litespeed-html-purge*
-      - scripts/consume-litespeed-html-purge.py
-      - scripts/sanitize-litespeed-html-purge.py
-      - operations/delivery-page*
 permissions:
   contents: write
 concurrency:

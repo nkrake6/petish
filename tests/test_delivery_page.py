@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 PHP = shutil.which('php') or '/workspace/.petish-dev/bin/php'
@@ -31,6 +32,14 @@ def inspection():
 
 
 class DeliveryPageReportTests(unittest.TestCase):
+    def test_explicit_operation_branches_run_without_a_new_commit_path_diff(self):
+        workflow=yaml.load((ROOT/'.github/workflows/delivery-page.yml').read_text(),Loader=yaml.BaseLoader)
+        self.assertEqual(workflow['on']['push'],{'branches':[
+            'inspect-delivery-page','rehearse-delivery-page','deploy-delivery-page']})
+        self.assertEqual(workflow['concurrency'],{'group':'petish-production-backup-mail','cancel-in-progress':'false'})
+        checkout=workflow['jobs']['delivery']['steps'][0]
+        self.assertEqual(checkout['with']['ref'],'${{ github.sha }}')
+
     def test_native_failure_diagnostics_reveal_only_fixed_observations(self):
         value={'status':'failure','category':'native_update','checks':{'rehearsal_rolled_back':True},
           'native_observations':{'native_pre_update_reached':True,'native_field_count':21,
