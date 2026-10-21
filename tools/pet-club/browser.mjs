@@ -22,9 +22,14 @@ export const CHECK_KEYS = Object.freeze([
   'unpublish_verified', 'revoked_profile_http_denied',
   'revoked_photo_http_denied', 'unsafe_requests_blocked',
 ]);
+export const FORM_CATEGORIES = Object.freeze([
+  'form_identity', 'form_values', 'variety_default', 'variety_hidden', 'checkbox_spacing',
+  'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
+]);
 const CATEGORIES = new Set(['input', 'browser', 'login', 'owner', 'mobile', 'desktop', 'navigation',
   'tabs', 'preview', 'lightbox', 'form', 'upload', 'private_photos', 'no_js', 'dark_mode',
-  'publish', 'public_profile', 'public_photo', 'hearts', 'unpublish', 'revocation', 'network', 'complete']);
+  'publish', 'public_profile', 'public_photo', 'hearts', 'unpublish', 'revocation', 'network', 'complete',
+  ...FORM_CATEGORIES]);
 
 export function validateInput(value) {
   if (!value || value.format !== 'petish-club-browser-v1' || value.url !== ORIGIN
@@ -240,26 +245,29 @@ export async function run(input, chromium) {
       && await nojsPage.locator('#pc-panel-about').isVisible() && await nojsPage.locator('#pc-panel-journal').isVisible()); await fallback.close();
     category = 'form'; await page.getByRole('link', { name: 'Edit Passport', exact: false }).click();
     const form = page.locator('form[data-pp-form]');
+    category = 'form_identity';
     ensure(await form.locator('[name="pet_id"]').inputValue() === String(input.pet_id)
-      && await form.locator('[name="action"]').inputValue() === 'petish_passport_update'
-      && await form.locator('[name="bio"]').inputValue() === 'A curious synthetic rabbit.'
-      && await form.locator('[name="traits"]').inputValue() === 'Curious, Gentle'
-      && await form.locator('#pp-variety').inputValue() === ''
-      && !await form.locator('#pp-variety-other').isVisible(), category);
+      && await form.locator('[name="action"]').inputValue() === 'petish_passport_update', category);
+    category = 'form_values';
+    ensure(await form.locator('[name="bio"]').inputValue() === 'A curious synthetic rabbit.'
+      && await form.locator('[name="traits"]').inputValue() === 'Curious, Gentle', category);
+    category = 'variety_default'; ensure(await form.locator('#pp-variety').inputValue() === '', category);
+    category = 'variety_hidden'; ensure(!await form.locator('#pp-variety-other').isVisible(), category);
+    category = 'checkbox_spacing';
     ensure(await form.locator('.pp-photo-field>label.pp-checkbox').evaluate(node => {
       const style = getComputedStyle(node);
       return style.display === 'flex' && parseFloat(style.columnGap) === 11;
     }), category);
-    await form.locator('#pp-variety').selectOption('other');
+    category = 'variety_other'; await form.locator('#pp-variety').selectOption('other');
     ensure(await form.locator('#pp-variety-other').isVisible()
       && await form.locator('#pp-variety-other').getAttribute('maxlength') === '60', category);
     await form.locator('#pp-variety-other').fill('Temporary private variety');
-    await form.locator('#pp-species').selectOption('hamster');
+    category = 'variety_species_reset'; await form.locator('#pp-species').selectOption('hamster');
     ensure(await form.locator('#pp-variety').inputValue() === ''
       && await form.locator('#pp-variety option[value="mini-lop"]').count() === 0
       && await form.locator('#pp-variety-other').inputValue() === ''
       && await form.locator('#pp-variety-other').isDisabled(), category);
-    await form.locator('#pp-species').selectOption('rabbit');
+    category = 'variety_selection'; await form.locator('#pp-species').selectOption('rabbit');
     await form.locator('#pp-variety').selectOption('mini-lop');
     ensure(await form.locator('#pp-variety-other').isDisabled(), category);
     category = 'upload'; await form.locator('input[type="file"]').setInputFiles({ name: 'synthetic-passport.png', mimeType: 'image/png', buffer: syntheticPng() });
@@ -267,7 +275,7 @@ export async function run(input, chromium) {
     await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), form.locator('button[type="submit"]').click()]);
     ensure(state.used && await page.locator('#pp-pet-name').isVisible() && await page.locator('.woocommerce-error').count() === 0
       && (await page.locator('.pc-profile-info .pc-pet-details').textContent()).includes('Mini Lop'), category); state.operation = '';
-    category = 'form'; await page.getByRole('link', { name: 'Edit Passport', exact: false }).click();
+    category = 'form_saved'; await page.getByRole('link', { name: 'Edit Passport', exact: false }).click();
     mark('edit_form_verified', await page.locator('#pp-species').inputValue() === 'rabbit'
       && await page.locator('#pp-variety').inputValue() === 'mini-lop'
       && await page.locator('#pp-variety-other').inputValue() === '');

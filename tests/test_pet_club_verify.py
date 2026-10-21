@@ -412,6 +412,20 @@ console.log(JSON.stringify({good,bad}));
         self.assertEqual(result["bad"]["category"], "input")
         self.assertFalse(result["bad"]["checks"]["browser_started"])
 
+    def test_browser_form_failures_report_only_finite_steps(self):
+        result = self.node(r"""
+console.log(JSON.stringify(proof.FORM_CATEGORIES.map(category=>proof.publicReport({
+ status:'failure',category,privateValue:'must-not-escape',checks:{browser_started:true}
+}))));
+""")
+        expected = ['form_identity', 'form_values', 'variety_default', 'variety_hidden',
+                    'checkbox_spacing', 'variety_other', 'variety_species_reset',
+                    'variety_selection', 'form_saved']
+        self.assertEqual([entry['category'] for entry in result], expected)
+        self.assertTrue(all(entry['status'] == 'failure'
+                            and set(entry) == {'status', 'category', 'checks'} for entry in result))
+        self.assertNotIn('must-not-escape', json.dumps(result))
+
     def test_browser_request_guard_limits_mutations_to_owned_pet(self):
         result = self.node(r"""
 const origin='https://staging.petish.biz';

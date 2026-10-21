@@ -154,7 +154,10 @@ REQUIRED['commit'] = REQUIRED['commit'] | {'maintenance_guard_removed'}
 CATEGORIES = {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'guard_receipt',
     'guard_pending', 'guard_publish', 'guard_verified'} | navigation.CATEGORIES | {'snapshot','verification','renderer','catalogue','fixture',
     'maintenance','native','cleanup','diagnose','retire','isolation','bootstrap','registration','routes','privacy',
-    'contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'}
+    'contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'} | {
+    'form_identity', 'form_values', 'variety_default', 'variety_hidden', 'checkbox_spacing',
+    'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
+}
 
 
 def safe_option_name(name):
