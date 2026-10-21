@@ -28,7 +28,6 @@ export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', '
   'logo_count', 'logo_parent_width', 'baseline_logo_parent_width', 'visible_count', 'overflow', 'search_left',
   'native_cart_count', 'native_cart_width', 'native_cart_amount_width', 'native_cart_counter_width', 'native_cart_icon_width',
   'native_login_count', 'native_login_width', 'native_login_link_font_size', 'native_login_icon_font_size', 'native_login_icon_width',
-  'candidate_logo_width', 'candidate_header_height', 'candidate_baseline_height', 'candidate_fit',
   ...['header', 'branding', 'widgets', 'menu'].flatMap(node => ['left', 'right', 'width', 'height', 'client_width', 'scroll_width',
     'padding_left', 'padding_right', 'margin_left', 'margin_right', 'flex_basis', 'flex_grow', 'flex_shrink', 'min_width', 'max_width', 'gap'].map(metric => `${node}_${metric}`)),
   ...['search', 'switch', 'market', 'other'].flatMap(node => ['width', 'margin_left', 'margin_right', 'count'].map(metric => `${node}_${metric}`))])]);
@@ -381,7 +380,7 @@ async function checkPersonalisation(page, context, login, input, homeHTML, initi
 }
 
 /** Only bounded header measurements leave the page; never labels, URLs or account data. */
-export async function inspectThemeGeometry(page, probeCandidate = false) {
+export async function inspectThemeGeometry(page) {
   const result = await page.evaluate(() => {
     const wrappers = [...document.querySelectorAll('[data-petish-theme-switch]')];
     const visible = node => {
@@ -463,12 +462,17 @@ export async function inspectThemeGeometry(page, probeCandidate = false) {
       wrappers.forEach((node, index) => styles[index] === null ? node.removeAttribute('style') : node.setAttribute('style', styles[index]));
     }
     const within = rect => rect && rect.width > 0 && rect.height > 0 && rect.left >= -1 && rect.right <= innerWidth + 1;
+    // Reviewed pre-change The7 heights were 60px mobile and 90px desktop.
+    // Keep the wordmark readable instead of accepting a technically visible sliver.
+    const minimumLogoWidth = innerWidth <= 360 ? 90 : innerWidth <= 767 ? 120 : 48;
+    const maximumHeaderHeight = innerWidth <= 767 ? 60 : 90;
     for (const record of records) {
       const { button, box, buttonBox: b, searchBox: s, marketBox: m, logoBox: l, baseline } = record;
       order = order && !!s && !!m && s.right <= b.left + 1 && b.right <= m.left + 1;
-      height = height && !!box && Number.isFinite(baseline) && box.height <= baseline + 1;
+      height = height && !!box && Number.isFinite(baseline) && box.height <= baseline + 1 && box.height <= maximumHeaderHeight + 1;
       fit = fit && within(box) && within(b) && within(s) && within(m) && b.width >= 43 && b.height >= 43
-        && b.top >= box.top - 1 && b.bottom <= box.bottom + 1 && !!l && within(l) && l.width >= 48 && l.right <= s.left + 1
+        && b.top >= box.top - 1 && b.bottom <= box.bottom + 1 && !!l && within(l) && l.width >= minimumLogoWidth && l.right <= s.left + 1
+        && l.right <= record.layout.widgets_left + 1
         && (innerWidth > 767 || !!record.menuBox)
         && (!record.menuBox || (within(record.menuBox) && m.right <= record.menuBox.left + 1))
         && record.controls.every(within)
@@ -487,19 +491,7 @@ export async function inspectThemeGeometry(page, probeCandidate = false) {
       overflow: number(Math.max(0, ...records.flatMap(record => [record.box?.right - innerWidth, record.buttonBox?.right - innerWidth,
         record.marketBox?.right - innerWidth, record.logoBox?.right - innerWidth, ...record.controls.map(rect => rect.right - innerWidth)]).filter(Number.isFinite))) } };
   });
-  // Diagnostic only: the candidate is removed before the mandatory original
-  // layout gates are evaluated. No server or application file is changed.
-  if (probeCandidate && page.viewportSize()?.width <= 767) {
-    const candidateStyle = await page.addStyleTag({ content: '@media(max-width:767px){body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets{flex:0 0 auto;max-width:none;}body#the7-body.petish-site .mobile-header-bar .mobile-branding{flex:1 1 0;min-width:0;}body#the7-body.petish-site .mobile-header-bar .mobile-branding>a{min-width:0;max-width:100%;}body#the7-body.petish-site .mobile-header-bar .mobile-navigation{flex:0 0 auto;}}' });
-    try {
-      await settleHeader(page);
-      const candidate = await inspectThemeGeometry(page);
-      Object.assign(result.geometry, { candidate_logo_width: candidate.geometry.logo_width,
-        candidate_header_height: candidate.geometry.header_height, candidate_baseline_height: candidate.geometry.baseline_height,
-        candidate_fit: Number(candidate.fit && candidate.order && candidate.height
-          && candidate.geometry.header_height <= result.geometry.header_height + 1) });
-    } finally { await candidateStyle.evaluate(node => node.remove()); await settleHeader(page); }
-  }
+
   return result;
 }
 
@@ -534,7 +526,7 @@ export async function checkThemeSwitch(page, checks, diagnostics, setCategory, t
     for (const mode of ['light', 'dark']) {
       if (await page.evaluate(() => document.documentElement.dataset.theme) !== mode) await button().click();
       await settleHeader(page);
-      const result = await inspectThemeGeometry(page, true);
+      const result = await inspectThemeGeometry(page);
       if (width === 320 && mode === 'light') Object.assign(diagnostics, result.widget_diagnostics);
       diagnostics[`theme_${width}_${mode}_order`] = result.order;
       diagnostics[`theme_${width}_${mode}_height`] = result.height;

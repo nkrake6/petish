@@ -316,6 +316,31 @@ body#the7-body.petish-site [aria-disabled="true"] {
 @media (max-width: 767px) {
   body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets > .petish-theme-switch-wrapper { margin: 0; }
 }
+/* Keep native account/cart actions alongside appearance and location on mobile.
+ * Caption text stays in the accessible link name; iconless links keep their text. */
+@media (max-width: 767px) {
+  body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets > :is(.mini-login,div:has(> .wc-shopping-cart)) { margin-inline: 0; }
+  body#the7-body.petish-site .mobile-header-bar :is(.mini-login > a.submit,.wc-shopping-cart > a.wc-ico-cart):has(> i) { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 32px; min-width: 32px; min-height: 44px; padding: 0; font-size: 0; letter-spacing: 0; }
+  body#the7-body.petish-site .mobile-header-bar :is(.mini-login > a.submit,.wc-shopping-cart > a.wc-ico-cart):has(> i) > i { flex: 0 0 auto; margin: 0; font-size: 20px; line-height: 1; }
+  body#the7-body.petish-site .mobile-header-bar .wc-shopping-cart > a.wc-ico-cart:has(> i) > .amount { font-size: 0; }
+  body#the7-body.petish-site .mobile-header-bar .wc-shopping-cart > a.wc-ico-cart:has(> i) > .counter { position: absolute; top: 1px; right: -2px; margin: 0; min-width: 14px; min-height: 14px; padding: 1px; font-size: 9px; line-height: 14px; }
+  body#the7-body.petish-site .mobile-header-bar .wc-shopping-cart > a.wc-ico-cart:has(> i) > .counter::before { content: none; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-branding { min-width: 0; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-branding > a { min-width: 0; max-width: 100%; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-branding .petish-logo { width: auto; max-height: 52px; }
+}
+@media (max-width: 420px) {
+  body#the7-body.petish-site .masthead .mobile-header-bar { padding-inline: 10px; }
+  body#the7-body.petish-site .masthead .mobile-header-bar .mobile-mini-widgets { gap: 3px; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-navigation { margin-inline-start: 4px; }
+  body#the7-body.petish-site .mobile-header-bar .dt-mobile-menu-icon { width: 32px; min-width: 32px; padding-inline: 0; }
+  body#the7-body.petish-site .mobile-header-bar .petish-market__trigger { padding-inline: 3px; gap: 3px; }
+  body#the7-body.petish-site .mobile-header-bar :is(.mini-login > a.submit,.wc-shopping-cart > a.wc-ico-cart):not(:has(> i)) { display: inline-block; width: 44px; min-width: 44px; max-width: 44px; font-size: 11px; line-height: 1.3; white-space: normal; overflow-wrap: normal; text-align: center; }
+}
+@media (max-width: 360px) {
+  body#the7-body.petish-site .masthead .mobile-header-bar { padding-inline: 6px; }
+  body#the7-body.petish-site .masthead .mobile-header-bar .mobile-mini-widgets { gap: 2px; }
+}
 .petish-site .scroll-top { background: var(--color-button-primary); color: var(--color-button-primary-on); border: 1px solid var(--color-button-primary-border); border-radius: var(--radius-control); }
 .petish-site .petish-preview { padding-bottom: 36px; }
 .petish-site .petish-preview > section + section { margin-top: 40px; }

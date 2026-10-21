@@ -145,7 +145,7 @@ class HomepageReleaseTests(unittest.TestCase):
         output=subprocess.run(['node','--input-type=module','-e',code],cwd=ROOT,
             check=True,capture_output=True,text=True)
         exports=json.loads(output.stdout);fields=exports['geometry']
-        self.assertEqual(len(fields),110)
+        self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))

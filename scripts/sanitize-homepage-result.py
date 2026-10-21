@@ -47,7 +47,6 @@ THEME_GEOMETRY_VIEWS={f'{width}_{mode}' for width in (320,390,1280) for mode in 
 THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewport_width',
     'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','baseline_logo_width',
     'logo_count','logo_parent_width','baseline_logo_parent_width','visible_count','overflow','search_left',
-    'candidate_logo_width','candidate_header_height','candidate_baseline_height','candidate_fit',
     'native_cart_count','native_cart_width','native_cart_amount_width','native_cart_counter_width','native_cart_icon_width',
     'native_login_count','native_login_width','native_login_link_font_size','native_login_icon_font_size','native_login_icon_width'} | {
     f'{node}_{metric}' for node in ('header','branding','widgets','menu')
