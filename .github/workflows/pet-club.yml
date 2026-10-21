@@ -59,6 +59,7 @@ jobs:
       - name: Prepare pinned SSH connection and verification tools
         id: prepare
         continue-on-error: true
+        # Connection-only failures can be retried without reinstalling the unchanged staging files.
         run: |
           preparation_stage=connection
           trap 'printf "stage=%s\n" "$preparation_stage" >> "$GITHUB_OUTPUT"' EXIT
