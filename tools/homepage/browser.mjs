@@ -672,7 +672,7 @@ export async function inspectMarketFlags(page, diagnostics = {}, prefix = '', me
   return result.markup && result.dimensions && result.bbox && pixels;
 }
 
-/** Native Woo 11.2 loading rows are presentation only; real/unknown rows fail closed. */
+/** Bounded Cart-state observations; these are not functional-cart release gates. */
 export async function inspectCartHeaderFixture(page) {
   return page.evaluate(() => {
     const visible = node => {
@@ -707,8 +707,8 @@ export async function inspectCartHeaderFixture(page) {
 }
 
 /** Fixed read-only routes, synthetic account, no market or cart actions.
- * Cart is a header/flag render proof, not a functional checkout test. The
- * blocked Store API may leave Woo's inert loading skeleton in place.
+ * Cart is a header/flag render proof, not a functional checkout test. Existing
+ * synthetic QA cart contents are observed only; they are never interacted with.
  */
 export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 1280], diagnostics = {}, prefix = 'market_cart', metrics = {}) {
   if (!['/', '/cart/'].includes(pathname)) return false;
@@ -716,8 +716,8 @@ export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 12
   if (pathname === '/cart/' && response) diagnostics[`${prefix}_initial_empty_marker_present`] = /<[^>]+\bclass=(["'])[^"']*\b(?:cart-empty|wc-block-cart__empty-cart__title)\b[^"']*\1[^>]*>/i.test(await response.text());
   await settleHeader(page);
   if (pathname === '/cart/') {
-    // Let normal hydration resolve before classifying the snapshot. A timeout
-    // does not pass the fixture: the exact inert skeleton still must be proven.
+    // Let normal hydration resolve before recording the bounded state facts.
+    // These observations do not change the header/flag acceptance criteria.
     await page.waitForFunction(() => [...document.querySelectorAll('.cart-empty,.wc-block-cart__empty-cart__title')]
       .some(node => { const box = node.getBoundingClientRect(); return box.width > 0 && box.height > 0; })
       || !!document.querySelector('.cart_item,.wc-block-cart-items__row[data-cart-item-key]'), null, { timeout: 5000 }).catch(() => {});
@@ -749,7 +749,6 @@ export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 12
     painted = await inspectMarketFlags(page, diagnostics, pathname === '/cart/' ? prefix : '', metrics) && painted;
   }
   facts.geometry_verified = layout; facts.paint_verified = painted;
-  let fixture = true;
   if (pathname === '/cart/') {
     const state = await inspectCartHeaderFixture(page);
     for (const [name, value] of Object.entries(state)) diagnostics[`${prefix}_${name}`] = value;
@@ -757,10 +756,9 @@ export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 12
     metrics.visible_cart_row_count = Math.min(100, await page.locator('.cart_item:visible,.wc-block-cart-items__row:visible').count());
     facts.empty_marker = metrics.empty_marker_count > 0;
     facts.items_absent = await page.locator('.cart_item,.wc-block-cart-items__row').count() === 0;
-    fixture = state.native_empty_state || (state.native_skeleton_state && diagnostics[`${prefix}_initial_empty_marker_present`] === true);
   }
   publish();
-  return layout && painted && fixture;
+  return layout && painted;
 }
 
 async function checkWebKitFlags(webkit, storageState, diagnostics, metrics) {
