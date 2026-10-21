@@ -1,0 +1,8 @@
+{
+  "AUTOMATION_KIND": "staging",
+  "AUTOMATION_RESULT": "failure",
+  "GITHUB_RUN_ID": "39540738835",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "9cae8bf532045bde5105da128437a2e65e712eac",
+  "generated_utc": "2026-10-21T03:51:09.148500+00:00"
+}
