@@ -112,6 +112,16 @@ financial programme rules are still required before enabling discounts or
 delivery benefits. The unresolved commercial rules are recorded in
 [CUSTOMER-REVIEWS-PROPOSAL.md](CUSTOMER-REVIEWS-PROPOSAL.md).
 
+The filter-alignment and pink My reviews menu follow-up shipped from `92cdfbe`
+in [production run 39586240272-1](https://github.com/nkrake6/petish/tree/automation-status/customer-reviews-production-39586240272-1).
+Its exact application source `f8be162` passed staging `39585759430-1` with 47
+native, 44 browser and 8 cleanup checks. Production changed only the stylesheet,
+passed 34 native and 14 public checks and removed its temporary guard/probe.
+The filter controls align at 44px and still wrap on mobile. My reviews now
+shares For my pet's pink palette and selected/hover styling while keeping its
+own icon and existing menu dimensions; local light/dark comparisons passed at
+390px and 1440px.
+
 ## Local verification
 
 The native proof passed all 47 checks and all 8 cleanup checks against a fresh

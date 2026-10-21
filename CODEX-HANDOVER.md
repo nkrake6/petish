@@ -7,7 +7,8 @@ for the current cloud workflow. The Mac setup below is archived history.
 
 - The owner selected **Pet Club** from
   [the comparison gallery](https://nkrake6.github.io/petish/passport-concepts/).
-  Passport **0.3.2 is live**, released in
+  Passport **0.4.1 is live**, including customer reviews and the video limits
+  documented below. The Pet Club design was initially released as **0.3.2** in
   [production run 39537501595-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537501595-1)
   from source `c136035`. It adds favourites, directory filters, short video
   moments and the selected Colour track account menu to the existing Pet Club
@@ -113,6 +114,11 @@ for the current cloud workflow. The Mac setup below is archived history.
   [scope and evidence](docs/CUSTOMER-REVIEWS.md). The flag defaults off on other
   installations. Staff handle corrections; self-service revisions and final
   financial programme rules remain future work.
+  The subsequent filter-alignment and pink **My reviews** menu update passed
+  staging `39585759430-1` (47 native, 44 browser and 8 cleanup checks) and shipped
+  in [production run 39586240272-1](https://github.com/nkrake6/petish/tree/automation-status/customer-reviews-production-39586240272-1),
+  source `92cdfbe`. Only the review stylesheet changed; all 34 native and 14
+  public checks passed. Menu dimensions and the review icon are preserved.
 
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
 passed on source `3012a27`; the production release above matches its exact 18

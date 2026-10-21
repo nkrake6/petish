@@ -113,6 +113,10 @@ checks. Main pushes inspect; `deploy-customer-reviews` applies after matching
 staging and fresh backup/recovery evidence. Both customer review and Passport
 videos permit 50 MiB/20 seconds; photo limits remain 5 MiB. Production validation
 creates no test reviews, uploads, accounts or orders.
+The later filter-alignment and pink My reviews menu fix shipped in
+`39586240272-1`, source `92cdfbe`, after staging `39585759430-1` passed the same
+47/44/8 acceptance checks. It changed one CSS file and passed all 34 native and
+14 public production checks.
 The application flag defaults off on other installations; discount/delivery rewards are not implemented
 or enabled. See [the implementation and rollout scope](docs/CUSTOMER-REVIEWS.md).
 Do not infer production acceptance from the static design previews.
