@@ -1,0 +1,10 @@
+{
+  "status": "failure",
+  "category": "prerequisites",
+  "mode": "apply",
+  "run_id": "39545456551-1",
+  "source_commit": "771c5ec808dffbc1225a445e53b32bb6eda6c493",
+  "generated_utc": "2026-10-21T04:42:50.834046+00:00",
+  "rollback_verified": false,
+  "manual_recovery_required": false
+}
