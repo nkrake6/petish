@@ -19,6 +19,23 @@ data = {key: os.environ[key] for key in (
     'AUTOMATION_KIND', 'AUTOMATION_RESULT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')}
 data['generated_utc'] = datetime.now(timezone.utc).isoformat()
 from pathlib import Path
+if data['AUTOMATION_KIND'] == 'staging':
+    import re
+    # Runner outcomes identify early failures without exposing logs, paths or credentials.
+    data['staging_runner_steps'] = {}
+    for step in ('checkout', 'revision', 'source', 'package', 'screening', 'prerequisites', 'execution', 'summary'):
+        outcome = os.environ.get('STAGING_' + step.upper() + '_RESULT')
+        if outcome in {'success', 'failure', 'cancelled', 'skipped'}:
+            data['staging_runner_steps'][step] = outcome
+    preparation = os.environ.get('STAGING_PREPARATION_STAGE')
+    if preparation in {'connection', 'ssh_tools', 'complete'}:
+        data['staging_preparation_stage'] = preparation
+    revision = os.environ.get('SOURCE_SHA', '')
+    if re.fullmatch(r'[a-f0-9]{40}', revision):
+        data['staging_requested_source_commit'] = revision
+    mode = os.environ.get('DEPLOY_MODE')
+    if mode in {'check', 'apply'}:
+        data['staging_mode'] = mode
 if data['AUTOMATION_KIND'] == 'rehearsal':
     import importlib.util
     spec = importlib.util.spec_from_file_location('rehearsal_sanitizer', 'scripts/sanitize-rehearsal-result.py')

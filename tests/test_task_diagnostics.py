@@ -18,6 +18,39 @@ PRIVATE = "PRIVATE_PASSWORD_customer@example.com_/private/photos/alice.jpg"
 
 
 class TaskDiagnosticsTests(unittest.TestCase):
+    def test_staging_publisher_reports_only_fixed_runner_outcomes_before_execution(self):
+        publisher = SCRIPT.with_name('publish-automation-status.sh').read_text()
+        code = publisher.split("<<'PY'\n", 1)[1].split('\nPY\n', 1)[0]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); output = root / 'status.json'
+            env = dict(os.environ, AUTOMATION_KIND='staging', AUTOMATION_RESULT='failure',
+                       GITHUB_RUN_ID='1234', GITHUB_RUN_ATTEMPT='1', GITHUB_SHA='a' * 40,
+                       RUNNER_TEMP=str(root), SOURCE_SHA='b' * 40, DEPLOY_MODE='apply',
+                       STAGING_CHECKOUT_RESULT='success', STAGING_PACKAGE_RESULT='success',
+                       STAGING_SCREENING_RESULT='success', STAGING_PREREQUISITES_RESULT='failure',
+                       STAGING_EXECUTION_RESULT='skipped', STAGING_PREPARATION_STAGE='connection',
+                       STAGING_PRIVATE_RESULT=PRIVATE)
+            for malicious in (False, True):
+                if malicious:
+                    env.update(STAGING_PACKAGE_RESULT=PRIVATE, STAGING_PREPARATION_STAGE=PRIVATE,
+                               SOURCE_SHA=PRIVATE, DEPLOY_MODE=PRIVATE)
+                result = subprocess.run([sys.executable, '-c', code, str(output)], env=env,
+                                        capture_output=True, text=True, timeout=20)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                data = json.loads(output.read_text())
+                self.assertNotIn(PRIVATE, json.dumps(data) + result.stdout + result.stderr)
+                self.assertEqual(data['staging_runner_steps']['execution'], 'skipped')
+                self.assertEqual(data['staging_runner_steps']['prerequisites'], 'failure')
+                self.assertNotIn('task', data)
+                if malicious:
+                    self.assertNotIn('package', data['staging_runner_steps'])
+                    for key in ('staging_preparation_stage', 'staging_requested_source_commit', 'staging_mode'):
+                        self.assertNotIn(key, data)
+                else:
+                    self.assertEqual(data['staging_preparation_stage'], 'connection')
+                    self.assertEqual(data['staging_requested_source_commit'], 'b' * 40)
+                    self.assertEqual(data['staging_mode'], 'apply')
+
     def run_fixture(self, text, phase="backup-export", code=1):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

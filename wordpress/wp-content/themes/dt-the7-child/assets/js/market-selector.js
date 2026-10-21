@@ -8,8 +8,8 @@
   let active;
   let counter = 0;
 
-  const flag = country => /^[A-Z]{2}$/.test(country || '')
-    ? String.fromCodePoint(...[...country].map(letter => 127397 + letter.charCodeAt(0))) : '🌐';
+  const flagCodes = new Set(Array.isArray(petishMarket.flagCodes) ? petishMarket.flagCodes : []);
+  const flag = country => `${petishMarket.flagSprite}#flag-${typeof country === 'string' && /^[A-Z]{2}$/.test(country) && flagCodes.has(country) ? country.toLowerCase() : 'globe'}`;
   const request = async (url, options = {}) => {
     const response = await fetch(url, {credentials: 'same-origin', cache: 'no-store', ...options});
     const result = await response.json();
@@ -18,7 +18,8 @@
   };
   const fill = root => {
     if (!state) return;
-    root.querySelector('.petish-market__flag').textContent = flag(state.country);
+    const flagImage = root.querySelector('.petish-market__flag use');
+    if (flagImage && typeof petishMarket.flagSprite === 'string') flagImage.setAttribute('href', flag(state.country));
     root.querySelector('.petish-market__code').textContent = state.currency;
     const trigger = root.querySelector('.petish-market__trigger');
     trigger.disabled = false;

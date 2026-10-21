@@ -3,7 +3,7 @@
 .petish-site .petish-market__trigger { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--color-text); font: 500 14px/1.4 var(--font-label); cursor: pointer; white-space: nowrap; box-shadow: none; }
 .petish-site .petish-market__trigger:hover, .petish-site .petish-market__trigger[aria-expanded="true"] { background: var(--color-lavender); color: var(--color-secondary-text); }
 .petish-site .petish-market__trigger:disabled { opacity: .65; cursor: progress; }
-.petish-site .petish-market__flag { font: 22px/1.1 system-ui, sans-serif; }
+.petish-site .petish-market__flag { display: block; flex: 0 0 22px; width: 22px; height: 22px; overflow: hidden; }
 .petish-site .petish-market__trigger:focus-visible, .petish-site .petish-market__panel :is(button,select):focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
 .petish-site .petish-market__panel { position: fixed; z-index: 100100; box-sizing: border-box; width: min(360px, calc(100vw - 24px)); padding: 22px; overflow-y: auto; border: 1px solid var(--color-control-border); border-radius: 18px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 12px 40px rgba(0,0,0,.2); font: 400 15px/1.5 var(--font-body); }
 .petish-site .petish-market__panel[hidden] { display: none !important; }
@@ -24,6 +24,6 @@
   body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets > :is(.mini-search,.petish-market-selector) { margin: 0; }
   .petish-site .petish-market-selector { margin-left: 5px; }
   .petish-site .petish-market__trigger { padding-inline: 6px; gap: 5px; font-size: 12px; }
-  .petish-site .petish-market__flag { font-size: 20px; }
+  .petish-site .petish-market__flag { flex-basis: 20px; width: 20px; height: 20px; }
   .petish-site .petish-market__panel { padding: 18px; }
 }

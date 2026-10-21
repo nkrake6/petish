@@ -41,20 +41,24 @@ jobs:
       DEPLOY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.ref == 'refs/heads/staging' && 'apply' || 'check') }}
     steps:
       - name: Check out reviewed deployment tools
+        id: checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: main
+          ref: ${{ github.sha }}
           persist-credentials: true
       - name: Check source revision
+        id: revision
         run: |
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || { printf '%s\n' 'An exact source commit is required.' >&2; exit 1; }
       - name: Check out source separately
+        id: source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ inputs.source_sha || github.sha }}
           path: deployment-source
           persist-credentials: false
       - name: Build an allowlisted staging package
+        id: package
         run: |
           python3 - <<'PY'
           import json
@@ -64,20 +68,29 @@ jobs:
               raise SystemExit('A complete reviewed source recovery is required before staging deployment.')
           PY
           python3 scripts/package-staging-source.py deployment-source/wordpress "$RUNNER_TEMP/petish-staging-source.tar.gz" --source-sha "$SOURCE_SHA"
+      - name: Screen staged source for credentials
+        id: screening
+        run: |
           bash scripts/install-gitleaks.sh
           "$RUNNER_TEMP/petish-gitleaks/gitleaks" dir deployment-source/wordpress --no-banner --redact=100 --exit-code=1 > "$RUNNER_TEMP/petish-staging-secret-scan.log" 2>&1 || { printf '%s\n' 'Staging source screening failed; deployment stopped.' >&2; exit 1; }
       - name: Check SSH connectivity and runner prerequisites
+        id: prerequisites
         run: |
+          preparation_stage=connection
+          trap 'printf "stage=%s\n" "$preparation_stage" >> "$GITHUB_OUTPUT"' EXIT
           for attempt in 1 2 3; do
             if bash scripts/hostinger-connection-check.sh; then break; fi
             if [[ "$attempt" == 3 ]]; then exit 1; fi
             sleep 2
           done
+          preparation_stage=ssh_tools
           if ! command -v sshpass >/dev/null 2>&1; then
             sudo apt-get -o Acquire::Retries=3 update -qq
             sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
           fi
+          preparation_stage=complete
       - name: Validate or deploy only the existing staging custom code
+        id: execution
         env:
           SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
           SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
@@ -90,6 +103,7 @@ jobs:
           cat "$RUNNER_TEMP/petish-task-diagnostics.json"
           exit "$task_status"
       - name: Summarize staging result
+        id: summary
         run: |
           {
             printf '## Staging custom code: %s succeeded\n\n' "$DEPLOY_MODE"
@@ -101,6 +115,15 @@ jobs:
         env:
           AUTOMATION_KIND: staging
           AUTOMATION_RESULT: ${{ job.status }}
+          STAGING_CHECKOUT_RESULT: ${{ steps.checkout.outcome }}
+          STAGING_REVISION_RESULT: ${{ steps.revision.outcome }}
+          STAGING_SOURCE_RESULT: ${{ steps.source.outcome }}
+          STAGING_PACKAGE_RESULT: ${{ steps.package.outcome }}
+          STAGING_SCREENING_RESULT: ${{ steps.screening.outcome }}
+          STAGING_PREREQUISITES_RESULT: ${{ steps.prerequisites.outcome }}
+          STAGING_EXECUTION_RESULT: ${{ steps.execution.outcome }}
+          STAGING_SUMMARY_RESULT: ${{ steps.summary.outcome }}
+          STAGING_PREPARATION_STAGE: ${{ steps.prerequisites.outputs.stage }}
         run: bash scripts/publish-automation-status.sh
       - name: Remove private runner package
         if: always()

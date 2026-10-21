@@ -11,6 +11,8 @@ defined( 'ABSPATH' ) || exit;
 final class Petish_Market_Selector {
     const CURRENCY_KEY = 'petish_market_currency';
     const NONCE_KEY = 'petish_market_nonce_token';
+    // Reviewed local sprite coverage, independent of platform emoji fonts.
+    const FLAG_CODES = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW';
 
     public static function init() {
         add_action( 'presscore_render_header_element-search', array( __CLASS__, 'render' ) );
@@ -78,6 +80,8 @@ final class Petish_Market_Selector {
         wp_localize_script( 'petish-market-selector', 'petishMarket', array(
             'stateUrl' => WC_AJAX::get_endpoint( 'petish_market_state' ),
             'saveUrl' => WC_AJAX::get_endpoint( 'petish_set_market' ),
+            'flagSprite' => self::flag_sprite(),
+            'flagCodes' => explode( ' ', self::FLAG_CODES ),
         ) );
     }
 
@@ -94,7 +98,7 @@ final class Petish_Market_Selector {
         ?>
         <div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" data-petish-market>
             <button type="button" class="petish-market__trigger" aria-label="Location and currency" aria-expanded="false" aria-haspopup="dialog" disabled>
-                <span class="petish-market__flag" aria-hidden="true"><?php echo esc_html( self::flag( $base['country'] ) ); ?></span>
+                <svg class="petish-market__flag" aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 512 512"><use href="<?php echo esc_url( self::flag_sprite() . '#' . self::flag( $base['country'] ) ); ?>"/></svg>
                 <span class="petish-market__code"><?php echo esc_html( $code ); ?></span>
                 <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -113,11 +117,15 @@ final class Petish_Market_Selector {
         <?php
     }
 
+    private static function flag_sprite() {
+        $asset = '/assets/images/ui/country-flags.svg';
+        return get_stylesheet_directory_uri() . $asset . '?ver=' . filemtime( get_stylesheet_directory() . $asset );
+    }
+
     public static function flag( $country ) {
-        if ( ! is_string( $country ) || ! preg_match( '/^[A-Z]{2}$/D', $country ) ) {
-            return '🌐';
-        }
-        return html_entity_decode( '&#' . ( 127397 + ord( $country[0] ) ) . ';&#' . ( 127397 + ord( $country[1] ) ) . ';', ENT_NOQUOTES, 'UTF-8' );
+        return is_string( $country ) && preg_match( '/^[A-Z]{2}$/D', $country )
+            && false !== strpos( ' ' . self::FLAG_CODES . ' ', ' ' . $country . ' ' )
+            ? 'flag-' . strtolower( $country ) : 'flag-globe';
     }
 
     private static function no_cache() {
