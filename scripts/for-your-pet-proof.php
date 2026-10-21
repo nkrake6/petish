@@ -275,6 +275,10 @@ function petish_fyp_proof_approve($product,$species,$keyword,$review=true){
  $current=wp_get_current_user();$caps=$current->allcaps;$post=$_POST;
  foreach(['manage_woocommerce','edit_products','edit_others_products','edit_published_products']as$cap)$current->allcaps[$cap]=true;
  try{
+  // A variation save revokes its parent's approval in post metadata. This
+  // long-lived fixture object may still retain the deleted metadata row IDs;
+  // reload them before the explicit editor confirmation, as a new request does.
+  $product->read_meta_data(true);
   $_POST=['petish_review_marker'=>'1','petish_review_nonce'=>wp_create_nonce('petish_review_'.$product->get_id()),'petish_review_confirm'=>'1',
    'petish_reviews'=>[$species=>['status'=>$review?'eligible':'unreviewed','source'=>'https://example.invalid/isolated-proof',
     'date'=>Petish_Product_Review::today(),'due'=>(new DateTimeImmutable(Petish_Product_Review::today()))->modify('+1 day')->format('Y-m-d'),
