@@ -11,6 +11,10 @@ function petish_delivery_query_guard($sql) {
     if (!is_string($sql)) petish_delivery_fail();
     if (($GLOBALS['petish_delivery_next_sql']??null)===$sql) {
         $GLOBALS['petish_delivery_next_sql']=null;
+        if (!empty($GLOBALS['petish_delivery_native_permit'])) {
+            $GLOBALS['petish_delivery_observations']['approved_statement_executed']=true;
+            $GLOBALS['petish_delivery_native_permit']=false;
+        }
         return $sql;
     }
     $probe=preg_replace('~\A(?:\s+|/\*.*?\*/|--[^\r\n]*(?:\r?\n|$)|\#[^\r\n]*(?:\r?\n|$))*~s','',$sql);
@@ -18,7 +22,21 @@ function petish_delivery_query_guard($sql) {
         && !preg_match('/\bINTO\s+(?:OUTFILE|DUMPFILE)\b/i',$probe)
         && !preg_match('/;\s*\S/s',rtrim($probe))) return $sql;
     $GLOBALS['petish_delivery_blocked']=($GLOBALS['petish_delivery_blocked']??0)+1;
-    if (!empty($GLOBALS['petish_delivery_strict'])) petish_delivery_fail();
+    if (!empty($GLOBALS['petish_delivery_strict'])) {
+        global $wpdb;
+        preg_match('/\A\s*([A-Z]+)/i',$probe,$verb);
+        $kind=strtolower($verb[1]??'other');
+        $GLOBALS['petish_delivery_observations']['blocked_statement_kind']=in_array($kind,['update','insert','delete','replace','set'],true)?$kind:'other';
+        $GLOBALS['petish_delivery_observations']['blocked_table']='other';
+        foreach (['posts','postmeta','options'] as $name) {
+            $table=$wpdb->$name??'';
+            if (is_string($table)&&$table!==''&&preg_match('/\b'.preg_quote($table,'/').'\b/',$probe)) {
+                $GLOBALS['petish_delivery_observations']['blocked_table']=$name;break;
+            }
+        }
+        $GLOBALS['petish_delivery_observations']['write_permit_pending']=($GLOBALS['petish_delivery_next_sql']??null)!==null;
+        petish_delivery_fail();
+    }
     return 'SELECT 0 WHERE 1=0';
 }
 function petish_delivery_once($sql) {
@@ -92,18 +110,25 @@ function petish_delivery_update_sql($data,$before,$content) {
     $expected=['post_author','post_date','post_date_gmt','post_content','post_content_filtered','post_title','post_excerpt',
         'post_status','post_type','comment_status','ping_status','post_password','post_name','to_ping','pinged',
         'post_modified','post_modified_gmt','post_parent','menu_order','post_mime_type','guid'];
-    if (array_keys($data)!==$expected) petish_delivery_fail();
+    $observed=array_keys($data);$sorted=$observed;$sorted_expected=$expected;sort($sorted);sort($sorted_expected);
+    $observations=&$GLOBALS['petish_delivery_observations'];
+    $observations['native_field_count']=min(count($observed),100);
+    $observations['expected_field_set']=$sorted===$sorted_expected;
+    $observations['expected_field_order']=$observed===$expected;
+    if (!$observations['expected_field_order']) petish_delivery_fail();
+    foreach (['content_matches','unchanged_fields','valid_modified_dates','valid_field_types'] as $key) $observations[$key]=true;
     $fields=[];$values=[];
     foreach ($data as $field=>$value) {
-        if (!is_scalar($value)) petish_delivery_fail();
-        if ($field==='post_content') { if ($value!==$content) petish_delivery_fail(); }
+        if (!is_scalar($value)) { $observations['valid_field_types']=false;continue; }
+        if ($field==='post_content') { if ($value!==$content) $observations['content_matches']=false; }
         elseif (in_array($field,['post_modified','post_modified_gmt'],true)) {
-            if (!is_string($value)||!preg_match('/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/D',$value)) petish_delivery_fail();
-        } elseif ((string)$value!==$before[$field]) petish_delivery_fail();
+            if (!is_string($value)||!preg_match('/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/D',$value)) $observations['valid_modified_dates']=false;
+        } elseif ((string)$value!==$before[$field]) $observations['unchanged_fields']=false;
         $format=$wpdb->field_types[$field]??'%s';
-        if (!in_array($format,['%d','%s'],true)) petish_delivery_fail();
+        if (!in_array($format,['%d','%s'],true)) $observations['valid_field_types']=false;
         $fields[]='`'.$field.'` = '.$format;$values[]=$value;
     }
+    foreach (['content_matches','unchanged_fields','valid_modified_dates','valid_field_types'] as $key) if (!$observations[$key]) petish_delivery_fail();
     $values[]=1002;
     return $wpdb->prepare('UPDATE `'.$wpdb->posts.'` SET '.implode(', ',$fields).' WHERE `ID` = %d',$values);
 }
@@ -123,6 +148,7 @@ function petish_delivery_table_ready() {
 function petish_delivery_change($mode,$run) {
     global $wpdb,$report;
     [$manifest,$content]=petish_delivery_manifest();
+    $GLOBALS['petish_delivery_observations']=[];
     $root=petish_delivery_bootstrap();
     $report['category']='mutation_scope';
     petish_delivery_bound_hooks();
@@ -138,13 +164,17 @@ function petish_delivery_change($mode,$run) {
             ||get_post_meta(1002,'_elementor_data',true)!=='') petish_delivery_fail();
         $after=$before;$updates=0;
         add_action('pre_post_update',static function($id,$data)use($before,$content,&$after,&$updates){
+            $GLOBALS['petish_delivery_observations']['native_pre_update_reached']=true;
+            $GLOBALS['petish_delivery_observations']['native_target_valid']=$id===1002&&$updates===0;
             if ($id!==1002||$updates!==0) petish_delivery_fail();
             $sql=petish_delivery_update_sql($data,$before,$content);
             foreach ($data as $key=>$value) $after[$key]=(string)$value;
-            $GLOBALS['petish_delivery_next_sql']=$sql;$updates++;
+            $GLOBALS['petish_delivery_next_sql']=$sql;$GLOBALS['petish_delivery_native_permit']=true;
+            $GLOBALS['petish_delivery_observations']['prepared_statement_approved']=true;$updates++;
         },PHP_INT_MAX,2);
         $report['category']='native_update';
         $result=wp_update_post(['ID'=>1002,'post_content'=>wp_slash($content)],true,false);
+        $GLOBALS['petish_delivery_observations']['native_result_valid']=$result===1002;
         petish_delivery_check('native_editable_content_saved',$result===1002&&$updates===1
             &&($GLOBALS['petish_delivery_next_sql']??null)===null&&petish_delivery_row_equal(petish_delivery_row(),$after));
         if ($mode==='rehearse') {
@@ -169,7 +199,14 @@ function petish_delivery_change($mode,$run) {
         $report['page']=['id'=>1002,'content_sha256'=>hash('sha256',($mode==='rehearse'?$before:$after)['post_content'])];
     } finally {
         $GLOBALS['petish_delivery_next_sql']=null;
-        if ($transaction) petish_delivery_once('ROLLBACK');
+        $GLOBALS['petish_delivery_native_permit']=false;
+        if ($transaction) {
+            petish_delivery_once('ROLLBACK');
+            if ($mode==='rehearse'&&isset($before)) {
+                clean_post_cache(1002);
+                petish_delivery_check('rehearsal_rolled_back',petish_delivery_row_equal(petish_delivery_row(),$before));
+            }
+        }
         $GLOBALS['petish_delivery_strict']=false;
     }
 }

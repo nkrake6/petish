@@ -34,5 +34,8 @@ try {
     ];
     petish_club_verify_mark('production_read_only_verified',petish_club_verify_read_only_scope($blocked));
     $report['status']='success';$report['category']='complete';
-} catch(Throwable $ignored) { $report['status']='failure'; }
+} catch(Throwable $ignored) {
+    $report['status']='failure';
+    if (isset($GLOBALS['petish_delivery_observations'])) $report['native_observations']=$GLOBALS['petish_delivery_observations'];
+}
 exit($report['status']==='success'?0:1);

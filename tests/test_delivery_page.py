@@ -31,6 +31,17 @@ def inspection():
 
 
 class DeliveryPageReportTests(unittest.TestCase):
+    def test_native_failure_diagnostics_reveal_only_fixed_observations(self):
+        value={'status':'failure','category':'native_update','checks':{'rehearsal_rolled_back':True},
+          'native_observations':{'native_pre_update_reached':True,'native_field_count':21,
+            'expected_field_set':True,'blocked_statement_kind':'update','blocked_table':'options'}}
+        self.assertTrue(report.diagnostic(value)['rehearsal_rolled_back'])
+        for key,detail in [('sql','Private query'),('blocked_table','private_table'),
+          ('blocked_statement_kind','private_verb'),('native_field_count',True),('native_field_count',101),
+          ('native_pre_update_reached','yes')]:
+            candidate=copy.deepcopy(value);candidate['native_observations'][key]=detail
+            with self.subTest(key=key),self.assertRaises(ValueError):report.diagnostic(candidate)
+
     def test_only_complete_fixed_inspection_schema_is_publishable(self):
         expected = inspection()
         self.assertEqual(report.screen(expected), expected)
@@ -219,9 +230,10 @@ $out=[];try{petish_delivery_change('rehearse','123-1');$out[]=false;}catch(Throw
 $out[]=$wpdb->row===$current;$out[]=$wpdb->writes===0;$out[]=$GLOBALS['native_called']===false;
 $out[]=$wpdb->transactions===['START TRANSACTION','ROLLBACK'];
 $out[]=($report['checks']['expected_page_content']??null)===false;
+$out[]=($report['checks']['rehearsal_rolled_back']??null)===true;
 echo json_encode($out);
 ''', isolated_runtime=True)
-        self.assertEqual(result, [True] * 6)
+        self.assertEqual(result, [True] * 7)
 
     def test_rollback_restores_only_its_unchanged_owned_row(self):
         for mode in ['after', 'before', 'foreign', 'wrong_run', 'wrong_page', 'wrong_before_hash', 'wrong_after_hash']:

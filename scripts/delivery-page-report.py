@@ -35,13 +35,24 @@ UPDATE_CHECKS=UPDATE_COMMON|{'production_read_only_verified','transactional_page
   'committed_row_verified','rollback_owns_current_row','original_row_restored'}
 
 def diagnostic(value):
-    if set(value)-{'status','category','checks','page'} or value.get('status')!='failure' \
+    if set(value)-{'status','category','checks','page','native_observations'} or value.get('status')!='failure' \
         or value.get('category') not in {'input','paths','bootstrap','runtime','page','mutation_scope',
           'expected_content','native_update','snapshot','commit','rollback'}: raise ValueError()
     checks=value['checks']
     if not isinstance(checks,dict) or set(checks)-UPDATE_CHECKS or any(type(v) is not bool for v in checks.values()): raise ValueError()
-    return {'category':value['category'],'failed_checks':sorted(k for k,v in checks.items() if not v),
-      'passed_checks':sum(checks.values())}
+    result={'category':value['category'],'failed_checks':sorted(k for k,v in checks.items() if not v),
+      'passed_checks':sum(checks.values()),'rehearsal_rolled_back':checks.get('rehearsal_rolled_back') is True}
+    observations=value.get('native_observations',{})
+    booleans={'native_pre_update_reached','native_target_valid','expected_field_set','expected_field_order','content_matches',
+      'unchanged_fields','valid_modified_dates','valid_field_types','prepared_statement_approved','approved_statement_executed',
+      'write_permit_pending','native_result_valid'}
+    if not isinstance(observations,dict) or set(observations)-booleans-{'native_field_count','blocked_statement_kind','blocked_table'}: raise ValueError()
+    if any(type(observations[k]) is not bool for k in observations.keys()&booleans): raise ValueError()
+    if 'native_field_count' in observations and (type(observations['native_field_count']) is not int or not 0<=observations['native_field_count']<=100): raise ValueError()
+    if 'blocked_statement_kind' in observations and observations['blocked_statement_kind'] not in {'update','insert','delete','replace','set','other'}: raise ValueError()
+    if 'blocked_table' in observations and observations['blocked_table'] not in {'posts','postmeta','options','other'}: raise ValueError()
+    result['observations']=observations
+    return result
 
 def screen(value, mode='inspect'):
     if mode not in {'inspect','rehearse','apply','rollback'}: raise ValueError()
