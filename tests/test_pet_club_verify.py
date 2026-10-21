@@ -418,7 +418,7 @@ console.log(JSON.stringify(proof.FORM_CATEGORIES.map(category=>proof.publicRepor
  status:'failure',category,privateValue:'must-not-escape',checks:{browser_started:true}
 }))));
 """)
-        expected = ['form_identity', 'form_values', 'variety_default', 'variety_hidden',
+        expected = ['form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden',
                     'checkbox_spacing', 'variety_other', 'variety_species_reset',
                     'variety_selection', 'form_saved']
         self.assertEqual([entry['category'] for entry in result], expected)

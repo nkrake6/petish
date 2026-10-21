@@ -23,7 +23,7 @@ export const CHECK_KEYS = Object.freeze([
   'revoked_photo_http_denied', 'unsafe_requests_blocked',
 ]);
 export const FORM_CATEGORIES = Object.freeze([
-  'form_identity', 'form_values', 'variety_default', 'variety_hidden', 'checkbox_spacing',
+  'form_identity', 'form_values', 'variety_default', 'variety_enhancement', 'variety_hidden', 'checkbox_spacing',
   'variety_other', 'variety_species_reset', 'variety_selection', 'form_saved',
 ]);
 const CATEGORIES = new Set(['input', 'browser', 'login', 'owner', 'mobile', 'desktop', 'navigation',
@@ -252,6 +252,11 @@ export async function run(input, chromium) {
     ensure(await form.locator('[name="bio"]').inputValue() === 'A curious synthetic rabbit.'
       && await form.locator('[name="traits"]').inputValue() === 'Curious, Gentle', category);
     category = 'variety_default'; ensure(await form.locator('#pp-variety').inputValue() === '', category);
+    // The no-JS form deliberately exposes the custom field. Wait for the footer
+    // script to enhance it before checking computed visibility; isVisible does
+    // not retry while navigation assets are still loading.
+    category = 'variety_enhancement';
+    await form.locator('[data-pp-variety-other][hidden] #pp-variety-other:disabled').waitFor({ state: 'attached', timeout: 15000 });
     category = 'variety_hidden'; ensure(!await form.locator('#pp-variety-other').isVisible(), category);
     category = 'checkbox_spacing';
     ensure(await form.locator('.pp-photo-field>label.pp-checkbox').evaluate(node => {
