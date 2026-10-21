@@ -1,0 +1,18 @@
+{
+  "status": "failure",
+  "category": "staging_source",
+  "mode": "staging",
+  "run_id": "39529290274-1",
+  "source_commit": "a58472a724b3f26b2eb53ef65cbd0092f5659d02",
+  "generated_utc": "2026-10-21T01:47:43.729531+00:00",
+  "source_hashes": {
+    "assets/account-navigation.js": "5885712bde19288a62d9660ced39f98d48c27067fea7179e42b2bad48f311e75",
+    "assets/passport.css": "e5c41cec8708f7d0e6ccddf8de76e43b807f66a612e3eac95871ab6c8a581076",
+    "includes/class-petish-passport-ui.php": "ce9d547ea004b8d96c98f850b99a0e03d68ea108d74bc7cd38988032b0f00138"
+  },
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {},
+  "preparation_stage": "complete"
+}
