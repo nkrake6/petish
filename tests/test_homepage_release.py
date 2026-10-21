@@ -148,7 +148,7 @@ class HomepageReleaseTests(unittest.TestCase):
         self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
-        self.assertEqual(len(exports['diagnostics']),73)
+        self.assertEqual(len(exports['diagnostics']),83)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))
         self.assertEqual(set(exports['diagnostics']),safe.BROWSER_DIAGNOSTICS)
         self.assertEqual(set(exports['cart_keys']),set(safe.CART_METRIC_LIMITS))
@@ -165,6 +165,18 @@ class HomepageReleaseTests(unittest.TestCase):
             value=self.raw('browser');value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,True)
             value['checks'][check]=False
             self.assertFalse(self.screen('browser',value)[1])
+
+    def test_inert_skeleton_observations_do_not_claim_an_empty_cart_view(self):
+        value=self.raw('browser');value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,False)
+        for prefix in ('market_cart','market_webkit_cart'):
+            for suffix in ('hydration_wait_completed','native_skeleton_state','real_or_unknown_rows_absent','cart_action_controls_absent'):
+                value['diagnostics'][prefix+'_'+suffix]=True
+        report,passed=self.screen('browser',value)
+        self.assertTrue(passed);self.assertEqual(report,value)
+        for prefix in ('market_cart','market_webkit_cart'):
+            self.assertFalse(report['diagnostics'][prefix+'_native_empty_state'])
+            self.assertFalse(report['diagnostics'][prefix+'_empty_marker'])
+            self.assertFalse(report['diagnostics'][prefix+'_items_absent'])
 
     def test_cart_metrics_accept_only_fixed_bounded_counts(self):
         value=self.raw('browser')

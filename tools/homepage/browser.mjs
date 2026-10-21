@@ -37,7 +37,8 @@ const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage',
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   ...['market_cart', 'market_webkit_cart'].flatMap(prefix => ['http_ok', 'route_ok', 'empty_marker', 'items_absent', 'block_shell',
     'header_present', 'geometry_verified', 'paint_verified', 'flag_markup_verified', 'flag_dimensions_verified', 'flag_bbox_verified',
-    'flag_pixels_verified', 'initial_empty_marker_present', 'store_api_get_blocked'].map(suffix => `${prefix}_${suffix}`)),
+    'flag_pixels_verified', 'initial_empty_marker_present', 'store_api_get_blocked', 'hydration_wait_completed',
+    'native_empty_state', 'native_skeleton_state', 'real_or_unknown_rows_absent', 'cart_action_controls_absent'].map(suffix => `${prefix}_${suffix}`)),
   'market_webkit_homepage_verified', 'market_webkit_cart_verified',
   'native_other_cart_present', 'native_other_login_present', 'native_cart_link_present', 'native_cart_amount_present',
   'native_cart_icon_present', 'native_cart_counter_present', 'native_login_link_present', 'native_login_icon_present',
@@ -671,12 +672,57 @@ export async function inspectMarketFlags(page, diagnostics = {}, prefix = '', me
   return result.markup && result.dimensions && result.bbox && pixels;
 }
 
-/** Fixed read-only routes, synthetic account, no market or cart actions. */
+/** Native Woo 11.2 loading rows are presentation only; real/unknown rows fail closed. */
+export async function inspectCartHeaderFixture(page) {
+  return page.evaluate(() => {
+    const visible = node => {
+      const box = node.getBoundingClientRect(), style = getComputedStyle(node);
+      return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    };
+    const rows = [...document.querySelectorAll('.cart_item,.wc-block-cart-items__row')];
+    const isSkeleton = row => {
+      const cells = [...row.children], elements = [...row.querySelectorAll('.wc-block-components-skeleton__element')];
+      return row.tagName === 'TR' && row.classList.contains('wc-block-cart-items__row')
+        && !!row.closest('.wp-block-woocommerce-cart .wc-block-cart-items')
+        && row.getAttribute('aria-label') === 'Loading products in cart…'
+        && !row.hasAttribute('data-cart-item-key') && !row.textContent.trim()
+        && !row.querySelector('a,button,input,select,textarea,img,svg,[data-cart-item-key]')
+        && cells.length === 3 && ['image', 'product', 'total'].every((kind, index) =>
+          cells[index].tagName === 'TD' && cells[index].classList.contains(`wc-block-cart-item__${kind}`))
+        && elements.length === 4 && elements.every(node => node.getAttribute('aria-hidden') === 'true');
+    };
+    const skeletons = rows.filter(isSkeleton), unknown = rows.filter(row => !isSkeleton(row));
+    // Only the filled Cart/action area is inspected here. Empty-cart product
+    // recommendations are outside this header fixture and never interacted with.
+    const actionArea = '.wp-block-woocommerce-filled-cart-block, .woocommerce-cart-form, .cart_totals';
+    const controls = [...document.querySelectorAll(actionArea)].flatMap(node => [...node.querySelectorAll(
+      'a[href],button,input,select,textarea,[role="button"]')]);
+    const active = controls.filter(node => visible(node) && !node.matches(':disabled')
+      && node.getAttribute('aria-disabled') !== 'true' && !node.closest('[inert],[aria-disabled="true"]'));
+    const empty = [...document.querySelectorAll('.cart-empty,.wc-block-cart__empty-cart__title')].some(visible);
+    return { native_empty_state: empty && rows.length === 0 && active.length === 0,
+      native_skeleton_state: !empty && skeletons.length >= 1 && skeletons.length <= 4 && unknown.length === 0 && active.length === 0,
+      real_or_unknown_rows_absent: unknown.length === 0, cart_action_controls_absent: active.length === 0 };
+  });
+}
+
+/** Fixed read-only routes, synthetic account, no market or cart actions.
+ * Cart is a header/flag render proof, not a functional checkout test. The
+ * blocked Store API may leave Woo's inert loading skeleton in place.
+ */
 export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 1280], diagnostics = {}, prefix = 'market_cart', metrics = {}) {
   if (!['/', '/cart/'].includes(pathname)) return false;
   const response = await page.goto(ORIGIN + pathname, { waitUntil: 'load' });
   if (pathname === '/cart/' && response) diagnostics[`${prefix}_initial_empty_marker_present`] = /<[^>]+\bclass=(["'])[^"']*\b(?:cart-empty|wc-block-cart__empty-cart__title)\b[^"']*\1[^>]*>/i.test(await response.text());
   await settleHeader(page);
+  if (pathname === '/cart/') {
+    // Let normal hydration resolve before classifying the snapshot. A timeout
+    // does not pass the fixture: the exact inert skeleton still must be proven.
+    await page.waitForFunction(() => [...document.querySelectorAll('.cart-empty,.wc-block-cart__empty-cart__title')]
+      .some(node => { const box = node.getBoundingClientRect(); return box.width > 0 && box.height > 0; })
+      || !!document.querySelector('.cart_item,.wc-block-cart-items__row[data-cart-item-key]'), null, { timeout: 5000 }).catch(() => {});
+    diagnostics[`${prefix}_hydration_wait_completed`] = true;
+  }
   if (pathname === '/cart/') Object.assign(metrics, { http_status_class: Math.floor((response?.status() ?? 0) / 100),
     empty_marker_count: Math.min(100, await page.locator('.cart-empty, .wc-block-cart__empty-cart__title').count()),
     visible_cart_row_count: Math.min(100, await page.locator('.cart_item:visible, .wc-block-cart-items__row:visible').count()) });
@@ -702,8 +748,19 @@ export async function checkMarketFlagPage(page, pathname, widths = [320, 390, 12
     layout = layout && geometry.order && geometry.height && geometry.fit;
     painted = await inspectMarketFlags(page, diagnostics, pathname === '/cart/' ? prefix : '', metrics) && painted;
   }
-  facts.geometry_verified = layout; facts.paint_verified = painted; publish();
-  return layout && painted && (pathname !== '/cart/' || (facts.empty_marker && facts.items_absent));
+  facts.geometry_verified = layout; facts.paint_verified = painted;
+  let fixture = true;
+  if (pathname === '/cart/') {
+    const state = await inspectCartHeaderFixture(page);
+    for (const [name, value] of Object.entries(state)) diagnostics[`${prefix}_${name}`] = value;
+    metrics.empty_marker_count = Math.min(100, await page.locator('.cart-empty,.wc-block-cart__empty-cart__title').count());
+    metrics.visible_cart_row_count = Math.min(100, await page.locator('.cart_item:visible,.wc-block-cart-items__row:visible').count());
+    facts.empty_marker = metrics.empty_marker_count > 0;
+    facts.items_absent = await page.locator('.cart_item,.wc-block-cart-items__row').count() === 0;
+    fixture = state.native_empty_state || (state.native_skeleton_state && diagnostics[`${prefix}_initial_empty_marker_present`] === true);
+  }
+  publish();
+  return layout && painted && fixture;
 }
 
 async function checkWebKitFlags(webkit, storageState, diagnostics, metrics) {

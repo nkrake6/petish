@@ -47,7 +47,8 @@ BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_t
     f'{prefix}_{suffix}' for prefix in ('market_cart','market_webkit_cart')
     for suffix in ('http_ok','route_ok','empty_marker','items_absent','block_shell','header_present','geometry_verified','paint_verified',
                    'flag_markup_verified','flag_dimensions_verified','flag_bbox_verified','flag_pixels_verified',
-                   'initial_empty_marker_present','store_api_get_blocked')}
+                   'initial_empty_marker_present','store_api_get_blocked','hydration_wait_completed','native_empty_state',
+                   'native_skeleton_state','real_or_unknown_rows_absent','cart_action_controls_absent')}
 CART_METRIC_ENGINES={'chromium','webkit'}
 CART_METRIC_LIMITS={'http_status_class':5,'empty_marker_count':100,'visible_cart_row_count':100,
     'min_flag_in_view_count':8,'max_flag_offscreen_count':8}
