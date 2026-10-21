@@ -39,12 +39,17 @@ BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_t
     'badge_response_decode_ok','badge_canvas_context_available','badge_dimensions_match',
     'badge_pixels_match','badge_comparison_completed','badge_versioned_image_matches'} | {
     f'theme_{width}_{mode}_{fact}' for width in (320,390,1280)
-    for mode in ('light','dark') for fact in ('order','height','fit')}
+    for mode in ('light','dark') for fact in ('order','height','fit')} | {
+    'native_other_cart_present','native_other_login_present','native_cart_link_present',
+    'native_cart_amount_present','native_cart_icon_present','native_cart_counter_present',
+    'native_login_link_present','native_login_icon_present'}
 THEME_GEOMETRY_VIEWS={f'{width}_{mode}' for width in (320,390,1280) for mode in ('light','dark')}
 THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewport_width',
     'switch_left','switch_right','search_right','market_left','market_right','logo_right','logo_width','baseline_logo_width',
     'logo_count','logo_parent_width','baseline_logo_parent_width','visible_count','overflow','search_left',
-    'candidate_logo_width','candidate_header_height','candidate_baseline_height','candidate_fit'} | {
+    'candidate_logo_width','candidate_header_height','candidate_baseline_height','candidate_fit',
+    'native_cart_count','native_cart_width','native_cart_amount_width','native_cart_counter_width','native_cart_icon_width',
+    'native_login_count','native_login_width','native_login_link_font_size','native_login_icon_font_size','native_login_icon_width'} | {
     f'{node}_{metric}' for node in ('header','branding','widgets','menu')
     for metric in ('left','right','width','height','client_width','scroll_width','padding_left','padding_right',
                    'margin_left','margin_right','flex_basis','flex_grow','flex_shrink','min_width','max_width','gap')

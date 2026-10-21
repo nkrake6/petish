@@ -26,12 +26,16 @@ export const THEME_VIEWS = Object.freeze(['320_light', '320_dark', '390_light', 
 export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', 'baseline_height', 'header_width', 'viewport_width',
   'switch_left', 'switch_right', 'search_right', 'market_left', 'market_right', 'logo_right', 'logo_width', 'baseline_logo_width',
   'logo_count', 'logo_parent_width', 'baseline_logo_parent_width', 'visible_count', 'overflow', 'search_left',
+  'native_cart_count', 'native_cart_width', 'native_cart_amount_width', 'native_cart_counter_width', 'native_cart_icon_width',
+  'native_login_count', 'native_login_width', 'native_login_link_font_size', 'native_login_icon_font_size', 'native_login_icon_width',
   'candidate_logo_width', 'candidate_header_height', 'candidate_baseline_height', 'candidate_fit',
   ...['header', 'branding', 'widgets', 'menu'].flatMap(node => ['left', 'right', 'width', 'height', 'client_width', 'scroll_width',
     'padding_left', 'padding_right', 'margin_left', 'margin_right', 'flex_basis', 'flex_grow', 'flex_shrink', 'min_width', 'max_width', 'gap'].map(metric => `${node}_${metric}`)),
   ...['search', 'switch', 'market', 'other'].flatMap(node => ['width', 'margin_left', 'margin_right', 'count'].map(metric => `${node}_${metric}`))])]);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
+  'native_other_cart_present', 'native_other_login_present', 'native_cart_link_present', 'native_cart_amount_present',
+  'native_cart_icon_present', 'native_cart_counter_present', 'native_login_link_present', 'native_login_icon_present',
   'badge_response_content_type_webp', 'badge_response_content_type_avif', 'badge_response_content_type_html',
   'badge_response_signature_png', 'badge_response_signature_webp', 'badge_response_signature_avif',
   'badge_response_bytes_match', 'badge_response_size_bounded', 'badge_fetch_versioned',
@@ -417,8 +421,29 @@ export async function inspectThemeGeometry(page, probeCandidate = false) {
         for (const metric of ['width', 'margin_left', 'margin_right']) layout[`${name}_${metric}`] = children.reduce((sum, node) =>
           sum + (getComputedStyle(node).display === 'none' ? 0 : (measure(node)[metric] ?? 0)), 0);
       }
+      const children = [...wrapper.parentElement.children].filter(visible);
+      const carts = children.filter(node => node.matches('.mini-wc,.wc-shopping-cart') || node.querySelector('.wc-shopping-cart,.wc-ico-cart'));
+      const logins = children.filter(node => node.matches('.mini-login') || node.querySelector('.mini-login'));
+      const cartLink = carts.map(node => node.querySelector('.wc-ico-cart')).find(Boolean);
+      const loginLink = logins.map(node => node.querySelector('.submit')).find(Boolean);
+      const widthOf = nodes => nodes.reduce((sum, node) => sum + node.getBoundingClientRect().width, 0);
+      const selected = (nodes, selector) => nodes.flatMap(node => [...node.querySelectorAll(selector)]);
+      const amounts = selected(carts, '.woocommerce-Price-amount.amount');
+      const counters = selected(carts, '.counter,.cart-items');
+      const cartIcons = selected(carts, '.wc-ico-cart i,.wc-ico-cart svg,.wc-ico-cart .dt-icon-the7-cart-00');
+      const loginIcons = selected(logins, '.submit i,.submit svg,.submit .fa');
+      const hasPseudoIcon = node => !!node && ['::before', '::after'].some(pseudo => !['none', 'normal', '""', "''"].includes(getComputedStyle(node, pseudo).content));
+      const widgetDiagnostics = { native_other_cart_present: carts.length > 0, native_other_login_present: logins.length > 0,
+        native_cart_link_present: !!cartLink, native_cart_amount_present: amounts.length > 0,
+        native_cart_icon_present: cartIcons.length > 0 || hasPseudoIcon(cartLink), native_cart_counter_present: counters.length > 0,
+        native_login_link_present: !!loginLink, native_login_icon_present: loginIcons.length > 0 || hasPseudoIcon(loginLink) };
+      Object.assign(layout, { native_cart_count: carts.length, native_cart_width: widthOf(carts), native_cart_amount_width: widthOf(amounts),
+        native_cart_counter_width: widthOf(counters), native_cart_icon_width: widthOf(cartIcons),
+        native_login_count: logins.length, native_login_width: widthOf(logins), native_login_icon_width: widthOf(loginIcons),
+        native_login_link_font_size: loginLink ? parseFloat(getComputedStyle(loginLink).fontSize) : 0,
+        native_login_icon_font_size: loginLink ? parseFloat(getComputedStyle(loginLink, '::before').fontSize) : 0 });
       return { wrapper, button, header, search, market, logo, box: header?.getBoundingClientRect(),
-        layout, menuBox: menu?.getBoundingClientRect(),
+        layout, widgetDiagnostics, menuBox: menu?.getBoundingClientRect(),
         logoCount: logos.length, logoParentWidth: (logo?.closest('.branding,.mobile-branding') || logo?.parentElement)?.getBoundingClientRect().width,
         buttonBox: button.getBoundingClientRect(), searchBox: search?.getBoundingClientRect(),
         marketBox: market?.getBoundingClientRect(), logoBox: logo?.getBoundingClientRect(),
@@ -451,7 +476,7 @@ export async function inspectThemeGeometry(page, probeCandidate = false) {
         && button.getAttribute('aria-label') === 'Dark mode' && button.querySelectorAll('svg[aria-hidden="true"]').length === 2;
     }
     const first = records[0], number = value => Number.isFinite(value) ? Math.round(Math.max(-4096, Math.min(4096, value)) * 100) / 100 : 0;
-    return { order: !!order, fit: !!fit, height: !!height, geometry: {
+    return { order: !!order, fit: !!fit, height: !!height, widget_diagnostics: first?.widgetDiagnostics ?? {}, geometry: {
       ...Object.fromEntries(Object.entries(first?.layout ?? {}).map(([key, value]) => [key, number(value)])),
       header_height: number(first?.box?.height), baseline_height: number(first?.baseline), header_width: number(first?.box?.width),
       viewport_width: innerWidth, switch_left: number(first?.buttonBox?.left), switch_right: number(first?.buttonBox?.right),
@@ -510,6 +535,7 @@ export async function checkThemeSwitch(page, checks, diagnostics, setCategory, t
       if (await page.evaluate(() => document.documentElement.dataset.theme) !== mode) await button().click();
       await settleHeader(page);
       const result = await inspectThemeGeometry(page, true);
+      if (width === 320 && mode === 'light') Object.assign(diagnostics, result.widget_diagnostics);
       diagnostics[`theme_${width}_${mode}_order`] = result.order;
       diagnostics[`theme_${width}_${mode}_height`] = result.height;
       diagnostics[`theme_${width}_${mode}_fit`] = result.fit;
