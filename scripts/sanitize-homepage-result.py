@@ -77,7 +77,28 @@ REQUIRED={**{phase:navigation.REQUIRED[phase]|({'candidate_badge_png_verified'} 
 REQUIRED['apply'] |= {'maintenance_guard_created','maintenance_guard_removed'}
 REQUIRED['rollback'] |= {'maintenance_guard_removed'}
 REQUIRED['commit'] |= {'maintenance_guard_removed'}
-CATEGORIES=navigation.CATEGORIES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
+CACHE_FAILURES={
+    'cache_api_missing_add', 'cache_api_missing_add_global_groups', 'cache_api_missing_add_multiple',
+    'cache_api_missing_add_non_persistent_groups', 'cache_api_missing_close', 'cache_api_missing_decr',
+    'cache_api_missing_delete', 'cache_api_missing_delete_multiple', 'cache_api_missing_flush',
+    'cache_api_missing_flush_group', 'cache_api_missing_flush_runtime', 'cache_api_missing_get',
+    'cache_api_missing_get_multiple', 'cache_api_missing_incr', 'cache_api_missing_init',
+    'cache_api_missing_replace', 'cache_api_missing_reset', 'cache_api_missing_set',
+    'cache_api_missing_set_multiple', 'cache_api_missing_supports', 'cache_api_missing_switch_to_blog',
+    'cache_api_source_add', 'cache_api_source_add_global_groups', 'cache_api_source_add_multiple',
+    'cache_api_source_add_non_persistent_groups', 'cache_api_source_close', 'cache_api_source_decr',
+    'cache_api_source_delete', 'cache_api_source_delete_multiple', 'cache_api_source_flush',
+    'cache_api_source_flush_group', 'cache_api_source_flush_runtime', 'cache_api_source_get',
+    'cache_api_source_get_multiple', 'cache_api_source_incr', 'cache_api_source_init',
+    'cache_api_source_replace', 'cache_api_source_reset', 'cache_api_source_set',
+    'cache_api_source_set_multiple', 'cache_api_source_supports', 'cache_api_source_switch_to_blog',
+    'cache_class', 'cache_class_source', 'cache_dropin_advanced_loaded',
+    'cache_dropin_object_loaded', 'cache_filter_advanced', 'cache_filter_object',
+    'cache_flag_enabled', 'cache_flag_invalid', 'cache_flag_missing',
+    'cache_path_api', 'cache_path_class',
+    'cache_path_root', 'cache_preinitialized', 'cache_runtime',
+}
+CATEGORIES=navigation.CATEGORIES|CACHE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
     'personalisation','personalisation_error','personalisation_history','bootstrap','isolation','state'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
 
 

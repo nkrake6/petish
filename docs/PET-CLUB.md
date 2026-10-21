@@ -142,3 +142,38 @@ The existing encrypted backup/recovery evidence above was still fresh.
 
 Favourites, directory filters, short videos and a personalised homepage section
 are subsequent work in progress; this release does not enable them.
+
+## Candidate 0.3.2: favourites, filters and video moments
+
+Application source `233a641f87d2aed34f43121db8024715b39b3455` is installed on
+private staging. It is not yet a production release. The candidate adds species,
+breed/variety and pet-name filters, paginated results, and a **My favourites**
+view using the existing hearts. Only the signed-in member's favourites are
+returned. Directory matching uses explicitly published snapshot fields; private
+profile edits do not change search results until the owner shares them again.
+
+Video moments accept progressive MP4 files with H.264 video and optional AAC
+audio, up to 20 seconds and 20,971,520 bytes (shown as 20 MB). The existing quota
+remains twelve combined photo moments, video moments and journal entries per
+pet. Clips use private storage outside the webroot, authenticated playback and
+bounded byte-range responses. Sharing a clip requires explicit selection and
+creates a separate public snapshot; withdrawal revokes access before cleanup.
+Original video bytes are retained, so the publication screen explains that
+embedded device or location metadata may remain. No host transcoder is needed.
+
+Hosted rehearsal `39530335101-1` found that clicking the upload form's submit
+button with site JavaScript disabled did not send a request, despite native
+form validity passing. The cause of that pointer interaction failure is not
+confirmed. Server-limit checks now use the browser's native `requestSubmit`
+algorithm with site scripts disabled, preserving real multipart uploads,
+validation, ownership checks and PHP error responses. This proves server
+validation, not full usability without JavaScript. The valid upload still uses
+a normal button click with JavaScript enabled.
+
+Hosted native proof `39527803526-1` passed 62 checks and removed its fixtures,
+but the run stopped before browser verification. It is a failed release gate,
+not evidence that the candidate is ready for production. A complete passing
+rehearsal and exact production receipt are still required.
+
+The separate homepage matching work is described in
+[For your pet](FOR-YOUR-PET.md).

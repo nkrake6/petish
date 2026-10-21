@@ -19,6 +19,29 @@ const PETISH_FYP_PROOF_VERIFY=[
  'private_profile_session_isolation','active_pet_read_only',
 ];
 
+/** Fixed failure codes contain no runtime class names, paths or customer data. */
+const PETISH_FYP_CACHE_FAILURES=[
+ 'cache_path_root','cache_path_class','cache_path_api',
+ 'cache_flag_missing','cache_flag_enabled',
+ 'cache_flag_invalid','cache_class','cache_class_source',
+ 'cache_filter_object','cache_filter_advanced','cache_dropin_object_loaded',
+ 'cache_dropin_advanced_loaded','cache_preinitialized','cache_runtime',
+ 'cache_api_missing_init','cache_api_missing_get','cache_api_missing_get_multiple',
+ 'cache_api_missing_set','cache_api_missing_set_multiple','cache_api_missing_add',
+ 'cache_api_missing_add_multiple','cache_api_missing_replace','cache_api_missing_delete',
+ 'cache_api_missing_delete_multiple','cache_api_missing_incr','cache_api_missing_decr',
+ 'cache_api_missing_flush','cache_api_missing_flush_runtime','cache_api_missing_flush_group',
+ 'cache_api_missing_supports','cache_api_missing_close','cache_api_missing_switch_to_blog',
+ 'cache_api_missing_add_global_groups','cache_api_missing_add_non_persistent_groups','cache_api_missing_reset',
+ 'cache_api_source_init','cache_api_source_get','cache_api_source_get_multiple',
+ 'cache_api_source_set','cache_api_source_set_multiple','cache_api_source_add',
+ 'cache_api_source_add_multiple','cache_api_source_replace','cache_api_source_delete',
+ 'cache_api_source_delete_multiple','cache_api_source_incr','cache_api_source_decr',
+ 'cache_api_source_flush','cache_api_source_flush_runtime','cache_api_source_flush_group',
+ 'cache_api_source_supports','cache_api_source_close','cache_api_source_switch_to_blog',
+ 'cache_api_source_add_global_groups','cache_api_source_add_non_persistent_groups','cache_api_source_reset',
+];
+
 function petish_fyp_proof_fail(){throw new RuntimeException();}
 function petish_fyp_proof_mark($name,$value){
  global $report;
@@ -86,33 +109,47 @@ function petish_fyp_proof_control($command){
  try{if(false===$wpdb->query($command))petish_fyp_proof_fail();}
  finally{unset($GLOBALS['petish_fyp_control']);}
 }
+function petish_fyp_proof_cache_reject($category){
+ global $report;
+ if(!in_array($category,PETISH_FYP_CACHE_FAILURES,true))petish_fyp_proof_fail();
+ $report['category']=$category;return false;
+}
 /** Verify the cache implementation, not only WordPress's external-cache flag. */
 function petish_fyp_proof_runtime_cache($root){
  try{
-  if(!petish_club_verify_path($root,true)||!function_exists('wp_using_ext_object_cache')
-   ||wp_using_ext_object_cache()!==false||!isset($GLOBALS['wp_object_cache'])
-   ||!is_object($GLOBALS['wp_object_cache'])||get_class($GLOBALS['wp_object_cache'])!=='WP_Object_Cache')return false;
+  if(!petish_club_verify_path($root,true))return petish_fyp_proof_cache_reject('cache_path_root');
+  if(!function_exists('wp_using_ext_object_cache'))return petish_fyp_proof_cache_reject('cache_flag_missing');
+  $external=wp_using_ext_object_cache();
+  // Core leaves this global null when no persistent drop-in has set it. Both
+  // virgin null and explicit false still require all core provenance checks.
+  if($external!==false&&$external!==null)return petish_fyp_proof_cache_reject($external===true?'cache_flag_enabled':'cache_flag_invalid');
+  if(!isset($GLOBALS['wp_object_cache'])||!is_object($GLOBALS['wp_object_cache'])
+   ||get_class($GLOBALS['wp_object_cache'])!=='WP_Object_Cache')return petish_fyp_proof_cache_reject('cache_class');
   $class=$root.'/wp-includes/class-wp-object-cache.php';$functions=$root.'/wp-includes/cache.php';
-  if(!petish_club_verify_path($class)||!petish_club_verify_path($functions)
-   ||(new ReflectionClass($GLOBALS['wp_object_cache']))->getFileName()!==$class)return false;
+  if(!petish_club_verify_path($class))return petish_fyp_proof_cache_reject('cache_path_class');
+  if(!petish_club_verify_path($functions))return petish_fyp_proof_cache_reject('cache_path_api');
+  if((new ReflectionClass($GLOBALS['wp_object_cache']))->getFileName()!==$class)return petish_fyp_proof_cache_reject('cache_class_source');
   foreach(['init','get','get_multiple','set','set_multiple','add','add_multiple','replace','delete','delete_multiple',
    'incr','decr','flush','flush_runtime','flush_group','supports','close','switch_to_blog',
    'add_global_groups','add_non_persistent_groups','reset']as$suffix){
    $name='wp_cache_'.$suffix;
-   if(!function_exists($name)||(new ReflectionFunction($name))->getFileName()!==$functions)return false;
+   if(!function_exists($name))return petish_fyp_proof_cache_reject('cache_api_missing_'.$suffix);
+   if((new ReflectionFunction($name))->getFileName()!==$functions)return petish_fyp_proof_cache_reject('cache_api_source_'.$suffix);
   }
-  foreach(['enable_loading_object_cache_dropin','enable_loading_advanced_cache_dropin']as$hook)
-   if(apply_filters($hook,true)!==false)return false;
+  foreach(['object','advanced']as$kind)
+   if(apply_filters('enable_loading_'.$kind.'_cache_dropin',true)!==false)return petish_fyp_proof_cache_reject('cache_filter_'.$kind);
   $content=defined('WP_CONTENT_DIR')?WP_CONTENT_DIR:$root.'/wp-content';
-  foreach(['object-cache.php','advanced-cache.php']as$file)
-   if(in_array($content.'/'.$file,get_included_files(),true))return false;
+  foreach(['object','advanced']as$kind)
+   if(in_array($content.'/'.$kind.'-cache.php',get_included_files(),true))return petish_fyp_proof_cache_reject('cache_dropin_'.$kind.'_loaded');
   return true;
- }catch(Throwable$ignored){return false;}
+ }catch(Throwable$ignored){return petish_fyp_proof_cache_reject('cache_runtime');}
 }
 function petish_fyp_proof_isolate(){
  // These core filters are designed for non-web runtimes. Install them before
  // wp-load; advanced-cache.php can otherwise preload a persistent object cache.
- if(function_exists('wp_cache_init')||class_exists('WP_Object_Cache',false)||isset($GLOBALS['wp_object_cache']))petish_fyp_proof_fail();
+ if(function_exists('wp_cache_init')||class_exists('WP_Object_Cache',false)||isset($GLOBALS['wp_object_cache'])){
+  petish_fyp_proof_cache_reject('cache_preinitialized');petish_fyp_proof_fail();
+ }
  $no_dropin=static fn()=>false;
  foreach(['enable_loading_object_cache_dropin','enable_loading_advanced_cache_dropin']as$hook)add_filter($hook,$no_dropin,PHP_INT_MAX);
  // No status transition, stock reduction, sales-counter or integration event is

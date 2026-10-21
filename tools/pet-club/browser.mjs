@@ -232,6 +232,27 @@ function oversizedVideo(valid) {
   padding.writeUInt32BE(padding.length); padding.write('free', 4, 'ascii');
   return Buffer.concat([valid, padding]);
 }
+/** Native server-validation submit only; this does not prove pointer usability. */
+export function requestNativeVideoLimit(form) {
+  const submitter = form.querySelector('button[type="submit"]');
+  if (location.origin !== 'https://staging.petish.biz' || form.getAttribute('method')?.toUpperCase() !== 'POST'
+      || form.getAttribute('enctype') !== 'multipart/form-data'
+      || new URL(form.getAttribute('action'), location.href).href !== `${location.origin}/wp-admin/admin-post.php`
+      || !submitter || submitter.disabled || !HTMLFormElement.prototype.checkValidity.call(form)) {
+    throw new Error('Native limit form is not ready.');
+  }
+  submitter.scrollIntoView({ block: 'center', inline: 'center' });
+  const box = submitter.getBoundingClientRect();
+  const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+  const style = getComputedStyle(submitter);
+  const observations = {
+    native_form_valid: true,
+    submitter_visible: box.width > 0 && box.height > 0 && style.visibility === 'visible' && style.display !== 'none',
+    submitter_receives_pointer: !!hit && (hit === submitter || submitter.contains(hit)),
+  };
+  HTMLFormElement.prototype.requestSubmit.call(form, submitter);
+  return observations;
+}
 async function videoUploads(browser, owner, input, mark, setCategory) {
   const { page, state } = owner, valid = videoFixture('synthetic-valid.mp4'), long = videoFixture('synthetic-over-duration.mp4');
   const oversized = oversizedVideo(valid), createURL = `${ORIGIN}/my-account/my-pets/?passport=moment-create&pet_id=${input.pet_id}&kind=video`;
@@ -243,7 +264,8 @@ async function videoUploads(browser, owner, input, mark, setCategory) {
   await upload.setInputFiles({ name: 'synthetic-over-duration.mp4', mimeType: 'video/mp4', buffer: long });
   await page.waitForFunction(() => document.querySelector('[data-pp-video-feedback]')?.textContent.includes('20 seconds'));
   mark('video_client_limits_verified', await upload.evaluate(node => !node.checkValidity()));
-  // No-JS requests reach PHP validation; failed upload must not create a moment.
+  // Exercise the PHP gate with site scripts disabled. Use the native form
+  // algorithm, preserving validity/multipart, without claiming pointer usability.
   setCategory('video_nojs_context');
   const nojs = await browser.newContext({ storageState: await owner.context.storageState(), javaScriptEnabled: false, serviceWorkers: 'block' });
   const nojsState = { input, operation: '', used: false }; await guard(nojs, nojsState);
@@ -266,8 +288,9 @@ async function videoUploads(browser, owner, input, mark, setCategory) {
       errorPage.on('response', onResponse);
       try {
         const navigated = errorPage.waitForNavigation({ waitUntil: 'domcontentloaded' }).then(response => ({ response }), error => ({ error }));
-        step = `video_${limit}_click`; setCategory(step);
-        await errorPage.locator('form[data-pp-form] button[type="submit"]').click();
+        const observations = await errorPage.locator('form[data-pp-form]').evaluate(requestNativeVideoLimit);
+        // Fixed booleans only; this stderr stays private and is not release evidence.
+        process.stderr.write(JSON.stringify({ phase: `video_${limit}_submit`, ...observations }) + '\n');
         step = `video_${limit}_navigation`; setCategory(step);
         const navigation = await navigated; if (navigation.error) throw navigation.error;
       } catch (error) {

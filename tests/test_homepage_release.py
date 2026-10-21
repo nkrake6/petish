@@ -52,6 +52,23 @@ class HomepageReleaseTests(unittest.TestCase):
         report,passed=self.screen('verify',value)
         self.assertFalse(passed);self.assertEqual(report,value)
 
+    def test_cache_failures_preserve_only_finite_diagnostics(self):
+        for phase in ('native','cleanup'):
+            for category in safe.CACHE_FAILURES:
+                value={'status':'failure','category':category,'checks':{'private_runtime_cache_verified':False}}
+                report,passed=self.screen(phase,value)
+                self.assertFalse(passed);self.assertEqual(report,value)
+            for category in ('cache_api_source_/home/private-sentinel','private-sentinel','cache_unknown'):
+                value={'status':'failure','category':category,'checks':{'private_runtime_cache_verified':False}}
+                report,passed=self.screen(phase,value)
+                self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+                self.assertNotIn('private-sentinel',json.dumps(report))
+            value={'status':'failure','category':next(iter(safe.CACHE_FAILURES)),
+                   'checks':{'private_runtime_cache_verified':False},'cache_path':'private-sentinel'}
+            report,passed=self.screen(phase,value)
+            self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+            self.assertNotIn('private-sentinel',json.dumps(report))
+
     def test_browser_diagnostics_preserve_only_fixed_boolean_observations(self):
         value=self.raw('browser');value['status']='failure';value['category']='assets'
         value['checks']['badge_png_image_matches']=False
@@ -157,6 +174,7 @@ class HomepageReleaseTests(unittest.TestCase):
         common=names('PETISH_FYP_PROOF_COMMON')
         self.assertEqual(safe.NATIVE,common|names('PETISH_FYP_PROOF_VERIFY'))
         self.assertEqual(safe.CLEANUP,common)
+        self.assertEqual(safe.CACHE_FAILURES,names('PETISH_FYP_CACHE_FAILURES'))
         browser=(ROOT/'tools/homepage/browser.mjs').read_text()
         match=re.search(r'CHECK_KEYS = Object.freeze\(\[(.*?)\]\)',browser,re.S)
         self.assertEqual(safe.BROWSER,set(re.findall(r"'([a-z0-9_]+)'",match.group(1))))

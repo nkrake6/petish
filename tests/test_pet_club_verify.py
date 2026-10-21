@@ -463,6 +463,48 @@ console.log(JSON.stringify(out));
         self.assertEqual(result, ['body_unavailable', 'multipart', 'action', 'identity', 'nonce', 'kind', 'caption', 'window', 'unknown'])
         self.assertNotIn('PRIVATE', json.dumps(result))
 
+    @unittest.skipUnless(shutil.which('chromium'), 'Chromium is required')
+    def test_native_limit_submit_keeps_multipart_and_validity_with_site_scripts_disabled(self):
+        result = self.node(r"""
+const {createRequire}=await import('node:module');
+const require=createRequire(new URL('./tools/staging-rehearsal/package.json',import.meta.url));
+const {chromium}=require('playwright');
+const origin='https://staging.petish.biz';
+const state={input:{pet_id:123},operation:'petish_passport_create_moment',used:false};
+const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+try{
+ const context=await browser.newContext({javaScriptEnabled:false,serviceWorkers:'block'});
+ let posts=0,allowed=false,multipart=false;
+ await context.route('**/*',async route=>{
+  const request=route.request();
+  if(request.method()==='POST'){
+   posts++;const body=request.postData()??'';const type=request.headers()['content-type']??'';
+   allowed=proof.allowedRequest(request.url(),'POST',state,body,request.resourceType(),type);
+   multipart=type.startsWith('multipart/form-data;')&&body.includes('filename="synthetic-rejected.mp4"')&&body.includes('Synthetic browser video.');
+   if(!allowed){await route.abort();return;}
+   state.used=true;await route.fulfill({status:200,contentType:'text/html',body:'<ul class="woocommerce-error"><li>20 seconds</li></ul>'});return;
+  }
+  await route.fulfill({contentType:'text/html',body:`<form method="post" enctype="multipart/form-data" action="${origin}/wp-admin/admin-post.php">
+   <input name="action" value="petish_passport_create_moment" type="hidden"><input name="pet_id" value="123" type="hidden">
+   <input name="moment_id" value="0" type="hidden"><input name="kind" value="video" type="hidden">
+   <input name="petish_passport_nonce" value="123456789a" type="hidden"><textarea name="caption">Synthetic browser video.</textarea>
+   <input type="file" name="video" required><button type="submit">Save privately</button></form>
+   <div style="position:fixed;inset:0;z-index:999;background:white"></div>`});
+ });
+ const page=await context.newPage();await page.goto(origin+'/fixture');
+ let invalidRejected=false;try{await page.locator('form').evaluate(proof.requestNativeVideoLimit);}catch{invalidRejected=true;}
+ const absent=posts===0;
+ await page.locator('input[type=file]').setInputFiles({name:'synthetic-rejected.mp4',mimeType:'video/mp4',buffer:proof.videoFixture('synthetic-over-duration.mp4')});
+ const navigated=page.waitForNavigation().then(response=>({response}),error=>({error}));
+ const facts=await page.locator('form').evaluate(proof.requestNativeVideoLimit);
+ const navigation=await navigated;if(navigation.error)throw navigation.error;
+ console.log(JSON.stringify([invalidRejected,absent,posts===1,allowed,multipart,state.used,
+  facts.native_form_valid,facts.submitter_visible,!facts.submitter_receives_pointer,
+  (await page.locator('.woocommerce-error').textContent()).includes('20 seconds')]));
+}finally{await browser.close();}
+""")
+        self.assertEqual(result, [True] * 10)
+
     def test_browser_video_fixtures_and_owned_request_boundaries(self):
         result = self.node(r"""
 const origin='https://staging.petish.biz',input={pet_id:123,photo_moment_id:124,name:'Petish Club Test Rabbit'};
