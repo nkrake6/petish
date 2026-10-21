@@ -480,13 +480,36 @@ const report=proof.publicReport({category:'favourites',diagnostics:{...facts,own
 const cached=proof.favouritesHttpFacts('member',200,{'x-litespeed-cache':'hit'});
 console.log(JSON.stringify({report,cached,keys:proof.DIAGNOSTIC_KEYS}));
 """)
-        self.assertEqual(len(result['keys']), 24)
+        self.assertEqual(len(result['keys']), 51)
         self.assertEqual(set(result['report']['diagnostics']), set(result['keys']))
         self.assertTrue(result['report']['diagnostics']['favourites_guest_redirect_to_staging_login'])
         self.assertTrue(result['report']['diagnostics']['favourites_guest_no_store_header'])
         self.assertFalse(result['report']['diagnostics']['favourites_member_status_200'])
         self.assertTrue(result['cached']['favourites_member_litespeed_hit'])
         self.assertNotIn('PRIVATE', json.dumps(result))
+
+    def test_menu_diagnostics_bind_actual_stylesheet_without_publishing_bytes(self):
+        result = self.node(r"""
+const fs=await import('node:fs');let listener;const diagnostics={};
+const pending=proof.observeMenuStylesheet({on(event,callback){if(event!=='response')throw Error('event');listener=callback;}},diagnostics);
+const bytes=fs.readFileSync('./wordpress/wp-content/plugins/petish-passport/assets/passport.css');
+const response=(url,body,status=200)=>({url:()=>url,status:()=>status,body:async()=>body});
+listener(response('https://foreign.invalid/wp-content/plugins/petish-passport/assets/passport.css',Buffer.from('PRIVATE')));
+const foreignIgnored=pending.length===0;
+listener(response('https://staging.petish.biz/wp-content/plugins/petish-passport/assets/passport.css?ver=0.3.2',bytes));
+await Promise.all(pending);const matched=diagnostics.menu_stylesheet_seen&&diagnostics.menu_stylesheet_bytes_verified;
+listener(response('https://staging.petish.biz/wp-content/plugins/petish-passport/assets/passport.css?ver=0.3.2',Buffer.from('PRIVATE')));
+await Promise.all(pending);const mismatch=!diagnostics.menu_stylesheet_bytes_verified;
+const reports=proof.MENU_CATEGORIES.map(category=>proof.publicReport({category,diagnostics}));
+console.log(JSON.stringify({foreignIgnored,matched,mismatch,reports,categories:proof.MENU_CATEGORIES}));
+""")
+        self.assertTrue(result['foreignIgnored'] and result['matched'] and result['mismatch'])
+        self.assertEqual([report['category'] for report in result['reports']], result['categories'])
+        self.assertNotIn('PRIVATE', json.dumps(result))
+        spec = importlib.util.spec_from_file_location('petish_menu_sanitizer', ROOT / 'scripts/sanitize-pet-club-result.py')
+        sanitizer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sanitizer)
+        self.assertTrue(set(result['categories']) <= sanitizer.CATEGORIES)
 
     def test_browser_form_failures_report_only_finite_steps(self):
         result = self.node(r"""

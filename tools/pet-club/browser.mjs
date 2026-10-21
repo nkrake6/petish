@@ -28,9 +28,19 @@ export const CHECK_KEYS = Object.freeze([
   'real_video_upload_verified', 'private_video_playback_verified', 'private_video_http_verified',
   'private_video_unauthorized_denied', 'public_video_http_verified', 'video_ranges_verified', 'revoked_video_http_denied',
 ]);
-export const DIAGNOSTIC_KEYS = Object.freeze(['member', 'owner', 'guest'].flatMap(actor =>
+export const MENU_DIAGNOSTIC_KEYS = Object.freeze([
+  'menu_fonts_ready', 'menu_stylesheet_seen', 'menu_stylesheet_bytes_verified',
+  ...['cyan', 'purple', 'pink', 'gold'].map(group => `menu_palette_${group}`),
+  ...[320, 390].flatMap(width => ['visible', 'receives_pointer'].map(fact => `menu_${width}_toggle_${fact}`)),
+  ...[320, 390, 992, 1440].flatMap(width => ['light', 'dark'].flatMap(theme =>
+    ['icons', 'height'].map(fact => `menu_${width}_${theme}_${fact}`))),
+]);
+export const MENU_CATEGORIES = Object.freeze(['menu_ready', 'menu_fonts', 'menu_stylesheet', 'menu_icons', 'menu_height', 'menu_restore',
+  ...[320, 390, 992, 1440].flatMap(width => [`menu_viewport_${width}`, `menu_measure_${width}_light`, `menu_measure_${width}_dark`,
+    ...(width < 992 ? [`menu_open_${width}`, `menu_close_${width}`] : [])])]);
+export const DIAGNOSTIC_KEYS = Object.freeze([...MENU_DIAGNOSTIC_KEYS, ...['member', 'owner', 'guest'].flatMap(actor =>
   ['status_200', 'status_404', 'status_redirect', 'status_403', 'status_other',
-    'no_store_header', 'litespeed_hit', 'redirect_to_staging_login'].map(fact => `favourites_${actor}_${fact}`)));
+    'no_store_header', 'litespeed_hit', 'redirect_to_staging_login'].map(fact => `favourites_${actor}_${fact}`))]);
 /** Response classification only: never publish headers, URLs, or response bodies. */
 export function favouritesHttpFacts(actor, status, headers) {
   if (!['member', 'owner', 'guest'].includes(actor)) throw new Error('input');
@@ -67,7 +77,7 @@ const CATEGORIES = new Set(['input', 'browser', 'login', 'owner', 'mobile', 'des
   'tabs', 'preview', 'lightbox', 'form', 'upload', 'private_photos', 'no_js', 'dark_mode',
   'publish', 'public_profile', 'public_photo', 'hearts', 'unpublish', 'revocation', 'network', 'complete',
   'directory', 'favourites', 'video_input', 'video_limits', 'video_upload', 'video_http', 'video_playback',
-  ...FORM_CATEGORIES, ...VIDEO_LIMIT_CATEGORIES]);
+  ...FORM_CATEGORIES, ...VIDEO_LIMIT_CATEGORIES, ...MENU_CATEGORIES]);
 
 export function validateInput(value) {
   if (!value || value.format !== 'petish-club-browser-v1' || value.url !== ORIGIN
@@ -287,11 +297,16 @@ export function accountColourTrackFacts(navigation) {
     [['customer-logout'], dark ? 'rgb(249, 168, 37)' : 'rgb(139, 91, 5)'],
   ];
   let icons = true, height = true;
+  const palette = { cyan: true, purple: true, pink: true, gold: true };
   for (const [endpoints, colour] of groups) for (const endpoint of endpoints) {
     const item = navigation.querySelector(`.woocommerce-MyAccount-navigation-link--${endpoint}`), link = item?.querySelector('a');
-    if (!link) return { icons: false, height: false };
+    if (!link) return { icons: false, height: false, palette: { cyan: false, purple: false, pink: false, gold: false } };
     const active = item.classList.contains('is-active'), icon = getComputedStyle(link, '::after');
     const circle = getComputedStyle(link, '::before'), rail = getComputedStyle(item, '::before');
+    const group = ['cyan', 'purple', 'pink', 'gold'][groups.findIndex(entry => entry[0] === endpoints)];
+    palette[group] = palette[group] && rail.backgroundColor === colour
+      && icon.backgroundColor === (active ? (dark ? 'rgb(11, 20, 38)' : 'rgb(248, 249, 252)') : colour)
+      && (!active || circle.backgroundColor === colour);
     icons = icons && icon.display === 'block' && icon.position === 'absolute' && icon.pointerEvents === 'none'
       && icon.width === '20px' && icon.height === '20px' && icon.maskImage.includes('data:image/svg+xml')
       && rail.backgroundColor === colour && icon.backgroundColor === (active ? (dark ? 'rgb(11, 20, 38)' : 'rgb(248, 249, 252)') : colour)
@@ -310,23 +325,58 @@ export function accountColourTrackFacts(navigation) {
       && style.paddingLeft === '16px' && style.paddingRight === '16px' && style.minHeight === '64px'
       && box.height >= 64 && box.height <= 68;
   }
-  return { icons, height };
+  return { icons, height, palette };
 }
-async function checkAccountColourTrack(page) {
+export function observeMenuStylesheet(page, diagnostics) {
+  const pending = [];
+  page.on('response', response => {
+    const url = new URL(response.url());
+    if (url.origin !== ORIGIN || url.pathname !== '/wp-content/plugins/petish-passport/assets/passport.css') return;
+    diagnostics.menu_stylesheet_seen = true;
+    pending.push(response.body().then(bytes => {
+      diagnostics.menu_stylesheet_bytes_verified = response.status() === 200
+        && createHash('sha256').update(bytes).digest('hex') === '7bfaba1d23ea4ca07fbdb009aceec36efbefb194e1bdafff60c46f012c8a237d';
+    }).catch(() => { diagnostics.menu_stylesheet_bytes_verified = false; }));
+  });
+  return pending;
+}
+export function menuToggleFacts(toggle) {
+  const box = toggle.getBoundingClientRect(), style = getComputedStyle(toggle);
+  const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+  return { visible: box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility === 'visible',
+    receives_pointer: !!hit && (hit === toggle || toggle.contains(hit)) };
+}
+export async function checkAccountColourTrack(page, diagnostics = {}, setCategory = () => {}) {
   const viewport = page.viewportSize(), original = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   let icons = true, height = true;
+  const palette = { cyan: true, purple: true, pink: true, gold: true };
   try {
+    setCategory('menu_fonts');
     await page.waitForFunction(() => !document.fonts || document.fonts.status === 'loaded');
+    diagnostics.menu_fonts_ready = true;
     for (const width of [320, 390, 992, 1440]) {
+      setCategory(`menu_viewport_${width}`);
       await page.setViewportSize({ width, height: 900 });
       const toggle = page.locator('.pp-account-navigation-toggle');
-      if (width <= 991 && await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+      if (width <= 991 && await toggle.getAttribute('aria-expanded') !== 'true') {
+        setCategory(`menu_open_${width}`);
+        const observe = async () => { const facts = await toggle.evaluate(menuToggleFacts);
+          for (const key of ['visible', 'receives_pointer']) diagnostics[`menu_${width}_toggle_${key}`] = facts[key]; };
+        await observe();
+        try { await toggle.click(); } catch (error) { await observe().catch(() => {}); throw error; }
+      }
       for (const theme of ['light', 'dark']) {
+        setCategory(`menu_measure_${width}_${theme}`);
         await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
         const facts = await page.locator('.woocommerce-MyAccount-navigation').evaluate(accountColourTrackFacts);
+        diagnostics[`menu_${width}_${theme}_icons`] = facts.icons;
+        diagnostics[`menu_${width}_${theme}_height`] = facts.height;
+        for (const group of Object.keys(palette)) {
+          palette[group] = palette[group] && facts.palette[group]; diagnostics[`menu_palette_${group}`] = palette[group];
+        }
         icons = icons && facts.icons; height = height && facts.height;
       }
-      if (width <= 991) await page.keyboard.press('Escape');
+      if (width <= 991) { setCategory(`menu_close_${width}`); await page.keyboard.press('Escape'); }
     }
   } finally {
     await page.evaluate(value => { if (value === null) document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', value); }, original);
@@ -436,13 +486,17 @@ export async function run(input, chromium) {
     const anonymous = await browser.newContext({ serviceWorkers: 'block', acceptDownloads: false });
     const anonymousState = { input }; await guard(anonymous, anonymousState);
     const { page, state } = owner;
+    const menuResponses = observeMenuStylesheet(page, diagnostics);
     category = 'owner'; await dashboard(page);
     mark('owned_passport_displayed', (await page.locator('#pp-pet-name').textContent()) === input.name
       && (await page.locator('.pc-status').textContent()).includes('Private'));
     category = 'mobile'; mark('mobile_390_verified', await fit(page, 390)); mark('mobile_320_verified', await fit(page, 320));
-    category = 'navigation'; const menu = page.locator('.pp-account-navigation-toggle'); await menu.waitFor({ state: 'visible' });
-    const menuFacts = await checkAccountColourTrack(page);
-    mark('account_menu_colour_track_verified', menuFacts.icons); mark('account_menu_height_preserved', menuFacts.height);
+    category = 'menu_ready'; const menu = page.locator('.pp-account-navigation-toggle'); await menu.waitFor({ state: 'visible' });
+    const menuFacts = await checkAccountColourTrack(page, diagnostics, value => { category = value; });
+    category = 'menu_stylesheet'; await Promise.all(menuResponses);
+    ensure(diagnostics.menu_stylesheet_seen && diagnostics.menu_stylesheet_bytes_verified, category);
+    category = 'menu_icons'; mark('account_menu_colour_track_verified', menuFacts.icons);
+    category = 'menu_height'; mark('account_menu_height_preserved', menuFacts.height); category = 'navigation';
     await menu.click(); ensure(await menu.getAttribute('aria-expanded') === 'true', category);
     await page.keyboard.press('Escape'); const menuClosed = await menu.getAttribute('aria-expanded') === 'false';
     const collection = await page.goto(ORIGIN + '/my-account/for-my-pet/', { waitUntil: 'domcontentloaded' });

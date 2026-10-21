@@ -175,8 +175,21 @@ BROWSER = {
     'unpublish_verified', 'unsafe_requests_blocked', 'video_client_limits_verified',
     'video_ranges_verified', 'video_server_limits_verified',
 }
-# Non-sensitive response facts aid diagnosis without affecting required checks.
-BROWSER_DIAGNOSTICS = {
+# Non-sensitive response and layout facts never substitute for required checks.
+MENU_DIAGNOSTICS = {
+    'menu_fonts_ready', 'menu_stylesheet_seen', 'menu_stylesheet_bytes_verified',
+    'menu_palette_cyan', 'menu_palette_purple', 'menu_palette_pink', 'menu_palette_gold',
+} | {f'menu_{width}_{fact}' for width in (320, 390)
+     for fact in ('toggle_visible', 'toggle_receives_pointer')} \
+  | {f'menu_{width}_{theme}_{fact}' for width in (320, 390, 992, 1440)
+     for theme in ('light', 'dark') for fact in ('icons', 'height')}
+MENU_CATEGORIES = {
+    'menu_ready', 'menu_fonts', 'menu_stylesheet', 'menu_icons', 'menu_height', 'menu_restore',
+} | {f'menu_viewport_{width}' for width in (320, 390, 992, 1440)} \
+  | {f'menu_measure_{width}_{theme}' for width in (320, 390, 992, 1440)
+     for theme in ('light', 'dark')} \
+  | {f'menu_{action}_{width}' for width in (320, 390) for action in ('open', 'close')}
+BROWSER_DIAGNOSTICS = MENU_DIAGNOSTICS | {
     f'favourites_{actor}_{fact}' for actor in ('member', 'owner', 'guest')
     for fact in ('status_200', 'status_404', 'status_redirect', 'status_403', 'status_other',
                  'no_store_header', 'litespeed_hit', 'redirect_to_staging_login')
@@ -203,7 +216,7 @@ REQUIRED['resume'] = REQUIRED['inspect'] | {'files_deployed', 'protected_state_u
 REQUIRED['apply'] = REQUIRED['apply'] | {'maintenance_guard_created', 'maintenance_guard_removed'}
 REQUIRED['rollback'] = REQUIRED['rollback'] | {'maintenance_guard_removed'}
 REQUIRED['commit'] = REQUIRED['commit'] | {'maintenance_guard_removed', 'migration_journal_archived'}
-CATEGORIES = set(MIGRATION) | {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'guard_receipt',
+CATEGORIES = MENU_CATEGORIES | set(MIGRATION) | {'guard_paths', 'guard_link_unavailable', 'guard_cross_device', 'guard_receipt',
     'guard_pending', 'guard_publish', 'guard_verified'} | navigation.CATEGORIES | {'snapshot','verification','renderer','catalogue','fixture',
     'maintenance','apply-index','pause','resume','native','cleanup','diagnose','retire','isolation','bootstrap','registration','routes','privacy',
     'index','directory','video','favourites','video_input','video_limits','video_upload','video_http','video_playback','contracts','render','upload','ownership','sharing','hearts','moderation','delete','mutation','state'} | {'revocation', 'private_photos', 'no_js', 'network', 'login', 'navigation', 'preview', 'public_profile', 'unpublish', 'public_photo', 'tabs', 'complete', 'input', 'lightbox', 'upload', 'browser', 'dark_mode', 'form', 'desktop', 'publish', 'owner', 'mobile'} | {

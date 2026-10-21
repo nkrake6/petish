@@ -349,8 +349,8 @@ const PETISH_CLUB_INDEX_REQUIRED = [
 ];
 
 function petish_club_index_boundary($run, $mode) {
-    $home = getenv('HOME'); $tools = $home . '/.petish-pet-club-deploy-' . $run; $release = $home . '/.petish-pet-club-releases/' . $run;
-    $root = $home . '/domains/petish.biz/public_html';
+    $proof_home = getenv('HOME'); $tools = $proof_home . '/.petish-pet-club-deploy-' . $run; $release = $proof_home . '/.petish-pet-club-releases/' . $run;
+    $root = $proof_home . '/domains/petish.biz/public_html';
     if (!petish_club_verify_run($run) || __DIR__ !== $tools || !petish_club_verify_path($tools, true) || (fileperms($tools) & 07777) !== 0700) petish_club_verify_fail();
     $marker = $tools . '/.pet-club-owned';
     if (!petish_club_verify_path($marker) || (fileperms($marker) & 07777) !== 0600 || file_get_contents($marker) !== $run . "\n") petish_club_verify_fail();

@@ -542,9 +542,14 @@ class PetClubReleaseTests(unittest.TestCase):
         self.assertEqual(safe.BROWSER, set(re.findall(r"'([a-z0-9_]+)'", contract.group(1))))
         if shutil.which('node'):
             exported = subprocess.check_output(['node', '--input-type=module', '-e',
-                "import { DIAGNOSTIC_KEYS } from './tools/pet-club/browser.mjs'; console.log(JSON.stringify(DIAGNOSTIC_KEYS));"],
+                "import { DIAGNOSTIC_KEYS, MENU_DIAGNOSTIC_KEYS, MENU_CATEGORIES } from './tools/pet-club/browser.mjs'; "
+                "console.log(JSON.stringify({diagnostics:DIAGNOSTIC_KEYS,menu:MENU_DIAGNOSTIC_KEYS,categories:MENU_CATEGORIES}));"],
                 cwd=ROOT, timeout=10)
-            self.assertEqual(safe.BROWSER_DIAGNOSTICS, set(json.loads(exported)))
+            exported = json.loads(exported)
+            self.assertEqual(safe.BROWSER_DIAGNOSTICS, set(exported['diagnostics']))
+            self.assertEqual(safe.MENU_DIAGNOSTICS, set(exported['menu']))
+            self.assertEqual(safe.MENU_CATEGORIES, set(exported['categories']))
+            self.assertTrue(set(exported['categories']) <= safe.CATEGORIES)
 
 
     def test_expired_backup_or_unproven_recovery_refuses(self):
