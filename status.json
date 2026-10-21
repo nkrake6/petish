@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "inspect",
   "run_id": "39550558798-1",
   "source_commit": "f8061d2763b9724c37da127759a155726252b5aa",
-  "generated_utc": "2026-10-21T05:37:09.856233+00:00",
+  "generated_utc": "2026-10-21T05:37:11.824176+00:00",
   "source_hashes": {
     "assets/css/home.css": "dc4f3606341c2eb44df505c54a192e07d2771e90a9e09c102ac2a6983789bd23",
     "assets/css/market-selector.css": "0ff5c3d46eb4e400a613f721a1e1e1349d4f30b13edd46875eab75c7287fcee0",
