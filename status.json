@@ -1,0 +1,14 @@
+{
+  "status": "failure",
+  "category": "prerequisites",
+  "mode": "staging",
+  "run_id": "39854501176-1",
+  "source_commit": "354a6ba260bd610dd2ca3d129113be517018a5fa",
+  "generated_utc": "2026-10-22T21:07:15.320216+00:00",
+  "source_hashes": {},
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {},
+  "preparation_stage": "connection"
+}
