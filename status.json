@@ -1,0 +1,14 @@
+{
+  "status": "failure",
+  "category": "prerequisites",
+  "mode": "staging",
+  "run_id": "39861159898-1",
+  "source_commit": "66bc29548d69556f21cf12ff17fbee0afa1aacac",
+  "generated_utc": "2026-10-22T22:00:38.957019+00:00",
+  "source_hashes": {},
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "phases": {},
+  "preparation_stage": "browser_tools"
+}
