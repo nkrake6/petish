@@ -398,7 +398,7 @@ path.write_text(json.dumps(value)+'\n')
 PY
     failure_category=browser
     browser_status=0
-    node tools/homepage/browser.mjs "$work/browser-input.json" "$work/browser.private.json" \
+    bash scripts/homepage-browser-container.sh run "$work" tools/homepage/browser.mjs "$work/browser-input.json" "$work/browser.private.json" \
         > "$work/browser.private.stdout" 2> "$work/browser.private.stderr" || browser_status=$?
     browser_validation=0
     screen_phase browser || browser_validation=$?
@@ -416,7 +416,7 @@ PY
     chmod 600 "$work/cart-browser-input.json"
     failure_category=cart_browser
     cart_status=0
-    node tools/homepage/cart-badge-browser.mjs "$work/cart-browser-input.json" "$work/cart_browser.private.json" \
+    bash scripts/homepage-browser-container.sh run "$work" tools/homepage/cart-badge-browser.mjs "$work/cart-browser-input.json" "$work/cart_browser.private.json" \
         > "$work/cart_browser.private.stdout" 2> "$work/cart_browser.private.stderr" || cart_status=$?
     cart_validation=0
     screen_phase cart_browser || cart_validation=$?

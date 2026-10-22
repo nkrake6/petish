@@ -16,6 +16,7 @@ on:
     paths:
       - .github/workflows/homepage.yml
       - scripts/hostinger-homepage.sh
+      - scripts/homepage-browser-container.sh
       - scripts/deploy-homepage-remote.php
       - scripts/verify-homepage.php
       - scripts/for-your-pet-proof.php
@@ -28,6 +29,7 @@ on:
       - scripts/consume-litespeed-html-purge.py
       - scripts/sanitize-litespeed-html-purge.py
       - tools/homepage/browser.mjs
+      - tools/homepage/container-smoke.mjs
       - tools/homepage/cart-badge-browser.mjs
       - operations/homepage-release.json
       - wordpress/wp-content/themes/dt-the7-child/front-page.php
@@ -95,11 +97,10 @@ jobs:
           fi
           if [[ "$HOMEPAGE_MODE" == staging ]]; then
             preparation_stage=npm_tools
-            export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/petish-homepage-browsers"
-            printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
-            timeout --kill-after=5s 90s npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
+            PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 timeout --kill-after=5s 90s npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
             preparation_stage=browser_tools
-            timeout --kill-after=5s 240s node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium webkit
+            browser_image=$(bash scripts/homepage-browser-container.sh prepare)
+            printf 'PETISH_HOMEPAGE_BROWSER_IMAGE=%s\n' "$browser_image" >> "$GITHUB_ENV"
           fi
           if [[ "$HOMEPAGE_MODE" == apply ]]; then
             preparation_stage=health_dependencies
@@ -121,6 +122,6 @@ jobs:
       - name: Remove private runner data
         if: always()
         run: |
-          rm -rf -- "$RUNNER_TEMP"/petish-homepage.* "$RUNNER_TEMP/petish-homepage-browsers"
+          rm -rf -- "$RUNNER_TEMP"/petish-homepage.* "$RUNNER_TEMP"/petish-homepage-container.* "$RUNNER_TEMP/petish-homepage-browsers"
           rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
 
