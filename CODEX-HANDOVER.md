@@ -79,10 +79,10 @@ for the current cloud workflow. The Mac setup below is archived history.
   [Production run 39550192872-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-39550192872-1)
   passed native, cache, canonical page/asset and release-commit checks. See
   [header release evidence](docs/HEADER-THEME-AND-FLAGS.md).
-- **Yellow Cart count:** preview only, awaiting design approval. The revised
-  circle is 14px, matching the Cart label's font height, with a smaller numeral.
-  [View the smaller preview](https://github.com/nkrake6/petish/blob/c914f2a/docs/cart-badge-preview/assets/yellow-cart-dark.png).
-  Do not treat the preview as an implemented count feature.
+- **Yellow Cart count:** live on 22 October 2026 after full hosted staging and
+  production verification. The circle is 14px, matching the Cart label's font
+  height, and counts total item quantities. It hides when the cart is empty.
+  See [Cart badge behavior and release evidence](docs/CART-BADGE.md).
 - **Afterpay:** enabled and active in WooPayments, and present at checkout.
   The selected Blue brush already includes native instalment-message markup.
   WooPayments does not offer Afterpay as a G Pay-style express wallet. The owner

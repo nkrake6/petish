@@ -70,5 +70,6 @@ passed on 21 October 2026. Recovery selected that exact backup, booted WordPress
 and the active plugins, verified page/media responses and private-photo
 protection, and removed the isolated sandbox.
 
-The yellow Cart count remains a separate preview awaiting design approval. It
-is not included in this release.
+The original header release above excluded the yellow Cart count. That feature
+was subsequently approved; see [Cart badge behavior and release evidence](CART-BADGE.md)
+for its verified production release on 22 October 2026.
