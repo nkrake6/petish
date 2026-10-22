@@ -20,6 +20,7 @@ class CartBadgeFixtureTests(unittest.TestCase):
           if($item['kind']==='sql')$out[]=cart_badge_runtime_sql_allowed($item['sql'],'wp_',$item['uid']??7,$owner);
           elseif($item['kind']==='request')$out[]=cart_badge_request_allowed(array_replace($state,$item['state']??[]),$item['method'],$item['path'],$item['query']??[],$item['post']??[],$item['json']??[],$item['uid']??7);
           elseif($item['kind']==='bind'){try{$bound=cart_badge_bind_key(array_replace($state,['cart_key'=>null],$item['state']??[]),$item['key'],$item['product_id']??31,$item['quantity']??2,$item['variation_id']??0,$item['items'],$item['uid']??7);$out[]=$bound['cart_key']===$item['key'];}catch(Throwable $ignored){$out[]=false;}}
+          elseif($item['kind']==='guardfacts')$out[]=cart_badge_guard_auth_facts($item['source']);
           elseif($item['kind']==='reason')$out[]=cart_badge_request_denial($state,$item['path'],$item['json'],$item['uid']??7,$item['query']??[],$item['method']??'POST');
           else throw new RuntimeException();
         }echo json_encode($out,JSON_THROW_ON_ERROR);'''
@@ -27,6 +28,16 @@ class CartBadgeFixtureTests(unittest.TestCase):
                                 input=json.dumps(payload), text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
+
+    def test_pinned_guard_static_facts_expose_no_source_or_secret_literals(self):
+        source = "<?php /* auth_redirect(); */ $secret='private-sentinel'; add_action('template_redirect',function(){ if(!is_user_logged_in()) wp_safe_redirect(wp_login_url()); });"
+        facts = self.php([{'kind': 'guardfacts', 'source': source}])[0]
+        self.assertEqual(facts, {'auth_redirect': False, 'wp_safe_redirect': True,
+                                'wp_login_url': True, 'is_user_logged_in': True,
+                                'template_redirect_hook': True, 'init_hook': False})
+        self.assertNotIn('private-sentinel', json.dumps(facts))
+        empty = self.php([{'kind': 'guardfacts', 'source': '<?php function auth_redirect() {} $text="wp_safe_redirect()";'}])[0]
+        self.assertFalse(any(empty.values()))
 
     def test_native_owned_session_queries_are_allowed(self):
         statements = [

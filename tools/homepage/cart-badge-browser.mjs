@@ -15,7 +15,7 @@ export const CHECK_KEYS=Object.freeze(['browser_started','fixture_input_verified
  'badge_yellow_circle_14px','badge_accessible_quantity','desktop_header_height_preserved',
  'mobile_header_height_preserved','mobile_badge_visible','dark_mode_badge_verified','reload_quantity_preserved',
  'request_scope_enforced']);
-export const DIAGNOSTIC_KEYS=Object.freeze(['guest_count_request_seen', 'guest_count_request_allowed', 'guest_count_request_denied', 'guest_count_response_received', 'guest_count_http_redirect', 'guest_count_content_type_json', 'guest_count_content_type_html', 'guest_count_page_same_origin', 'guest_count_csp_violation', 'guest_count_timeout', 'guest_count_oversize', 'guest_count_transport_error', 'guest_count_body_error', 'guest_count_json_invalid', 'guest_get_request_seen', 'guest_get_request_allowed', 'guest_get_request_denied', 'guest_get_response_received', 'guest_get_http_redirect', 'guest_get_page_same_origin', 'guest_get_csp_violation', 'guest_get_timeout', 'guest_get_oversize', 'guest_get_transport_error', 'guest_get_body_error', 'guest_get_json_invalid', 'guest_homepage_http_ok', 'guest_authentication_absent', 'guest_count_http_200', 'guest_count_http_403', 'guest_count_http_5xx', 'guest_count_fetch_exception', 'guest_count_zero', 'guest_count_private', 'guest_get_http_403', 'guest_get_fetch_exception', 'update_fixture_denied_query_fields', 'update_fixture_denied_query_locale', 'update_fixture_denied_query_route', 'update_fixture_denied_quantity_type', 'update_fixture_denied_context', 'update_server_method_is_post', 'update_server_method_is_other', 'asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
+export const DIAGNOSTIC_KEYS=Object.freeze(['guest_count_redirect_login', 'guest_count_redirect_other_same_origin', 'guest_count_redirect_external', 'guest_get_redirect_login', 'guest_get_redirect_other_same_origin', 'guest_get_redirect_external', 'guest_homepage_redirect_login', 'guest_homepage_redirect_other_same_origin', 'guest_homepage_redirect_external', 'guest_homepage_final_root', 'shared_guard_auth_redirect', 'shared_guard_wp_safe_redirect', 'shared_guard_wp_login_url', 'shared_guard_is_user_logged_in', 'shared_guard_template_redirect_hook', 'shared_guard_init_hook', 'guest_count_opaque_redirect', 'guest_get_opaque_redirect', 'guest_count_network_http2_protocol_error', 'guest_count_network_empty_response', 'guest_count_network_blocked_by_client', 'guest_count_network_failed', 'guest_count_network_connection_reset', 'guest_count_network_connection_closed', 'guest_count_network_connection_aborted', 'guest_count_network_connection_refused', 'guest_count_network_timed_out', 'guest_count_network_name_not_resolved', 'guest_count_network_cert_error', 'guest_count_network_aborted', 'guest_count_network_other', 'guest_get_network_http2_protocol_error', 'guest_get_network_empty_response', 'guest_get_network_blocked_by_client', 'guest_get_network_failed', 'guest_get_network_connection_reset', 'guest_get_network_connection_closed', 'guest_get_network_connection_aborted', 'guest_get_network_connection_refused', 'guest_get_network_timed_out', 'guest_get_network_name_not_resolved', 'guest_get_network_cert_error', 'guest_get_network_aborted', 'guest_get_network_other', 'guest_homepage_http_403', 'guest_homepage_http_404', 'guest_homepage_http_5xx', 'guest_homepage_http_redirect', 'guest_homepage_fixture_header_present', 'guest_homepage_denied_identity', 'guest_homepage_denied_request', 'guest_homepage_denied_expired', 'guest_homepage_denied_uri', 'guest_homepage_denied_body', 'guest_homepage_denied_unavailable', 'guest_homepage_denied_query_fields', 'guest_homepage_denied_query_locale', 'guest_homepage_denied_query_route', 'guest_homepage_denied_context', 'mobile_390_badge_initial_visible', 'mobile_390_header_height_ok', 'mobile_390_menu_needed', 'mobile_390_menu_control_present', 'mobile_390_menu_click_completed', 'mobile_390_badge_final_visible', 'mobile_390_exception', 'mobile_320_badge_initial_visible', 'mobile_320_header_height_ok', 'mobile_320_menu_needed', 'mobile_320_menu_control_present', 'mobile_320_menu_click_completed', 'mobile_320_badge_final_visible', 'mobile_320_exception', 'guest_count_request_seen', 'guest_count_request_allowed', 'guest_count_request_denied', 'guest_count_response_received', 'guest_count_http_redirect', 'guest_count_content_type_json', 'guest_count_content_type_html', 'guest_count_page_same_origin', 'guest_count_csp_violation', 'guest_count_timeout', 'guest_count_oversize', 'guest_count_transport_error', 'guest_count_body_error', 'guest_count_json_invalid', 'guest_get_request_seen', 'guest_get_request_allowed', 'guest_get_request_denied', 'guest_get_response_received', 'guest_get_http_redirect', 'guest_get_page_same_origin', 'guest_get_csp_violation', 'guest_get_timeout', 'guest_get_oversize', 'guest_get_transport_error', 'guest_get_body_error', 'guest_get_json_invalid', 'guest_homepage_http_ok', 'guest_authentication_absent', 'guest_count_http_200', 'guest_count_http_403', 'guest_count_http_5xx', 'guest_count_fetch_exception', 'guest_count_zero', 'guest_count_private', 'guest_get_http_403', 'guest_get_fetch_exception', 'update_fixture_denied_query_fields', 'update_fixture_denied_query_locale', 'update_fixture_denied_query_route', 'update_fixture_denied_quantity_type', 'update_fixture_denied_context', 'update_server_method_is_post', 'update_server_method_is_other', 'asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
 const CATEGORIES=new Set(['input','browser','login','assets','initial','add','update','remove','privacy','geometry','scope','complete']);
 function mark(report,key,value,category){report.checks[key]=value===true;if(!value)throw new Error(category);}
 export function validateInput(value){
@@ -94,9 +94,34 @@ export function allowedGuestCartRequest(raw,method,body,type,input) {
    &&allowedRequest(raw,'GET','',type,input,{phase:'privacy',key:'',loginUsed:true}));
  }catch{return false;}
 }
+/** Network errors leave the runner only as a fixed enum of boolean facts. */
+export function observeGuestNetworkFailure(error,prefix,diagnostics) {
+ const known={ERR_HTTP2_PROTOCOL_ERROR:'http2_protocol_error',ERR_EMPTY_RESPONSE:'empty_response',ERR_BLOCKED_BY_CLIENT:'blocked_by_client',ERR_FAILED:'failed',ERR_CONNECTION_RESET:'connection_reset',ERR_CONNECTION_CLOSED:'connection_closed',ERR_CONNECTION_ABORTED:'connection_aborted',ERR_CONNECTION_REFUSED:'connection_refused',ERR_TIMED_OUT:'timed_out',ERR_CONNECTION_TIMED_OUT:'timed_out',ERR_NAME_NOT_RESOLVED:'name_not_resolved',ERR_ABORTED:'aborted'};
+ const name=typeof error==='string'&&error.startsWith('net::')?error.slice(5):'';
+ const fact=known[name]||(name.startsWith('ERR_CERT_')?'cert_error':'other');
+ diagnostics[prefix+'network_'+fact]=true;
+}
+function observeKnownRedirect(headers,prefix,diagnostics) {
+ if(typeof headers.location!=='string')return;
+ try{const target=new URL(headers.location,ORIGIN);
+  const fact=target.origin!==ORIGIN?'external':target.pathname==='/wp-login.php'?'login':'other_same_origin';
+  diagnostics[prefix+'redirect_'+fact]=true;
+ }catch{}
+}
+export function observeGuestHomepage(status,headers,run,diagnostics) {
+ observeKnownRedirect(headers,'guest_homepage_',diagnostics);
+ diagnostics.guest_homepage_http_ok=status>=200&&status<300;
+ if(status===403)diagnostics.guest_homepage_http_403=true;
+ if(status===404)diagnostics.guest_homepage_http_404=true;
+ if(status>=500&&status<600)diagnostics.guest_homepage_http_5xx=true;
+ if(status>=300&&status<400)diagnostics.guest_homepage_http_redirect=true;
+ if(headers['x-petish-cart-fixture']===run)diagnostics.guest_homepage_fixture_header_present=true;
+ const reason=headers['x-petish-cart-fixture-reason'];
+ if(['identity','request','expired','uri','body','unavailable','query_fields','query_locale','query_route','context'].includes(reason))diagnostics['guest_homepage_denied_'+reason]=true;
+}
 /** Record only fixed facts before reading a possibly oversized/failed response body. */
 export function observeGuestCountResponse(status,headers,prefix,diagnostics) {
- diagnostics[prefix+'response_received']=true;
+ diagnostics[prefix+'response_received']=true;observeKnownRedirect(headers,prefix,diagnostics);
  if(status===403)diagnostics[prefix+'http_403']=true;
  if(status>=300&&status<400)diagnostics[prefix+'http_redirect']=true;
  if(prefix==='guest_count_'){
@@ -113,13 +138,14 @@ export function guestCartCountBrowserRequest(page,diagnostics) {
   const prefix=method==='POST'?'guest_count_':'guest_get_';
   try{
    const result=await page.evaluate(async({target,method})=>{
-    const facts={page_same_origin:location.origin===new URL(target).origin,csp_violation:false,timeout:false,oversize:false,transport_error:false,body_error:false};
+    const facts={page_same_origin:location.origin===new URL(target).origin,csp_violation:false,timeout:false,oversize:false,transport_error:false,body_error:false,opaque_redirect:false,response_received:false};
     const controller=new AbortController(),timer=setTimeout(()=>{facts.timeout=true;controller.abort();},30000);
     const policy=event=>{if(['connect-src','default-src'].includes(event.effectiveDirective)){try{if(new URL(event.blockedURI).origin===new URL(target).origin)facts.csp_violation=true;}catch{}}};
     document.addEventListener('securitypolicyviolation',policy);
     let response=null,body=null;
     try{
-     response=await fetch(target,{method,mode:'same-origin',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'application/json'},signal:controller.signal});
+     response=await fetch(target,{method,mode:'same-origin',credentials:'same-origin',cache:'no-store',redirect:'manual',headers:{Accept:'application/json'},signal:controller.signal});
+     facts.response_received=true;facts.opaque_redirect=response.type==='opaqueredirect';
      const reader=response.body?.getReader(),chunks=[];let size=0;
      if(Number(response.headers.get('content-length')??0)>65536){facts.oversize=true;controller.abort();throw new Error('privacy');}
      if(reader)while(true){const{done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>65536){facts.oversize=true;controller.abort();await reader.cancel();throw new Error('privacy');}chunks.push(value);}
@@ -131,7 +157,7 @@ export function guestCartCountBrowserRequest(page,diagnostics) {
     }finally{clearTimeout(timer);document.removeEventListener('securitypolicyviolation',policy);}
     return{status:response?.status??0,headers:response?Object.fromEntries(response.headers):{},body,facts};
    },{target:COUNT,method});
-   for(const fact of ['page_same_origin','csp_violation','timeout','oversize','transport_error','body_error'])diagnostics[prefix+fact]=result.facts?.[fact]===true;
+   for(const fact of ['page_same_origin','csp_violation','timeout','oversize','transport_error','body_error','opaque_redirect','response_received'])diagnostics[prefix+fact]=result.facts?.[fact]===true;
    if(result.status)observeGuestCountResponse(result.status,result.headers,prefix,diagnostics);
    if(typeof result.body!=='string')throw new Error('privacy');
    return{status:()=>result.status,headers:()=>result.headers,json:async()=>{try{return JSON.parse(result.body);}catch{diagnostics[prefix+'json_invalid']=true;throw new Error('privacy');}}};
@@ -198,6 +224,7 @@ async function updateObservation(page,context,report){
 async function main(args){let browser,context,guest,page;const responseTasks=[];const report={status:'failure',category:'input',checks:{},diagnostics:{}};
  try{
   if(args.length!==2)throw new Error('input');const input=inputFile(args[0]);mark(report,'fixture_input_verified',true,'input');
+  for(const fact of ['auth_redirect','wp_safe_redirect','wp_login_url','is_user_logged_in','template_redirect_hook','init_hook'])report.diagnostics['shared_guard_'+fact]=input.guard_auth_facts?.[fact]===true;
   const require=createRequire(import.meta.url);const {chromium}=require('../staging-rehearsal/node_modules/playwright');
   const executable=process.env.PETISH_BROWSER_EXECUTABLE||(fs.existsSync(chromium.executablePath())?undefined:'/usr/bin/chromium');
   browser=await chromium.launch({headless:true,...(executable?{executablePath:executable}:{}),args:['--no-sandbox']});
@@ -259,15 +286,17 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
     const allowed=allowedGuestCartRequest(request.url(),request.method(),request.postData()??'',request.resourceType(),input);
     if(countRequest){report.diagnostics[prefix+'request_seen']=true;report.diagnostics[prefix+(allowed?'request_allowed':'request_denied')]=true;}
     return allowed?route.continue():route.abort('blockedbyclient');});
-   guest.on('response',response=>{if(response.url()===COUNT)observeGuestCountResponse(response.status(),response.headers(),response.request().method()==='POST'?'guest_count_':'guest_get_',report.diagnostics);});
+   guest.on('response',response=>{if(response.url()===COUNT)observeGuestCountResponse(response.status(),response.headers(),response.request().method()==='POST'?'guest_count_':'guest_get_',report.diagnostics);else if(response.url()===ORIGIN+'/')observeGuestHomepage(response.status(),response.headers(),input.run,report.diagnostics);});
+   guest.on('requestfailed',request=>{if(request.url()===COUNT)observeGuestNetworkFailure(request.failure()?.errorText,request.method()==='POST'?'guest_count_':'guest_get_',report.diagnostics);});
    if(typeof guest.routeWebSocket==='function')await guest.routeWebSocket('**/*',socket=>socket.close());
    const guestPage=await guest.newPage();const warm=await guestPage.goto(ORIGIN+'/',{waitUntil:'domcontentloaded',timeout:30000});
-   report.diagnostics.guest_homepage_http_ok=warm?.ok()===true;
+   report.diagnostics.guest_homepage_final_root=warm?.url()===ORIGIN+'/';
+   if(report.diagnostics.guest_homepage_final_root)observeGuestHomepage(warm.status(),warm.headers(),input.run,report.diagnostics);
    const noAuth=async()=>(await guest.cookies()).every(cookie=>!/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
    const anonymous=await noAuth(),guestRequest=guestCartCountBrowserRequest(guestPage,report.diagnostics);report.diagnostics.guest_authentication_absent=anonymous;
    const anon=await countRequest({request:guestRequest});report.diagnostics.guest_count_zero=anon.count===0;report.diagnostics.guest_count_private=anon.private;
    report.diagnostics.guest_authentication_absent=anonymous&&await noAuth();
-   mark(report,'anonymous_session_isolated',report.diagnostics.guest_homepage_http_ok&&report.diagnostics.guest_authentication_absent&&anon.count===0&&anon.private,'privacy');
+   mark(report,'anonymous_session_isolated',report.diagnostics.guest_homepage_http_ok&&report.diagnostics.guest_homepage_final_root&&report.diagnostics.guest_authentication_absent&&anon.count===0&&anon.private,'privacy');
    const denied=await guestRequest.get(COUNT,{maxRedirects:0,timeout:30000});mark(report,'count_get_denied',denied.status()===403,'privacy');
    guestPrivacyPassed=true;
   }catch{/* Keep both privacy gates required while collecting independent owned-cart checks. */}
@@ -276,21 +305,34 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   let g=await geometry(page);mark(report,'badge_yellow_circle_14px',g.valid&&g.shown>0,'geometry');mark(report,'badge_accessible_quantity',g.labels,'geometry');mark(report,'desktop_header_height_preserved',g.height,'geometry');
   let mobileHeight=true,mobileVisible=true;
   for(const width of [390,320]){
-   await page.setViewportSize({width,height:844});await page.waitForTimeout(150);
-   const close=page.locator('.dt-close-mobile-menu-icon:visible').first();if(await close.count()){await close.click();await page.waitForTimeout(200);}
-   g=await geometry(page);mobileHeight=mobileHeight&&g.height;
-   if(!g.shown){const menu=page.locator('.dt-mobile-menu-icon:visible,.mobile-navigation .menu-toggle:visible').first();await menu.click();await page.waitForTimeout(250);g=await geometry(page);}
-   mobileVisible=mobileVisible&&g.shown>0&&g.valid;
+   const prefix='mobile_'+width+'_';
+   try{
+    await page.setViewportSize({width,height:844});await page.waitForTimeout(150);
+    g=await geometry(page);report.diagnostics[prefix+'badge_initial_visible']=g.shown>0;report.diagnostics[prefix+'header_height_ok']=g.height;mobileHeight=mobileHeight&&g.height;
+    // A closed The7 drawer can leave its close icon "visible" offscreen.
+    // Inspect the existing header badge first; do not click that unrelated icon.
+    if(!g.shown){
+     report.diagnostics[prefix+'menu_needed']=true;
+     const menu=page.locator('.dt-mobile-menu-icon:visible,.mobile-navigation .menu-toggle:visible').first();
+     report.diagnostics[prefix+'menu_control_present']=await menu.count()>0;
+     await menu.click();report.diagnostics[prefix+'menu_click_completed']=true;await page.waitForTimeout(250);g=await geometry(page);
+    }
+    report.diagnostics[prefix+'badge_final_visible']=g.shown>0&&g.valid;mobileVisible=mobileVisible&&g.shown>0&&g.valid;
+   }catch{report.diagnostics[prefix+'exception']=true;mobileHeight=false;mobileVisible=false;}
   }
-  mark(report,'mobile_header_height_preserved',mobileHeight,'geometry');mark(report,'mobile_badge_visible',mobileVisible,'geometry');
-  await page.evaluate(()=>{document.documentElement.setAttribute('data-theme','dark');document.body.classList.add('petish-dark-mode');});g=await geometry(page);mark(report,'dark_mode_badge_verified',g.valid&&g.shown>0,'geometry');
+  report.checks.mobile_header_height_preserved=mobileHeight;report.checks.mobile_badge_visible=mobileVisible;
+  let geometryPassed=mobileHeight&&mobileVisible;
+  try{await page.evaluate(()=>{document.documentElement.setAttribute('data-theme','dark');document.body.classList.add('petish-dark-mode');});g=await geometry(page);report.checks.dark_mode_badge_verified=g.valid&&g.shown>0;}
+  catch{report.checks.dark_mode_badge_verified=false;}
+  geometryPassed=geometryPassed&&report.checks.dark_mode_badge_verified;
   await page.reload({waitUntil:'domcontentloaded'});await badges(page,3);mark(report,'reload_quantity_preserved',(await countRequest(context)).count===3,'update');
   await page.goto(CART,{waitUntil:'domcontentloaded'});await badges(page,3);state.phase='remove';report.category='remove';
-  if(blocks)await page.locator('.wc-block-cart-item__remove-link').click();else await page.locator('.woocommerce-cart-form a.remove').click();
+  if(blocks)await page.locator('.wc-block-cart .wc-block-cart-item__remove-link').click();else await page.locator('.woocommerce-cart-form a.remove').click();
   await badges(page,0);await cartRead(context,input,0);mark(report,'remove_empty_verified',(await countRequest(context)).count===0,'remove');
   mark(report,'request_scope_enforced',state.allowed>0&&state.loginUsed&&state.key.length===32&&state.mutations>=2
    &&!allowedRequest(ORIGIN+'/checkout/','GET','','document',input,state)&&!allowedRequest(ORIGIN+'/wp-json/wc/store/v1/checkout','POST','{}','fetch',input,state),'scope');
   if(!guestPrivacyPassed)throw new Error('privacy');
+  if(!geometryPassed)throw new Error('geometry');
   report.status='success';report.category='complete';
  }catch(error){report.category=CATEGORIES.has(error?.message)?error.message:report.category;if(report.category==='update'&&page&&context&&!report.diagnostics.update_server_count_read)await updateObservation(page,context,report);}
  finally{await Promise.allSettled(responseTasks);await guest?.close().catch(()=>{});await context?.close().catch(()=>{});await browser?.close().catch(()=>{});}

@@ -57,6 +57,20 @@ function cart_badge_paths($run,$create=false) {
  cart_badge_path(CART_BADGE_ROOT,true);cart_badge_path(CART_BADGE_ROOT.'/wp-content/mu-plugins',true);
  return[$tools,$work];
 }
+/** Static booleans only: do not expose the pinned guard's source or literals. */
+function cart_badge_guard_auth_facts($source) {
+ $facts=array_fill_keys(['auth_redirect','wp_safe_redirect','wp_login_url','is_user_logged_in','template_redirect_hook','init_hook'],false);
+ if(!is_string($source))cart_badge_fail();
+ $tokens=array_values(array_filter(token_get_all($source,TOKEN_PARSE),static fn($token)=>!is_array($token)||!in_array($token[0],[T_WHITESPACE,T_COMMENT,T_DOC_COMMENT],true)));
+ foreach($tokens as$i=>$token){
+  if(!is_array($token)||$token[0]!==T_STRING||($tokens[$i+1]??null)!=='(')continue;$name=strtolower($token[1]);$previous=$tokens[$i-1]??null;
+  if(in_array($name,['auth_redirect','wp_safe_redirect','wp_login_url','is_user_logged_in'],true)&&!(is_array($previous)&&in_array($previous[0],[T_FUNCTION,T_OBJECT_OPERATOR,T_DOUBLE_COLON],true)))$facts[$name]=true;
+  $hook=$tokens[$i+2]??null;
+  if(in_array($name,['add_action','add_filter'],true)&&is_array($hook)&&$hook[0]===T_CONSTANT_ENCAPSED_STRING&&!str_contains($hook[1],'\\')){
+   $value=substr($hook[1],1,-1);if(in_array($value,['template_redirect','init'],true))$facts[$value.'_hook']=true;
+  }
+ }return$facts;
+}
 /** Only plain, top-level literal declarations select the staging database. */
 function cart_badge_definitions($tokens,$names) {
  $found=[];$mentions=[];$depth=0;
@@ -342,7 +356,7 @@ function cart_badge_prepare($run,$work,$tools) {
  $cached=is_callable([$service,'get_cached_account_data'])?$service->get_cached_account_data():null;if(!is_array($cached)||!$cached){$raw=get_option('wcpay_account_data',[]);$cached=is_array($raw['data']??null)?$raw['data']:[];}
  cart_badge_mark('test_mode_verified',is_object($mode)&&is_callable([$mode,'is_dev'])&&is_callable([$mode,'is_test'])&&$mode->is_dev()===true&&$mode->is_test()===true&&($cached['is_live']??null)===false);
  cart_badge_guard_install($s,$work,$tools);
- $input=['format'=>'petish-cart-badge-browser-v1','url'=>'https://staging.petish.biz','run'=>$run,'customer_id'=>$uid,'login'=>$u['login'],'password'=>$u['password'],'customer_email'=>$u['email'],'product_id'=>$pid,'product_url'=>'https://staging.petish.biz'.$s['product']['path'],'cart_key'=>md5((string)$pid),
+ $input=['format'=>'petish-cart-badge-browser-v1','url'=>'https://staging.petish.biz','run'=>$run,'customer_id'=>$uid,'login'=>$u['login'],'password'=>$u['password'],'customer_email'=>$u['email'],'product_id'=>$pid,'product_url'=>'https://staging.petish.biz'.$s['product']['path'],'cart_key'=>md5((string)$pid),'guard_auth_facts'=>cart_badge_guard_auth_facts(file_get_contents(CART_BADGE_ROOT.'/wp-content/mu-plugins/petish-staging-guard.php')),
   'safety'=>['environment_staging'=>true,'woocommerce_test_mode'=>true,'wcpay_dev_mode'=>true,'account_is_live'=>false,'guard_runtime_verified'=>true,'suppliers_blocked'=>true,'mail_capture_verified'=>true,'webhooks_blocked'=>true]];
  cart_badge_write($work.'/browser-input.json',$input);cart_badge_mark('browser_input_written',true);
 }

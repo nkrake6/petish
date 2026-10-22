@@ -109,8 +109,11 @@ class CartReleaseBoundaryTests(unittest.TestCase):
         source=(ROOT/'tools/homepage/cart-badge-browser.mjs').read_text()
         barrier=source.index("if(!guestPrivacyPassed)throw new Error('privacy')")
         self.assertLess(source.index("mark(report,'remove_empty_verified'"),barrier)
-        self.assertLess(source.index("mark(report,'mobile_badge_visible'"),barrier)
+        self.assertLess(source.index('report.checks.mobile_badge_visible=mobileVisible'),barrier)
         self.assertLess(barrier,source.index("report.status='success'"))
+        self.assertLess(source.index("mark(report,'remove_empty_verified'"),source.index("if(!geometryPassed)throw new Error('geometry')"))
+        self.assertNotIn('.dt-close-mobile-menu-icon:visible',source)
+        self.assertIn(".wc-block-cart .wc-block-cart-item__remove-link",source)
         self.assertIn("}catch{/* Keep both privacy gates required",source)
         safe=module('sanitize-homepage-result')
         raw={'status':'success','category':'complete','checks':dict.fromkeys(safe.CART_BROWSER,True)}
