@@ -15,10 +15,12 @@ class CartBadgeFixtureTests(unittest.TestCase):
         code = '''define('CART_BADGE_PROOF_LIBRARY',true);require $argv[1];
         $v=json_decode(stream_get_contents(STDIN),true,32,JSON_THROW_ON_ERROR);
         $owner=static fn($id)=>$id===22?['user_id'=>7,'meta_key'=>'session_tokens']:($id===23?['user_id'=>8,'meta_key'=>'session_tokens']:['user_id'=>7,'meta_key'=>'wp_capabilities']);
-        $state=['customer'=>['id'=>7,'login'=>'owned-login','password'=>'owned-password'],'product'=>['id'=>31,'path'=>'/product/owned-fixture/']];
+        $state=['customer'=>['id'=>7,'login'=>'owned-login','password'=>'owned-password'],'product'=>['id'=>31,'path'=>'/product/owned-fixture/'],'cart_key'=>md5('31')];
         $out=[];foreach($v as$item){
           if($item['kind']==='sql')$out[]=cart_badge_runtime_sql_allowed($item['sql'],'wp_',$item['uid']??7,$owner);
-          elseif($item['kind']==='request')$out[]=cart_badge_request_allowed($state,$item['method'],$item['path'],$item['query']??[],$item['post']??[],$item['json']??[],$item['uid']??7);
+          elseif($item['kind']==='request')$out[]=cart_badge_request_allowed(array_replace($state,$item['state']??[]),$item['method'],$item['path'],$item['query']??[],$item['post']??[],$item['json']??[],$item['uid']??7);
+          elseif($item['kind']==='bind'){try{$bound=cart_badge_bind_key(array_replace($state,['cart_key'=>null],$item['state']??[]),$item['key'],$item['product_id']??31,$item['quantity']??2,$item['variation_id']??0,$item['items'],$item['uid']??7);$out[]=$bound['cart_key']===$item['key'];}catch(Throwable $ignored){$out[]=false;}}
+          elseif($item['kind']==='reason')$out[]=cart_badge_request_denial($state,$item['path'],$item['json'],$item['uid']??7);
           else throw new RuntimeException();
         }echo json_encode($out,JSON_THROW_ON_ERROR);'''
         result = subprocess.run([PHP, '-d', 'display_errors=0', '-r', code, str(SCRIPT)],
@@ -123,6 +125,32 @@ class CartBadgeFixtureTests(unittest.TestCase):
             {'method': 'GET', 'path': '/my-account/customer-logout/'},
         ]
         self.assertEqual(self.php([{'kind': 'request', **r} for r in requests]), [False] * len(requests))
+
+    def test_native_cart_key_is_bound_after_owned_add_and_never_guessed(self):
+        key = 'a' * 32  # Currency/cart-data extensions can salt WooCommerce's key.
+        item = {'product_id': 31, 'variation_id': 0, 'quantity': 2}
+        bound = {'kind': 'bind', 'key': key, 'items': {key: item}}
+        self.assertEqual(self.php([bound]), [True])
+        invalid = [
+            {**bound, 'uid': 8}, {**bound, 'product_id': 32}, {**bound, 'quantity': 4},
+            {**bound, 'variation_id': 1}, {**bound, 'key': 'foreign'},
+            {**bound, 'items': {key: {**item, 'product_id': 32}}},
+            {**bound, 'items': {key: item, 'b' * 32: item}},
+            {**bound, 'state': {'cart_key': 'b' * 32}},
+            {**bound, 'state': {'closing': True}},
+        ]
+        self.assertEqual(self.php(invalid), [False] * len(invalid))
+        update = {'kind': 'request', 'method': 'POST', 'path': '/wp-json/wc/store/v1/cart/update-item',
+                  'json': {'key': key, 'quantity': 3}}
+        self.assertEqual(self.php([{**update, 'state': {'cart_key': key}},
+                                   {**update, 'state': {'cart_key': None}}, update]), [True, False, False])
+
+    def test_request_denials_publish_only_finite_reason_codes(self):
+        base = {'kind': 'reason', 'path': '/wp-json/wc/store/v1/cart/update-item', 'json': {}}
+        self.assertEqual(self.php([base, {**base, 'uid': 8},
+                                   {**base, 'json': {'key': 'foreign'}},
+                                   {**base, 'json': {'requests': [{'body': {'key': 'foreign'}}]}}]),
+                         ['request', 'identity', 'key', 'key'])
 
     def test_native_batch_nonce_headers_are_allowed_without_expanding_cart_scope(self):
         import hashlib

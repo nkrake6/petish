@@ -15,7 +15,7 @@ export const CHECK_KEYS=Object.freeze(['browser_started','fixture_input_verified
  'badge_yellow_circle_14px','badge_accessible_quantity','desktop_header_height_preserved',
  'mobile_header_height_preserved','mobile_badge_visible','dark_mode_badge_verified','reload_quantity_preserved',
  'request_scope_enforced']);
-export const DIAGNOSTIC_KEYS=Object.freeze(['cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce']);
+export const DIAGNOSTIC_KEYS=Object.freeze(['cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
 const CATEGORIES=new Set(['input','browser','login','assets','initial','add','update','remove','privacy','geometry','scope','complete']);
 function mark(report,key,value,category){report.checks[key]=value===true;if(!value)throw new Error(category);}
 export function validateInput(value){
@@ -140,6 +140,7 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   context.on('response',response=>{if(!updateRequest(response.request(),state))return;
    const status=response.status();report.diagnostics.update_response_received=true;
    const headers=response.headers();if(headers['x-petish-cart-fixture']===input.run)report.diagnostics.update_response_fixture_header_present=true;
+   const reason=headers['x-petish-cart-fixture-reason'];if(['identity','key','request','body','expired','uri','unavailable'].includes(reason))report.diagnostics['update_fixture_denied_'+reason]=true;
    if((headers['content-type']??'').toLowerCase().includes('application/json')&&(!headers['content-length']||Number(headers['content-length'])<=65536)){
     responseTasks.push((async()=>{try{const bytes=await response.body();if(bytes.length<=65536&&nonceError(JSON.parse(bytes.toString('utf8'))))report.diagnostics.update_error_invalid_nonce=true;}catch{}})());
    }
@@ -158,7 +159,7 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   state.phase='initial';report.category='initial';await page.goto(input.product_url,{waitUntil:'domcontentloaded'});await badges(page,0);await cartRead(context,input,0);mark(report,'initial_empty_hidden',true,'initial');
   state.phase='add';report.category='add';const productForm=page.locator('form.cart:has(button[name=add-to-cart])');
   await productForm.locator('[name=quantity]').fill('2');await productForm.locator('button[name=add-to-cart]').click();
-  await badges(page,2);state.key=await cartRead(context,input,2);mark(report,'add_two_quantity_verified',(await countRequest(context)).count===2,'add');
+  await badges(page,2);state.key=await cartRead(context,input,2);report.diagnostics.native_cart_key_matches_formula=state.key===input.cart_key;mark(report,'add_two_quantity_verified',(await countRequest(context)).count===2,'add');
   state.phase='browse';await page.goto(CART,{waitUntil:'domcontentloaded'});await badges(page,2);
   const blockQty=page.locator('.wc-block-cart-items .wc-block-components-quantity-selector__input');const classicQty=page.locator('.woocommerce-cart-form input.qty');
   await page.waitForFunction(()=>document.querySelector('.wc-block-cart-items .wc-block-components-quantity-selector__input,.woocommerce-cart-form input.qty')!==null,null,{timeout:30000});
