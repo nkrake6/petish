@@ -334,20 +334,33 @@ export function anonymousWordPressContext(cookies) {
   return Array.isArray(cookies) && cookies.every(cookie => typeof cookie?.name === 'string'
     && !/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
 }
-/** Use the guest page's real request, including normal browser transport and cookies. */
+/** Use browser transport after warming only the anonymous public homepage. */
 export function guestPersonalisationBrowserRequest(page, diagnostics) {
   return { async get(url, options) {
     if (url !== PERSONAL_ENDPOINT || options.maxRedirects !== 0 || options.timeout !== 45000) throw new Error('personalisation');
-    const pending = page.waitForResponse(response => response.url() === PERSONAL_ENDPOINT
-      && response.request().method() === 'GET', { timeout: 45000 }).catch(() => null);
-    let home = null;
-    try { home = await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded', timeout: 45000 }); } catch {}
+    const home = await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded', timeout: 45000 });
     diagnostics.personalisation_guest_homepage_http_ok = home?.ok() === true;
-    const response = await pending;
-    if (!response) throw new Error('personalisation');
-    const headers = await response.allHeaders();
-    return { status: () => response.status(), ok: () => response.ok(),
-      headers: () => headers, json: () => response.json() };
+    const result = await page.evaluate(async target => {
+      const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 45000);
+      try {
+        const response = await fetch(target, { method: 'GET', mode: 'same-origin', credentials: 'same-origin',
+          cache: 'no-store', redirect: 'error', headers: { Accept: 'application/json' }, signal: controller.signal });
+        const limit = 1048576, declared = Number(response.headers.get('content-length') ?? 0);
+        if (declared > limit) throw new Error('personalisation');
+        const reader = response.body?.getReader(), chunks = []; let size = 0;
+        if (reader) while (true) {
+          const { done, value } = await reader.read(); if (done) break;
+          size += value.byteLength;
+          if (size > limit) { controller.abort(); await reader.cancel(); throw new Error('personalisation'); }
+          chunks.push(value);
+        }
+        const bytes = new Uint8Array(size); let offset = 0;
+        for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+        return { status: response.status, headers: Object.fromEntries(response.headers), body: new TextDecoder().decode(bytes) };
+      } finally { clearTimeout(timer); }
+    }, PERSONAL_ENDPOINT);
+    return { status: () => result.status, ok: () => result.status >= 200 && result.status < 300,
+      headers: () => result.headers, json: async () => JSON.parse(result.body) };
   } };
 }
 /** Retry only this fixed anonymous GET; the final response must pass every privacy check. */

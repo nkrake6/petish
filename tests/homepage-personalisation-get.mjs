@@ -33,11 +33,25 @@ r=await trial([{status:403},'network','network',good]);assert(!r.passed);assert.
 r=await trial([{status:503},{status:503},{status:503},good]);assert(!r.passed);assert.equal(r.calls.length,3);assert(r.diagnostics.personalisation_guest_http_5xx);
 assert(anonymousWordPressContext([]));assert(anonymousWordPressContext([{name:'wordpress_test_cookie'},{name:'anonymous-clearance'}]));
 for(const name of ['wordpress_logged_in_hash','wordpress_sec_hash','wordpress_'+'a'.repeat(32)])assert(!anonymousWordPressContext([{name}]));
-const observed={},pageCalls=[];
-const browserResponse={url:()=> 'https://staging.petish.biz/wp-admin/admin-ajax.php?action=petish_for_your_pet',request:()=>({method:()=> 'GET'}),status:()=>200,ok:()=>true,allHeaders:async()=>good.headers,json:async()=>good.payload};
-const page={waitForResponse:async(predicate,options)=>{assert(predicate(browserResponse));assert.equal(options.timeout,45000);pageCalls.push('wait');return browserResponse;},
- goto:async(url,options)=>{assert.equal(url,'https://staging.petish.biz/');assert.deepEqual(options,{waitUntil:'domcontentloaded',timeout:45000});pageCalls.push('navigate');return {ok:()=>true};}};
+const observed={},pageCalls=[];let fetchCount=0,fetchResponse;
+const page={
+ goto:async(url,options)=>{assert.equal(url,'https://staging.petish.biz/');assert.deepEqual(options,{waitUntil:'domcontentloaded',timeout:45000});pageCalls.push('navigate');return {ok:()=>true};},
+ evaluate:async(fn,target)=>{
+  pageCalls.push('browser-fetch');const prior=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>{
+   fetchCount++;assert.equal(url,'https://staging.petish.biz/wp-admin/admin-ajax.php?action=petish_for_your_pet');
+   assert.equal(options.method,'GET');assert.equal(options.mode,'same-origin');assert.equal(options.credentials,'same-origin');
+   assert.equal(options.cache,'no-store');assert.equal(options.redirect,'error');assert.deepEqual(options.headers,{Accept:'application/json'});assert(options.signal instanceof AbortSignal);
+   return fetchResponse;
+  };
+  try{return await fn(target);}finally{globalThis.fetch=prior;}
+ }};
+fetchResponse=new Response(JSON.stringify(good.payload),{status:200,headers:good.headers});
 const nativeFacts=await fetchGuestPersonalisation(guestPersonalisationBrowserRequest(page,observed),input,observed);
-assert(Object.values(nativeFacts).every(Boolean));assert(observed.personalisation_guest_homepage_http_ok);assert.deepEqual(pageCalls,['wait','navigate']);
-await assert.rejects(guestPersonalisationBrowserRequest(page,observed).get('https://foreign.invalid/',{maxRedirects:0,timeout:45000}));
+assert(Object.values(nativeFacts).every(Boolean));assert(observed.personalisation_guest_homepage_http_ok);assert.deepEqual(pageCalls,['navigate','browser-fetch']);assert.equal(fetchCount,1);
+await assert.rejects(guestPersonalisationBrowserRequest(page,observed).get('https://foreign.invalid/',{maxRedirects:0,timeout:45000}));assert.equal(fetchCount,1);
+fetchResponse=new Response('x',{status:200,headers:{'content-length':'1048577'}});
+await assert.rejects(guestPersonalisationBrowserRequest(page,observed).get('https://staging.petish.biz/wp-admin/admin-ajax.php?action=petish_for_your_pet',{maxRedirects:0,timeout:45000}));
+fetchResponse=new Response(new Uint8Array(1048577),{status:200});
+await assert.rejects(guestPersonalisationBrowserRequest(page,observed).get('https://staging.petish.biz/wp-admin/admin-ajax.php?action=petish_for_your_pet',{maxRedirects:0,timeout:45000}));
 console.log('Homepage guest GET retry checks passed.');
