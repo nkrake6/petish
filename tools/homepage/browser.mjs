@@ -39,7 +39,8 @@ const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage',
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   ...['member', 'guest'].flatMap(kind => ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff'].map(fact => `personalisation_${kind}_${fact}`)),
   ...['status_ok', 'json_success', 'html_string', 'signin_prompt', 'no_product', 'no_identity',
-    'http_403', 'http_404', 'http_408', 'http_429', 'http_5xx', 'http_redirect', 'retry_observed', 'fetch_exception'].map(fact => `personalisation_guest_${fact}`),
+    'http_403', 'http_404', 'http_408', 'http_429', 'http_5xx', 'http_redirect', 'retry_observed', 'fetch_exception',
+    'homepage_http_ok', 'anonymous_context_verified'].map(fact => `personalisation_guest_${fact}`),
   ...['market_cart', 'market_webkit_cart'].flatMap(prefix => ['http_ok', 'route_ok', 'empty_marker', 'items_absent', 'block_shell',
     'header_present', 'geometry_verified', 'paint_verified', 'flag_markup_verified', 'flag_dimensions_verified', 'flag_bbox_verified',
     'flag_pixels_verified', 'initial_empty_marker_present', 'store_api_get_blocked', 'hydration_wait_completed',
@@ -329,6 +330,26 @@ export function personalisationGuestFacts(headers, ok, payload, input) {
     no_identity: string && !html.includes(input.customer_email) && !html.includes(input.login),
   };
 }
+export function anonymousWordPressContext(cookies) {
+  return Array.isArray(cookies) && cookies.every(cookie => typeof cookie?.name === 'string'
+    && !/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
+}
+/** Use the guest page's real request, including normal browser transport and cookies. */
+export function guestPersonalisationBrowserRequest(page, diagnostics) {
+  return { async get(url, options) {
+    if (url !== PERSONAL_ENDPOINT || options.maxRedirects !== 0 || options.timeout !== 45000) throw new Error('personalisation');
+    const pending = page.waitForResponse(response => response.url() === PERSONAL_ENDPOINT
+      && response.request().method() === 'GET', { timeout: 45000 }).catch(() => null);
+    let home = null;
+    try { home = await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded', timeout: 45000 }); } catch {}
+    diagnostics.personalisation_guest_homepage_http_ok = home?.ok() === true;
+    const response = await pending;
+    if (!response) throw new Error('personalisation');
+    const headers = await response.allHeaders();
+    return { status: () => response.status(), ok: () => response.ok(),
+      headers: () => headers, json: () => response.json() };
+  } };
+}
 /** Retry only this fixed anonymous GET; the final response must pass every privacy check. */
 export async function fetchGuestPersonalisation(request, input, diagnostics) {
   let finalFacts = Object.fromEntries(Object.keys(personalisationGuestFacts({}, false, null, input)).map(key => [key, false]));
@@ -384,11 +405,15 @@ async function checkPersonalisation(page, context, login, input, homeHTML, initi
   // separate request context carries no member authentication cookies.
   const memberFacts = personalisationHeaderFacts(await response.allHeaders());
   for (const [key, value] of Object.entries(memberFacts)) diagnostics[`personalisation_member_${key}`] = value;
-  const guest = await context.browser().newContext({ serviceWorkers: 'block', acceptDownloads: false });
+  const { context: guest } = await readOnlyContext(context.browser());
   try {
-    const guestFacts = await fetchGuestPersonalisation(guest.request, input, diagnostics);
+    const anonymousBefore = anonymousWordPressContext(await guest.cookies(ORIGIN));
+    const guestPage = await guest.newPage();
+    const guestFacts = await fetchGuestPersonalisation(guestPersonalisationBrowserRequest(guestPage, diagnostics), input, diagnostics);
+    diagnostics.personalisation_guest_anonymous_context_verified = anonymousBefore && anonymousWordPressContext(await guest.cookies(ORIGIN));
     for (const [key, value] of Object.entries(guestFacts)) diagnostics[`personalisation_guest_${key}`] = value;
-    checks.personalisation_no_store_verified = Object.values(memberFacts).every(Boolean) && Object.values(guestFacts).every(Boolean);
+    checks.personalisation_no_store_verified = Object.values(memberFacts).every(Boolean) && Object.values(guestFacts).every(Boolean)
+      && diagnostics.personalisation_guest_homepage_http_ok && diagnostics.personalisation_guest_anonymous_context_verified;
   } finally { await guest.close(); }
   requireCheck(checks.personalisation_no_store_verified, 'personalisation');
   let fits = true;

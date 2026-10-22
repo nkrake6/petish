@@ -167,14 +167,14 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
     update_response_4xx:status>=400&&status<500,update_response_5xx:status>=500&&status<600,update_response_400:status===400,update_response_403:status===403,update_response_500:status===500}))if(passed)report.diagnostics[name]=true;
   });
   page=await context.newPage();page.setDefaultTimeout(30000);
-  report.category='assets';const theme=new URL('../../wordpress/wp-content/themes/dt-the7-child/',import.meta.url);let exact=true;
-  for(const relative of ['assets/css/cart-badge.css','assets/js/cart-badge.js']){const bytes=fs.readFileSync(new URL(relative,theme));const digest=createHash('sha256').update(bytes).digest('hex');
-   const matches=await fetchCartAsset(context.request,relative,digest,report.diagnostics);exact=matches&&exact;}
-  mark(report,'cart_assets_exact',exact,'assets');
   state.phase='login';report.category='login';await page.goto(ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/'),{waitUntil:'domcontentloaded'});
   const form=page.locator('form#loginform');await form.locator('[name=log]').fill(input.login);await form.locator('[name=pwd]').fill(input.password);
   await Promise.all([page.waitForURL(u=>u.pathname==='/my-account/',{waitUntil:'domcontentloaded'}),form.locator('[name=wp-submit]').click()]);
   await page.locator('.woocommerce-MyAccount-navigation').waitFor();mark(report,'customer_login_verified',state.loginUsed&&(await context.cookies()).some(c=>c.name.startsWith('wordpress_logged_in_')),'login');
+  report.category='assets';const theme=new URL('../../wordpress/wp-content/themes/dt-the7-child/',import.meta.url);let exact=true;
+  for(const relative of ['assets/css/cart-badge.css','assets/js/cart-badge.js']){const bytes=fs.readFileSync(new URL(relative,theme));const digest=createHash('sha256').update(bytes).digest('hex');
+   const matches=await fetchCartAsset(context.request,relative,digest,report.diagnostics);exact=matches&&exact;}
+  mark(report,'cart_assets_exact',exact,'assets');
   state.phase='initial';report.category='initial';await page.goto(input.product_url,{waitUntil:'domcontentloaded'});await badges(page,0);await cartRead(context,input,0);mark(report,'initial_empty_hidden',true,'initial');
   state.phase='add';report.category='add';const productForm=page.locator('form.cart:has(button[name=add-to-cart])');
   await productForm.locator('[name=quantity]').fill('2');await productForm.locator('button[name=add-to-cart]').click();
@@ -197,7 +197,15 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   try{await badges(page,3);await cartRead(context,input,3);mark(report,'update_three_quantity_verified',true,'update');}
   finally{await updateObservation(page,context,report);}
   const count=await countRequest(context);mark(report,'count_response_private',count.count===3&&count.private,'privacy');
-  guest=await browser.newContext({serviceWorkers:'block'});const anon=await countRequest(guest);mark(report,'anonymous_session_isolated',anon.count===0&&anon.private,'privacy');
+  guest=await browser.newContext({serviceWorkers:'block',acceptDownloads:false});
+  const guestLogin=ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/');
+  await guest.route('**/*',async route=>{const request=route.request();let safe=false;
+   try{const url=new URL(request.url());safe=request.method()==='GET'&&(url.href===guestLogin||url.origin===ORIGIN&&/^\/wp-(content|includes)\//.test(url.pathname)&&allowedRequest(request.url(),'GET','','script',input,{phase:'privacy',key:'',loginUsed:true}));}catch{}
+   return safe?route.continue():route.abort('blockedbyclient');});
+  if(typeof guest.routeWebSocket==='function')await guest.routeWebSocket('**/*',socket=>socket.close());
+  const guestPage=await guest.newPage();const warm=await guestPage.goto(guestLogin,{waitUntil:'domcontentloaded',timeout:30000});
+  const anonymous=warm?.ok()===true&&(await guest.cookies()).every(cookie=>!/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
+  const anon=await countRequest(guest);mark(report,'anonymous_session_isolated',anonymous&&anon.count===0&&anon.private,'privacy');
   const denied=await guest.request.get(COUNT,{maxRedirects:0,timeout:30000});mark(report,'count_get_denied',denied.status()===403,'privacy');
   state.phase='browse';report.category='geometry';await page.goto(input.product_url,{waitUntil:'domcontentloaded'});await badges(page,3);
   let g=await geometry(page);mark(report,'badge_yellow_circle_14px',g.valid&&g.shown>0,'geometry');mark(report,'badge_accessible_quantity',g.labels,'geometry');mark(report,'desktop_header_height_preserved',g.height,'geometry');

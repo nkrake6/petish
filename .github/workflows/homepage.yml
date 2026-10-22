@@ -74,6 +74,7 @@ jobs:
           persist-credentials: true
       - name: Prepare pinned SSH connection and verification tools
         id: prepare
+        timeout-minutes: 8
         continue-on-error: true
         run: |
           preparation_stage=connection
