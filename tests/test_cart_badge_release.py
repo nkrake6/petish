@@ -83,6 +83,11 @@ class CartReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('cart-badge-staging-proof.php',source[source.index('if [[ $mode == staging ]]; then\n    cp'):source.index('\nelse\n    for name in deploy-homepage')])
         self.assertNotIn('cart-badge-staging-proof.php',source[source.index('\nelse\n    for name in deploy-homepage'):source.index('\nfailure_category=transport')])
 
+    def test_fixed_asset_get_retries_preserve_http_and_hash_requirements(self):
+        completed=subprocess.run(['node','tests/homepage-cart-badge-assets.mjs'],cwd=ROOT,capture_output=True,timeout=15)
+        self.assertEqual(completed.returncode,0,completed.stderr.decode())
+        self.assertEqual(completed.stdout,b'Cart badge fixed asset GET checks passed.\n')
+
     def test_new_browser_report_and_request_guard_are_finite(self):
         completed=subprocess.run(['node','tests/homepage-cart-badge-scope.mjs'],cwd=ROOT,capture_output=True,timeout=15)
         self.assertEqual(completed.returncode,0,completed.stderr.decode())

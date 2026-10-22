@@ -15,7 +15,7 @@ export const CHECK_KEYS=Object.freeze(['browser_started','fixture_input_verified
  'badge_yellow_circle_14px','badge_accessible_quantity','desktop_header_height_preserved',
  'mobile_header_height_preserved','mobile_badge_visible','dark_mode_badge_verified','reload_quantity_preserved',
  'request_scope_enforced']);
-export const DIAGNOSTIC_KEYS=Object.freeze(['cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
+export const DIAGNOSTIC_KEYS=Object.freeze(['asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
 const CATEGORIES=new Set(['input','browser','login','assets','initial','add','update','remove','privacy','geometry','scope','complete']);
 function mark(report,key,value,category){report.checks[key]=value===true;if(!value)throw new Error(category);}
 export function validateInput(value){
@@ -85,6 +85,25 @@ export function allowedRequest(raw,method,body,type,input,state){
   return false;
  }catch{return false;}
 }
+/** Only these fixed public GETs may be retried; cart/login mutations never are. */
+export async function fetchCartAsset(request, relative, digest, diagnostics) {
+ const kind=relative==='assets/css/cart-badge.css'?'css':relative==='assets/js/cart-badge.js'?'js':null;
+ if(!kind||typeof digest!=='string'||!/^[a-f0-9]{64}$/.test(digest))throw new Error('assets');
+ const prefix='asset_'+kind+'_';
+ for(let attempt=0;attempt<3;attempt++){
+  try{
+   const response=await request.get(ORIGIN+'/wp-content/themes/dt-the7-child/'+relative+'?ver='+digest,{maxRedirects:0,timeout:30000});
+   const status=response.status();diagnostics[prefix+'response_received']=true;
+   for(const [fact,passed] of Object.entries({status_200:status===200,status_403:status===403,status_404:status===404,status_5xx:status>=500&&status<600}))if(passed)diagnostics[prefix+fact]=true;
+   // Compute each asset's body hash even if another asset/status already failed.
+   const bytes=await response.body();const matches=bytes.length<=1048576&&createHash('sha256').update(bytes).digest('hex')===digest;
+   if(matches)diagnostics[prefix+'hash_matches']=true;
+   if(status===200)return matches;
+   if(status!==408&&status!==429&&(status<500||status>=600))return false;
+  }catch{diagnostics[prefix+'fetch_exception']=true;}
+ }
+ return false;
+}
 function inputFile(file){const p=path.resolve(file),s=fs.lstatSync(p);if(!s.isFile()||s.isSymbolicLink()||s.nlink!==1||(s.mode&0o777)!==0o600||s.size<1||s.size>32768||fs.realpathSync(p)!==p)throw new Error('input');return validateInput(JSON.parse(fs.readFileSync(p,'utf8')));}
 async function countRequest(context){const r=await context.request.post(COUNT,{data:'',headers:{Origin:ORIGIN},maxRedirects:0,timeout:30000});
  if(r.status()!==200)throw new Error('privacy');const data=await r.json(),h=r.headers();
@@ -150,7 +169,7 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   page=await context.newPage();page.setDefaultTimeout(30000);
   report.category='assets';const theme=new URL('../../wordpress/wp-content/themes/dt-the7-child/',import.meta.url);let exact=true;
   for(const relative of ['assets/css/cart-badge.css','assets/js/cart-badge.js']){const bytes=fs.readFileSync(new URL(relative,theme));const digest=createHash('sha256').update(bytes).digest('hex');
-   const response=await context.request.get(ORIGIN+'/wp-content/themes/dt-the7-child/'+relative+'?ver='+digest,{maxRedirects:0,timeout:30000});exact=exact&&response.status()===200&&createHash('sha256').update(await response.body()).digest('hex')===digest;}
+   const matches=await fetchCartAsset(context.request,relative,digest,report.diagnostics);exact=matches&&exact;}
   mark(report,'cart_assets_exact',exact,'assets');
   state.phase='login';report.category='login';await page.goto(ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/'),{waitUntil:'domcontentloaded'});
   const form=page.locator('form#loginform');await form.locator('[name=log]').fill(input.login);await form.locator('[name=pwd]').fill(input.password);
