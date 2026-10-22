@@ -99,7 +99,7 @@ export async function fetchCartAsset(request, relative, digest, diagnostics) {
    const bytes=await response.body();const matches=bytes.length<=1048576&&createHash('sha256').update(bytes).digest('hex')===digest;
    if(matches)diagnostics[prefix+'hash_matches']=true;
    if(status===200)return matches;
-   if(status!==408&&status!==429&&(status<500||status>=600))return false;
+   if(status!==403&&status!==408&&status!==429&&(status<500||status>=600))return false;
   }catch{diagnostics[prefix+'fetch_exception']=true;}
  }
  return false;

@@ -38,7 +38,8 @@ export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', '
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   ...['member', 'guest'].flatMap(kind => ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff'].map(fact => `personalisation_${kind}_${fact}`)),
-  ...['status_ok', 'json_success', 'html_string', 'signin_prompt', 'no_product', 'no_identity'].map(fact => `personalisation_guest_${fact}`),
+  ...['status_ok', 'json_success', 'html_string', 'signin_prompt', 'no_product', 'no_identity',
+    'http_403', 'http_404', 'http_408', 'http_429', 'http_5xx', 'http_redirect', 'retry_observed', 'fetch_exception'].map(fact => `personalisation_guest_${fact}`),
   ...['market_cart', 'market_webkit_cart'].flatMap(prefix => ['http_ok', 'route_ok', 'empty_marker', 'items_absent', 'block_shell',
     'header_present', 'geometry_verified', 'paint_verified', 'flag_markup_verified', 'flag_dimensions_verified', 'flag_bbox_verified',
     'flag_pixels_verified', 'initial_empty_marker_present', 'store_api_get_blocked', 'hydration_wait_completed',
@@ -328,6 +329,28 @@ export function personalisationGuestFacts(headers, ok, payload, input) {
     no_identity: string && !html.includes(input.customer_email) && !html.includes(input.login),
   };
 }
+/** Retry only this fixed anonymous GET; the final response must pass every privacy check. */
+export async function fetchGuestPersonalisation(request, input, diagnostics) {
+  let finalFacts = Object.fromEntries(Object.keys(personalisationGuestFacts({}, false, null, input)).map(key => [key, false]));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) diagnostics.personalisation_guest_retry_observed = true;
+    try {
+      const response = await request.get(PERSONAL_ENDPOINT, { maxRedirects: 0, timeout: 45000 });
+      const status = response.status();
+      for (const [fact, value] of Object.entries({ http_403: status === 403, http_404: status === 404,
+        http_408: status === 408, http_429: status === 429, http_5xx: status >= 500 && status < 600,
+        http_redirect: status >= 300 && status < 400 })) if (value) diagnostics[`personalisation_guest_${fact}`] = true;
+      let payload = null;
+      try { payload = await response.json(); } catch {}
+      finalFacts = personalisationGuestFacts(response.headers(), response.ok(), payload, input);
+      if (![403, 408, 429].includes(status) && (status < 500 || status >= 600)) return finalFacts;
+    } catch {
+      diagnostics.personalisation_guest_fetch_exception = true;
+      finalFacts = Object.fromEntries(Object.keys(finalFacts).map(key => [key, false]));
+    }
+  }
+  return finalFacts;
+}
 async function checkPersonalisation(page, context, login, input, homeHTML, initialResponse, checks, diagnostics, setCategory) {
   setCategory('personalisation');
   const fallback = await page.evaluate(html => {
@@ -363,11 +386,7 @@ async function checkPersonalisation(page, context, login, input, homeHTML, initi
   for (const [key, value] of Object.entries(memberFacts)) diagnostics[`personalisation_member_${key}`] = value;
   const guest = await context.browser().newContext({ serviceWorkers: 'block', acceptDownloads: false });
   try {
-    const guestResponse = await guest.request.get(PERSONAL_ENDPOINT, { maxRedirects: 0, timeout: 45000 });
-    // Preserve finite status/header observations even if the response is not JSON.
-    let guestPayload = null;
-    try { guestPayload = await guestResponse.json(); } catch {}
-    const guestFacts = personalisationGuestFacts(guestResponse.headers(), guestResponse.ok(), guestPayload, input);
+    const guestFacts = await fetchGuestPersonalisation(guest.request, input, diagnostics);
     for (const [key, value] of Object.entries(guestFacts)) diagnostics[`personalisation_guest_${key}`] = value;
     checks.personalisation_no_store_verified = Object.values(memberFacts).every(Boolean) && Object.values(guestFacts).every(Boolean);
   } finally { await guest.close(); }

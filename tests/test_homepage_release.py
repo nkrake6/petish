@@ -148,7 +148,7 @@ class HomepageReleaseTests(unittest.TestCase):
         self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
-        self.assertEqual(len(exports['diagnostics']),105)
+        self.assertEqual(len(exports['diagnostics']),113)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))
         self.assertEqual(set(exports['diagnostics']),safe.BROWSER_DIAGNOSTICS)
         self.assertEqual(len(exports['cart_keys']),13)
@@ -184,6 +184,11 @@ assert(!JSON.stringify(facts).includes(input.login));
 '''
         subprocess.run(['node', '--input-type=module', '-e', code], cwd=ROOT,
                        check=True, capture_output=True, text=True)
+
+    def test_guest_personalisation_retries_only_fixed_get_and_uses_final_response(self):
+        completed=subprocess.run(['node','tests/homepage-personalisation-get.mjs'],cwd=ROOT,capture_output=True,timeout=15)
+        self.assertEqual(completed.returncode,0,completed.stderr.decode())
+        self.assertEqual(completed.stdout,b'Homepage guest GET retry checks passed.\n')
 
     def test_cart_diagnostics_cannot_replace_required_cart_or_webkit_checks(self):
         for check in ('market_flag_cart_verified','market_flag_webkit_verified'):

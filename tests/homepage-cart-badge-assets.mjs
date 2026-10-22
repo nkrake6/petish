@@ -15,16 +15,17 @@ async function trial(sequence,relative='assets/css/cart-badge.css'){
  return {exact,diagnostics,calls};
 }
 let result=await trial([{status:200}]);assert(result.exact);assert(result.diagnostics.asset_css_hash_matches);assert.equal(result.calls.length,1);
-for(const status of [408,429,500,503]){
+for(const status of [403,408,429,500,503]){
  result=await trial([{status},{status:200}]);assert(result.exact);assert.equal(result.calls.length,2);
 }
-for(const status of [301,400,403,404]){
+for(const status of [301,400,404]){
  result=await trial([{status},{status:200}]);assert(!result.exact);assert.equal(result.calls.length,1);
  if(status===403||status===404)assert(result.diagnostics['asset_css_status_'+status]);
  assert(result.diagnostics.asset_css_hash_matches); // Hash observation is independent of HTTP acceptance.
 }
 result=await trial(['transport',{status:200}],'assets/js/cart-badge.js');assert(result.exact);assert(result.diagnostics.asset_js_fetch_exception);assert.equal(result.calls.length,2);
 result=await trial([{status:200,bytes:Buffer.from('wrong hash')},{status:200}]);assert(!result.exact);assert.equal(result.calls.length,1);assert(!result.diagnostics.asset_css_hash_matches);
+result=await trial([{status:403},{status:403},{status:403},{status:200}]);assert(!result.exact);assert.equal(result.calls.length,3);assert(result.diagnostics.asset_css_status_403);
 result=await trial(['transport','transport','transport',{status:200}]);assert(!result.exact);assert.equal(result.calls.length,3);
 result=await trial([{status:500},{status:502},{status:503},{status:200}]);assert(!result.exact);assert.equal(result.calls.length,3);assert(result.diagnostics.asset_css_status_5xx);
 result=await trial([{status:200,bodyError:true},{status:200}]);assert(result.exact);assert(result.diagnostics.asset_css_fetch_exception);
