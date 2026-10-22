@@ -1,0 +1,61 @@
+{
+  "format": "petish-customer-reviews-production-v1",
+  "status": "success",
+  "category": "complete",
+  "mode": "inspect",
+  "scope": "customer-review-mvp-only",
+  "run_id": "39862589743-1",
+  "source_commit": "5299f6ef0f788f347cc67f89d7949d9c32110cd1",
+  "generated_utc": "2026-10-22T22:07:38.315320+00:00",
+  "staging_source_verified": false,
+  "rollback_attempted": false,
+  "rollback_verified": false,
+  "source_hashes": {
+    "assets/customer-reviews.css": "b4159fb54cd1776b0cb9dad644b4d8655c02d01c2c9354bf4a633ed2ead23668",
+    "assets/customer-reviews.js": "3a572b39471fa9c70ad89876758a6c08e1361d38a78a1c636328808345c585a2",
+    "assets/passport.js": "e4d55c9ec655ce90da907257db29c651dcc8cd2eab5fd39eec63870fac2205cc",
+    "includes/class-petish-customer-review-media.php": "1b0022973f5cf1a5fdf869e6f73b4817ec1eecf9641827b9d6c0bd0b62adce77",
+    "includes/class-petish-customer-reviews-ui.php": "262968f8272b3307568946ee72a0418e29d3a7a0990603705058a2d1fbed3d43",
+    "includes/class-petish-customer-reviews.php": "28a97bcfeaa605de388543ec81cb58153d1bd5270d934a003c695f1fdf2204a4",
+    "includes/class-petish-passport-video-inspector.php": "823946702ade6d028b2b643093bd6e23e98f285a5e3597c86dd9f21aa7ccbd26",
+    "includes/class-petish-passport-video.php": "e9a48491498ef74e20f39518ac0f3a0001f42b27101e41c2980948b8a5f75cd7",
+    "petish-passport.php": "78b4ed9ea8dc265f32ff4074f42b7bc711e2cae982e5a1673ff7ca78d838b159",
+    "templates/customer-reviews-card.php": "fd93e21c0dcc9fe3ae25bc411982b8d989da8dc77f20743c0877178ceb2d69ad",
+    "templates/customer-reviews-dashboard.php": "ed0702f68e94bb7ac6c102629b6c6b63d3ab570a2b13040906954893fece54d7",
+    "templates/customer-reviews-form.php": "882e81e74cfffc67e7a7c24c4639f4b2f7fba455bcacda8efccd55bce0bb9f91",
+    "templates/customer-reviews-product.php": "782d8768acaf92eaa8a17b61cbe6f8b8f0cb20d0a26a1e7a55d517eb0294717c",
+    "templates/customer-reviews-progress.php": "b7a069b0626a7172a3f69183f1878b360a7c0beaef0330c3c1c23b57c7a72eb9",
+    "templates/moment-form.php": "c3a726d43d21e8a2a93966a66702493c3f2dea78f9ef184fb3a2d9bddf2c67c2"
+  },
+  "phases": {
+    "inspect": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "fixed_production_paths": true,
+        "candidate_manifest_verified": true,
+        "candidate_syntax_verified": true,
+        "live_files_compatible": true,
+        "protected_state_unchanged": false,
+        "rollback_snapshot_created": false,
+        "files_deployed": false,
+        "flag_journal_written": false,
+        "flag_enabled": false,
+        "flag_restored": false,
+        "rollback_completed": false,
+        "release_committed": false,
+        "lock_owned": false,
+        "maintenance_guard_created": false,
+        "maintenance_guard_removed": false,
+        "maintenance_guard_retained": false,
+        "capacity_probe_installed": false,
+        "capacity_probe_removed": false,
+        "production_environment": true,
+        "database_writes_scoped": true,
+        "cache_purge_probe_ready": false,
+        "rollback_not_needed": false
+      },
+      "changed_file_count": 0
+    }
+  }
+}
