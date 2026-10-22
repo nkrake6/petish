@@ -32,7 +32,9 @@ BROWSER={
     'readonly_requests_enforced', 'section_1280_valid', 'section_320_valid',
     'section_390_valid',
 }
-BROWSER_DIAGNOSTICS={'badge_response_content_type_png','badge_response_content_type_webp',
+BROWSER_DIAGNOSTICS={f'personalisation_{kind}_{fact}' for kind in ('member','guest')
+    for fact in ('no_store','no_litespeed_hit','vary_cookie','nosniff')} | {
+    f'personalisation_guest_{fact}' for fact in ('status_ok','json_success','html_string','signin_prompt','no_product','no_identity')} | {'badge_response_content_type_png','badge_response_content_type_webp',
     'badge_response_content_type_avif','badge_response_content_type_html','badge_response_signature_png',
     'badge_response_signature_webp','badge_response_signature_avif','badge_response_bytes_match',
     'badge_response_size_bounded','badge_fetch_versioned','badge_expected_decode_ok',

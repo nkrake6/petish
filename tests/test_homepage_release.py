@@ -148,7 +148,7 @@ class HomepageReleaseTests(unittest.TestCase):
         self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
-        self.assertEqual(len(exports['diagnostics']),91)
+        self.assertEqual(len(exports['diagnostics']),105)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))
         self.assertEqual(set(exports['diagnostics']),safe.BROWSER_DIAGNOSTICS)
         self.assertEqual(len(exports['cart_keys']),13)
@@ -160,6 +160,30 @@ class HomepageReleaseTests(unittest.TestCase):
         value['cart_metrics']={engine:dict.fromkeys(safe.CART_METRIC_LIMITS,0) for engine in safe.CART_METRIC_ENGINES}
         self.assertLess(len(json.dumps(value)),65536)
         self.assertTrue(self.screen('browser',value)[1])
+
+    def test_personalisation_diagnostics_preserve_the_existing_privacy_gate(self):
+        code = r'''import assert from 'node:assert/strict';
+import { personalisationHeaderFacts, personalisationGuestFacts } from './tools/homepage/browser.mjs';
+const headers={'cache-control':'private, no-store, max-age=0',vary:'Accept-Encoding, Cookie','x-content-type-options':'nosniff'};
+const input={login:'fixture-owner',customer_email:'fixture@example.invalid'};
+const payload={success:true,data:{html:'Sign in and choose your pet'}};
+const facts=personalisationGuestFacts(headers,true,payload,input);
+assert(Object.values(facts).every(Boolean));
+for(const [header,value,fact] of [['cache-control','private, no-cache','no_store'],['x-litespeed-cache','hit','no_litespeed_hit'],['vary','Accept-Encoding','vary_cookie'],['x-content-type-options','none','nosniff']]) {
+ const observed=personalisationHeaderFacts({...headers,[header]:value});
+ assert.equal(observed[fact],false);assert.equal(Object.values(observed).filter(x=>!x).length,1);
+}
+for(const [ok,body,fact] of [[false,payload,'status_ok'],[true,{...payload,success:false},'json_success'],
+ [true,{success:true,data:{html:7}},'html_string'],[true,{success:true,data:{html:'Wrong guest response'}},'signin_prompt'],
+ [true,{success:true,data:{html:'Sign in and choose your pet <div class="ph-product">'}},'no_product'],
+ [true,{success:true,data:{html:'Sign in and choose your pet fixture-owner'}},'no_identity']]) {
+ const observed=personalisationGuestFacts(headers,ok,body,input);assert.equal(observed[fact],false);assert(!Object.values(observed).every(Boolean));
+}
+assert(Object.values(personalisationGuestFacts(headers,true,null,input)).every(value=>typeof value==='boolean'));
+assert(!JSON.stringify(facts).includes(input.login));
+'''
+        subprocess.run(['node', '--input-type=module', '-e', code], cwd=ROOT,
+                       check=True, capture_output=True, text=True)
 
     def test_cart_diagnostics_cannot_replace_required_cart_or_webkit_checks(self):
         for check in ('market_flag_cart_verified','market_flag_webkit_verified'):

@@ -37,6 +37,8 @@ export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', '
   ...['search', 'switch', 'market', 'other'].flatMap(node => ['width', 'margin_left', 'margin_right', 'count'].map(metric => `${node}_${metric}`))])]);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
+  ...['member', 'guest'].flatMap(kind => ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff'].map(fact => `personalisation_${kind}_${fact}`)),
+  ...['status_ok', 'json_success', 'html_string', 'signin_prompt', 'no_product', 'no_identity'].map(fact => `personalisation_guest_${fact}`),
   ...['market_cart', 'market_webkit_cart'].flatMap(prefix => ['http_ok', 'route_ok', 'empty_marker', 'items_absent', 'block_shell',
     'header_present', 'geometry_verified', 'paint_verified', 'flag_markup_verified', 'flag_dimensions_verified', 'flag_bbox_verified',
     'flag_pixels_verified', 'initial_empty_marker_present', 'store_api_get_blocked', 'hydration_wait_completed',
@@ -309,15 +311,24 @@ async function decodeSectionBadges(page) {
   });
 }
 
-function noStore(headers) {
-  return /(?:^|,)\s*no-store(?:\s*,|$)/i.test(headers['cache-control'] ?? '')
-    && !/(?:^|[, ])hit(?:[, ]|$)/i.test(headers['x-litespeed-cache'] ?? '');
+export function personalisationHeaderFacts(headers) {
+  return {
+    no_store: /(?:^|,)\s*no-store(?:\s*,|$)/i.test(headers['cache-control'] ?? ''),
+    no_litespeed_hit: !/(?:^|[, ])hit(?:[, ]|$)/i.test(headers['x-litespeed-cache'] ?? ''),
+    vary_cookie: /(?:^|,)\s*Cookie\s*(?:,|$)/i.test(headers.vary ?? ''),
+    nosniff: (headers['x-content-type-options'] ?? '').toLowerCase() === 'nosniff',
+  };
 }
-function privateFragmentHeaders(headers) {
-  return noStore(headers) && /(?:^|,)\s*Cookie\s*(?:,|$)/i.test(headers.vary ?? '')
-    && (headers['x-content-type-options'] ?? '').toLowerCase() === 'nosniff';
+export function personalisationGuestFacts(headers, ok, payload, input) {
+  const html = payload?.data?.html, string = typeof html === 'string';
+  return { ...personalisationHeaderFacts(headers), status_ok: ok === true,
+    json_success: payload?.success === true, html_string: string,
+    signin_prompt: string && html.includes('Sign in and choose your pet'),
+    no_product: string && !html.includes('class="ph-product"'),
+    no_identity: string && !html.includes(input.customer_email) && !html.includes(input.login),
+  };
 }
-async function checkPersonalisation(page, context, login, input, homeHTML, initialResponse, checks, setCategory) {
+async function checkPersonalisation(page, context, login, input, homeHTML, initialResponse, checks, diagnostics, setCategory) {
   setCategory('personalisation');
   const fallback = await page.evaluate(html => {
     const document = new DOMParser().parseFromString(html, 'text/html');
@@ -348,16 +359,17 @@ async function checkPersonalisation(page, context, login, input, homeHTML, initi
   requireCheck(checks.personalisation_ajax_verified, 'personalisation');
   // Guest endpoint access is intentionally public but never cacheable. The
   // separate request context carries no member authentication cookies.
+  const memberFacts = personalisationHeaderFacts(await response.allHeaders());
+  for (const [key, value] of Object.entries(memberFacts)) diagnostics[`personalisation_member_${key}`] = value;
   const guest = await context.browser().newContext({ serviceWorkers: 'block', acceptDownloads: false });
   try {
     const guestResponse = await guest.request.get(PERSONAL_ENDPOINT, { maxRedirects: 0, timeout: 45000 });
-    const guestPayload = await guestResponse.json();
-    checks.personalisation_no_store_verified = privateFragmentHeaders(await response.allHeaders())
-      && privateFragmentHeaders(guestResponse.headers())
-      && guestResponse.ok() && guestPayload?.success === true && typeof guestPayload.data?.html === 'string'
-      && guestPayload.data.html.includes('Sign in and choose your pet')
-      && !guestPayload.data.html.includes('class="ph-product"')
-      && !guestPayload.data.html.includes(input.customer_email) && !guestPayload.data.html.includes(input.login);
+    // Preserve finite status/header observations even if the response is not JSON.
+    let guestPayload = null;
+    try { guestPayload = await guestResponse.json(); } catch {}
+    const guestFacts = personalisationGuestFacts(guestResponse.headers(), guestResponse.ok(), guestPayload, input);
+    for (const [key, value] of Object.entries(guestFacts)) diagnostics[`personalisation_guest_${key}`] = value;
+    checks.personalisation_no_store_verified = Object.values(memberFacts).every(Boolean) && Object.values(guestFacts).every(Boolean);
   } finally { await guest.close(); }
   requireCheck(checks.personalisation_no_store_verified, 'personalisation');
   let fits = true;
@@ -967,7 +979,7 @@ export async function run(input, chromium, options = {}) {
     }
     checks.badges_bottom_right = bottomRight;
     checks.badges_nonoverlap_hot = nonoverlap;
-    await checkPersonalisation(page, context, login, input, homeHTML, personalResponse, checks, value => { category = value; });
+    await checkPersonalisation(page, context, login, input, homeHTML, personalResponse, checks, diagnostics, value => { category = value; });
     await checkThemeSwitch(page, checks, diagnostics, value => { category = value; }, themeGeometry);
     category = 'market_flag_layout';
     checks.market_flag_header_verified = await checkMarketFlagPage(page, '/');
