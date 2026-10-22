@@ -161,7 +161,7 @@ result={'status':os.environ['PETISH_HOMEPAGE_STATUS'],'category':os.environ['PET
  'rollback_attempted':os.environ['PETISH_HOMEPAGE_ROLLBACK_ATTEMPTED']=='1',
  'rollback_verified':os.environ['PETISH_HOMEPAGE_ROLLBACK_VERIFIED']=='1','phases':{}}
 stage=os.environ.get('HOMEPAGE_PREPARATION_STAGE','unknown')
-result['preparation_stage']=stage if stage in {'connection','ssh_tools','browser_tools','health_dependencies','complete'} else 'unknown'
+result['preparation_stage']=stage if stage in {'connection','ssh_tools','npm_tools','browser_tools','health_dependencies','complete'} else 'unknown'
 manifest=root/'bundle/payload/manifest.json'
 if manifest.exists():result['source_hashes']=json.loads(manifest.read_text())
 for phase in ('inspect','preflight','native','cleanup','browser','cart_prepare','cart_browser','cart_cleanup','cache_preflight','apply','verify',

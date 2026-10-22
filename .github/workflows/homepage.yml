@@ -80,13 +80,13 @@ jobs:
           preparation_stage=connection
           trap 'printf "stage=%s\n" "$preparation_stage" >> "$GITHUB_OUTPUT"' EXIT
           umask 077
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5 6; do
             # Discover only the configured server's ED25519 identity. The shared
             # SSH helper verifies its exact fingerprint before authentication.
             if ssh-keyscan -T 15 -p "$SSH_PORT" -t ed25519 "$SSH_HOST" > "$RUNNER_TEMP/petish-candidate-host-keys" 2>/dev/null \
                 && [[ -s "$RUNNER_TEMP/petish-candidate-host-keys" ]]; then break; fi
-            if [ "$attempt" = 3 ]; then exit 1; fi
-            sleep 2
+            if [ "$attempt" = 6 ]; then exit 1; fi
+            sleep 5
           done
           preparation_stage=ssh_tools
           if ! command -v sshpass >/dev/null 2>&1; then
@@ -94,11 +94,12 @@ jobs:
             sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
           fi
           if [[ "$HOMEPAGE_MODE" == staging ]]; then
-            preparation_stage=browser_tools
+            preparation_stage=npm_tools
             export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/petish-homepage-browsers"
             printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
-            npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
-            node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium webkit
+            timeout --kill-after=5s 90s npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
+            preparation_stage=browser_tools
+            timeout --kill-after=5s 240s node tools/staging-rehearsal/node_modules/playwright/cli.js install --with-deps chromium webkit
           fi
           if [[ "$HOMEPAGE_MODE" == apply ]]; then
             preparation_stage=health_dependencies
