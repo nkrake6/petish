@@ -92,8 +92,11 @@ class CartBadgeFixtureTests(unittest.TestCase):
             {'method': 'POST', 'path': '/wp-login.php', 'uid': 0, 'post': {'log': 'owned-login', 'pwd': 'wrong'}},
             {'method': 'GET', 'path': '/wp-login.php', 'uid': 0, 'query': {'action': 'logout'}},
             {'method': 'GET', 'path': '/cart/', 'uid': 0},
+            {'method': 'GET', 'path': '/', 'uid': 0},
+            {'method': 'GET', 'path': '/', 'uid': 0, 'query': {'add-to-cart': '31'}},
+            {'method': 'POST', 'path': '/', 'uid': 0},
         ]
-        self.assertEqual(self.php([{'kind': 'request', **r} for r in requests]), [True, True, True, False, False, False, False, False, False])
+        self.assertEqual(self.php([{'kind': 'request', **r} for r in requests]), [True, True, True, False, False, False, False, False, False, True, False, False])
 
     def test_owned_cart_quantity_two_three_and_remove_routes(self):
         import hashlib

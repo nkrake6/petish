@@ -95,6 +95,7 @@ class CartReleaseBoundaryTests(unittest.TestCase):
         self.assertIn("allowedGuestCartRequest",warm)
         self.assertIn("cookie=>!/^wordpress_",warm)
         self.assertNotIn('.click(',warm)
+        self.assertIn("guestPage.goto(ORIGIN+'/'",warm)
         workflow=(ROOT/'.github/workflows/homepage.yml').read_text()
         self.assertIn('id: prepare\n        timeout-minutes: 8\n        continue-on-error: true',workflow)
         self.assertIn('timeout-minutes: 20',workflow)
@@ -103,6 +104,20 @@ class CartReleaseBoundaryTests(unittest.TestCase):
         completed=subprocess.run(['node','tests/homepage-cart-badge-guest.mjs'],cwd=ROOT,capture_output=True,timeout=15)
         self.assertEqual(completed.returncode,0,completed.stderr.decode())
         self.assertEqual(completed.stdout,b'Cart guest browser privacy checks passed.\n')
+
+    def test_guest_failure_cannot_pass_and_owned_checks_still_precede_final_privacy_barrier(self):
+        source=(ROOT/'tools/homepage/cart-badge-browser.mjs').read_text()
+        barrier=source.index("if(!guestPrivacyPassed)throw new Error('privacy')")
+        self.assertLess(source.index("mark(report,'remove_empty_verified'"),barrier)
+        self.assertLess(source.index("mark(report,'mobile_badge_visible'"),barrier)
+        self.assertLess(barrier,source.index("report.status='success'"))
+        self.assertIn("}catch{/* Keep both privacy gates required",source)
+        safe=module('sanitize-homepage-result')
+        raw={'status':'success','category':'complete','checks':dict.fromkeys(safe.CART_BROWSER,True)}
+        raw['checks']['anonymous_session_isolated']=False
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'report.json';path.write_text(json.dumps(raw))
+            self.assertFalse(safe.screen('cart_browser',path)[1])
 
     def test_new_browser_report_and_request_guard_are_finite(self):
         completed=subprocess.run(['node','tests/homepage-cart-badge-scope.mjs'],cwd=ROOT,capture_output=True,timeout=15)

@@ -15,7 +15,7 @@ export const CHECK_KEYS=Object.freeze(['browser_started','fixture_input_verified
  'badge_yellow_circle_14px','badge_accessible_quantity','desktop_header_height_preserved',
  'mobile_header_height_preserved','mobile_badge_visible','dark_mode_badge_verified','reload_quantity_preserved',
  'request_scope_enforced']);
-export const DIAGNOSTIC_KEYS=Object.freeze(['guest_login_http_ok', 'guest_authentication_absent', 'guest_count_http_200', 'guest_count_http_403', 'guest_count_http_5xx', 'guest_count_fetch_exception', 'guest_count_zero', 'guest_count_private', 'guest_get_http_403', 'guest_get_fetch_exception', 'update_fixture_denied_query_fields', 'update_fixture_denied_query_locale', 'update_fixture_denied_query_route', 'update_fixture_denied_quantity_type', 'update_fixture_denied_context', 'update_server_method_is_post', 'update_server_method_is_other', 'asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
+export const DIAGNOSTIC_KEYS=Object.freeze(['guest_count_request_seen', 'guest_count_request_allowed', 'guest_count_request_denied', 'guest_count_response_received', 'guest_count_http_redirect', 'guest_count_content_type_json', 'guest_count_content_type_html', 'guest_count_page_same_origin', 'guest_count_csp_violation', 'guest_count_timeout', 'guest_count_oversize', 'guest_count_transport_error', 'guest_count_body_error', 'guest_count_json_invalid', 'guest_get_request_seen', 'guest_get_request_allowed', 'guest_get_request_denied', 'guest_get_response_received', 'guest_get_http_redirect', 'guest_get_page_same_origin', 'guest_get_csp_violation', 'guest_get_timeout', 'guest_get_oversize', 'guest_get_transport_error', 'guest_get_body_error', 'guest_get_json_invalid', 'guest_homepage_http_ok', 'guest_authentication_absent', 'guest_count_http_200', 'guest_count_http_403', 'guest_count_http_5xx', 'guest_count_fetch_exception', 'guest_count_zero', 'guest_count_private', 'guest_get_http_403', 'guest_get_fetch_exception', 'update_fixture_denied_query_fields', 'update_fixture_denied_query_locale', 'update_fixture_denied_query_route', 'update_fixture_denied_quantity_type', 'update_fixture_denied_context', 'update_server_method_is_post', 'update_server_method_is_other', 'asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
 const CATEGORIES=new Set(['input','browser','login','assets','initial','add','update','remove','privacy','geometry','scope','complete']);
 function mark(report,key,value,category){report.checks[key]=value===true;if(!value)throw new Error(category);}
 export function validateInput(value){
@@ -88,11 +88,23 @@ export function allowedRequest(raw,method,body,type,input,state){
 /** Anonymous browser can warm the login document, then read only its own count. */
 export function allowedGuestCartRequest(raw,method,body,type,input) {
  try{
-  const url=new URL(raw),login=ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/');
+  const url=new URL(raw);
   if(url.href===COUNT)return (method==='GET'||method==='POST')&&!body;
-  return method==='GET'&&(url.href===login||url.origin===ORIGIN&&/^\/wp-(content|includes)\//.test(url.pathname)
+  return method==='GET'&&(url.href===ORIGIN+'/'&&type==='document'||url.origin===ORIGIN&&/^\/wp-(content|includes)\//.test(url.pathname)
    &&allowedRequest(raw,'GET','',type,input,{phase:'privacy',key:'',loginUsed:true}));
  }catch{return false;}
+}
+/** Record only fixed facts before reading a possibly oversized/failed response body. */
+export function observeGuestCountResponse(status,headers,prefix,diagnostics) {
+ diagnostics[prefix+'response_received']=true;
+ if(status===403)diagnostics[prefix+'http_403']=true;
+ if(status>=300&&status<400)diagnostics[prefix+'http_redirect']=true;
+ if(prefix==='guest_count_'){
+  if(status===200)diagnostics.guest_count_http_200=true;
+  if(status>=500&&status<600)diagnostics.guest_count_http_5xx=true;
+  if(/application\/json/i.test(headers['content-type']??''))diagnostics.guest_count_content_type_json=true;
+  if(/text\/html/i.test(headers['content-type']??''))diagnostics.guest_count_content_type_html=true;
+ }
 }
 /** This fixed endpoint uses normal browser transport, without copying member cookies. */
 export function guestCartCountBrowserRequest(page,diagnostics) {
@@ -101,19 +113,28 @@ export function guestCartCountBrowserRequest(page,diagnostics) {
   const prefix=method==='POST'?'guest_count_':'guest_get_';
   try{
    const result=await page.evaluate(async({target,method})=>{
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+    const facts={page_same_origin:location.origin===new URL(target).origin,csp_violation:false,timeout:false,oversize:false,transport_error:false,body_error:false};
+    const controller=new AbortController(),timer=setTimeout(()=>{facts.timeout=true;controller.abort();},30000);
+    const policy=event=>{if(['connect-src','default-src'].includes(event.effectiveDirective)){try{if(new URL(event.blockedURI).origin===new URL(target).origin)facts.csp_violation=true;}catch{}}};
+    document.addEventListener('securitypolicyviolation',policy);
+    let response=null,body=null;
     try{
-     const response=await fetch(target,{method,mode:'same-origin',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'application/json'},signal:controller.signal});
+     response=await fetch(target,{method,mode:'same-origin',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'application/json'},signal:controller.signal});
      const reader=response.body?.getReader(),chunks=[];let size=0;
-     if(Number(response.headers.get('content-length')??0)>65536)throw new Error('privacy');
-     if(reader)while(true){const{done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>65536){controller.abort();await reader.cancel();throw new Error('privacy');}chunks.push(value);}
-     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
-     return{status:response.status,headers:Object.fromEntries(response.headers),body:new TextDecoder().decode(bytes)};
-    }finally{clearTimeout(timer);}
+     if(Number(response.headers.get('content-length')??0)>65536){facts.oversize=true;controller.abort();throw new Error('privacy');}
+     if(reader)while(true){const{done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>65536){facts.oversize=true;controller.abort();await reader.cancel();throw new Error('privacy');}chunks.push(value);}
+     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}body=new TextDecoder().decode(bytes);
+    }catch{
+     if(!facts.timeout&&!facts.oversize){if(response)facts.body_error=true;else facts.transport_error=true;}
+     // CSP events are queued separately from the rejected fetch promise.
+     await new Promise(resolve=>setTimeout(resolve,0));
+    }finally{clearTimeout(timer);document.removeEventListener('securitypolicyviolation',policy);}
+    return{status:response?.status??0,headers:response?Object.fromEntries(response.headers):{},body,facts};
    },{target:COUNT,method});
-   if(result.status===403)diagnostics[prefix+'http_403']=true;
-   if(method==='POST'){if(result.status===200)diagnostics.guest_count_http_200=true;if(result.status>=500&&result.status<600)diagnostics.guest_count_http_5xx=true;}
-   return{status:()=>result.status,headers:()=>result.headers,json:async()=>JSON.parse(result.body)};
+   for(const fact of ['page_same_origin','csp_violation','timeout','oversize','transport_error','body_error'])diagnostics[prefix+fact]=result.facts?.[fact]===true;
+   if(result.status)observeGuestCountResponse(result.status,result.headers,prefix,diagnostics);
+   if(typeof result.body!=='string')throw new Error('privacy');
+   return{status:()=>result.status,headers:()=>result.headers,json:async()=>{try{return JSON.parse(result.body);}catch{diagnostics[prefix+'json_invalid']=true;throw new Error('privacy');}}};
   }catch{diagnostics[prefix+'fetch_exception']=true;throw new Error('privacy');}
  };
  return{post:(url,options)=>read('POST',url,options),get:(url,options)=>read('GET',url,options)};
@@ -231,18 +252,26 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   try{await badges(page,3);await cartRead(context,input,3);mark(report,'update_three_quantity_verified',true,'update');}
   finally{await updateObservation(page,context,report);}
   const count=await countRequest(context);mark(report,'count_response_private',count.count===3&&count.private,'privacy');
-  report.category='privacy';guest=await browser.newContext({serviceWorkers:'block',acceptDownloads:false});
-  const guestLogin=ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/');
-  await guest.route('**/*',async route=>{const request=route.request();return allowedGuestCartRequest(request.url(),request.method(),request.postData()??'',request.resourceType(),input)?route.continue():route.abort('blockedbyclient');});
-  if(typeof guest.routeWebSocket==='function')await guest.routeWebSocket('**/*',socket=>socket.close());
-  const guestPage=await guest.newPage();const warm=await guestPage.goto(guestLogin,{waitUntil:'domcontentloaded',timeout:30000});
-  report.diagnostics.guest_login_http_ok=warm?.ok()===true;
-  const noAuth=async()=>(await guest.cookies()).every(cookie=>!/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
-  const anonymous=await noAuth(),guestRequest=guestCartCountBrowserRequest(guestPage,report.diagnostics);report.diagnostics.guest_authentication_absent=anonymous;
-  const anon=await countRequest({request:guestRequest});report.diagnostics.guest_count_zero=anon.count===0;report.diagnostics.guest_count_private=anon.private;
-  report.diagnostics.guest_authentication_absent=anonymous&&await noAuth();
-  mark(report,'anonymous_session_isolated',report.diagnostics.guest_login_http_ok&&report.diagnostics.guest_authentication_absent&&anon.count===0&&anon.private,'privacy');
-  const denied=await guestRequest.get(COUNT,{maxRedirects:0,timeout:30000});mark(report,'count_get_denied',denied.status()===403,'privacy');
+  let guestPrivacyPassed=false;
+  try{
+   report.category='privacy';guest=await browser.newContext({serviceWorkers:'block',acceptDownloads:false});
+   await guest.route('**/*',async route=>{const request=route.request(),countRequest=request.url()===COUNT,prefix=request.method()==='POST'?'guest_count_':'guest_get_';
+    const allowed=allowedGuestCartRequest(request.url(),request.method(),request.postData()??'',request.resourceType(),input);
+    if(countRequest){report.diagnostics[prefix+'request_seen']=true;report.diagnostics[prefix+(allowed?'request_allowed':'request_denied')]=true;}
+    return allowed?route.continue():route.abort('blockedbyclient');});
+   guest.on('response',response=>{if(response.url()===COUNT)observeGuestCountResponse(response.status(),response.headers(),response.request().method()==='POST'?'guest_count_':'guest_get_',report.diagnostics);});
+   if(typeof guest.routeWebSocket==='function')await guest.routeWebSocket('**/*',socket=>socket.close());
+   const guestPage=await guest.newPage();const warm=await guestPage.goto(ORIGIN+'/',{waitUntil:'domcontentloaded',timeout:30000});
+   report.diagnostics.guest_homepage_http_ok=warm?.ok()===true;
+   const noAuth=async()=>(await guest.cookies()).every(cookie=>!/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
+   const anonymous=await noAuth(),guestRequest=guestCartCountBrowserRequest(guestPage,report.diagnostics);report.diagnostics.guest_authentication_absent=anonymous;
+   const anon=await countRequest({request:guestRequest});report.diagnostics.guest_count_zero=anon.count===0;report.diagnostics.guest_count_private=anon.private;
+   report.diagnostics.guest_authentication_absent=anonymous&&await noAuth();
+   mark(report,'anonymous_session_isolated',report.diagnostics.guest_homepage_http_ok&&report.diagnostics.guest_authentication_absent&&anon.count===0&&anon.private,'privacy');
+   const denied=await guestRequest.get(COUNT,{maxRedirects:0,timeout:30000});mark(report,'count_get_denied',denied.status()===403,'privacy');
+   guestPrivacyPassed=true;
+  }catch{/* Keep both privacy gates required while collecting independent owned-cart checks. */}
+  finally{await guest?.close().catch(()=>{});guest=undefined;}
   state.phase='browse';report.category='geometry';await page.goto(input.product_url,{waitUntil:'domcontentloaded'});await badges(page,3);
   let g=await geometry(page);mark(report,'badge_yellow_circle_14px',g.valid&&g.shown>0,'geometry');mark(report,'badge_accessible_quantity',g.labels,'geometry');mark(report,'desktop_header_height_preserved',g.height,'geometry');
   let mobileHeight=true,mobileVisible=true;
@@ -261,6 +290,7 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   await badges(page,0);await cartRead(context,input,0);mark(report,'remove_empty_verified',(await countRequest(context)).count===0,'remove');
   mark(report,'request_scope_enforced',state.allowed>0&&state.loginUsed&&state.key.length===32&&state.mutations>=2
    &&!allowedRequest(ORIGIN+'/checkout/','GET','','document',input,state)&&!allowedRequest(ORIGIN+'/wp-json/wc/store/v1/checkout','POST','{}','fetch',input,state),'scope');
+  if(!guestPrivacyPassed)throw new Error('privacy');
   report.status='success';report.category='complete';
  }catch(error){report.category=CATEGORIES.has(error?.message)?error.message:report.category;if(report.category==='update'&&page&&context&&!report.diagnostics.update_server_count_read)await updateObservation(page,context,report);}
  finally{await Promise.allSettled(responseTasks);await guest?.close().catch(()=>{});await context?.close().catch(()=>{});await browser?.close().catch(()=>{});}

@@ -195,7 +195,7 @@ function cart_badge_request_allowed($state,$method,$path,$query,$post,$json,$uid
   return !$query&&!array_diff(array_keys($post),['log','pwd','wp-submit','redirect_to','testcookie','rememberme'])&&($post['log']??null)===$customer['login']&&is_string($post['pwd']??null)&&hash_equals($customer['password'],$post['pwd'])&&(!isset($post['redirect_to'])||in_array($post['redirect_to'],['https://staging.petish.biz/my-account/','/my-account/'],true));
  }
  // Anonymous privacy check never receives permission to persist a session.
- if(!$owned)return $uid===0&&$path==='/'&&$query===['wc-ajax'=>'petish_cart_count']&&$method==='POST'&&!$post;
+ if(!$owned)return $uid===0&&$path==='/'&&!$post&&(($method==='GET'&&!$query)||($method==='POST'&&$query===['wc-ajax'=>'petish_cart_count']));
  if($path==='/'&&array_keys($query)===['wc-ajax']){
   if($method!=='POST')return false;$action=$query['wc-ajax'];
   if(in_array($action,['petish_cart_count','get_refreshed_fragments'],true))return !$post;
