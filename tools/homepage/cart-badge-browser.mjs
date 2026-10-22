@@ -257,6 +257,11 @@ function removeResponseItemsEmpty(value){
  if(value&&Array.isArray(value.items))return value.items.length===0;
  return Array.isArray(value?.responses)&&value.responses.length===1&&Array.isArray(value.responses[0]?.body?.items)&&value.responses[0].body.items.length===0;
 }
+/** Header counts can settle before React mounts the main Cart's native controls. */
+export async function waitForCartRemoveControl(page,blocks){
+ const remove=page.locator(blocks?'.wc-block-cart .wc-block-cart-item__remove-link':'.woocommerce-cart-form a.remove');
+ await remove.first().waitFor({state:'visible',timeout:30000});return remove;
+}
 async function removeObservation(page,context,report){
  try{const value=await countRequest(context);report.diagnostics.remove_server_count_read=true;report.diagnostics.remove_server_count_zero=value.count===0;report.diagnostics.remove_server_count_three=value.count===3;}catch{}
  try{Object.assign(report.diagnostics,await page.evaluate(()=>{
@@ -387,7 +392,7 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   await page.goto(CART,{waitUntil:'domcontentloaded'});await badges(page,3);state.phase='remove';report.category='remove';
   let removalPassed=false;
   try{
-   const remove=page.locator(blocks?'.wc-block-cart .wc-block-cart-item__remove-link':'.woocommerce-cart-form a.remove'),matches=await remove.count();
+   const remove=await waitForCartRemoveControl(page,blocks),matches=await remove.count();
    report.diagnostics.remove_locator_none=matches===0;report.diagnostics.remove_locator_single=matches===1;report.diagnostics.remove_locator_multiple=matches>1;
    if(matches!==1)throw new Error('remove');
    report.diagnostics.remove_locator_visible=await remove.isVisible();report.diagnostics.remove_locator_enabled=await remove.isEnabled();

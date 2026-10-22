@@ -123,6 +123,11 @@ class CartReleaseBoundaryTests(unittest.TestCase):
             path=Path(folder)/'report.json';path.write_text(json.dumps(raw))
             self.assertFalse(safe.screen('cart_browser',path)[1])
 
+    def test_delayed_native_remove_control_is_awaited_after_header_count_settles(self):
+        completed=subprocess.run(['node','tests/homepage-cart-remove-mount.mjs'],cwd=ROOT,capture_output=True,timeout=20)
+        self.assertEqual(completed.returncode,0,completed.stderr.decode())
+        self.assertEqual(completed.stdout,b'Cart delayed native removal control checks passed.\n')
+
     def test_new_browser_report_and_request_guard_are_finite(self):
         completed=subprocess.run(['node','tests/homepage-cart-badge-scope.mjs'],cwd=ROOT,capture_output=True,timeout=15)
         self.assertEqual(completed.returncode,0,completed.stderr.decode())
