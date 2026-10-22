@@ -15,12 +15,12 @@ export const CHECK_KEYS=Object.freeze(['browser_started','fixture_input_verified
  'badge_yellow_circle_14px','badge_accessible_quantity','desktop_header_height_preserved',
  'mobile_header_height_preserved','mobile_badge_visible','dark_mode_badge_verified','reload_quantity_preserved',
  'request_scope_enforced']);
-export const DIAGNOSTIC_KEYS=Object.freeze(['guest_count_redirect_login', 'guest_count_redirect_other_same_origin', 'guest_count_redirect_external', 'guest_get_redirect_login', 'guest_get_redirect_other_same_origin', 'guest_get_redirect_external', 'guest_homepage_redirect_login', 'guest_homepage_redirect_other_same_origin', 'guest_homepage_redirect_external', 'guest_homepage_final_root', 'shared_guard_auth_redirect', 'shared_guard_wp_safe_redirect', 'shared_guard_wp_login_url', 'shared_guard_is_user_logged_in', 'shared_guard_template_redirect_hook', 'shared_guard_init_hook', 'guest_count_opaque_redirect', 'guest_get_opaque_redirect', 'guest_count_network_http2_protocol_error', 'guest_count_network_empty_response', 'guest_count_network_blocked_by_client', 'guest_count_network_failed', 'guest_count_network_connection_reset', 'guest_count_network_connection_closed', 'guest_count_network_connection_aborted', 'guest_count_network_connection_refused', 'guest_count_network_timed_out', 'guest_count_network_name_not_resolved', 'guest_count_network_cert_error', 'guest_count_network_aborted', 'guest_count_network_other', 'guest_get_network_http2_protocol_error', 'guest_get_network_empty_response', 'guest_get_network_blocked_by_client', 'guest_get_network_failed', 'guest_get_network_connection_reset', 'guest_get_network_connection_closed', 'guest_get_network_connection_aborted', 'guest_get_network_connection_refused', 'guest_get_network_timed_out', 'guest_get_network_name_not_resolved', 'guest_get_network_cert_error', 'guest_get_network_aborted', 'guest_get_network_other', 'guest_homepage_http_403', 'guest_homepage_http_404', 'guest_homepage_http_5xx', 'guest_homepage_http_redirect', 'guest_homepage_fixture_header_present', 'guest_homepage_denied_identity', 'guest_homepage_denied_request', 'guest_homepage_denied_expired', 'guest_homepage_denied_uri', 'guest_homepage_denied_body', 'guest_homepage_denied_unavailable', 'guest_homepage_denied_query_fields', 'guest_homepage_denied_query_locale', 'guest_homepage_denied_query_route', 'guest_homepage_denied_context', 'mobile_390_badge_initial_visible', 'mobile_390_header_height_ok', 'mobile_390_menu_needed', 'mobile_390_menu_control_present', 'mobile_390_menu_click_completed', 'mobile_390_badge_final_visible', 'mobile_390_exception', 'mobile_320_badge_initial_visible', 'mobile_320_header_height_ok', 'mobile_320_menu_needed', 'mobile_320_menu_control_present', 'mobile_320_menu_click_completed', 'mobile_320_badge_final_visible', 'mobile_320_exception', 'guest_count_request_seen', 'guest_count_request_allowed', 'guest_count_request_denied', 'guest_count_response_received', 'guest_count_http_redirect', 'guest_count_content_type_json', 'guest_count_content_type_html', 'guest_count_page_same_origin', 'guest_count_csp_violation', 'guest_count_timeout', 'guest_count_oversize', 'guest_count_transport_error', 'guest_count_body_error', 'guest_count_json_invalid', 'guest_get_request_seen', 'guest_get_request_allowed', 'guest_get_request_denied', 'guest_get_response_received', 'guest_get_http_redirect', 'guest_get_page_same_origin', 'guest_get_csp_violation', 'guest_get_timeout', 'guest_get_oversize', 'guest_get_transport_error', 'guest_get_body_error', 'guest_get_json_invalid', 'guest_homepage_http_ok', 'guest_authentication_absent', 'guest_count_http_200', 'guest_count_http_403', 'guest_count_http_5xx', 'guest_count_fetch_exception', 'guest_count_zero', 'guest_count_private', 'guest_get_http_403', 'guest_get_fetch_exception', 'update_fixture_denied_query_fields', 'update_fixture_denied_query_locale', 'update_fixture_denied_query_route', 'update_fixture_denied_quantity_type', 'update_fixture_denied_context', 'update_server_method_is_post', 'update_server_method_is_other', 'asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
+export const DIAGNOSTIC_KEYS=Object.freeze(['guest_count_auth_reason_parameters', 'guest_count_auth_reason_capture', 'guest_count_auth_reason_body', 'guest_count_auth_reason_registration', 'guest_count_auth_reason_reflection', 'guest_count_auth_reason_guard_hash', 'guest_count_auth_reason_ambiguous', 'guest_count_auth_reason_priority', 'guest_count_auth_reason_remove', 'guest_count_auth_reason_missing', 'guest_count_auth_reason_attested', 'guest_count_auth_reason_mixed', 'guest_get_auth_reason_parameters', 'guest_get_auth_reason_capture', 'guest_get_auth_reason_body', 'guest_get_auth_reason_registration', 'guest_get_auth_reason_reflection', 'guest_get_auth_reason_guard_hash', 'guest_get_auth_reason_ambiguous', 'guest_get_auth_reason_priority', 'guest_get_auth_reason_remove', 'guest_get_auth_reason_missing', 'guest_get_auth_reason_attested', 'guest_get_auth_reason_mixed', 'guest_login_http_ok', 'guest_login_final_url', 'guest_count_access_authorized', 'guest_count_access_missing', 'guest_count_access_unsupported', 'guest_count_access_ambiguous', 'guest_count_access_priority_mismatch', 'guest_count_access_remove_failed', 'guest_get_access_authorized', 'guest_get_access_missing', 'guest_get_access_unsupported', 'guest_get_access_ambiguous', 'guest_get_access_priority_mismatch', 'guest_get_access_remove_failed', 'guest_count_fixture_denied_guest_auth_structure', 'guest_count_fixture_denied_guest_token', 'guest_count_fixture_denied_guest_token_scope', 'guest_get_fixture_denied_guest_auth_structure', 'guest_get_fixture_denied_guest_token', 'guest_get_fixture_denied_guest_token_scope', 'remove_locator_none', 'remove_locator_single', 'remove_locator_multiple', 'remove_locator_visible', 'remove_locator_enabled', 'remove_interaction_completed', 'remove_request_seen', 'remove_request_allowed', 'remove_request_denied', 'remove_request_is_batch', 'remove_request_route_remove_item', 'remove_request_route_cart', 'remove_request_route_items_owned', 'remove_request_method_post', 'remove_request_method_get', 'remove_request_method_delete', 'remove_request_key_owned', 'remove_response_received', 'remove_response_2xx', 'remove_response_3xx', 'remove_response_4xx', 'remove_response_5xx', 'remove_response_400', 'remove_response_403', 'remove_response_500', 'remove_response_fixture_header_present', 'remove_response_body_json', 'remove_response_body_items_empty', 'remove_response_body_error', 'remove_error_invalid_nonce', 'remove_server_count_read', 'remove_server_count_zero', 'remove_server_count_three', 'remove_badge_zero', 'remove_badge_three', 'remove_blocks_store_available', 'remove_blocks_store_count_zero', 'remove_blocks_store_count_three', 'remove_blocks_pending_operation', 'remove_fixture_denied_identity', 'remove_fixture_denied_key', 'remove_fixture_denied_request', 'remove_fixture_denied_body', 'remove_fixture_denied_expired', 'remove_fixture_denied_uri', 'remove_fixture_denied_unavailable', 'remove_fixture_denied_query_fields', 'remove_fixture_denied_query_locale', 'remove_fixture_denied_query_route', 'remove_fixture_denied_quantity_type', 'remove_fixture_denied_context', 'guest_count_redirect_login', 'guest_count_redirect_other_same_origin', 'guest_count_redirect_external', 'guest_get_redirect_login', 'guest_get_redirect_other_same_origin', 'guest_get_redirect_external', 'guest_homepage_redirect_login', 'guest_homepage_redirect_other_same_origin', 'guest_homepage_redirect_external', 'guest_homepage_final_root', 'shared_guard_auth_redirect', 'shared_guard_wp_safe_redirect', 'shared_guard_wp_login_url', 'shared_guard_is_user_logged_in', 'shared_guard_template_redirect_hook', 'shared_guard_init_hook', 'guest_count_opaque_redirect', 'guest_get_opaque_redirect', 'guest_count_network_http2_protocol_error', 'guest_count_network_empty_response', 'guest_count_network_blocked_by_client', 'guest_count_network_failed', 'guest_count_network_connection_reset', 'guest_count_network_connection_closed', 'guest_count_network_connection_aborted', 'guest_count_network_connection_refused', 'guest_count_network_timed_out', 'guest_count_network_name_not_resolved', 'guest_count_network_cert_error', 'guest_count_network_aborted', 'guest_count_network_other', 'guest_get_network_http2_protocol_error', 'guest_get_network_empty_response', 'guest_get_network_blocked_by_client', 'guest_get_network_failed', 'guest_get_network_connection_reset', 'guest_get_network_connection_closed', 'guest_get_network_connection_aborted', 'guest_get_network_connection_refused', 'guest_get_network_timed_out', 'guest_get_network_name_not_resolved', 'guest_get_network_cert_error', 'guest_get_network_aborted', 'guest_get_network_other', 'guest_homepage_http_403', 'guest_homepage_http_404', 'guest_homepage_http_5xx', 'guest_homepage_http_redirect', 'guest_homepage_fixture_header_present', 'guest_homepage_denied_identity', 'guest_homepage_denied_request', 'guest_homepage_denied_expired', 'guest_homepage_denied_uri', 'guest_homepage_denied_body', 'guest_homepage_denied_unavailable', 'guest_homepage_denied_query_fields', 'guest_homepage_denied_query_locale', 'guest_homepage_denied_query_route', 'guest_homepage_denied_context', 'mobile_390_badge_initial_visible', 'mobile_390_header_height_ok', 'mobile_390_menu_needed', 'mobile_390_menu_control_present', 'mobile_390_menu_click_completed', 'mobile_390_badge_final_visible', 'mobile_390_exception', 'mobile_320_badge_initial_visible', 'mobile_320_header_height_ok', 'mobile_320_menu_needed', 'mobile_320_menu_control_present', 'mobile_320_menu_click_completed', 'mobile_320_badge_final_visible', 'mobile_320_exception', 'guest_count_request_seen', 'guest_count_request_allowed', 'guest_count_request_denied', 'guest_count_response_received', 'guest_count_http_redirect', 'guest_count_content_type_json', 'guest_count_content_type_html', 'guest_count_page_same_origin', 'guest_count_csp_violation', 'guest_count_timeout', 'guest_count_oversize', 'guest_count_transport_error', 'guest_count_body_error', 'guest_count_json_invalid', 'guest_get_request_seen', 'guest_get_request_allowed', 'guest_get_request_denied', 'guest_get_response_received', 'guest_get_http_redirect', 'guest_get_page_same_origin', 'guest_get_csp_violation', 'guest_get_timeout', 'guest_get_oversize', 'guest_get_transport_error', 'guest_get_body_error', 'guest_get_json_invalid', 'guest_homepage_http_ok', 'guest_authentication_absent', 'guest_count_http_200', 'guest_count_http_403', 'guest_count_http_5xx', 'guest_count_fetch_exception', 'guest_count_zero', 'guest_count_private', 'guest_get_http_403', 'guest_get_fetch_exception', 'update_fixture_denied_query_fields', 'update_fixture_denied_query_locale', 'update_fixture_denied_query_route', 'update_fixture_denied_quantity_type', 'update_fixture_denied_context', 'update_server_method_is_post', 'update_server_method_is_other', 'asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
 const CATEGORIES=new Set(['input','browser','login','assets','initial','add','update','remove','privacy','geometry','scope','complete']);
 function mark(report,key,value,category){report.checks[key]=value===true;if(!value)throw new Error(category);}
 export function validateInput(value){
  accountInput(value);
- if(value.format!=='petish-cart-badge-browser-v1'||!/^\d+-\d+$/.test(value.run)||!Number.isSafeInteger(value.product_id)||value.product_id<1)throw new Error('input');
+ if(value.format!=='petish-cart-badge-browser-v1'||!/^\d+-\d+$/.test(value.run)||!Number.isSafeInteger(value.product_id)||value.product_id<1||typeof value.guest_access_token!=='string'||!/^[a-f0-9]{64}$/.test(value.guest_access_token))throw new Error('input');
  const product=new URL(value.product_url);
  if(product.origin!==ORIGIN||product.search||product.hash||!/^\/product\/[a-z0-9-]+\/$/.test(product.pathname))throw new Error('input');
  return value;
@@ -37,6 +37,10 @@ export function formBody(body){
   const match=/^\r\nContent-Disposition: form-data; name="([A-Za-z0-9_\-\[\]]+)"\r\n\r\n([^\r\n]*)\r\n$/.exec(part);
   if(!match)throw new Error('scope');values.append(match[1],match[2]);
  }return values;
+}
+function batchDataMatches(data,body){
+ return data&&typeof data==='object'&&!Array.isArray(data)&&Object.keys(data).length===Object.keys(body).length
+  &&Object.keys(body).every(key=>Object.prototype.hasOwnProperty.call(data,key)&&data[key]===body[key]);
 }
 function cartOperation(route,body,state){
  if(!body||typeof body!=='object'||Array.isArray(body)||!state.key)return false;
@@ -56,9 +60,11 @@ export function allowedRequest(raw,method,body,type,input,state){
    const value=JSON.parse(body);
    if(u.pathname.endsWith('/batch'))return value&&Object.keys(value).every(key=>['requests','validation'].includes(key))
     &&(!('validation'in value)||value.validation==='require-all-validate')&&Array.isArray(value.requests)&&value.requests.length===1
-    &&value.requests.every(item=>item.method==='POST'&&typeof item.path==='string'&&Object.keys(item).every(key=>['method','path','body','headers'].includes(key))
+    &&value.requests.every(item=>item.method==='POST'&&typeof item.path==='string'&&Object.keys(item).every(key=>['method','path','body','headers','data','cache'].includes(key))
       &&(!item.headers||(typeof item.headers==='object'&&!Array.isArray(item.headers)&&Object.entries(item.headers).every(([key,value])=>['nonce','content-type','x-wc-store-api-nonce'].includes(key.toLowerCase())&&typeof value==='string'&&value.length<=256)))
-      &&/^\/wc\/store\/v1\/cart\/(update-item|remove-item)$/.test(item.path)&&cartOperation(item.path,item.body,state));
+      &&/^\/wc\/store\/v1\/cart\/(update-item|remove-item)$/.test(item.path)&&cartOperation(item.path,item.body,state)
+      &&(!Object.prototype.hasOwnProperty.call(item,'data')||batchDataMatches(item.data,item.body))
+      &&(!Object.prototype.hasOwnProperty.call(item,'cache')||item.cache==='no-store'));
    return cartOperation(u.pathname,value,state);
   }
   if(method==='POST'&&state.phase==='login'&&type==='document'&&['/my-account/','/wp-login.php'].includes(u.pathname)&&!u.search){
@@ -88,11 +94,20 @@ export function allowedRequest(raw,method,body,type,input,state){
 /** Anonymous browser can warm the login document, then read only its own count. */
 export function allowedGuestCartRequest(raw,method,body,type,input) {
  try{
-  const url=new URL(raw);
+  const url=new URL(raw),login=ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/');
   if(url.href===COUNT)return (method==='GET'||method==='POST')&&!body;
-  return method==='GET'&&(url.href===ORIGIN+'/'&&type==='document'||url.origin===ORIGIN&&/^\/wp-(content|includes)\//.test(url.pathname)
+  return method==='GET'&&(url.href===login&&type==='document'||url.origin===ORIGIN&&/^\/wp-(content|includes)\//.test(url.pathname)
    &&allowedRequest(raw,'GET','',type,input,{phase:'privacy',key:'',loginUsed:true}));
  }catch{return false;}
+}
+/** The private proof header belongs only to the exact empty count requests. */
+export function guestCartContinueOptions(raw,method,body,headers,input){
+ const clean=Object.fromEntries(Object.entries(headers).filter(([name])=>name.toLowerCase()!=='x-petish-cart-guest-fixture'));
+ if(raw===COUNT&&(method==='GET'||method==='POST')&&!body){
+  if(typeof input.guest_access_token!=='string'||!/^[a-f0-9]{64}$/.test(input.guest_access_token))throw new Error('privacy');
+  clean['x-petish-cart-guest-fixture']=input.guest_access_token;
+ }
+ return{headers:clean};
 }
 /** Network errors leave the runner only as a fixed enum of boolean facts. */
 export function observeGuestNetworkFailure(error,prefix,diagnostics) {
@@ -122,6 +137,9 @@ export function observeGuestHomepage(status,headers,run,diagnostics) {
 /** Record only fixed facts before reading a possibly oversized/failed response body. */
 export function observeGuestCountResponse(status,headers,prefix,diagnostics) {
  diagnostics[prefix+'response_received']=true;observeKnownRedirect(headers,prefix,diagnostics);
+ const authReason=headers['x-petish-cart-guest-reason'];if(['parameters', 'capture', 'body', 'registration', 'reflection', 'guard_hash', 'ambiguous', 'priority', 'remove', 'missing', 'attested', 'mixed'].includes(authReason))diagnostics[prefix+'auth_reason_'+authReason]=true;
+ const access=headers['x-petish-cart-guest-access'];if(['authorized','missing','unsupported','ambiguous','priority_mismatch','remove_failed'].includes(access))diagnostics[prefix+'access_'+access]=true;
+ const reason=headers['x-petish-cart-fixture-reason'];if(['guest_auth_structure','guest_token','guest_token_scope'].includes(reason))diagnostics[prefix+'fixture_denied_'+reason]=true;
  if(status===403)diagnostics[prefix+'http_403']=true;
  if(status>=300&&status<400)diagnostics[prefix+'http_redirect']=true;
  if(prefix==='guest_count_'){
@@ -221,6 +239,34 @@ async function updateObservation(page,context,report){
    blocks_pending_operation:typeof selectors?.hasPendingItemsOperations==='function'&&selectors.hasPendingItemsOperations()===true};
  }));}catch{}
 }
+/** Observe possible native removal routes without granting additional methods. */
+export function removeRequestFacts(raw,method,body,state){
+ if(state.phase!=='remove')return null;
+ try{
+  const url=new URL(raw);if(url.origin!==ORIGIN)return null;
+  const batch=url.pathname==='/wp-json/wc/store/v1/batch',remove=url.pathname==='/wp-json/wc/store/v1/cart/remove-item';
+  const classic=url.pathname==='/cart/'&&url.searchParams.has('remove_item'),items=url.pathname==='/wp-json/wc/store/v1/cart/items/'+state.key;
+  if(!batch&&!remove&&!classic&&!items)return null;
+  let owned=classic?url.searchParams.get('remove_item')===state.key:items;
+  if(method==='POST')try{const data=JSON.parse(body);owned=batch?Array.isArray(data.requests)&&data.requests.length===1&&data.requests[0]?.body?.key===state.key:data.key===state.key;}catch{}
+  return{remove_request_seen:true,remove_request_is_batch:batch,remove_request_route_remove_item:remove,remove_request_route_cart:classic,
+   remove_request_route_items_owned:items,remove_request_method_post:method==='POST',remove_request_method_get:method==='GET',remove_request_method_delete:method==='DELETE',remove_request_key_owned:owned};
+ }catch{return null;}
+}
+function removeResponseItemsEmpty(value){
+ if(value&&Array.isArray(value.items))return value.items.length===0;
+ return Array.isArray(value?.responses)&&value.responses.length===1&&Array.isArray(value.responses[0]?.body?.items)&&value.responses[0].body.items.length===0;
+}
+async function removeObservation(page,context,report){
+ try{const value=await countRequest(context);report.diagnostics.remove_server_count_read=true;report.diagnostics.remove_server_count_zero=value.count===0;report.diagnostics.remove_server_count_three=value.count===3;}catch{}
+ try{Object.assign(report.diagnostics,await page.evaluate(()=>{
+  const all=[...document.querySelectorAll('.petish-cart-badge')],data=window.wp?.data,store=window.wc?.wcBlocksData?.CART_STORE_KEY;
+  const selectors=data&&store&&typeof data.select==='function'?data.select(store):null,cart=typeof selectors?.getCartData==='function'?selectors.getCartData():null;
+  return{remove_badge_zero:all.length>0&&all.every(node=>node.dataset.count==='0'&&node.hidden),remove_badge_three:all.length>0&&all.every(node=>node.dataset.count==='3'),
+   remove_blocks_store_available:!!cart,remove_blocks_store_count_zero:cart?.itemsCount===0,remove_blocks_store_count_three:cart?.itemsCount===3,
+   remove_blocks_pending_operation:typeof selectors?.hasPendingItemsOperations==='function'&&selectors.hasPendingItemsOperations()===true};
+ }));}catch{}
+}
 async function main(args){let browser,context,guest,page;const responseTasks=[];const report={status:'failure',category:'input',checks:{},diagnostics:{}};
  try{
   if(args.length!==2)throw new Error('input');const input=inputFile(args[0]);mark(report,'fixture_input_verified',true,'input');
@@ -231,13 +277,25 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   mark(report,'browser_started',true,'browser');context=await browser.newContext({viewport:{width:1280,height:900},serviceWorkers:'block',acceptDownloads:false,locale:'en-AU'});
   const state={phase:'initial',key:'',loginUsed:false,allowed:0,mutations:0,denied:0};
   await context.route('**/*',async route=>{const r=route.request(),updating=updateRequest(r,state);if(updating){report.diagnostics.update_request_seen=true;if(new URL(r.url()).pathname==='/wp-json/wc/store/v1/batch')report.diagnostics.update_request_is_batch=true;}
-   if(!allowedRequest(r.url(),r.method(),r.postData()??'',r.resourceType(),input,state)){state.denied++;return route.abort('blockedbyclient');}
+   const removing=removeRequestFacts(r.url(),r.method(),r.postData()??'',state),allowed=allowedRequest(r.url(),r.method(),r.postData()??'',r.resourceType(),input,state);
+   if(removing){Object.assign(report.diagnostics,removing);report.diagnostics[allowed?'remove_request_allowed':'remove_request_denied']=true;}
+   if(!allowed){state.denied++;return route.abort('blockedbyclient');}
    if(updating)report.diagnostics.update_request_allowed=true;
    state.allowed++;if(r.method()==='POST'&&state.phase==='login'&&['/my-account/','/wp-login.php'].includes(new URL(r.url()).pathname))state.loginUsed=true;
    if(r.method()==='POST'&&r.url()!==COUNT&&!r.url().includes('get_refreshed_fragments'))state.mutations++;
    return route.continue();});
   if(typeof context.routeWebSocket==='function')await context.routeWebSocket('**/*',socket=>socket.close());
-  context.on('response',response=>{if(!updateRequest(response.request(),state))return;
+  context.on('response',response=>{
+   const request=response.request(),removing=removeRequestFacts(request.url(),request.method(),request.postData()??'',state);
+   if(removing){
+    const status=response.status(),headers=response.headers();report.diagnostics.remove_response_received=true;
+    if(headers['x-petish-cart-fixture']===input.run)report.diagnostics.remove_response_fixture_header_present=true;
+    const reason=headers['x-petish-cart-fixture-reason'];if(['identity','key','request','body','expired','uri','unavailable','query_fields','query_locale','query_route','quantity_type','context'].includes(reason))report.diagnostics['remove_fixture_denied_'+reason]=true;
+    for(const[name,passed]of Object.entries({remove_response_2xx:status>=200&&status<300,remove_response_3xx:status>=300&&status<400,remove_response_4xx:status>=400&&status<500,remove_response_5xx:status>=500&&status<600,remove_response_400:status===400,remove_response_403:status===403,remove_response_500:status===500}))if(passed)report.diagnostics[name]=true;
+    if((headers['content-type']??'').includes('application/json')&&(!headers['content-length']||Number(headers['content-length'])<=65536))responseTasks.push((async()=>{try{const bytes=await response.body();if(bytes.length<=65536){const value=JSON.parse(bytes.toString('utf8'));report.diagnostics.remove_response_body_json=true;report.diagnostics.remove_response_body_items_empty=removeResponseItemsEmpty(value);report.diagnostics.remove_response_body_error=typeof value?.code==='string'||Array.isArray(value?.responses)&&value.responses.length<=3&&value.responses.some(item=>typeof item?.body?.code==='string');report.diagnostics.remove_error_invalid_nonce=nonceError(value);}}catch{}})());
+    return;
+   }
+   if(!updateRequest(request,state))return;
    const status=response.status();report.diagnostics.update_response_received=true;
    const headers=response.headers();if(headers['x-petish-cart-fixture']===input.run)report.diagnostics.update_response_fixture_header_present=true;
    const reason=headers['x-petish-cart-fixture-reason'];if(['identity','key','request','body','expired','uri','unavailable','query_fields','query_locale','query_route','quantity_type','context'].includes(reason))report.diagnostics['update_fixture_denied_'+reason]=true;
@@ -285,19 +343,19 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
    await guest.route('**/*',async route=>{const request=route.request(),countRequest=request.url()===COUNT,prefix=request.method()==='POST'?'guest_count_':'guest_get_';
     const allowed=allowedGuestCartRequest(request.url(),request.method(),request.postData()??'',request.resourceType(),input);
     if(countRequest){report.diagnostics[prefix+'request_seen']=true;report.diagnostics[prefix+(allowed?'request_allowed':'request_denied')]=true;}
-    return allowed?route.continue():route.abort('blockedbyclient');});
+    return allowed?route.continue(guestCartContinueOptions(request.url(),request.method(),request.postData()??'',request.headers(),input)):route.abort('blockedbyclient');});
    guest.on('response',response=>{if(response.url()===COUNT)observeGuestCountResponse(response.status(),response.headers(),response.request().method()==='POST'?'guest_count_':'guest_get_',report.diagnostics);else if(response.url()===ORIGIN+'/')observeGuestHomepage(response.status(),response.headers(),input.run,report.diagnostics);});
    guest.on('requestfailed',request=>{if(request.url()===COUNT)observeGuestNetworkFailure(request.failure()?.errorText,request.method()==='POST'?'guest_count_':'guest_get_',report.diagnostics);});
    if(typeof guest.routeWebSocket==='function')await guest.routeWebSocket('**/*',socket=>socket.close());
-   const guestPage=await guest.newPage();const warm=await guestPage.goto(ORIGIN+'/',{waitUntil:'domcontentloaded',timeout:30000});
-   report.diagnostics.guest_homepage_final_root=warm?.url()===ORIGIN+'/';
-   if(report.diagnostics.guest_homepage_final_root)observeGuestHomepage(warm.status(),warm.headers(),input.run,report.diagnostics);
+   const guestPage=await guest.newPage(),guestLogin=ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/');
+   const warm=await guestPage.goto(guestLogin,{waitUntil:'domcontentloaded',timeout:30000});
+   report.diagnostics.guest_login_http_ok=warm?.ok()===true;report.diagnostics.guest_login_final_url=warm?.url()===guestLogin;
    const noAuth=async()=>(await guest.cookies()).every(cookie=>!/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
    const anonymous=await noAuth(),guestRequest=guestCartCountBrowserRequest(guestPage,report.diagnostics);report.diagnostics.guest_authentication_absent=anonymous;
    const anon=await countRequest({request:guestRequest});report.diagnostics.guest_count_zero=anon.count===0;report.diagnostics.guest_count_private=anon.private;
    report.diagnostics.guest_authentication_absent=anonymous&&await noAuth();
-   mark(report,'anonymous_session_isolated',report.diagnostics.guest_homepage_http_ok&&report.diagnostics.guest_homepage_final_root&&report.diagnostics.guest_authentication_absent&&anon.count===0&&anon.private,'privacy');
-   const denied=await guestRequest.get(COUNT,{maxRedirects:0,timeout:30000});mark(report,'count_get_denied',denied.status()===403,'privacy');
+   mark(report,'anonymous_session_isolated',report.diagnostics.guest_login_http_ok&&report.diagnostics.guest_login_final_url&&report.diagnostics.guest_authentication_absent&&report.diagnostics.guest_count_access_authorized&&anon.count===0&&anon.private,'privacy');
+   const denied=await guestRequest.get(COUNT,{maxRedirects:0,timeout:30000});mark(report,'count_get_denied',denied.status()===403&&report.diagnostics.guest_get_access_authorized,'privacy');
    guestPrivacyPassed=true;
   }catch{/* Keep both privacy gates required while collecting independent owned-cart checks. */}
   finally{await guest?.close().catch(()=>{});guest=undefined;}
@@ -327,10 +385,20 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   geometryPassed=geometryPassed&&report.checks.dark_mode_badge_verified;
   await page.reload({waitUntil:'domcontentloaded'});await badges(page,3);mark(report,'reload_quantity_preserved',(await countRequest(context)).count===3,'update');
   await page.goto(CART,{waitUntil:'domcontentloaded'});await badges(page,3);state.phase='remove';report.category='remove';
-  if(blocks)await page.locator('.wc-block-cart .wc-block-cart-item__remove-link').click();else await page.locator('.woocommerce-cart-form a.remove').click();
-  await badges(page,0);await cartRead(context,input,0);mark(report,'remove_empty_verified',(await countRequest(context)).count===0,'remove');
+  let removalPassed=false;
+  try{
+   const remove=page.locator(blocks?'.wc-block-cart .wc-block-cart-item__remove-link':'.woocommerce-cart-form a.remove'),matches=await remove.count();
+   report.diagnostics.remove_locator_none=matches===0;report.diagnostics.remove_locator_single=matches===1;report.diagnostics.remove_locator_multiple=matches>1;
+   if(matches!==1)throw new Error('remove');
+   report.diagnostics.remove_locator_visible=await remove.isVisible();report.diagnostics.remove_locator_enabled=await remove.isEnabled();
+   if(!report.diagnostics.remove_locator_visible||!report.diagnostics.remove_locator_enabled)throw new Error('remove');
+   await remove.click();report.diagnostics.remove_interaction_completed=true;
+   await badges(page,0);await cartRead(context,input,0);mark(report,'remove_empty_verified',(await countRequest(context)).count===0,'remove');removalPassed=true;
+  }catch{report.checks.remove_empty_verified=false;}
+  finally{await removeObservation(page,context,report);}
   mark(report,'request_scope_enforced',state.allowed>0&&state.loginUsed&&state.key.length===32&&state.mutations>=2
    &&!allowedRequest(ORIGIN+'/checkout/','GET','','document',input,state)&&!allowedRequest(ORIGIN+'/wp-json/wc/store/v1/checkout','POST','{}','fetch',input,state),'scope');
+  if(!removalPassed)throw new Error('remove');
   if(!guestPrivacyPassed)throw new Error('privacy');
   if(!geometryPassed)throw new Error('geometry');
   report.status='success';report.category='complete';

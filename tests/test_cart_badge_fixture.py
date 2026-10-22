@@ -15,11 +15,12 @@ class CartBadgeFixtureTests(unittest.TestCase):
         code = '''define('CART_BADGE_PROOF_LIBRARY',true);require $argv[1];
         $v=json_decode(stream_get_contents(STDIN),true,32,JSON_THROW_ON_ERROR);
         $owner=static fn($id)=>$id===22?['user_id'=>7,'meta_key'=>'session_tokens']:($id===23?['user_id'=>8,'meta_key'=>'session_tokens']:['user_id'=>7,'meta_key'=>'wp_capabilities']);
-        $state=['customer'=>['id'=>7,'login'=>'owned-login','password'=>'owned-password'],'product'=>['id'=>31,'path'=>'/product/owned-fixture/'],'cart_key'=>md5('31')];
+        $state=['customer'=>['id'=>7,'login'=>'owned-login','password'=>'owned-password'],'product'=>['id'=>31,'path'=>'/product/owned-fixture/'],'cart_key'=>md5('31'),'guest_access_token'=>str_repeat('c',64)];
         $out=[];foreach($v as$item){
           if($item['kind']==='sql')$out[]=cart_badge_runtime_sql_allowed($item['sql'],'wp_',$item['uid']??7,$owner);
-          elseif($item['kind']==='request')$out[]=cart_badge_request_allowed(array_replace($state,$item['state']??[]),$item['method'],$item['path'],$item['query']??[],$item['post']??[],$item['json']??[],$item['uid']??7);
+          elseif($item['kind']==='request')$out[]=cart_badge_request_allowed(array_replace($state,$item['state']??[]),$item['method'],$item['path'],$item['query']??[],$item['post']??[],$item['json']??[],$item['uid']??7,$item['guest_access']??false);
           elseif($item['kind']==='bind'){try{$bound=cart_badge_bind_key(array_replace($state,['cart_key'=>null],$item['state']??[]),$item['key'],$item['product_id']??31,$item['quantity']??2,$item['variation_id']??0,$item['items'],$item['uid']??7);$out[]=$bound['cart_key']===$item['key'];}catch(Throwable $ignored){$out[]=false;}}
+          elseif($item['kind']==='guestaccess')$out[]=cart_badge_guest_access_valid($state,$item['method'],$item['path'],$item['query']??[],$item['post']??[],$item['uid']??0,$item['token']??'', $item['body']??'');
           elseif($item['kind']==='guardfacts')$out[]=cart_badge_guard_auth_facts($item['source']);
           elseif($item['kind']==='reason')$out[]=cart_badge_request_denial($state,$item['path'],$item['json'],$item['uid']??7,$item['query']??[],$item['method']??'POST');
           else throw new RuntimeException();
@@ -107,7 +108,7 @@ class CartBadgeFixtureTests(unittest.TestCase):
             {'method': 'GET', 'path': '/', 'uid': 0, 'query': {'add-to-cart': '31'}},
             {'method': 'POST', 'path': '/', 'uid': 0},
         ]
-        self.assertEqual(self.php([{'kind': 'request', **r} for r in requests]), [True, True, True, False, False, False, False, False, False, True, False, False])
+        self.assertEqual(self.php([{'kind': 'request', **r} for r in requests]), [True, True, True, False, False, False, False, False, False, False, False, False])
 
     def test_owned_cart_quantity_two_three_and_remove_routes(self):
         import hashlib
@@ -201,6 +202,38 @@ class CartBadgeFixtureTests(unittest.TestCase):
                  {**base, 'path': '/wp-json/wc/store/v1/checkout'}]
         self.assertEqual(self.php(items), ['query_fields', 'query_locale', 'query_route',
                                           'quantity_type', 'context', 'context'])
+
+    def test_private_guest_token_authorizes_only_anonymous_fixed_count_reads(self):
+        base = {'kind': 'guestaccess', 'method': 'POST', 'path': '/',
+                'query': {'wc-ajax': 'petish_cart_count'}, 'token': 'c' * 64}
+        self.assertEqual(self.php([base, {**base, 'method': 'GET'}]), [True, True])
+        invalid = [{**base, 'uid': 7}, {**base, 'token': 'd' * 64}, {**base, 'token': ''},
+                   {**base, 'token': ['c' * 64]}, {**base, 'path': '/wp-login.php'},
+                   {**base, 'query': {}}, {**base, 'query': {'wc-ajax': 'checkout'}},
+                   {**base, 'query': {'wc-ajax': 'petish_cart_count', 'customer_id': '7'}},
+                   {**base, 'method': 'DELETE'}, {**base, 'post': {'quantity': '1'}},
+                   {**base, 'body': '{}'}]
+        self.assertEqual(self.php(invalid), [False] * len(invalid))
+        get = {'kind': 'request', 'method': 'GET', 'path': '/', 'uid': 0,
+               'query': {'wc-ajax': 'petish_cart_count'}}
+        self.assertEqual(self.php([get, {**get, 'guest_access': True},
+                                   {**get, 'guest_access': True, 'path': '/checkout/'},
+                                   {**get, 'guest_access': True, 'query': {}}]), [False, True, False, False])
+
+    def test_native_batch_data_and_cache_match_only_the_validated_owned_body(self):
+        import hashlib
+        key = hashlib.md5(b'31').hexdigest()
+        item = {'method': 'POST', 'path': '/wc/store/v1/cart/remove-item',
+                'body': {'key': key}, 'data': {'key': key}, 'cache': 'no-store'}
+        base = {'kind': 'request', 'method': 'POST', 'path': '/wp-json/wc/store/v1/batch'}
+        items = [item, {**item, 'headers': {'Nonce': '0123456789'}},
+                 {**item, 'path': '/wc/store/v1/cart/update-item',
+                  'body': {'key': key, 'quantity': 3}, 'data': {'quantity': 3, 'key': key}}]
+        self.assertEqual(self.php([{**base, 'json': {'requests': [value]}} for value in items]), [True] * len(items))
+        invalid = [{**item, 'data': {'key': 'foreign'}}, {**item, 'data': {'key': key, 'quantity': 3}},
+                   {**item, 'cache': 'reload'}, {**item, 'cache': None}, {**item, 'data': None},
+                   {**item, 'data': [{'key': key}]}, {**item, 'url': '/checkout/'}]
+        self.assertEqual(self.php([{**base, 'json': {'requests': [value]}} for value in invalid]), [False] * len(invalid))
 
     def test_native_batch_nonce_headers_are_allowed_without_expanding_cart_scope(self):
         import hashlib
