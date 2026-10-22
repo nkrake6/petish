@@ -20,7 +20,7 @@ class CartBadgeFixtureTests(unittest.TestCase):
           if($item['kind']==='sql')$out[]=cart_badge_runtime_sql_allowed($item['sql'],'wp_',$item['uid']??7,$owner);
           elseif($item['kind']==='request')$out[]=cart_badge_request_allowed(array_replace($state,$item['state']??[]),$item['method'],$item['path'],$item['query']??[],$item['post']??[],$item['json']??[],$item['uid']??7);
           elseif($item['kind']==='bind'){try{$bound=cart_badge_bind_key(array_replace($state,['cart_key'=>null],$item['state']??[]),$item['key'],$item['product_id']??31,$item['quantity']??2,$item['variation_id']??0,$item['items'],$item['uid']??7);$out[]=$bound['cart_key']===$item['key'];}catch(Throwable $ignored){$out[]=false;}}
-          elseif($item['kind']==='reason')$out[]=cart_badge_request_denial($state,$item['path'],$item['json'],$item['uid']??7);
+          elseif($item['kind']==='reason')$out[]=cart_badge_request_denial($state,$item['path'],$item['json'],$item['uid']??7,$item['query']??[],$item['method']??'POST');
           else throw new RuntimeException();
         }echo json_encode($out,JSON_THROW_ON_ERROR);'''
         result = subprocess.run([PHP, '-d', 'display_errors=0', '-r', code, str(SCRIPT)],
@@ -151,6 +151,42 @@ class CartBadgeFixtureTests(unittest.TestCase):
                                    {**base, 'json': {'key': 'foreign'}},
                                    {**base, 'json': {'requests': [{'body': {'key': 'foreign'}}]}}]),
                          ['request', 'identity', 'key', 'key'])
+
+    def test_store_query_accepts_only_matching_internal_route_and_native_locales(self):
+        import hashlib
+        key = hashlib.md5(b'31').hexdigest()
+        route = '/wc/store/v1/cart/update-item'
+        base = {'kind': 'request', 'method': 'POST', 'path': '/wp-json' + route,
+                'json': {'key': key, 'quantity': 3}}
+        queries = [{}, {'_locale': 'user'}, {'_locale': 'site'}, {'rest_route': route},
+                   {'_locale': 'user', 'rest_route': route}, {'_locale': 'site', 'rest_route': route}]
+        self.assertEqual(self.php([{**base, 'query': query} for query in queries]), [True] * len(queries))
+        bad = [{'_locale': 'admin'}, {'_locale': ['user']}, {'_locale': None},
+               {'rest_route': '/wc/store/v1/checkout'}, {'rest_route': '/wc/store/v1/cart/remove-item'},
+               {'rest_route': [route]}, {'rest_route': None}, {'rest_route': route + '/'},
+               {'rest_route': route, 'customer_id': '7'}, {'_locale': 'site', 'context': 'edit'}]
+        self.assertEqual(self.php([{**base, 'query': query} for query in bad]), [False] * len(bad))
+        self.assertEqual(self.php([{**base, 'query': queries[-1], 'uid': 8},
+                                   {**base, 'query': queries[-1], 'json': {'key': 'foreign', 'quantity': 3}},
+                                   {**base, 'query': queries[-1], 'json': {'key': key, 'quantity': '3'}},
+                                   {**base, 'query': queries[-1], 'json': {'key': key, 'quantity': 3.0}},
+                                   {**base, 'query': queries[-1], 'method': 'PUT'},
+                                   {**base, 'path': '/wp-json/wc/store/v1/checkout', 'query': {'rest_route': '/wc/store/v1/checkout'}}]),
+                         [False] * 6)
+
+    def test_store_denials_distinguish_query_quantity_type_and_context(self):
+        import hashlib
+        key = hashlib.md5(b'31').hexdigest()
+        base = {'kind': 'reason', 'path': '/wp-json/wc/store/v1/cart/update-item',
+                'json': {'key': key, 'quantity': 3}}
+        items = [{**base, 'query': {'unexpected': 'private-sentinel'}},
+                 {**base, 'query': {'_locale': ['user']}},
+                 {**base, 'query': {'rest_route': '/wc/store/v1/checkout'}},
+                 {**base, 'json': {'key': key, 'quantity': '3'}},
+                 {**base, 'method': 'PUT'},
+                 {**base, 'path': '/wp-json/wc/store/v1/checkout'}]
+        self.assertEqual(self.php(items), ['query_fields', 'query_locale', 'query_route',
+                                          'quantity_type', 'context', 'context'])
 
     def test_native_batch_nonce_headers_are_allowed_without_expanding_cart_scope(self):
         import hashlib

@@ -179,6 +179,13 @@ function cart_badge_store_request($path,$method,$body,$key,$depth=0) {
  if($path!=='/wc/store/v1/batch'||$method!=='POST'||$depth!==0||array_diff(array_keys($body),['requests','validation'])||!is_array($body['requests']??null)||!array_is_list($body['requests'])||count($body['requests'])<1||count($body['requests'])>3||isset($body['validation'])&&$body['validation']!=='require-all-validate')return false;
  foreach($body['requests']as$item)if(!is_array($item)||array_diff(array_keys($item),['path','method','body','headers'])||!isset($item['path'],$item['method'])||!is_string($item['path'])||!is_string($item['method'])||!cart_badge_store_request($item['path'],$item['method'],$item['body']??[],$key,1)||array_key_exists('headers',$item)&&!cart_badge_store_headers($item['headers']))return false;return true;
 }
+/** Hostinger may expose its internal pretty-REST rewrite in PHP's query map. */
+function cart_badge_store_query_reason($query,$route) {
+ if(!is_array($query)||array_diff(array_keys($query),['_locale','rest_route']))return'query_fields';
+ if(array_key_exists('_locale',$query)&&(!is_string($query['_locale'])||!in_array($query['_locale'],['user','site'],true)))return'query_locale';
+ if(array_key_exists('rest_route',$query)&&(!is_string($query['rest_route'])||$query['rest_route']!==$route))return'query_route';
+ return null;
+}
 /** Finite allowlist; WooCommerce retains its native nonce and cart validation. */
 function cart_badge_request_allowed($state,$method,$path,$query,$post,$json,$uid) {
  if(!in_array($method,['GET','HEAD','POST'],true)||!is_array($query)||!is_array($post))return false;
@@ -195,7 +202,7 @@ function cart_badge_request_allowed($state,$method,$path,$query,$post,$json,$uid
   if($action==='add_to_cart')return !array_diff(array_keys($post),['product_id','quantity'])&&($post['product_id']??null)===(string)$product['id']&&preg_match('/\A[1-3]\z/D',(string)($post['quantity']??''));
   if($action==='remove_from_cart')return is_string($key)&&array_keys($post)===['cart_item_key']&&$post['cart_item_key']===$key;return false;
  }
- if(str_starts_with($path,'/wp-json/'))return !array_diff(array_keys($query),['_locale'])&&(!isset($query['_locale'])||$query['_locale']==='user')&&cart_badge_store_request(substr($path,8),$method,$method==='POST'?$json:[],$key);
+ if(str_starts_with($path,'/wp-json/'))return cart_badge_store_query_reason($query,substr($path,8))===null&&cart_badge_store_request(substr($path,8),$method,$method==='POST'?$json:[],$key);
  if($method!=='POST'){
   if($path==='/cart/'&&isset($query['remove_item']))return !array_diff(array_keys($query),['remove_item','_wpnonce'])&&is_string($key)&&$query['remove_item']===$key&&is_string($query['_wpnonce']??null)&&preg_match('/\A[A-Za-z0-9]{8,20}\z/D',$query['_wpnonce']);
   return !$query&&in_array($path,['/','/my-account/','/cart/',$product['path']],true);
@@ -211,11 +218,13 @@ function cart_badge_bind_key($state,$key,$product_id,$quantity,$variation_id,$it
  $state['cart_key']=$key;return$state;
 }
 /** Finite diagnostic only; never return a cart key, body, identity or nonce. */
-function cart_badge_request_denial($state,$path,$json,$uid) {
+function cart_badge_request_denial($state,$path,$json,$uid,$query=[],$method='POST') {
  if($uid!==$state['customer']['id'])return'identity';
  if(str_starts_with($path,'/wp-json/')&&is_array($json)){
+  $route=substr($path,8);$query_reason=cart_badge_store_query_reason($query,$route);if($query_reason!==null)return$query_reason;
+  if(!in_array($route,['/wc/store/v1/cart','/wc/store/v1/cart/update-item','/wc/store/v1/cart/remove-item','/wc/store/v1/batch'],true)||$method!==($route==='/wc/store/v1/cart'?'GET':'POST'))return'context';
   $bodies=isset($json['requests'])&&is_array($json['requests'])?array_map(static fn($r)=>is_array($r)?($r['body']??[]):[],$json['requests']):[$json];
-  foreach($bodies as$body)if(is_array($body)&&isset($body['key'])&&($body['key']!==($state['cart_key']??null)))return'key';
+  foreach($bodies as$body){if(is_array($body)&&isset($body['key'])&&($body['key']!==($state['cart_key']??null)))return'key';if(is_array($body)&&array_key_exists('quantity',$body)&&!is_int($body['quantity']))return'quantity_type';}
  }return'request';
 }
 function cart_badge_state($work,$run) {
@@ -233,15 +242,15 @@ function cart_badge_web_start($run,$work,$script_hash) {
   if(wp_using_ext_object_cache()===true)cart_badge_fail();
   cart_badge_lock($run);$s=cart_badge_state($work,$run);
   add_action('init',static function()use($s,$run){
-   $deny=static function($reason){if(!headers_sent()){status_header(403);nocache_headers();header('Content-Type: text/plain');header('X-Petish-Cart-Fixture-Reason: '.$reason);}exit('Private staging cart fixture request denied.');};
+   $deny=static function($reason){if(!headers_sent()){status_header(403);nocache_headers();header('Content-Type: text/plain');header('X-Petish-Cart-Fixture-Reason: '.$reason);header('X-Petish-Cart-Fixture-Method: '.(($_SERVER['REQUEST_METHOD']??'')==='POST'?'post':'other'));}exit('Private staging cart fixture request denied.');};
    if(!empty($s['closing'])||!empty($s['cleaned'])||time()>$s['expires']||time()<$s['created']-60)$deny('expired');
    $uri=parse_url($_SERVER['REQUEST_URI']??'');if(!is_array($uri)||isset($uri['host'],$uri['scheme'])||!is_string($uri['path']??null))$deny('uri');
    $body=[];if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'&&str_starts_with($uri['path'],'/wp-json/')){$raw=file_get_contents('php://input',false,null,0,65537);if(!is_string($raw)||strlen($raw)>65536)$deny('body');$body=json_decode($raw,true);if(!is_array($body))$deny('body');}
    $uid=(int)wp_validate_auth_cookie('','logged_in');
-   if(!cart_badge_request_allowed($s,$_SERVER['REQUEST_METHOD']??'GET',$uri['path'],$_GET,$_POST,$body,$uid))$deny(cart_badge_request_denial($s,$uri['path'],$body,$uid));
+   if(!cart_badge_request_allowed($s,$_SERVER['REQUEST_METHOD']??'GET',$uri['path'],$_GET,$_POST,$body,$uid))$deny(cart_badge_request_denial($s,$uri['path'],$body,$uid,$_GET,$_SERVER['REQUEST_METHOD']??'GET'));
    // Native login owns its new authentication token; all other identities stay read-only.
    $GLOBALS['cart_badge_runtime_customer']=$uid===$s['customer']['id']||($uri['path']==='/wp-login.php'&&($_SERVER['REQUEST_METHOD']??'')==='POST')?$s['customer']['id']:0;
-   if(!headers_sent()){header('X-Petish-Cart-Fixture: '.$run);nocache_headers();header('Cache-Control: private, no-store, max-age=0');}
+   if(!headers_sent()){header('X-Petish-Cart-Fixture: '.$run);header('X-Petish-Cart-Fixture-Method: '.(($_SERVER['REQUEST_METHOD']??'')==='POST'?'post':'other'));nocache_headers();header('Cache-Control: private, no-store, max-age=0');}
   },-PHP_INT_MAX);
   add_action('woocommerce_add_to_cart',static function($key,$product_id,$quantity,$variation_id)use($work,$run){
    $state=cart_badge_state($work,$run);$cart=WC()->cart;
