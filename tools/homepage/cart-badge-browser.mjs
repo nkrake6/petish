@@ -15,7 +15,7 @@ export const CHECK_KEYS=Object.freeze(['browser_started','fixture_input_verified
  'badge_yellow_circle_14px','badge_accessible_quantity','desktop_header_height_preserved',
  'mobile_header_height_preserved','mobile_badge_visible','dark_mode_badge_verified','reload_quantity_preserved',
  'request_scope_enforced']);
-export const DIAGNOSTIC_KEYS=Object.freeze(['update_fixture_denied_query_fields', 'update_fixture_denied_query_locale', 'update_fixture_denied_query_route', 'update_fixture_denied_quantity_type', 'update_fixture_denied_context', 'update_server_method_is_post', 'update_server_method_is_other', 'asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
+export const DIAGNOSTIC_KEYS=Object.freeze(['guest_login_http_ok', 'guest_authentication_absent', 'guest_count_http_200', 'guest_count_http_403', 'guest_count_http_5xx', 'guest_count_fetch_exception', 'guest_count_zero', 'guest_count_private', 'guest_get_http_403', 'guest_get_fetch_exception', 'update_fixture_denied_query_fields', 'update_fixture_denied_query_locale', 'update_fixture_denied_query_route', 'update_fixture_denied_quantity_type', 'update_fixture_denied_context', 'update_server_method_is_post', 'update_server_method_is_other', 'asset_css_response_received', 'asset_css_status_200', 'asset_css_status_403', 'asset_css_status_404', 'asset_css_status_5xx', 'asset_css_hash_matches', 'asset_css_fetch_exception', 'asset_js_response_received', 'asset_js_status_200', 'asset_js_status_403', 'asset_js_status_404', 'asset_js_status_5xx', 'asset_js_hash_matches', 'asset_js_fetch_exception', 'cart_blocks', 'cart_classic', 'quantity_control_single', 'quantity_control_visible', 'quantity_before_two', 'increment_control_single', 'increment_control_enabled', 'update_interaction_completed', 'update_request_seen', 'update_request_allowed', 'update_response_received', 'update_response_2xx', 'update_response_3xx', 'update_response_4xx', 'update_response_5xx', 'update_response_400', 'update_response_403', 'update_response_500', 'update_server_count_read', 'update_server_count_two', 'update_server_count_three', 'update_badge_two', 'update_badge_three', 'update_ui_quantity_three', 'blocks_store_available', 'blocks_store_count_two', 'blocks_store_count_three', 'blocks_pending_operation', 'update_response_fixture_header_present', 'update_request_is_batch', 'update_error_invalid_nonce', 'native_cart_key_matches_formula', 'update_fixture_denied_identity', 'update_fixture_denied_key', 'update_fixture_denied_request', 'update_fixture_denied_body', 'update_fixture_denied_expired', 'update_fixture_denied_uri', 'update_fixture_denied_unavailable']);
 const CATEGORIES=new Set(['input','browser','login','assets','initial','add','update','remove','privacy','geometry','scope','complete']);
 function mark(report,key,value,category){report.checks[key]=value===true;if(!value)throw new Error(category);}
 export function validateInput(value){
@@ -84,6 +84,39 @@ export function allowedRequest(raw,method,body,type,input,state){
   if(type!=='document'&&/^\/wp-(content|includes)\//.test(u.pathname)&&/\.(?:css|js|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|eot|map)$/i.test(u.pathname))return keysAre(q,['ver']);
   return false;
  }catch{return false;}
+}
+/** Anonymous browser can warm the login document, then read only its own count. */
+export function allowedGuestCartRequest(raw,method,body,type,input) {
+ try{
+  const url=new URL(raw),login=ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/');
+  if(url.href===COUNT)return (method==='GET'||method==='POST')&&!body;
+  return method==='GET'&&(url.href===login||url.origin===ORIGIN&&/^\/wp-(content|includes)\//.test(url.pathname)
+   &&allowedRequest(raw,'GET','',type,input,{phase:'privacy',key:'',loginUsed:true}));
+ }catch{return false;}
+}
+/** This fixed endpoint uses normal browser transport, without copying member cookies. */
+export function guestCartCountBrowserRequest(page,diagnostics) {
+ const read=async(method,url,options)=>{
+  if(url!==COUNT||options.maxRedirects!==0||options.timeout!==30000||method==='POST'&&(options.data!==''||options.headers?.Origin!==ORIGIN))throw new Error('privacy');
+  const prefix=method==='POST'?'guest_count_':'guest_get_';
+  try{
+   const result=await page.evaluate(async({target,method})=>{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+    try{
+     const response=await fetch(target,{method,mode:'same-origin',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'application/json'},signal:controller.signal});
+     const reader=response.body?.getReader(),chunks=[];let size=0;
+     if(Number(response.headers.get('content-length')??0)>65536)throw new Error('privacy');
+     if(reader)while(true){const{done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>65536){controller.abort();await reader.cancel();throw new Error('privacy');}chunks.push(value);}
+     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+     return{status:response.status,headers:Object.fromEntries(response.headers),body:new TextDecoder().decode(bytes)};
+    }finally{clearTimeout(timer);}
+   },{target:COUNT,method});
+   if(result.status===403)diagnostics[prefix+'http_403']=true;
+   if(method==='POST'){if(result.status===200)diagnostics.guest_count_http_200=true;if(result.status>=500&&result.status<600)diagnostics.guest_count_http_5xx=true;}
+   return{status:()=>result.status,headers:()=>result.headers,json:async()=>JSON.parse(result.body)};
+  }catch{diagnostics[prefix+'fetch_exception']=true;throw new Error('privacy');}
+ };
+ return{post:(url,options)=>read('POST',url,options),get:(url,options)=>read('GET',url,options)};
 }
 /** Only these fixed public GETs may be retried; cart/login mutations never are. */
 export async function fetchCartAsset(request, relative, digest, diagnostics) {
@@ -198,16 +231,18 @@ async function main(args){let browser,context,guest,page;const responseTasks=[];
   try{await badges(page,3);await cartRead(context,input,3);mark(report,'update_three_quantity_verified',true,'update');}
   finally{await updateObservation(page,context,report);}
   const count=await countRequest(context);mark(report,'count_response_private',count.count===3&&count.private,'privacy');
-  guest=await browser.newContext({serviceWorkers:'block',acceptDownloads:false});
+  report.category='privacy';guest=await browser.newContext({serviceWorkers:'block',acceptDownloads:false});
   const guestLogin=ORIGIN+'/wp-login.php?redirect_to='+encodeURIComponent(ORIGIN+'/my-account/');
-  await guest.route('**/*',async route=>{const request=route.request();let safe=false;
-   try{const url=new URL(request.url());safe=request.method()==='GET'&&(url.href===guestLogin||url.origin===ORIGIN&&/^\/wp-(content|includes)\//.test(url.pathname)&&allowedRequest(request.url(),'GET','','script',input,{phase:'privacy',key:'',loginUsed:true}));}catch{}
-   return safe?route.continue():route.abort('blockedbyclient');});
+  await guest.route('**/*',async route=>{const request=route.request();return allowedGuestCartRequest(request.url(),request.method(),request.postData()??'',request.resourceType(),input)?route.continue():route.abort('blockedbyclient');});
   if(typeof guest.routeWebSocket==='function')await guest.routeWebSocket('**/*',socket=>socket.close());
   const guestPage=await guest.newPage();const warm=await guestPage.goto(guestLogin,{waitUntil:'domcontentloaded',timeout:30000});
-  const anonymous=warm?.ok()===true&&(await guest.cookies()).every(cookie=>!/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
-  const anon=await countRequest(guest);mark(report,'anonymous_session_isolated',anonymous&&anon.count===0&&anon.private,'privacy');
-  const denied=await guest.request.get(COUNT,{maxRedirects:0,timeout:30000});mark(report,'count_get_denied',denied.status()===403,'privacy');
+  report.diagnostics.guest_login_http_ok=warm?.ok()===true;
+  const noAuth=async()=>(await guest.cookies()).every(cookie=>!/^wordpress_(?:logged_in_|sec_|[a-f0-9]{32}$)/.test(cookie.name));
+  const anonymous=await noAuth(),guestRequest=guestCartCountBrowserRequest(guestPage,report.diagnostics);report.diagnostics.guest_authentication_absent=anonymous;
+  const anon=await countRequest({request:guestRequest});report.diagnostics.guest_count_zero=anon.count===0;report.diagnostics.guest_count_private=anon.private;
+  report.diagnostics.guest_authentication_absent=anonymous&&await noAuth();
+  mark(report,'anonymous_session_isolated',report.diagnostics.guest_login_http_ok&&report.diagnostics.guest_authentication_absent&&anon.count===0&&anon.private,'privacy');
+  const denied=await guestRequest.get(COUNT,{maxRedirects:0,timeout:30000});mark(report,'count_get_denied',denied.status()===403,'privacy');
   state.phase='browse';report.category='geometry';await page.goto(input.product_url,{waitUntil:'domcontentloaded'});await badges(page,3);
   let g=await geometry(page);mark(report,'badge_yellow_circle_14px',g.valid&&g.shown>0,'geometry');mark(report,'badge_accessible_quantity',g.labels,'geometry');mark(report,'desktop_header_height_preserved',g.height,'geometry');
   let mobileHeight=true,mobileVisible=true;

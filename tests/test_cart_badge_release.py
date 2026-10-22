@@ -91,13 +91,18 @@ class CartReleaseBoundaryTests(unittest.TestCase):
     def test_native_login_precedes_asset_gets_and_guest_warmup_never_posts(self):
         source=(ROOT/'tools/homepage/cart-badge-browser.mjs').read_text()
         self.assertLess(source.index("mark(report,'customer_login_verified'"),source.index('await fetchCartAsset(context.request'))
-        warm=source[source.index("guest=await browser.newContext"):source.index("const denied=await guest.request.get")]
-        self.assertIn("request.method()==='GET'",warm)
+        warm=source[source.index("guest=await browser.newContext"):source.index("const denied=await guestRequest.get")]
+        self.assertIn("allowedGuestCartRequest",warm)
         self.assertIn("cookie=>!/^wordpress_",warm)
         self.assertNotIn('.click(',warm)
         workflow=(ROOT/'.github/workflows/homepage.yml').read_text()
         self.assertIn('id: prepare\n        timeout-minutes: 8\n        continue-on-error: true',workflow)
         self.assertIn('timeout-minutes: 20',workflow)
+
+    def test_guest_browser_count_transport_is_fixed_anonymous_and_bounded(self):
+        completed=subprocess.run(['node','tests/homepage-cart-badge-guest.mjs'],cwd=ROOT,capture_output=True,timeout=15)
+        self.assertEqual(completed.returncode,0,completed.stderr.decode())
+        self.assertEqual(completed.stdout,b'Cart guest browser privacy checks passed.\n')
 
     def test_new_browser_report_and_request_guard_are_finite(self):
         completed=subprocess.run(['node','tests/homepage-cart-badge-scope.mjs'],cwd=ROOT,capture_output=True,timeout=15)
