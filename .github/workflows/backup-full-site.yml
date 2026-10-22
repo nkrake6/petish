@@ -1,5 +1,5 @@
 name: Back up the full Petish site to Git
-# Refresh the recovered backup before enabling moderated customer reviews in production.
+# Refresh the recovered backup before releasing the verified yellow Cart badge to production.
 
 on:
   workflow_dispatch:
