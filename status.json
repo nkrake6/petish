@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "inspect",
   "run_id": "39854500007-1",
   "source_commit": "354a6ba260bd610dd2ca3d129113be517018a5fa",
-  "generated_utc": "2026-10-22T21:06:28.536537+00:00",
+  "generated_utc": "2026-10-22T21:06:30.572066+00:00",
   "source_hashes": {
     "assets/css/cart-badge.css": "e1e39ccad9b779d909946a8755363b435e2647176aa2277a7c2d58c61f7498c7",
     "assets/css/home.css": "dc4f3606341c2eb44df505c54a192e07d2771e90a9e09c102ac2a6983789bd23",
