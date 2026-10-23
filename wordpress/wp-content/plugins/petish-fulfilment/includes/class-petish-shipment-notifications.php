@@ -121,20 +121,57 @@ final class Petish_Shipment_Notifications {
             return array('state'=>$state,'result'=>$event);
         },$now);
     }
-    /** Native WooCommerce/Petish wrapper only; never invokes a mail transport. */
+    /**
+     * Staff-only, read-only customer presentation; never invokes mail or changes state.
+     *
+     * Shared admin-preview API: render_preview(int $order_id, string $event_id)
+     * returns array('subject' => string, 'html' => string), or a WP_Error.
+     * It does not need either feature flag or a configured sender. The caller must
+     * display this document in an isolated preview, not insert it into admin markup.
+     * Parcel data and quantities come only from this event's immutable snapshot.
+     */
     public static function render_preview($order_id,$event_id) {
         if(!current_user_can('manage_woocommerce'))return self::error('permission');
         if(!self::target($event_id))return self::error('input');$state=Petish_Shipment_Ledger::read($order_id);
         if(is_wp_error($state))return$state;if(!isset($state['outbox'][$event_id]))return self::error('event');
-        $event=$state['outbox'][$event_id];$shipment=$event['payload']['shipment'];
-        $subject=$event['type']==='tracking_correction'?'Your Petish tracking details have changed':($event['type']==='full_dispatch'?'Your Petish order has been dispatched':'Part of your Petish order is on its way');
-        $body='<p>'.esc_html($subject).'.</p>';
-        $parcels=$event['payload']['dispatch_state']==='dispatched'?$event['payload']['parcels']:array($shipment);
-        foreach($parcels as$parcel)$body.='<p>'.esc_html($parcel['carrier']).' — '.esc_html($parcel['tracking_number']).'</p>'
-            .'<p><a href="'.esc_url($parcel['tracking_url']).'">'.esc_html__('Track this parcel','petish-fulfilment').'</a></p>';
-        $body.='<p>'.esc_html__('A tracking number confirms dispatch information, not delivery. Other parcels may travel separately.','petish-fulfilment').'</p>';
-        if($event['payload']['dispatch_state']==='dispatched')$body.='<p>'.esc_html__('All physical items in this order snapshot have been dispatched.','petish-fulfilment').'</p>';
-        try{$mailer=WC()->mailer();if(!$mailer||!is_callable(array($mailer,'wrap_message')))return self::error('renderer');$html=$mailer->wrap_message($subject,$body);}
+        try{
+            $order=wc_get_order($order_id);
+            if(!$order instanceof WC_Order||(int)$order->get_id()!==$order_id)return self::error('order');
+            $event=$state['outbox'][$event_id];$correction=$event['type']==='tracking_correction';$full=$event['payload']['dispatch_state']==='dispatched';
+            $subject=$correction?'Your Petish tracking details have changed':($full?'Your Petish order has been dispatched':'Part of your Petish order is on its way');
+            $reference=(string)$order->get_order_number();
+            // The order reference is the only order-specific field we display. No
+            // addresses, email, order keys, supplier IDs or internal line IDs appear.
+            if($reference===''||strlen($reference)>100||preg_match('/[\x00-\x1f\x7f]/',$reference))return self::error('renderer');
+            $body='<p style="margin:0 0 18px; color:#526077; font-size:13px;">'.esc_html__('Order','petish-fulfilment').' <strong style="color:#14213D;">#'.esc_html($reference).'</strong></p>';
+            $intro=$correction?'We have updated the tracking details for a parcel in your order. Use the tracking links in this update for the revised details.':($full?'Good news — all physical items in your order have been dispatched. Your parcels may arrive separately.':'Part of your order is on its way. We will send another update when more items are dispatched.');
+            $body.='<p style="margin:0 0 24px; color:#14213D; font-size:15px; line-height:1.65;">'.esc_html__($intro,'petish-fulfilment').'</p>';
+            $parcels=$full?$event['payload']['parcels']:array($event['parcel_key']=>$event['payload']['shipment']);$number=0;
+            foreach($parcels as$key=>$parcel){
+                $number++;$quantity=array_sum($parcel['items']);
+                $label=count($parcels)===1?'Your parcel':'Parcel '.$number;
+                $quantity_label=$quantity===1?'1 item at dispatch':$quantity.' items at dispatch';
+                $dispatched=DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s\Z',$parcel['dispatched_utc'],new DateTimeZone('UTC'));
+                $body.='<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%; margin:0 0 20px; border:1px solid #E6DFF0; border-radius:10px; border-collapse:separate; background-color:#FFFFFF;"><tr><td style="padding:20px;">'
+                    .'<h2 style="margin:0 0 8px; color:#14213D; font-size:18px; line-height:1.35;">'.esc_html($label).'</h2>';
+                if($correction&&$key===$event['parcel_key'])$body.='<p style="margin:0 0 12px; color:#176074; font-size:12px; font-weight:700;">'.esc_html__('Updated tracking','petish-fulfilment').'</p>';
+                $body.='<p style="margin:0 0 12px; color:#526077; font-size:13px;">'.esc_html($quantity_label).' &middot; '.esc_html__('Dispatched','petish-fulfilment').' '.esc_html($dispatched->format('j M Y')).' (UTC)</p>'
+                    .'<p style="margin:0 0 4px; color:#14213D; font-size:15px; font-weight:700;">'.esc_html($parcel['carrier']).'</p>'
+                    .'<p style="margin:0 0 18px; color:#526077; font-size:14px; overflow-wrap:anywhere; word-break:break-all;">'.esc_html__('Tracking number:','petish-fulfilment').' '.esc_html($parcel['tracking_number']).'</p>'
+                    .'<p style="margin:0;"><a class="button" href="'.esc_url($parcel['tracking_url']).'" style="display:inline-block; padding:12px 18px; border:1px solid #6532A1; border-radius:8px; background-color:#6532A1; color:#FFFFFF; font-size:14px; font-weight:700; line-height:1.4; text-decoration:none;">'.esc_html__('Track this parcel','petish-fulfilment').'</a></p>'
+                    .'</td></tr></table>';
+            }
+            if($full&&$correction)$body.='<p style="margin:0 0 16px; color:#14213D;">'.esc_html__('All physical items in your order had been dispatched at the time of this update.','petish-fulfilment').'</p>';
+            $body.='<p style="margin:0; color:#526077; font-size:13px; line-height:1.65;">'.esc_html__('Tracking can take time to show the carrier\'s first scan. Dispatch information does not confirm delivery. Please follow each parcel separately for carrier updates.','petish-fulfilment').'</p>';
+            $mailer=WC()->mailer();if(!$mailer||!is_callable(array($mailer,'wrap_message')))return self::error('renderer');$html=$mailer->wrap_message($subject,$body);
+            // Match the existing Petish account-email pipeline without constructing
+            // an email class, registering hooks, or invoking its delivery methods.
+            if(function_exists('petish_email_branding_styles')){
+                $css=petish_email_branding_styles('');if(!is_string($css))return self::error('renderer');
+                $style='<style type="text/css">'.$css.'</style>';
+                $html=stripos($html,'</head>')!==false?str_ireplace('</head>',$style.'</head>',$html):$style.$html;
+            }
+        }
         catch(Throwable$ignored){return self::error('renderer');}
         if(!is_string($html)||$html==='')return self::error('renderer');
         return array('subject'=>$subject,'html'=>$html);

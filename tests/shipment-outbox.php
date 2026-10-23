@@ -19,6 +19,7 @@ class WC_Order{
  private$meta=array();public$id;
  function __construct($id){$this->id=$id;$this->read_meta_data(true);}
  function get_id(){return$this->id;}
+ function get_order_number(){return$GLOBALS['records'][$this->id]['order_number']??(string)$this->id;}
  function read_meta_data($force=false){$this->meta=$GLOBALS['records'][$this->id]['meta']??array();}
  function get_meta($key,$single=true){return$this->meta[$key]??'';}
  function get_meta_data(){return array_map(static fn($key,$value)=>new FixtureMeta(array('key'=>$key,'value'=>$value)),array_keys($this->meta),array_values($this->meta));}
@@ -38,7 +39,8 @@ class FixtureDatabase{
  function get_var($sql){if(str_starts_with($sql,'SELECT GET_LOCK(')){if($this->busy)return'0';$this->held=true;return'1';}if(str_starts_with($sql,'SELECT RELEASE_LOCK(')){$this->held=false;return'1';}throw new RuntimeException('Unexpected SQL');}
 }
 $wpdb=new FixtureDatabase();
-function WC(){return new class{function mailer(){return new class{function wrap_message($subject,$body){return'<html><header>Petish</header><h1>'.esc_html($subject).'</h1>'.$body.'</html>';}};}};}
+function petish_email_branding_styles($css){return$css.'/* Petish shared email shell */ body { background-color:#F6F3FC; }';}
+function WC(){return new class{function mailer(){return new class{function wrap_message($subject,$body){return'<html><head><title>Petish</title></head><body><header>Petish</header><h1>'.esc_html($subject).'</h1>'.$body.'</body></html>';}};}};}
 require __DIR__.'/../wordpress/wp-content/plugins/petish-fulfilment/includes/class-petish-shipment-ledger.php';
 require __DIR__.'/../wordpress/wp-content/plugins/petish-fulfilment/includes/class-petish-shipment-notifications.php';
 $checks=array();function check($name,$value){global$checks;$checks[$name]=$value===true;if(!$value)throw new RuntimeException('Failed: '.$name);}
@@ -116,4 +118,18 @@ check('physical_requirements_pinned',$state['required_items']===array(11=>2,12=>
 $GLOBALS['records'][11]['items'][12]->physical=false;$writes=$GLOBALS['writes'];$sent=$GLOBALS['sent'];
 check('catalogue_virtual_toggle_cannot_imply_dispatch',error_code(Petish_Shipment_Ledger::record(11,shipment('one',2,array(11=>2)),$now+1),'order_changed')&&$GLOBALS['writes']===$writes);
 check('changed_physical_requirements_block_send',error_code(Petish_Shipment_Notifications::send(11,$partial['event_id'],$now+1),'order_changed')&&$GLOBALS['writes']===$writes&&$GLOBALS['sent']===$sent);
+fixture(12);$GLOBALS['records'][12]['order_number']='REF <img src=x onerror=alert(1)> & "12"';
+$escaped=shipment('escaped',1,array(11=>2));$escaped['carrier']='Carrier & "Friends"';$escaped['tracking_url']='https://tracking.example.test/parcel?one=1&two=2';
+$escaped=Petish_Shipment_Ledger::record(12,$escaped,$now);$writes=$GLOBALS['writes'];$sent=$GLOBALS['sent'];
+$GLOBALS['options'][Petish_Shipment_Ledger::OPTION]='no';$GLOBALS['options'][Petish_Shipment_Notifications::OPTION]='no';
+$preview=Petish_Shipment_Notifications::render_preview(12,$escaped['event_id']);
+check('preview_flags_off_read_only',!is_wp_error($preview)&&$GLOBALS['writes']===$writes&&$GLOBALS['sent']===$sent);
+check('preview_reuses_petish_brand_css',str_contains($preview['html'],'<style type="text/css">/* Petish shared email shell */')&&str_contains($preview['html'],'#F6F3FC'));
+check('preview_reference_and_carrier_escaped',!str_contains($preview['html'],'<img src=x')&&str_contains($preview['html'],'REF &lt;img')&&str_contains($preview['html'],'Carrier &amp; &quot;Friends&quot;'));
+check('preview_link_and_quantities_escaped',str_contains($preview['html'],'?one=1&amp;two=2')&&str_contains($preview['html'],'2 items at dispatch'));
+check('preview_customer_privacy',!str_contains($preview['html'],'supplier-1')&&!str_contains($preview['html'],$escaped['event_id'])&&!str_contains($preview['html'],$escaped['parcel_key'])&&!str_contains($preview['html'],'pending')&&!str_contains($preview['html'],'lease_until'));
+$historic=Petish_Shipment_Notifications::render_preview(10,$two['event_id']);$current=Petish_Shipment_Notifications::render_preview(10,$fixed['event_id']);
+check('preview_preserves_historical_tracking_snapshot',str_contains($historic['html'],'PARCEL-one')&&!str_contains($historic['html'],'LATEST')&&str_contains($current['html'],'LATEST')&&str_contains($current['html'],'PARCEL-two'));
+check('preview_correction_explains_update',str_contains($current['html'],'Updated tracking')&&str_contains($current['html'],'We have updated the tracking details')&&$current['subject']==='Your Petish tracking details have changed');
+check('preview_partial_not_full_claim',str_contains($preview['html'],'Part of your order is on its way')&&!str_contains($preview['html'],'all physical items in your order have been dispatched'));
 echo json_encode(array('status'=>'success','checks'=>$checks),JSON_PRETTY_PRINT)."\n";
