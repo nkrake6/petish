@@ -28,7 +28,9 @@ def proof(available=False):
             'checks': dict.fromkeys(SCREEN.COMMON | (SCREEN.SCENARIOS if available else set()), True),
             'observations': {'catalogue_scenario_available': available,
                              'hosted_order_mutations_not_exercised': True,
-                             'external_supplier_tracking_not_exercised': True},
+                             'external_supplier_tracking_not_exercised': True,
+                             'customer_owner_and_parcel_render_not_exercised': True,
+                             'staff_preview_body_not_exercised': True},
             'source_hashes': manifest()}
 
 
@@ -53,6 +55,7 @@ class ReportBoundary(unittest.TestCase):
             lambda value: value['checks'].update(feature_flags_disabled=1),
             lambda value: value['checks'].update(feature_flags_disabled='true'),
             lambda value: value['observations'].update(order_id=123),
+            lambda value: value['observations'].update(preview_html='PRIVATE'),
             lambda value: value['source_hashes'].update({'../wp-config.php': 'a' * 64}),
             lambda value: value['source_hashes'].update({'includes/private.php': 'PRIVATE'}),
             lambda value: value.update(target='production'),
@@ -75,6 +78,26 @@ class ReportBoundary(unittest.TestCase):
                        lambda value: value.update(source_hashes={})]:
             value = proof()
             mutate(value)
+            self.assertFalse(self.screen(value)[1])
+
+    def test_tracking_and_staff_preview_guards_are_mandatory(self):
+        for name in ['customer_tracking_hooks_registered', 'customer_tracking_disabled',
+                     'customer_tracking_inactive_output_absent', 'customer_tracking_style_not_enqueued',
+                     'customer_tracking_guest_access_denied', 'staff_email_preview_hook_registered',
+                     'staff_email_preview_permission_verified', 'staff_email_preview_nonce_verified']:
+            with self.subTest(check=name):
+                value = proof()
+                del value['checks'][name]
+                self.assertFalse(self.screen(value)[1])
+                value['checks'][name] = False
+                self.assertFalse(self.screen(value)[1])
+        for observation in ['customer_owner_and_parcel_render_not_exercised', 'staff_preview_body_not_exercised']:
+            value = proof()
+            value['observations'][observation] = False
+            self.assertFalse(self.screen(value)[1])
+        for source in ['includes/class-petish-shipment-customer-view.php', 'assets/shipment-tracking.css']:
+            value = proof()
+            del value['source_hashes'][source]
             self.assertFalse(self.screen(value)[1])
 
     def test_symlinks_hardlinks_oversized_and_duplicate_json_are_rejected(self):
@@ -130,7 +153,7 @@ class GitSourceBoundary(unittest.TestCase):
         file.write_text('Unreviewed working-tree change')
         self.assertEqual(self.build(self.revision), expected)
         extra = self.root / SCREEN.PREFIX / 'assets/new.css'
-        extra.parent.mkdir()
+        extra.parent.mkdir(exist_ok=True)
         extra.write_text('body{}')
         revision = self.commit()
         self.assertIn('assets/new.css', self.build(revision))

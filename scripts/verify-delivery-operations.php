@@ -16,6 +16,9 @@ const PETISH_DELIVERY_OPS_CHECKS = [
  'invalid_evidence_rejected','stale_mapping_rejected','ambiguous_schedule_rejected',
  'v1_per_unit_behavior_preserved','currency_context_verified','cache_tags_invalidate',
  'cached_rate_guard_verified','catalogue_csv_preview_verified',
+ 'customer_tracking_hooks_registered','customer_tracking_disabled','customer_tracking_inactive_output_absent',
+ 'customer_tracking_style_not_enqueued','customer_tracking_guest_access_denied',
+ 'staff_email_preview_hook_registered','staff_email_preview_permission_verified','staff_email_preview_nonce_verified',
 ];
 function petish_delivery_ops_mark($key, $value) {
  global $report;
@@ -25,9 +28,10 @@ function petish_delivery_ops_mark($key, $value) {
 }
 function petish_delivery_ops_source($root, $manifest) {
  $plugin = $root . '/wp-content/plugins/petish-fulfilment';
- if (!petish_club_verify_path($plugin, true) || !is_array($manifest) || count($manifest) < 6 || count($manifest) > 128) petish_club_verify_fail();
+ if (!petish_club_verify_path($plugin, true) || !is_array($manifest) || count($manifest) < 8 || count($manifest) > 128) petish_club_verify_fail();
  foreach (['petish-fulfilment.php','includes/class-petish-automatic-shipping.php','includes/class-petish-delivery-rate-schedules.php',
-  'includes/class-petish-shipment-ledger.php','includes/class-petish-shipment-notifications.php','includes/class-petish-delivery-operations-admin.php'] as $name)
+  'includes/class-petish-shipment-ledger.php','includes/class-petish-shipment-notifications.php','includes/class-petish-delivery-operations-admin.php',
+  'includes/class-petish-shipment-customer-view.php','assets/shipment-tracking.css'] as $name)
   if (!isset($manifest[$name])) petish_club_verify_fail();
  foreach ($manifest as $name=>$digest) {
   if (!is_string($name) || !preg_match('~\A(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_.-]+\.(?:php|js|css|md|json|svg|png|jpg|jpeg|webp|txt)\z~D', $name)
@@ -67,6 +71,7 @@ function petish_delivery_ops_contracts($root) {
   'Petish_Shipment_Ledger'=>'class-petish-shipment-ledger.php',
   'Petish_Shipment_Notifications'=>'class-petish-shipment-notifications.php',
   'Petish_Delivery_Operations_Admin'=>'class-petish-delivery-operations-admin.php',
+  'Petish_Shipment_Customer_View'=>'class-petish-shipment-customer-view.php',
  ];
  petish_delivery_ops_mark('delivery_classes_loaded', array_reduce(array_keys($classes), static fn($ok,$name)=>$ok && class_exists($name, false), true));
  foreach ($classes as $name=>$file)
@@ -74,11 +79,21 @@ function petish_delivery_ops_contracts($root) {
  petish_delivery_ops_mark('reviewed_class_paths_verified', true);
  petish_delivery_ops_mark('admin_hooks_registered', has_action('admin_menu', ['Petish_Delivery_Operations_Admin','menu']) !== false
   && has_action('admin_post_' . Petish_Delivery_Operations_Admin::TEMPLATE_ACTION, ['Petish_Delivery_Operations_Admin','download']) !== false);
+ petish_delivery_ops_mark('staff_email_preview_hook_registered', Petish_Delivery_Operations_Admin::PREVIEW_ACTION === 'petish_shipment_email_preview'
+  && has_action('admin_post_' . Petish_Delivery_Operations_Admin::PREVIEW_ACTION, ['Petish_Delivery_Operations_Admin','preview_email']) !== false
+  && is_callable(['Petish_Delivery_Operations_Admin','preview_request']));
+ petish_delivery_ops_mark('customer_tracking_hooks_registered',
+  has_action('woocommerce_order_details_after_order_table',['Petish_Shipment_Customer_View','render']) === 20
+  && has_action('wp_enqueue_scripts',['Petish_Shipment_Customer_View','enqueue_style']) !== false);
  petish_delivery_ops_mark('notification_api_available', is_callable(['Petish_Shipment_Ledger','record']) && is_callable(['Petish_Shipment_Ledger','read'])
   && is_callable(['Petish_Shipment_Notifications','send']) && is_callable(['Petish_Shipment_Notifications','retry'])
   && is_callable(['Petish_Shipment_Notifications','resolve_uncertain']) && is_callable(['Petish_Shipment_Notifications','render_preview']));
  petish_delivery_ops_mark('feature_flags_disabled', get_option('petish_shipment_ledger_enabled','no') === 'no'
-  && get_option('petish_shipment_notifications_enabled','no') === 'no' && !Petish_Shipment_Ledger::enabled() && !Petish_Shipment_Notifications::enabled());
+  && get_option('petish_shipment_notifications_enabled','no') === 'no'
+  && get_option('petish_shipment_customer_tracking_enabled','no') === 'no'
+  && !Petish_Shipment_Ledger::enabled() && !Petish_Shipment_Notifications::enabled() && !Petish_Shipment_Customer_View::enabled());
+ petish_delivery_ops_mark('customer_tracking_disabled', Petish_Shipment_Customer_View::OPTION === 'petish_shipment_customer_tracking_enabled'
+  && Petish_Shipment_Customer_View::enabled() === false);
  petish_delivery_ops_mark('notification_sender_unconfigured', Petish_Shipment_Notifications::sender_ready() === false);
  $empty = Petish_Automatic_Shipping::validate_book(['schema_version'=>2,'rules'=>[]]);
  petish_delivery_ops_mark('schema_boundaries_verified', is_array($empty) && ($empty['schema_version'] ?? null) === 2
@@ -101,15 +116,29 @@ function petish_delivery_ops_admin($root) {
   petish_delivery_ops_mark('anonymous_access_denied', !Petish_Delivery_Operations_Admin::authorized()
    && petish_delivery_ops_denied(static fn()=>Petish_Delivery_Operations_Admin::render()));
   petish_delivery_ops_mark('private_preview_access_denied', petish_delivery_ops_error(Petish_Shipment_Notifications::render_preview(0, str_repeat('a',64)), 'petish_shipment_permission'));
+  $staff_guest = Petish_Delivery_Operations_Admin::preview_request(['order_id'=>'1','event_id'=>str_repeat('a',64),'_wpnonce'=>'invalid-process-only-nonce']);
   petish_delivery_ops_principal('customer', ['read'=>true]);
   petish_delivery_ops_mark('customer_access_denied', !Petish_Delivery_Operations_Admin::authorized()
    && petish_delivery_ops_denied(static fn()=>Petish_Delivery_Operations_Admin::render()));
+  petish_delivery_ops_mark('staff_email_preview_permission_verified', petish_delivery_ops_error($staff_guest,'petish_operations_permission')
+   && petish_delivery_ops_error(Petish_Delivery_Operations_Admin::preview_request(['order_id'=>'1','event_id'=>str_repeat('a',64),'_wpnonce'=>'invalid-process-only-nonce']),'petish_operations_permission'));
   petish_delivery_ops_principal('shop_manager', ['read'=>true,'manage_woocommerce'=>true]);
   petish_delivery_ops_mark('manager_access_verified', Petish_Delivery_Operations_Admin::authorized() === true);
   petish_delivery_ops_mark('invalid_nonce_rejected', !Petish_Delivery_Operations_Admin::authorized('invalid-process-only-nonce'));
   petish_delivery_ops_mark('valid_nonce_accepted', (bool)Petish_Delivery_Operations_Admin::authorized(wp_create_nonce(Petish_Delivery_Operations_Admin::NONCE)));
   $action = ['order_id'=>'1','event_id'=>str_repeat('a',64),'petish_operation'=>'retry','_wpnonce'=>'invalid-process-only-nonce'];
   petish_delivery_ops_mark('notification_request_nonce_verified', petish_delivery_ops_error(Petish_Delivery_Operations_Admin::notification_action($action), 'petish_operations_request'));
+  $preview = ['order_id'=>'1','event_id'=>str_repeat('a',64),'_wpnonce'=>'invalid-process-only-nonce'];
+  global $wpdb; $queries = $wpdb->num_queries;
+  $invalid_preview = Petish_Delivery_Operations_Admin::preview_request($preview);
+  unset($preview['_wpnonce']);
+  $missing_preview = Petish_Delivery_Operations_Admin::preview_request($preview);
+  // A nonce for another event/operation must not authorize this private email.
+  $preview['_wpnonce'] = wp_create_nonce(Petish_Delivery_Operations_Admin::NONCE . ':preview_email:1:' . str_repeat('b',64));
+  $other_event_preview = Petish_Delivery_Operations_Admin::preview_request($preview);
+  petish_delivery_ops_mark('staff_email_preview_nonce_verified', petish_delivery_ops_error($invalid_preview,'petish_operations_request')
+   && petish_delivery_ops_error($missing_preview,'petish_operations_request') && petish_delivery_ops_error($other_event_preview,'petish_operations_request')
+   && $wpdb->num_queries === $queries);
   $shipment = ['supplier_id'=>'process-proof','shipment_id'=>'process-proof','revision'=>1,'carrier'=>'Process proof',
    'tracking_number'=>'NOT-A-REAL-SHIPMENT','tracking_url'=>'https://example.com/track/process-proof',
    'dispatched_utc'=>gmdate('Y-m-d\TH:i:s\Z', time()-60),'items'=>[1=>1]];
@@ -131,6 +160,31 @@ function petish_delivery_ops_admin($root) {
  } finally {
   $GLOBALS['current_user'] = $old_user; $_GET = $old_get; $_POST = $old_post; $_FILES = $old_files; $_SERVER['REQUEST_METHOD'] = $old_method;
  }
+}
+/** No saved orders or customer records are created/read for this limited hosted privacy proof. */
+function petish_delivery_ops_customer() {
+ global $report,$wpdb;
+ $report['category'] = 'contracts';
+ $old_user = $GLOBALS['current_user'] ?? null;
+ try {
+  petish_delivery_ops_principal(null,[]);
+  $order = new WC_Order();
+  // Unsaved sentinel only. A positive ID exercises access gates instead of the ID-zero shortcut.
+  $order->set_id(PHP_INT_MAX);
+  $inactive = petish_club_verify_capture(static fn()=>Petish_Shipment_Customer_View::render($order));
+  petish_delivery_ops_mark('customer_tracking_inactive_output_absent', $order->get_id() === PHP_INT_MAX && $inactive === '');
+  Petish_Shipment_Customer_View::enqueue_style();
+  petish_delivery_ops_mark('customer_tracking_style_not_enqueued', Petish_Shipment_Customer_View::STYLE_HANDLE === 'petish-shipment-tracking'
+   && wp_style_is(Petish_Shipment_Customer_View::STYLE_HANDLE,'enqueued') === false);
+  $enabled = static fn()=>'yes';
+  add_filter('pre_option_' . Petish_Shipment_Customer_View::OPTION,$enabled,PHP_INT_MAX);
+  try {
+   $queries = $wpdb->num_queries;
+   $guest = petish_club_verify_capture(static fn()=>Petish_Shipment_Customer_View::render($order));
+   petish_delivery_ops_mark('customer_tracking_guest_access_denied', Petish_Shipment_Customer_View::enabled() === true
+    && $guest === '' && $wpdb->num_queries === $queries);
+  } finally { remove_filter('pre_option_' . Petish_Shipment_Customer_View::OPTION,$enabled,PHP_INT_MAX); }
+ } finally { $GLOBALS['current_user'] = $old_user; }
 }
 function petish_delivery_ops_catalogue() {
  $query = new WP_Query(['post_type'=>['product','product_variation'],'post_status'=>'publish','posts_per_page'=>500,
@@ -235,7 +289,8 @@ function petish_delivery_ops_scenarios($fixture) {
 if (defined('PETISH_DELIVERY_OPS_VERIFY_LIBRARY') && PETISH_DELIVERY_OPS_VERIFY_LIBRARY === true) return;
 petish_club_verify_report_start();
 $report += ['schema_version'=>1,'target'=>'staging','observations'=>[
- 'catalogue_scenario_available'=>false,'hosted_order_mutations_not_exercised'=>true,'external_supplier_tracking_not_exercised'=>true], 'source_hashes'=>[]];
+ 'catalogue_scenario_available'=>false,'hosted_order_mutations_not_exercised'=>true,'external_supplier_tracking_not_exercised'=>true,
+ 'customer_owner_and_parcel_render_not_exercised'=>true,'staff_preview_body_not_exercised'=>true], 'source_hashes'=>[]];
 $body_passed = false; $before = null; $root = null; $manifest = null; $source_before = null; $shipping_before = null; $baseline = null;
 // Registered after WordPress boot below, so final comparison includes its shutdown hooks.
 $finalize = static function() use (&$body_passed,&$before,&$root,&$manifest,&$source_before,&$shipping_before,&$baseline,&$report) {
@@ -243,7 +298,7 @@ $finalize = static function() use (&$body_passed,&$before,&$root,&$manifest,&$so
   $report['category'] = 'snapshot';
   petish_club_verify_state_equal($before,petish_club_verify_state($root));
   petish_delivery_ops_mark('shipping_options_unchanged', $shipping_before === [get_option('petish_shipping_mode','quote'),get_option(Petish_Automatic_Shipping::OPTION,['schema_version'=>1,'rules'=>[]]),
-   get_option('petish_shipment_ledger_enabled','no'),get_option('petish_shipment_notifications_enabled','no')]);
+   get_option('petish_shipment_ledger_enabled','no'),get_option('petish_shipment_notifications_enabled','no'),get_option('petish_shipment_customer_tracking_enabled','no')]);
   petish_delivery_ops_mark('source_unchanged', hash_equals($source_before,petish_delivery_ops_source($root,$manifest)));
   $report['category'] = 'readonly';
   petish_delivery_ops_mark('native_memory_cache_verified', petish_club_verify_runtime_cache($root));
@@ -263,10 +318,11 @@ try {
  $baseline = $GLOBALS['petish_club_blocked_write_count'] ?? null;
  $report['category'] = 'snapshot'; $before = petish_club_verify_state($root);
  $shipping_before = [get_option('petish_shipping_mode','quote'),get_option(Petish_Automatic_Shipping::OPTION,['schema_version'=>1,'rules'=>[]]),
-  get_option('petish_shipment_ledger_enabled','no'),get_option('petish_shipment_notifications_enabled','no')];
+  get_option('petish_shipment_ledger_enabled','no'),get_option('petish_shipment_notifications_enabled','no'),get_option('petish_shipment_customer_tracking_enabled','no')];
  register_shutdown_function($finalize);
  petish_delivery_ops_contracts($root);
  petish_delivery_ops_admin($root);
+ petish_delivery_ops_customer();
  $report['category'] = 'catalogue';
  $fixture = petish_delivery_ops_catalogue();
  $report['observations']['catalogue_scenario_available'] = $fixture !== null;

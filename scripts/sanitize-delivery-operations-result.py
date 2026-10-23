@@ -18,6 +18,7 @@ REQUIRED_SOURCE = {
     'includes/class-petish-shipment-ledger.php',
     'includes/class-petish-shipment-notifications.php',
     'includes/class-petish-delivery-operations-admin.php',
+    'includes/class-petish-shipment-customer-view.php', 'assets/shipment-tracking.css',
 }
 COMMON = {
     'target_paths_verified', 'target_environment_verified', 'woocommerce_runtime_verified',
@@ -34,6 +35,10 @@ COMMON = {
     'orders_unchanged', 'users_and_authentication_unchanged', 'product_prices_and_stock_unchanged',
     'settings_unchanged', 'existing_passports_unchanged', 'private_photo_files_unchanged',
     'sql_write_attempts_absent', 'native_memory_cache_verified',
+    'customer_tracking_hooks_registered', 'customer_tracking_disabled',
+    'customer_tracking_inactive_output_absent', 'customer_tracking_style_not_enqueued',
+    'customer_tracking_guest_access_denied', 'staff_email_preview_hook_registered',
+    'staff_email_preview_permission_verified', 'staff_email_preview_nonce_verified',
 }
 SCENARIOS = {
     'exact_quantity_total_verified', 'quantity_outside_evidence_rejected',
@@ -43,7 +48,8 @@ SCENARIOS = {
     'catalogue_csv_preview_verified',
 }
 OBSERVATIONS = {'catalogue_scenario_available', 'hosted_order_mutations_not_exercised',
-                'external_supplier_tracking_not_exercised'}
+                'external_supplier_tracking_not_exercised',
+                'customer_owner_and_parcel_render_not_exercised', 'staff_preview_body_not_exercised'}
 CATEGORIES = {'input', 'paths', 'source', 'bootstrap', 'runtime', 'snapshot', 'admin',
               'contracts', 'catalogue', 'verification', 'readonly', 'complete', 'invalid_report'}
 
@@ -69,7 +75,7 @@ def no_duplicate_keys(pairs):
 
 
 def source_manifest(value):
-    if not isinstance(value, dict) or not REQUIRED_SOURCE <= set(value) or not 6 <= len(value) <= 128:
+    if not isinstance(value, dict) or not REQUIRED_SOURCE <= set(value) or not len(REQUIRED_SOURCE) <= len(value) <= 128:
         raise ValueError('Incomplete source manifest')
     for name, digest in value.items():
         if not isinstance(name, str) or not SOURCE_PATH.fullmatch(name) or any(part in {'.', '..'} for part in name.split('/')) \
@@ -130,6 +136,8 @@ def screen(path):
             and set(raw['observations']) == OBSERVATIONS \
             and raw['observations']['hosted_order_mutations_not_exercised'] is True \
             and raw['observations']['external_supplier_tracking_not_exercised'] is True \
+            and raw['observations']['customer_owner_and_parcel_render_not_exercised'] is True \
+            and raw['observations']['staff_preview_body_not_exercised'] is True \
             and bool(raw['source_hashes'])
         if not passed:
             raw['status'] = 'failure'
