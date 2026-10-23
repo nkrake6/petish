@@ -29,6 +29,8 @@
   gap: 20px;
 }
 .petish-shipment-tracking__parcel {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   padding: clamp(20px, 3vw, 28px);
   border: 1px solid var(--color-border, #e3e7ef);
@@ -68,10 +70,12 @@
 .petish-shipment-tracking__quantity { color: var(--color-text-muted, #526077); font-size: .8125rem; }
 .petish-shipment-tracking a.petish-shipment-tracking__link {
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
   justify-content: center;
   min-height: 44px;
   max-width: 100%;
+  margin-top: auto;
   padding: 10px 18px;
   border: 1px solid var(--color-primary, #0f4c5c);
   border-radius: var(--radius-control, 12px);
