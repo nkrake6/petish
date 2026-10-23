@@ -49,7 +49,10 @@ tracking number/link, dispatch time and actual order-line quantities.
 An exact replay does nothing. A conflicting or stale revision is rejected.
 Corrections preserve other parcels and the notification history. Partial and
 fully dispatched states follow physical item quantities; neither means
-delivered. Recording a parcel does not change the native order status.
+delivered. The first record pins the physical order lines and quantities.
+Later quantity or physical/virtual changes block sending and updates until
+reconciled; they never silently reduce the dispatch requirements. Recording a
+parcel does not change the native order status.
 
 Each notification retains its immutable parcel snapshot, claim, attempts and
 outcome. The sender claims the event under an order lock before submission.
@@ -105,3 +108,23 @@ installed staging source, private guard, permissions, default-off controls and
 read-only runtime behavior. It does not install application code, create hosted
 fixtures, activate rates or send mail. Its screened receipt is separate from
 the native local persistence proof and from production release evidence.
+
+Local validation on 23 October passed 90 quantity-rate checks, 57 staff-tool
+checks, 47 outbox transition/interruption checks and the existing 67 cost-sheet
+checks. All 53 delivery Python tests passed, including the 11 staging proof
+boundary tests. The unchanged 0.5.0 production release rejects this broader
+candidate; its positive transaction test uses the immutable reviewed 0.5.0
+source. PHP syntax, workflow lint, package creation and application credential
+screening also passed.
+
+The fresh native integration run passed **102 named checks in classic order
+storage and 102 in HPOS**, on WordPress 7.1.3 / WooCommerce 11.2.1 / PHP 8.3 /
+MariaDB 11.4. It verified actual metadata persistence and database-lock
+contention, claims saved before the capture-only transport, split-parcel email
+snapshots, corrections, controlled retry and uncertainty handling, pinned
+physical requirements, native CSV/admin rendering and the hosted verifier's
+helper contracts. Exactly two synthetic native mail calls were captured per
+mode; no SMTP delivery occurred. Fixture cleanup passed in both modes and the
+owned disconnected containers, database and scratch files were removed. This
+proves native Woo rendering; production Petish branding remains covered by its
+existing separate email release evidence.
