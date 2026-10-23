@@ -31,6 +31,9 @@ Viewing a parcel or previewing an email creates no notification attempt and
 changes no order state. The customer-view option is independent of ingestion
 and sending, so disabling a sender need not hide previously saved tracking.
 
+[Open the shipment-card and email screenshots](delivery-previews/README.md).
+They use the rendered layouts with clearly marked illustrative shipment data.
+
 ## Staff rate preview
 
 On private staging, open
