@@ -1,7 +1,7 @@
 <?php
 /** Behavioral staff/CSV/notification boundary checks; no WordPress writes or network. */
 define('ABSPATH', __DIR__ . '/');
-$GLOBALS['allowed']=true;$GLOBALS['nonce_ok']=true;$GLOBALS['hooks']=array();$GLOBALS['calls']=array();$GLOBALS['options']=array();$GLOBALS['products']=array();
+$GLOBALS['allowed']=true;$GLOBALS['nonce_ok']=true;$GLOBALS['hooks']=array();$GLOBALS['calls']=array();$GLOBALS['options']=array();$GLOBALS['products']=array();$GLOBALS['reads']=0;$GLOBALS['previews']=0;
 function current_user_can($cap){return $cap==='manage_woocommerce'&&$GLOBALS['allowed'];}
 function wp_verify_nonce($value,$action){return $GLOBALS['nonce_ok']&&$value==='nonce:'.$action;}
 function add_action($hook,$callback){$GLOBALS['hooks'][$hook]=$callback;}
@@ -19,6 +19,9 @@ function esc_attr($text){return esc_html($text);}
 function esc_url($text){return esc_html($text);}
 function admin_url($path){return 'https://staging.petish.invalid/wp-admin/'.$path;}
 function nocache_headers(){$GLOBALS['nocache']=true;}
+function wp_mail(){throw new RuntimeException('Preview must never send mail.');}
+function update_option(){throw new RuntimeException('Preview must never change settings.');}
+function update_post_meta(){throw new RuntimeException('Preview must never change an order.');}
 function wp_nonce_field($action){echo '<input type="hidden" name="_wpnonce" value="'.esc_attr('nonce:'.$action).'">';}
 function submit_button($text,...$args){echo '<button>'.esc_html($text).'</button>';}
 function wp_die($message,$title='',$args=array()){throw new RuntimeException('denied:'.($args['response']??0));}
@@ -50,13 +53,19 @@ class Petish_Automatic_Shipping{
  }
 }
 class Petish_Shipment_Ledger{
- public static function read($order){return $order===7?$GLOBALS['ledger']:new WP_Error('petish_shipment_order','unsafe private detail');}
+ public static function read($order){$GLOBALS['reads']++;return $order===7?$GLOBALS['ledger']:new WP_Error('petish_shipment_order','unsafe private detail');}
  public static function coverage($order,$parcels,$required_items=null){$GLOBALS['coverage_required_items']=$required_items;return 'partial';}
 }
 class Petish_Shipment_Notifications{
  public static function retry($order,$event){$GLOBALS['calls'][]=array('retry',$order,$event);return array('status'=>'submitted');}
  public static function resolve_uncertain($order,$event,$resolution){$GLOBALS['calls'][]=array('resolve',$order,$event,$resolution);return array('status'=>'resolved');}
  public static function reconcile($order){$GLOBALS['calls'][]=array('reconcile',$order);return array('status'=>'uncertain');}
+ public static function render_preview($order,$event){
+  $GLOBALS['previews']++;
+  if($GLOBALS['preview_error']??false)return new WP_Error('petish_shipment_renderer','unsafe private renderer detail');
+  $entry=$GLOBALS['ledger']['outbox'][$event];$shipment=$entry['payload']['shipment'];
+  return array('subject'=>'Petish <parcel> & "tracking"','html'=>'<!doctype html><html><body><p title="Carrier">'.esc_html($shipment['carrier']).'</p><p>'.esc_html($shipment['tracking_number']).'</p></body></html>');
+ }
 }
 require __DIR__.'/../wordpress/wp-content/plugins/petish-fulfilment/includes/class-petish-delivery-operations-admin.php';
 $checks=array();
@@ -64,9 +73,11 @@ function check($name,$value){global$checks;$checks[$name]=$value===true;if(!$val
 function rejected($callback){try{$callback();return false;}catch(InvalidArgumentException$ignored){return true;}}
 function row(){return array_fill_keys(Petish_Delivery_Operations_Admin::COLUMNS,'')+array();}
 function action($operation,$event){return array('order_id'=>'7','event_id'=>$event,'petish_operation'=>$operation,'_wpnonce'=>'nonce:'.Petish_Delivery_Operations_Admin::NONCE.':'.$operation.':7:'.$event);}
+function preview_action($event){return array('order_id'=>'7','event_id'=>$event,'_wpnonce'=>'nonce:'.Petish_Delivery_Operations_Admin::NONCE.':preview_email:7:'.$event);}
 $class=Petish_Delivery_Operations_Admin::class;
 check('include_registers_nothing',$GLOBALS['hooks']===array());
-$class::init();check('admin_hooks_only',array_keys($GLOBALS['hooks'])===array('admin_menu','admin_post_'.$class::TEMPLATE_ACTION));
+$class::init();check('admin_hooks_only',array_keys($GLOBALS['hooks'])===array('admin_menu','admin_post_'.$class::TEMPLATE_ACTION,'admin_post_'.$class::PREVIEW_ACTION));
+check('preview_hook_uses_private_callback',$GLOBALS['hooks']['admin_post_'.$class::PREVIEW_ACTION]===array($class,'preview_email'));
 $class::menu();check('menu_requires_manager',$GLOBALS['menu'][3]==='manage_woocommerce');
 $GLOBALS['allowed']=false;
 check('unauthorized_nonce_rejected',!$class::authorized('nonce:'.$class::NONCE));
@@ -137,6 +148,8 @@ $GLOBALS['ledger']['outbox'][$event]['lease_until']=time()-1;check('expired_send
 $GLOBALS['ledger']['outbox'][$event]['status']='uncertain';$_GET=array('tab'=>'notifications','order_id'=>'7');$_SERVER['REQUEST_METHOD']='GET';$_POST=array();
 $GLOBALS['ledger']['required_items']=array(73=>3,74=>1);
 $GLOBALS['ledger']['parcels']=array(str_repeat('f',64)=>array('shipment'=>array('supplier_id'=>'supplier-7','shipment_id'=>'parcel-21','carrier'=>'Carrier & Co','tracking_number'=>'TRACK-731','tracking_url'=>'https://carrier.example/track/TRACK-731','dispatched_utc'=>'2026-10-23T00:00:00Z','revision'=>1,'items'=>array(73=>2,74=>1)),'payload_hash'=>str_repeat('a',64),'event_id'=>$event));
+$GLOBALS['ledger']['outbox'][$event]['created_at']=strtotime('2026-10-23T00:00:00Z');
+$GLOBALS['ledger']['outbox'][$event]['payload']=array('order_id'=>7,'shipment'=>$GLOBALS['ledger']['parcels'][str_repeat('f',64)]['shipment'],'dispatch_state'=>'partial','type'=>'partial_dispatch','parcels'=>array(str_repeat('f',64)=>$GLOBALS['ledger']['parcels'][str_repeat('f',64)]['shipment']));
 ob_start();$class::render();$output=ob_get_clean();
 check('uncertain_ui_has_explicit_forms',str_contains($output,'Confirm already submitted')&&str_contains($output,'Confirm not sent')&&str_contains($output,'confirm_resolution'));
 check('uncertain_ui_has_no_retry_form',!str_contains($output,'value="retry"'));
@@ -144,6 +157,30 @@ check('coverage_uses_current_order',str_contains($output,'Partially dispatched')
 check('coverage_uses_pinned_physical_items',$GLOBALS['coverage_required_items']===array(73=>3,74=>1));
 check('native_ledger_shipment_fields_rendered',str_contains($output,'supplier-7 / parcel-21')&&str_contains($output,'Carrier &amp; Co')&&str_contains($output,'TRACK-731')&&str_contains($output,'2026-10-23T00:00:00Z'));
 check('native_ledger_shipment_quantities_rendered',str_contains($output,'Item 73: 2<br>Item 74: 1<br>'));
+check('each_event_has_private_preview_form',substr_count($output,'Preview email')===1&&str_contains($output,'action="https://staging.petish.invalid/wp-admin/admin-post.php"')&&str_contains($output,'value="'.$class::PREVIEW_ACTION.'"'));
+check('preview_form_opens_isolated_tab',str_contains($output,'target="_blank" rel="noopener noreferrer"'));
+check('preview_nonce_is_bound_to_stored_event',str_contains($output,'nonce:'.$class::NONCE.':preview_email:7:'.$event));
 check('no_active_setting_changes',$GLOBALS['options']===array('petish_shipment_ledger_enabled'=>'yes','petish_shipment_notifications_enabled'=>'yes'));
 check('private_page_no_cache',!empty($GLOBALS['nocache']));
+$preview_post=preview_action($event);$reads=$GLOBALS['reads'];$renders=$GLOBALS['previews'];$mutations=$GLOBALS['calls'];
+$GLOBALS['allowed']=false;
+check('preview_denied_before_ledger_read',is_wp_error($class::preview_request($preview_post))&&$GLOBALS['reads']===$reads&&$GLOBALS['previews']===$renders);
+$GLOBALS['allowed']=true;
+foreach(array(array(),array('order_id'=>'07'),array('order_id'=>array('7')),array('event_id'=>strtoupper($event)),array('event_id'=>'../../secret'),array('_wpnonce'=>array('nonce')),array('_wpnonce'=>'wrong'),array('order_id'=>'8'),array('event_id'=>str_repeat('e',64)))as$i=>$change){
+ $invalid=$i===0?array():array_replace($preview_post,$change);
+ check('preview_invalid_request_'.$i,is_wp_error($class::preview_request($invalid))&&$GLOBALS['reads']===$reads&&$GLOBALS['previews']===$renders);
+}
+$wrong=$preview_post;$wrong['_wpnonce']=action('retry',$event)['_wpnonce'];
+check('mutation_nonce_cannot_preview',is_wp_error($class::preview_request($wrong))&&$GLOBALS['reads']===$reads);
+$GLOBALS['options']=array();$GLOBALS['ledger']['outbox'][$event]['status']='superseded';
+$before=$GLOBALS['ledger'];$preview=$class::preview_request($preview_post);
+check('historical_preview_works_while_sending_disabled',!is_wp_error($preview)&&$preview['event_status']==='superseded'&&$preview['event_type']==='partial_dispatch'&&$preview['event_created_at']===strtotime('2026-10-23T00:00:00Z'));
+check('preview_uses_native_nested_stored_payload',str_contains($preview['html'],'Carrier &amp; Co')&&str_contains($preview['html'],'TRACK-731'));
+check('preview_never_mutates_or_dispatches',$GLOBALS['ledger']===$before&&$GLOBALS['calls']===$mutations&&$GLOBALS['options']===array());
+$missing=preview_action(str_repeat('e',64));$renders=$GLOBALS['previews'];
+check('unknown_event_never_renders',is_wp_error($class::preview_request($missing))&&$GLOBALS['previews']===$renders);
+$GLOBALS['preview_error']=true;
+check('renderer_failure_stays_error',is_wp_error($class::preview_request($preview_post))&&$GLOBALS['calls']===$mutations&&$GLOBALS['ledger']===$before);
+unset($GLOBALS['preview_error']);
+if(($argv[1]??null)==='preview-response') {$_SERVER['REQUEST_METHOD']='POST';$_POST=$preview_post;$class::preview_email();}
 echo json_encode(array('status'=>'success','checks'=>$checks),JSON_PRETTY_PRINT)."\n";

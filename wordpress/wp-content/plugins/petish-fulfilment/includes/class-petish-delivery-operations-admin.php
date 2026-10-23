@@ -6,6 +6,7 @@ final class Petish_Delivery_Operations_Admin {
     const SLUG = 'petish-delivery-operations';
     const NONCE = 'petish_delivery_operations';
     const TEMPLATE_ACTION = 'petish_delivery_rate_template';
+    const PREVIEW_ACTION = 'petish_shipment_email_preview';
     const MAX_BYTES = 1048576;
     const MAX_ROWS = 500;
     const COLUMNS = array('product_id','variation_id','product_label','expected_sku','expected_parent_sku','supplier_product_url','shipping_fingerprint',
@@ -16,6 +17,7 @@ final class Petish_Delivery_Operations_Admin {
     public static function init() {
         add_action('admin_menu', array(__CLASS__, 'menu'));
         add_action('admin_post_' . self::TEMPLATE_ACTION, array(__CLASS__, 'download'));
+        add_action('admin_post_' . self::PREVIEW_ACTION, array(__CLASS__, 'preview_email'));
     }
     public static function menu() {
         add_submenu_page('woocommerce', 'Delivery operations', 'Delivery operations', 'manage_woocommerce', self::SLUG, array(__CLASS__, 'render'));
@@ -182,6 +184,38 @@ final class Petish_Delivery_Operations_Admin {
     private static function event_id($value) { return is_string($value) && preg_match('/^[a-f0-9]{64}$/D',$value) ? $value : false; }
     private static function operation_nonce($operation,$order,$event) { return self::NONCE . ':' . $operation . ':' . $order . ':' . $event; }
     private static function notifications_enabled() { return get_option('petish_shipment_ledger_enabled','no') === 'yes' && get_option('petish_shipment_notifications_enabled','no') === 'yes'; }
+    /** Read a stored event for staff review, including historical/superseded events. */
+    public static function preview_request($post) {
+        if (!is_array($post) || !self::authorized()) return new WP_Error('petish_operations_permission','You cannot preview shipment emails.');
+        $order = self::positive_id($post['order_id'] ?? null); $event = self::event_id($post['event_id'] ?? null);
+        if ($order === false || $event === false || !self::authorized($post['_wpnonce'] ?? '',self::operation_nonce('preview_email',$order,$event))) return new WP_Error('petish_operations_request','The preview request expired or is invalid.');
+        if (!class_exists('Petish_Shipment_Ledger') || !class_exists('Petish_Shipment_Notifications')) return new WP_Error('petish_operations_unavailable','Shipment previews are unavailable.');
+        $ledger = Petish_Shipment_Ledger::read($order);
+        if (is_wp_error($ledger)) return new WP_Error('petish_operations_order','The stored shipment event could not be read.');
+        $entry = $ledger['outbox'][$event] ?? null;
+        if (!is_array($entry) || !is_string($entry['type'] ?? null) || !is_int($entry['created_at'] ?? null) || $entry['created_at'] < 1 || !is_string($entry['status'] ?? null)) return new WP_Error('petish_operations_event','Choose an existing stored notification.');
+        $preview = Petish_Shipment_Notifications::render_preview($order,$event);
+        if (is_wp_error($preview)) return $preview;
+        if (!is_array($preview) || !is_string($preview['subject'] ?? null) || !is_string($preview['html'] ?? null) || $preview['html'] === '') return new WP_Error('petish_operations_preview','The shipment email could not be rendered.');
+        return array('subject'=>$preview['subject'],'html'=>$preview['html'],'event_type'=>$entry['type'],'event_created_at'=>$entry['created_at'],'event_status'=>$entry['status']);
+    }
+    /** A private browser response only: no transport or notification state transition. */
+    public static function preview_email() {
+        nocache_headers();
+        header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+        header('Content-Type: text/html; charset=UTF-8');
+        header('X-Content-Type-Options: nosniff');
+        header('X-Robots-Tag: noindex, nofollow, noarchive');
+        header('Referrer-Policy: no-referrer');
+        header("Content-Security-Policy: default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; frame-src 'self'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'");
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { self::deny(); return; }
+        $preview = self::preview_request(wp_unslash($_POST));
+        if (is_wp_error($preview)) {
+            wp_die(esc_html__('The shipment email preview is unavailable or your access expired. Refresh the shipment log and try again.','petish-fulfilment'),'',array('response'=>403)); return;
+        }
+        echo '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="robots" content="noindex,nofollow,noarchive"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Petish shipment email preview</title><style>body{margin:0;background:#f5f6fa;color:#18243d;font:16px/1.5 system-ui,sans-serif}.preview-notice{padding:16px 24px;background:#fff;border-bottom:1px solid #d7dce5}.preview-notice h1{font-size:20px;margin:0 0 8px}.preview-notice p{margin:4px 0}iframe{display:block;width:100%;height:85vh;border:0;background:#fff}</style></head><body><header class="preview-notice"><h1>Staff preview — no email sent</h1><p>Stored event: ' . esc_html($preview['event_type']) . ' · ' . esc_html(gmdate('Y-m-d H:i:s',$preview['event_created_at'])) . ' UTC · Status: ' . esc_html($preview['event_status']) . '</p><p>Subject: ' . esc_html($preview['subject']) . '</p><p>This is the saved event snapshot. Historical tracking details may differ from the current shipment log.</p></header><iframe sandbox="" referrerpolicy="no-referrer" title="Shipment email preview" srcdoc="' . esc_attr($preview['html']) . '"></iframe></body></html>';
+        exit;
+    }
     /** Every mutation requires both UI authorization and the ledger's independent state checks. */
     public static function notification_action($post) {
         if (!is_array($post) || !self::authorized()) return new WP_Error('petish_operations_permission','You cannot manage shipment notifications.');
@@ -256,6 +290,11 @@ final class Petish_Delivery_Operations_Admin {
         }
         submit_button($label,'secondary','submit',false); echo '</form>';
     }
+    private static function preview_form($order,$event) {
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" target="_blank" rel="noopener noreferrer" style="margin:8px 0"><input type="hidden" name="action" value="' . esc_attr(self::PREVIEW_ACTION) . '"><input type="hidden" name="order_id" value="' . (int)$order . '"><input type="hidden" name="event_id" value="' . esc_attr($event) . '">';
+        wp_nonce_field(self::operation_nonce('preview_email',$order,$event));
+        submit_button('Preview email','secondary','submit',false); echo ' <small>Stored event snapshot</small></form>';
+    }
     private static function notifications_page() {
         $order_id = self::positive_id(($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' ? ($_POST['order_id'] ?? null) : ($_GET['order_id'] ?? null));
         echo '<p>Inspect recorded parcels and notification attempts. A tracking number means dispatch information, not carrier-confirmed delivery. Customer addresses and message bodies are not shown here.</p>';
@@ -310,6 +349,7 @@ final class Petish_Delivery_Operations_Admin {
                 self::notification_form('confirmed_submitted',$order_id,$id,'Confirm already submitted',true);
                 self::notification_form('confirmed_not_sent',$order_id,$id,'Confirm not sent',true);
             } else echo 'No automatic retry';
+            self::preview_form($order_id,$id);
             echo '</td></tr>';
         }
         echo '</tbody></table>';
