@@ -288,7 +288,7 @@ final class Petish_Delivery_Operations_Admin {
         if (is_wp_error($ledger)) { echo '<p>The shipment ledger could not be read for this order.</p>'; return; }
         echo '<h2>Order ' . (int)$order_id . '</h2>';
         $order = wc_get_order($order_id);
-        $coverage = $order ? Petish_Shipment_Ledger::coverage($order,$ledger['parcels'] ?? array()) : null;
+        $coverage = $order ? Petish_Shipment_Ledger::coverage($order,$ledger['parcels'] ?? array(),$ledger['required_items'] ?? null) : null;
         if ($coverage === 'dispatched') echo '<p><strong>All physical item quantities are allocated to dispatched parcels.</strong> This does not mean the carrier has delivered them.</p>';
         elseif ($coverage === 'partial') echo '<p><strong>Partially dispatched:</strong> physical item quantities are still outstanding.</p>';
         else echo '<p><strong>Coverage needs review:</strong> the current order quantities could not be reconciled with these parcels.</p>';

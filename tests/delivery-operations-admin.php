@@ -51,7 +51,7 @@ class Petish_Automatic_Shipping{
 }
 class Petish_Shipment_Ledger{
  public static function read($order){return $order===7?$GLOBALS['ledger']:new WP_Error('petish_shipment_order','unsafe private detail');}
- public static function coverage($order,$parcels){return 'partial';}
+ public static function coverage($order,$parcels,$required_items=null){$GLOBALS['coverage_required_items']=$required_items;return 'partial';}
 }
 class Petish_Shipment_Notifications{
  public static function retry($order,$event){$GLOBALS['calls'][]=array('retry',$order,$event);return array('status'=>'submitted');}
@@ -135,11 +135,13 @@ $GLOBALS['ledger']['outbox'][$event]['status']='sending';$GLOBALS['ledger']['out
 check('active_sending_not_reconciled',is_wp_error($class::notification_action($reconcile)));
 $GLOBALS['ledger']['outbox'][$event]['lease_until']=time()-1;check('expired_sending_reconcile_does_not_send',!is_wp_error($class::notification_action($reconcile))&&end($GLOBALS['calls'])[0]==='reconcile');
 $GLOBALS['ledger']['outbox'][$event]['status']='uncertain';$_GET=array('tab'=>'notifications','order_id'=>'7');$_SERVER['REQUEST_METHOD']='GET';$_POST=array();
+$GLOBALS['ledger']['required_items']=array(73=>3,74=>1);
 $GLOBALS['ledger']['parcels']=array(str_repeat('f',64)=>array('shipment'=>array('supplier_id'=>'supplier-7','shipment_id'=>'parcel-21','carrier'=>'Carrier & Co','tracking_number'=>'TRACK-731','tracking_url'=>'https://carrier.example/track/TRACK-731','dispatched_utc'=>'2026-10-23T00:00:00Z','revision'=>1,'items'=>array(73=>2,74=>1)),'payload_hash'=>str_repeat('a',64),'event_id'=>$event));
 ob_start();$class::render();$output=ob_get_clean();
 check('uncertain_ui_has_explicit_forms',str_contains($output,'Confirm already submitted')&&str_contains($output,'Confirm not sent')&&str_contains($output,'confirm_resolution'));
 check('uncertain_ui_has_no_retry_form',!str_contains($output,'value="retry"'));
 check('coverage_uses_current_order',str_contains($output,'Partially dispatched'));
+check('coverage_uses_pinned_physical_items',$GLOBALS['coverage_required_items']===array(73=>3,74=>1));
 check('native_ledger_shipment_fields_rendered',str_contains($output,'supplier-7 / parcel-21')&&str_contains($output,'Carrier &amp; Co')&&str_contains($output,'TRACK-731')&&str_contains($output,'2026-10-23T00:00:00Z'));
 check('native_ledger_shipment_quantities_rendered',str_contains($output,'Item 73: 2<br>Item 74: 1<br>'));
 check('no_active_setting_changes',$GLOBALS['options']===array('petish_shipment_ledger_enabled'=>'yes','petish_shipment_notifications_enabled'=>'yes'));
