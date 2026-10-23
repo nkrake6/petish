@@ -51,8 +51,8 @@ class Failure(Exception):
 def private_write(path, text):
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(fd, "w") as stream:
-        stream.write(text)
+    with os.fdopen(fd, "wb") as stream:
+        stream.write(text.encode() if isinstance(text, str) else text)
     path.chmod(0o600)
 
 
@@ -259,6 +259,19 @@ def main():
             if source.is_symlink() or not source.is_file():
                 raise Failure("proof_source")
             private_write(work / "native-verifiers" / name, source.read_text())
+        theme = ROOT / "wordpress/wp-content/themes/dt-the7-child"
+        branding_files = {
+            "petish-email-branding.php": theme / "inc/petish-email-branding.php",
+            "email-header.php": theme / "woocommerce/emails/email-header.php",
+            "email-footer.php": theme / "woocommerce/emails/email-footer.php",
+            "combined-light-v2.png": theme / "assets/brand/repaired/combined-light-v2.png",
+            "theme-palette.css": theme / "assets/css/petish.css",
+        }
+        # Select only the real shared email shell; never execute child-theme functions.
+        for name, source in branding_files.items():
+            if source.is_symlink() or not source.is_file() or source.stat().st_size > 2097152:
+                raise Failure("branding_source")
+            private_write(work / "native-branding" / name, source.read_bytes())
         proof = ROOT / "tests/fulfilment-native.php"
         if not proof.is_file():
             raise Failure("proof_source")

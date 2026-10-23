@@ -1,6 +1,7 @@
 <?php
 /** Real WP/Woo proof. Runs only inside test-fulfilment-native.py's disposable sandbox. */
 if (PHP_SAPI !== 'cli') exit(2);
+umask(0077);
 ob_start();
 require '/srv/petish-native/wp-load.php';
 $_SERVER['REQUEST_METHOD'] = 'GET';
@@ -12,7 +13,7 @@ $failure_line = null;
 $owned_products = array();
 $owned_orders = array();
 $owned_users = array();
-$owned_zone = null;
+$owned_pages = array();
 $owner = bin2hex(random_bytes(16));
 $options = array();
 $mode = $argv[1] ?? '';
@@ -97,6 +98,81 @@ function native_order($a, $b) {
     $order->save();
     return $order;
 }
+function native_user($suffix) {
+    global $owner, $owned_users;
+    $id=wp_insert_user(array('user_login'=>'native-'.$owner.'-'.$suffix,'user_pass'=>bin2hex(random_bytes(24)),
+        'user_email'=>$suffix.'-'.$owner.'@example.invalid','role'=>'customer'));
+    native_ok($id,'native_customer_created');
+    $owned_users[]=(int)$id;
+    update_user_meta($id,'_petish_native_owner',$owner);
+    return (int)$id;
+}
+function native_page($kind) {
+    global $owner, $owned_pages;
+    $id=wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Native '.$kind,
+        'post_content'=>$kind==='myaccount'?'[woocommerce_my_account]':'[woocommerce_checkout]',
+        'meta_input'=>array('_petish_native_owner'=>$owner)),true);
+    native_ok($id,'native_endpoint_page_created');$owned_pages[]=(int)$id;
+    native_option('woocommerce_'.$kind.'_page_id',(int)$id);
+    return (int)$id;
+}
+function native_customer_card($order,$endpoint='view-order',$override_id=null,$enqueue=false) {
+    global $wp, $wp_query, $post, $native_account_page, $native_checkout_page;
+    $old_query=$wp_query;$old_post=$post;$old_vars=$wp->query_vars;
+    $endpoint_id=$override_id??(string)$order->get_id();
+    $page=$endpoint==='order-received'?$native_checkout_page:$native_account_page;
+    $wp_query=new WP_Query();$wp_query->is_page=true;$wp_query->queried_object=get_post($page);$wp_query->queried_object_id=$page;
+    $wp_query->query_vars=array($endpoint=>$endpoint_id);$wp->query_vars=array($endpoint=>$endpoint_id);$post=get_post($page);
+    ob_start();
+    try {
+        if($enqueue) Petish_Shipment_Customer_View::enqueue_style();
+        Petish_Shipment_Customer_View::render($order); return ob_get_contents();
+    }
+    finally { ob_end_clean();$wp_query=$old_query;$post=$old_post;$wp->query_vars=$old_vars; }
+}
+/** Reject any attempted writes rather than overlooking lazy native runtime updates. */
+function native_without_writes($callback,&$writes) {
+    $writes=0;
+    $guard=static function($sql)use(&$writes){
+        if(!preg_match('/\A\s*(?:SELECT|SHOW|DESCRIBE|EXPLAIN)\b/i',$sql)){$writes++;throw new RuntimeException('native_read_write_attempt');}
+        return $sql;
+    };
+    add_filter('query',$guard,PHP_INT_MAX);
+    try { return $callback(); }
+    finally { remove_filter('query',$guard,PHP_INT_MAX); }
+}
+function native_staff_preview($order_id,$event_id,$label) {
+    $request=array('order_id'=>(string)$order_id,'event_id'=>$event_id,
+        '_wpnonce'=>wp_create_nonce(Petish_Delivery_Operations_Admin::NONCE.':preview_email:'.$order_id.':'.$event_id));
+    $before=native_state($order_id);$mail_calls=0;
+    $capture=static function($result)use(&$mail_calls){$mail_calls++;return false;};
+    add_filter('pre_wp_mail',$capture,PHP_INT_MAX);
+    try { $preview=native_without_writes(static fn()=>Petish_Delivery_Operations_Admin::preview_request($request),$writes); }
+    finally { remove_filter('pre_wp_mail',$capture,PHP_INT_MAX); }
+    native_check($label.'_read_only',!is_wp_error($preview) && $writes===0 && $mail_calls===0 && native_state($order_id)===$before);
+    native_check($label.'_metadata',is_string($preview['subject']) && is_string($preview['html']) && is_string($preview['event_type'])
+        && is_int($preview['event_created_at']) && is_string($preview['event_status']));
+    return $preview;
+}
+function native_artifact($name,$html,$tracking=false) {
+    global $mode;
+    $directory='/checks/review-artifacts';if(!is_dir($directory))mkdir($directory,0700);
+    if($tracking){
+        $palette=file_get_contents('/checks/native-branding/theme-palette.css');
+        $boundary=strpos($palette,'/* Override generated The7 variables');
+        if($boundary===false)throw new RuntimeException('native_artifact_palette');
+        $css=substr($palette,0,$boundary).file_get_contents(WP_PLUGIN_DIR.'/petish-fulfilment/assets/shipment-tracking.css');
+        $html='<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Native owned-fixture shipment view</title><style>'.$css
+            .'body{margin:0;padding:24px;background:var(--color-bg);color:var(--color-text);font:17px/1.65 var(--font-body)}main{max-width:1050px;margin:auto}</style></head><body><main>'.$html.'</main></body></html>';
+    }else{
+        $data='data:image/png;base64,'.base64_encode(file_get_contents('/checks/native-branding/combined-light-v2.png'));
+        $html=str_replace(esc_url(home_url('/wp-content/uploads/native-branding/combined-light-v2.png')),$data,$html);
+    }
+    $csp='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data:; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'">';
+    $html=str_replace('<head>','<head>'.$csp,$html);
+    if(strlen($html)>4194304)throw new RuntimeException('native_artifact_size');
+    file_put_contents($directory.'/'.$name.'-'.$mode.'.html',$html);
+}
 function native_shipment($id, $items, $now) {
     return array('supplier_id'=>'native-supplier','shipment_id'=>$id,'revision'=>1,'carrier'=>'Synthetic carrier',
         'tracking_number'=>'NATIVE-' . strtoupper($id),'tracking_url'=>'https://www.aftership.com/track/NATIVE-' . strtoupper($id),
@@ -122,6 +198,14 @@ try {
     native_check('native_http_blocked', is_wp_error(wp_remote_get('https://example.com/')));
     native_check('native_mail_blocked', wp_mail('nobody@example.invalid','Blocked fixture','No transport') === false);
     native_check('native_cron_blocked', defined('DISABLE_WP_CRON') && DISABLE_WP_CRON === true);
+    require '/checks/native-branding/petish-email-branding.php';
+    add_filter('petish_email_logo_url',static fn()=>home_url('/wp-content/uploads/native-branding/combined-light-v2.png'));
+    add_filter('wc_get_template',static function($located,$name){
+        return in_array($name,array('emails/email-header.php','emails/email-footer.php'),true)
+            ? '/checks/native-branding/'.basename($name) : $located;
+    },PHP_INT_MAX,2);
+    native_check('native_real_branding_loaded',has_filter('woocommerce_email_styles','petish_email_branding_styles')!==false
+        && is_file('/checks/native-branding/combined-light-v2.png') && substr(file_get_contents('/checks/native-branding/combined-light-v2.png'),0,8)==="\x89PNG\r\n\x1a\n");
     native_check('native_bootstrap_loads_operations', class_exists('Petish_Shipment_Ledger') && class_exists('Petish_Shipment_Notifications')
         && class_exists('Petish_Delivery_Operations_Admin') && has_action('admin_menu',array('Petish_Delivery_Operations_Admin','menu')) !== false);
     native_check('native_shipping_registered', class_exists('Petish_Automatic_Shipping_Method') && class_exists('Petish_Delivery_Rate_Schedules'));
@@ -135,6 +219,7 @@ try {
     $report=array('checks'=>array(),'category'=>'verification');
     petish_delivery_ops_contracts('/srv/petish-native');
     petish_delivery_ops_admin('/srv/petish-native');
+    petish_delivery_ops_customer();
     native_check('hosted_verifier_native_admin_contracts',count($report['checks'])>=18 && !in_array(false,$report['checks'],true));
     native_option('woocommerce_currency','AUD');
     native_option('woocommerce_shipping_tax_class','');
@@ -226,6 +311,21 @@ try {
     mysqli_query($connection,"SELECT RELEASE_LOCK('{$escaped}')"); mysqli_close($connection);
     native_check('native_lock_contention_no_mutation',is_wp_error($contended) && native_state($id)===$state);
 
+    // Real theme shell + staff endpoint, before any sender is configured.
+    WC()->mailer();
+    native_option(Petish_Shipment_Ledger::OPTION,'no');native_option(Petish_Shipment_Notifications::OPTION,'no');
+    native_check('native_staff_preview_sender_unconfigured',Petish_Shipment_Notifications::sender_ready()===false);
+    $staff_partial=native_staff_preview($id,$first['event_id'],'native_staff_partial_preview');
+    native_check('native_staff_preview_real_petish_branding',str_contains($staff_partial['html'],'combined-light-v2.png')
+        && str_contains($staff_partial['html'],'Petish — Small pets, big adventures.') && str_contains($staff_partial['html'],'Need a hand?')
+        && str_contains($staff_partial['html'],'orders@petish.biz') && str_contains($staff_partial['html'],'Petish shared email shell')
+        && str_contains($staff_partial['html'],'#6532A1') && str_contains($staff_partial['html'],'#'.$order->get_order_number()));
+    native_check('native_staff_preview_private_fields_absent',!str_contains($staff_partial['html'],$order->get_billing_email())
+        && !str_contains($staff_partial['html'],'native-supplier') && !str_contains($staff_partial['html'],$first['event_id'])
+        && !str_contains($staff_partial['html'],$order->get_order_key()));
+    native_artifact('email-partial',$staff_partial['html']);
+    native_option(Petish_Shipment_Ledger::OPTION,'yes');native_option(Petish_Shipment_Notifications::OPTION,'yes');
+
     $recipient=$order->get_billing_email(); $captured=array(); $transport_mode='submitted'; $transport_count=0; $inside_claim=false; $reentrant_refused=false;
     add_filter('pre_wp_mail',static function($return,$mail)use(&$captured,$recipient){
         if(($mail['to']??null)===$recipient){$captured[]=$mail;return true;} return false;
@@ -256,8 +356,7 @@ try {
     $transport_mode='not_sent';
     $failed=native_ok(Petish_Shipment_Notifications::send($id,$second['event_id'],$now),'definitive_not_sent');
     native_check('native_explicit_failure_retryable',$failed['status']==='failed' && count($captured)===1);
-    $customer=wp_insert_user(array('user_login'=>'native-'.$owner,'user_pass'=>bin2hex(random_bytes(24)),'user_email'=>'customer-'.$owner.'@example.invalid','role'=>'customer'));
-    native_ok($customer,'native_customer_created'); $owned_users[]=(int)$customer;
+    $customer=native_user('reviewer');
     wp_set_current_user($customer);
     native_check('native_customer_retry_forbidden',is_wp_error(Petish_Shipment_Notifications::retry($id,$second['event_id'],$now)));
     native_check('native_customer_preview_forbidden',is_wp_error(Petish_Shipment_Notifications::render_preview($id,$first['event_id'])));
@@ -323,6 +422,102 @@ try {
     $mutation_lines[0]->set_quantity(3);$mutation_lines[0]->save();
     native_check('native_order_status_unchanged',(new WC_Order($id))->get_status()==='pending' && (new WC_Order($lease_id))->get_status()==='pending');
     native_check('native_only_expected_mail_captured',count($captured)===2);
+
+    // Exercise the real native account/received conditionals and fresh order ownership.
+    native_check('native_customer_view_bootstrap',class_exists('Petish_Shipment_Customer_View')
+        && has_action('woocommerce_order_details_after_order_table',array('Petish_Shipment_Customer_View','render'))===20);
+    native_check('native_customer_view_default_off',Petish_Shipment_Customer_View::enabled()===false);
+    $native_account_page=native_page('myaccount');$native_checkout_page=native_page('checkout');
+    $stranger=native_user('stranger');
+    $display_order=new WC_Order($id);$display_order->set_customer_id($customer);$display_order->save();
+    $saved_lines=array_values($display_order->get_items('line_item'));
+    $saved_lines[0]->set_name('Bunny <b>hide</b> & play');$saved_lines[0]->save();
+    $a->set_name('Current catalogue name changed');$a->save();
+    wp_set_current_user($customer);
+    native_check('native_customer_off_silent',native_customer_card($display_order)==='');
+    native_option(Petish_Shipment_Customer_View::OPTION,'yes');
+    native_option(Petish_Shipment_Ledger::OPTION,'no');native_option(Petish_Shipment_Notifications::OPTION,'no');
+    $before_display=native_state($id);$before_mail=count($captured);$before_transport=$transport_count;
+    $card=native_without_writes(static fn()=>native_customer_card($display_order,'view-order',null,true),$display_writes);
+    native_check('native_customer_owner_readonly_card',$display_writes===0 && str_contains($card,'Shipment updates') && native_state($id)===$before_display
+        && count($captured)===$before_mail && $transport_count===$before_transport);
+    native_check('native_customer_current_correction_link',str_contains($card,'https://www.aftership.com/track/CORRECTED-NATIVE')
+        && str_contains($card,'NATIVE-PARCEL-TWO') && !str_contains($card,'NATIVE-PARCEL-ONE'));
+    native_check('native_customer_names_from_saved_order_escaped',str_contains($card,'Bunny &lt;b&gt;hide&lt;/b&gt; &amp; play')
+        && !str_contains($card,'Bunny <b>') && !str_contains($card,'Current catalogue name changed') && str_contains($card,'Quantity: 2'));
+    native_check('native_customer_all_dispatch_claim',str_contains($card,'All physical items have been dispatched.')
+        && !str_contains($card,'delivered') && str_contains($card,'rel="noopener noreferrer"'));
+    native_check('native_customer_internals_private',!str_contains($card,'native-supplier') && !str_contains($card,$first['event_id'])
+        && !str_contains($card,$display_order->get_order_key()) && !str_contains($card,$recipient));
+    $style=wp_styles()->registered[Petish_Shipment_Customer_View::STYLE_HANDLE]??null;
+    $expected_style=plugins_url('assets/shipment-tracking.css',WP_PLUGIN_DIR.'/petish-fulfilment/petish-fulfilment.php');
+    native_check('native_customer_stylesheet_exact_url',$style instanceof _WP_Dependency && $style->src===$expected_style);
+    wp_dequeue_style(Petish_Shipment_Customer_View::STYLE_HANDLE);
+    native_artifact('customer-tracking',$card,true);
+    native_check('native_customer_received_owner_allowed',str_contains(native_customer_card($display_order,'order-received'),'CORRECTED-NATIVE'));
+    native_check('native_customer_mismatched_endpoint_denied',native_customer_card($display_order,'view-order',(string)$lease_id)==='');
+    native_check('native_customer_noncanonical_endpoint_denied',native_customer_card($display_order,'view-order','0'.$id)==='');
+    wp_set_current_user(0);
+    native_check('native_customer_anonymous_denied',native_customer_card($display_order)==='' && native_customer_card($display_order,'order-received')==='');
+    wp_set_current_user($stranger);
+    native_check('native_customer_stranger_denied',native_customer_card($display_order)==='');
+    wp_set_current_user($admin->ID);
+    native_check('native_customer_admin_not_owner_denied',native_customer_card($display_order)==='');
+    wp_set_current_user($customer);
+    $guest_order=native_order($a,$b);
+    native_check('native_customer_guest_order_denied',native_customer_card($guest_order)==='');
+    $guest_order->set_customer_id($stranger);$guest_order->save();$guest_order->set_customer_id($customer);
+    native_check('native_customer_unsaved_forged_owner_denied',native_customer_card($guest_order)==='');
+    $empty_order=native_order($a,$b);$empty_order->set_customer_id($customer);$empty_order->save();
+    native_check('native_customer_empty_ledger_silent',native_customer_card($empty_order)==='');
+    $partial_order=native_order($a,$b);$partial_id=(int)$partial_order->get_id();$partial_order->set_customer_id($customer);$partial_order->save();
+    $partial_lines=array_values($partial_order->get_items('line_item'));
+    $partial_shipment=native_shipment('customer-partial',array((int)$partial_lines[0]->get_id()=>1),$now);
+    native_option(Petish_Shipment_Ledger::OPTION,'yes');
+    $partial_event=native_ok(Petish_Shipment_Ledger::record($partial_id,$partial_shipment,$now),'native_customer_partial_fixture');
+    $partial_revision=$partial_shipment;$partial_revision['revision']=2;$partial_revision['tracking_number']='CUSTOMER-CORRECTED';
+    $partial_revision['tracking_url']='https://www.aftership.com/track/CUSTOMER-CORRECTED';
+    native_ok(Petish_Shipment_Ledger::record($partial_id,$partial_revision,$now),'native_customer_history_fixture');
+    native_option(Petish_Shipment_Ledger::OPTION,'no');
+    $partial_card=native_customer_card($partial_order);
+    native_check('native_customer_partial_claim',str_contains($partial_card,'Some items are still awaiting a dispatch update.')
+        && !str_contains($partial_card,'All physical items have been dispatched.') && str_contains($partial_card,'CUSTOMER-CORRECTED'));
+    native_artifact('customer-partial',$partial_card,true);
+    $a->set_virtual(true);$a->save();
+    $changed_card=native_without_writes(static fn()=>native_customer_card($display_order),$changed_writes);
+    native_check('native_customer_changed_requirements_no_full_claim',$changed_writes===0 && str_contains($changed_card,'CORRECTED-NATIVE')
+        && str_contains($changed_card,'We are checking the remaining shipment details.') && !str_contains($changed_card,'All physical items have been dispatched.'));
+    $a->set_virtual(false);$a->save();
+    $unsafe=$before_display;$unsafe['parcels'][$first['parcel_key']]['shipment']['tracking_url']='javascript:alert(1)';
+    $display_order->update_meta_data(Petish_Shipment_Ledger::META,$unsafe);$display_order->save_meta_data();
+    native_check('native_customer_unsafe_ledger_silent',native_customer_card($display_order)==='');
+    $display_order->update_meta_data(Petish_Shipment_Ledger::META,$before_display);$display_order->save_meta_data();
+
+    // Historical/superseded staff previews remain usable with both sender flags off.
+    wp_set_current_user($admin->ID);
+    $staff_full=native_staff_preview($id,$second['event_id'],'native_staff_full_preview');
+    native_check('native_staff_full_preview_immutable',str_contains($staff_full['html'],'NATIVE-PARCEL-ONE') && str_contains($staff_full['html'],'NATIVE-PARCEL-TWO')
+        && !str_contains($staff_full['html'],'CORRECTED-NATIVE') && str_contains($staff_full['html'],'all physical items in your order have been dispatched'));
+    $staff_corrected=native_staff_preview($id,$corrected['event_id'],'native_staff_correction_preview');
+    native_check('native_staff_correction_preview_current_snapshot',str_contains($staff_corrected['html'],'CORRECTED-NATIVE')
+        && str_contains($staff_corrected['html'],'NATIVE-PARCEL-TWO') && str_contains($staff_corrected['html'],'Updated tracking'));
+    $staff_history=native_staff_preview($partial_id,$partial_event['event_id'],'native_staff_superseded_preview');
+    native_check('native_staff_superseded_history_preserved',$staff_history['event_status']==='superseded'
+        && str_contains($staff_history['html'],'NATIVE-CUSTOMER-PARTIAL') && !str_contains($staff_history['html'],'CUSTOMER-CORRECTED'));
+    native_artifact('email-full',$staff_full['html']);native_artifact('email-correction',$staff_corrected['html']);
+    native_check('native_staff_preview_hook_registered',has_action('admin_post_'.Petish_Delivery_Operations_Admin::PREVIEW_ACTION,
+        array('Petish_Delivery_Operations_Admin','preview_email'))!==false);
+    $cross_request=array('order_id'=>(string)$id,'event_id'=>$second['event_id'],
+        '_wpnonce'=>wp_create_nonce(Petish_Delivery_Operations_Admin::NONCE.':preview_email:'.$id.':'.$first['event_id']));
+    native_check('native_staff_cross_event_nonce_rejected',is_wp_error(Petish_Delivery_Operations_Admin::preview_request($cross_request)));
+    $valid_request=array('order_id'=>(string)$id,'event_id'=>$first['event_id'],
+        '_wpnonce'=>wp_create_nonce(Petish_Delivery_Operations_Admin::NONCE.':preview_email:'.$id.':'.$first['event_id']));
+    wp_set_current_user($customer);
+    native_check('native_staff_customer_preview_denied',is_wp_error(Petish_Delivery_Operations_Admin::preview_request($valid_request)));
+    wp_set_current_user(0);
+    native_check('native_staff_guest_preview_denied',is_wp_error(Petish_Delivery_Operations_Admin::preview_request($valid_request)));
+    wp_set_current_user($admin->ID);
+    native_check('native_customer_and_staff_final_no_side_effects',native_state($id)===$before_display && count($captured)===$before_mail && $transport_count===$before_transport);
 } catch (Throwable $error) {
     $failure = isset($checks[$error->getMessage()]) ? $error->getMessage() : 'unexpected_native_failure';
     $failure_line = $error->getLine();
@@ -340,10 +535,14 @@ try {
             if ($product instanceof WC_Product && $product->get_meta('_petish_native_owner',true)===$owner) $product->delete(true);
             else throw new RuntimeException('cleanup ownership');
         }
+        foreach (array_reverse($owned_pages) as $id) {
+            if(get_post_meta($id,'_petish_native_owner',true)===$owner)wp_delete_post($id,true);
+            else throw new RuntimeException('cleanup ownership');
+        }
         if (!function_exists('wp_delete_user')) require_once ABSPATH.'wp-admin/includes/user.php';
         foreach ($owned_users as $id) {
             $user=get_user_by('id',$id);
-            if ($user instanceof WP_User && $user->user_login==='native-'.$owner) wp_delete_user($id);
+            if ($user instanceof WP_User && get_user_meta($id,'_petish_native_owner',true)===$owner) wp_delete_user($id);
             else throw new RuntimeException('cleanup ownership');
         }
         foreach ($options as $key=>$previous) {
