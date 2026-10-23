@@ -16,6 +16,9 @@ PREFIX = 'wordpress/wp-content/plugins/petish-fulfilment/'
 FILES = ['includes/class-petish-delivery-cost-sheet.php',
          'includes/class-petish-delivery-cost-sheet-admin.php', 'petish-fulfilment.php']
 BASELINE = 'aa66ee7d8a8f3a200114397f9be8b908c6319c41'
+# This production transaction approves only the reviewed 0.5.0 three-file release.
+# Keep its positive fixture immutable as later staging work changes the checkout.
+PINNED_RELEASE = 'ba45b438cb4f4139ed5fc890dd19ace1a8a15d78'
 
 
 @unittest.skipUnless(Path(PHP).is_file(), 'PHP required for transaction fixtures')
@@ -187,10 +190,11 @@ class DeliveryCostSheetDeployTests(unittest.TestCase):
         self.assertEqual(self.execute('apply')['status'], 'success')
         self.assertEqual(self.execute('apply', '12346-1')['category'], 'lock')
 
-    def test_actual_candidates_match_pins_and_can_roll_back(self):
+    def test_reviewed_050_candidates_match_pins_and_can_roll_back(self):
         manifest = {}
         for name in FILES:
-            content = (ROOT / (PREFIX + name)).read_bytes()
+            content = subprocess.check_output(
+                ['git', 'show', PINNED_RELEASE + ':' + PREFIX + name], cwd=ROOT)
             (self.payload / name).write_bytes(content)
             manifest[name] = hashlib.sha256(content).hexdigest()
         (self.payload / 'manifest.json').write_text(json.dumps(manifest))
@@ -199,6 +203,24 @@ class DeliveryCostSheetDeployTests(unittest.TestCase):
         self.assertEqual(self.execute('apply', script=SCRIPT)['status'], 'success')
         self.assertEqual(self.execute('rollback', script=SCRIPT)['status'], 'success')
         self.assertEqual(self.snapshot(), before)
+
+    def test_new_staging_candidate_cannot_use_old_production_scope(self):
+        manifest = {}
+        for name in FILES:
+            content = (ROOT / (PREFIX + name)).read_bytes()
+            (self.payload / name).write_bytes(content)
+            manifest[name] = hashlib.sha256(content).hexdigest()
+        (self.payload / 'manifest.json').write_text(json.dumps(manifest))
+        before = self.snapshot()
+        for operation in ('inspect', 'apply'):
+            with self.subTest(operation=operation):
+                report = self.execute(operation, script=SCRIPT)
+                self.assertEqual(report['status'], 'failure')
+                self.assertEqual(report['category'], 'payload')
+                self.assertFalse(report['checks']['candidate_manifest_verified'])
+                self.assertEqual(report['changed_file_count'], 0)
+                self.assertEqual(self.snapshot(), before)
+                self.assertFalse((self.home / '.petish-delivery-cost-sheet-releases').exists())
 
 
 if __name__ == '__main__':
