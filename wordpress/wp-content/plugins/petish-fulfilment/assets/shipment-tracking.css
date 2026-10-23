@@ -1,0 +1,101 @@
+/* Owner-only order details; reuse the existing light/dark Petish palette. */
+.petish-shipment-tracking {
+  clear: both;
+  margin: 32px 0;
+  color: var(--color-text, #14213d);
+  font-family: var(--font-body, "Nunito Sans", system-ui, sans-serif);
+  overflow-wrap: anywhere;
+}
+.petish-shipment-tracking,
+.petish-shipment-tracking * { box-sizing: border-box; }
+.petish-shipment-tracking :is(h2, h3) {
+  margin: 0 0 12px;
+  color: var(--color-text, #14213d);
+  font-family: var(--font-heading, Poppins, system-ui, sans-serif);
+  line-height: 1.35;
+}
+.petish-shipment-tracking h2 { font-size: clamp(1.375rem, 1.15rem + .6vw, 1.75rem); }
+.petish-shipment-tracking h3 { font-size: 1.125rem; }
+.petish-shipment-tracking p { margin: 0 0 12px; }
+.petish-shipment-tracking .petish-shipment-tracking__summary { font-weight: 600; }
+.petish-shipment-tracking .petish-shipment-tracking__help {
+  margin-bottom: 20px;
+  color: var(--color-text-muted, #526077);
+  font-size: .875rem;
+}
+.petish-shipment-tracking__parcels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 20px;
+}
+.petish-shipment-tracking__parcel {
+  min-width: 0;
+  padding: clamp(20px, 3vw, 28px);
+  border: 1px solid var(--color-border, #e3e7ef);
+  border-top: 3px solid var(--color-primary, #0f4c5c);
+  border-radius: var(--radius-card, 24px);
+  background: var(--color-surface, #fff);
+}
+.petish-shipment-tracking .petish-shipment-tracking__label {
+  color: var(--color-primary, #0f4c5c);
+  font: 600 .8125rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif);
+}
+.petish-shipment-tracking dl {
+  display: grid;
+  grid-template-columns: minmax(90px, .7fr) minmax(0, 1.3fr);
+  gap: 8px 16px;
+  margin: 16px 0;
+  font-size: .875rem;
+}
+.petish-shipment-tracking dt { color: var(--color-text-muted, #526077); }
+.petish-shipment-tracking dd { margin: 0; }
+.petish-shipment-tracking__number { font-weight: 600; }
+.petish-shipment-tracking .petish-shipment-tracking__items {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  border-top: 1px solid var(--color-border, #e3e7ef);
+}
+.petish-shipment-tracking__items li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border, #e3e7ef);
+}
+.petish-shipment-tracking__quantity { color: var(--color-text-muted, #526077); font-size: .8125rem; }
+.petish-shipment-tracking a.petish-shipment-tracking__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 10px 18px;
+  border: 1px solid var(--color-primary, #0f4c5c);
+  border-radius: var(--radius-control, 12px);
+  background: var(--color-primary, #0f4c5c);
+  color: var(--color-primary-on, #fff);
+  font: 600 .875rem/1.5 var(--font-label, "DM Sans", system-ui, sans-serif);
+  text-align: center;
+  text-decoration: none;
+}
+.petish-shipment-tracking a.petish-shipment-tracking__link:hover { background: var(--color-primary-hover, #123f4b); }
+.petish-shipment-tracking a:focus-visible { outline: 3px solid var(--color-primary, #0f4c5c); outline-offset: 4px; }
+.petish-shipment-tracking .petish-shipment-tracking__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 420px) {
+  .petish-shipment-tracking dl { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .petish-shipment-tracking dd { margin-bottom: 8px; }
+  .petish-shipment-tracking a.petish-shipment-tracking__link { width: 100%; }
+}
