@@ -11,7 +11,9 @@ sending outcomes. Both tracking flags default off; no DSers adapter, sender,
 worker or new active rate book is installed by loading the code.
 
 See [Delivery operations](docs/DELIVERY-OPERATIONS.md) for the staging tool,
-supported rules, retry semantics and activation boundary. The existing live
+supported rules, retry semantics, successful native/staging verification and
+activation boundary. Source `db10324` is installed on private staging; all
+51 read-only hosted checks passed in `39918723658-1`. The existing live
 0.5.0 cost sheet and five-option delivery trial described below remain the
 production baseline.
 

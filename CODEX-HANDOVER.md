@@ -225,11 +225,15 @@ does not change active rates, prices, orders or supplier connections. Keep
 completed working CSVs private. An exact-quantity supplier quote must retain its
 quantity and destination scope.
 
-Fulfilment **0.6.0 is a private staging development candidate**, adding
+Fulfilment **0.6.0 is deployed and verified on private staging**, adding
 quantity-scoped rate previews and an order parcel/notification ledger. Both
 tracking flags default off; no rates, DSers receiver, sender or worker are
-activated. Production remains on 0.5.0. See
-[Delivery operations](docs/DELIVERY-OPERATIONS.md) for scope and evidence.
+activated. Production remains on 0.5.0. Source `db10324` passed staging apply
+`39918552784-1` and all 51 read-only hosted checks in `39918723658-1`, after
+102 local native checks passed in each of classic and HPOS order storage.
+The source is saved on `development/delivery-operations`; `main` remains the
+production baseline. See [Delivery operations](docs/DELIVERY-OPERATIONS.md)
+for scope, staff-tool links and evidence.
 
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,

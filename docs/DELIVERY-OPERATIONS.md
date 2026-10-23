@@ -1,6 +1,6 @@
 # Private delivery operations
 
-Development candidate: Petish Fulfilment **0.6.0**, 23 October 2026.
+Verified private staging candidate: Petish Fulfilment **0.6.0**, 23 October 2026.
 This extends the live 0.5.0 cost sheet. It does not activate new delivery prices
 or a DSers connection.
 
@@ -128,3 +128,20 @@ mode; no SMTP delivery occurred. Fixture cleanup passed in both modes and the
 owned disconnected containers, database and scratch files were removed. This
 proves native Woo rendering; production Petish branding remains covered by its
 existing separate email release evidence.
+
+Private staging deployed exact source
+`db103249888f356c539fad451986ec211812308d` in
+[run 39918552784-1](https://github.com/nkrake6/petish/tree/automation-status/staging-39918552784-1).
+Every deployment step passed. The subsequent
+[read-only acceptance run 39918723658-1](https://github.com/nkrake6/petish/tree/automation-status/delivery-operations-39918723658-1)
+passed all **51 checks** and matched all 15 installed Fulfilment files to that
+source. A suitable existing catalogue product was available, so exact-quantity,
+first/additional, currency, cache and catalogue CSV scenarios all ran in memory.
+Both shipment flags remained off and no sender was configured. Orders, users,
+stock, prices, settings, passports and private media were unchanged. No hosted
+order transitions or external DSers tracking were exercised, and all temporary
+verification tools were removed.
+
+Source and notes are saved on
+[`development/delivery-operations`](https://github.com/nkrake6/petish/tree/development/delivery-operations).
+`main` and production remain on the existing approved releases.
