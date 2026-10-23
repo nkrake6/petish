@@ -172,3 +172,27 @@ verification tools were removed.
 Source and notes are saved on
 [`development/delivery-operations`](https://github.com/nkrake6/petish/tree/development/delivery-operations).
 `main` and production remain on the existing approved releases.
+
+### 0.7.0 customer presentation validation
+
+The updated fresh native proof passed **146 checks in classic storage and 146
+in HPOS**. It covered signed-in ownership, anonymous/other-account/staff denial,
+exact native endpoint binding and stylesheet URL, corrected parcel links,
+saved order-line names and escaping, generic wording after requirement
+changes, flags-off staff previews and the real Petish header, footer, animal
+logo and shared email CSS. The preview checks ran behind a strict database-write
+barrier with zero mail calls. All owned fixtures and the disconnected sandbox
+were removed.
+
+All 55 delivery Python tests and both shipment tests passed. PHP syntax,
+workflow lint and application credential screening passed. An independent
+privacy and permission review found no blockers.
+
+Local Chromium checks used only rendered synthetic fixtures, with all network
+requests intercepted. Customer cards passed at 1100px and 390px in light and
+dark mode; partial dispatch and full/correction emails also passed at mobile
+width. There was no horizontal overflow, tracking actions were at least 44px
+high, desktop actions aligned, and the animal logo rendered successfully. The
+actual staff response also rendered its sandboxed iframe under the exact
+security policy without a policy violation. These checks verify the component
+and email shell, rather than the entire The7 account page.

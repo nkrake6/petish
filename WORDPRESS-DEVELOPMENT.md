@@ -54,11 +54,12 @@ Successful release snapshots remain outside the webroot for rollback.
 
 This is code deployment, not database rollback or application acceptance testing.
 
-The Fulfilment 0.6.0 development candidate uses a separate staging-only proof in
+The Fulfilment 0.7.0 development candidate uses a separate staging-only proof in
 `.github/workflows/delivery-operations.yml`. Install its exact source through
 the existing `staging` branch first, then push `verify-delivery-operations`.
-That proof verifies installed source hashes, staging isolation, permissions and
-read-only behavior; it never applies code, changes settings or sends messages.
+That proof verifies installed source hashes, staging isolation, permissions,
+customer-view default-off controls, staff preview security and read-only
+behavior; it never applies code, changes settings or sends messages.
 Its complete mutation/persistence tests run only in a fresh disconnected local
 native WordPress/WooCommerce sandbox. See
 [Delivery operations](docs/DELIVERY-OPERATIONS.md). Keep this candidate on the
