@@ -1,6 +1,6 @@
 # Petish — current Codex handover
 
-Updated 21 October 2026 (Australia/Melbourne). Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
+Updated 23 October 2026 (UTC). Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
 for the current cloud workflow. The Mac setup below is archived history.
 
 ## Current site and code
@@ -225,10 +225,17 @@ does not change active rates, prices, orders or supplier connections. Keep
 completed working CSVs private. An exact-quantity supplier quote must retain its
 quantity and destination scope.
 
+Fulfilment **0.6.0 is a private staging development candidate**, adding
+quantity-scoped rate previews and an order parcel/notification ledger. Both
+tracking flags default off; no rates, DSers receiver, sender or worker are
+activated. Production remains on 0.5.0. See
+[Delivery operations](docs/DELIVERY-OPERATIONS.md) for scope and evidence.
+
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,
-delivery and payout. Product-linked video reviews, social syncing and a Discord-style community
-remain future work. Do not interpret historical commands or approvals as a new
+delivery and payout. Product-linked photo/video reviews are already live in
+Passport 0.4.1. Social syncing and a Discord-style community remain future work.
+Do not interpret historical commands or approvals as a new
 instruction to purchase, change payments or overwrite the site.
 
 ## Archived Local/Mac handover

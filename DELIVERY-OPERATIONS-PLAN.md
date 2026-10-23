@@ -1,6 +1,19 @@
 # Petish delivery pricing and shipment notifications
 
-Working recommendation, 21 October 2026 (Australia/Melbourne).
+Updated 23 October 2026 (UTC).
+
+## Current development candidate
+
+Fulfilment 0.6.0 implements a private quantity-rate preview and native
+quantity-scoped shipping engine, plus an order parcel ledger and notification
+outbox. The staff controls distinguish definite non-submission from uncertain
+sending outcomes. Both tracking flags default off; no DSers adapter, sender,
+worker or new active rate book is installed by loading the code.
+
+See [Delivery operations](docs/DELIVERY-OPERATIONS.md) for the staging tool,
+supported rules, retry semantics and activation boundary. The existing live
+0.5.0 cost sheet and five-option delivery trial described below remain the
+production baseline.
 
 ## Recommendation
 
@@ -89,9 +102,9 @@ The existing automatic rate book uses a **per-unit customer charge**. Its
 quantity behavior was deliberately approved for the small trial.
 
 A supplier quote for two items must not be divided by two and extrapolated to
-any quantity. Before activating new supplier-derived prices, add and test an
-exact-quantity schedule or an explicitly supported first-unit/additional-unit
-rule. Apply combined shipping only where the supplier actually supports it.
+any quantity. The 0.6.0 candidate adds exact-quantity schedules and explicitly
+reviewed first-unit/additional-unit rules. Verify the matching supplier evidence
+before activating either. Apply combined shipping only where the supplier actually supports it.
 Mixed-supplier baskets must retain separate parcel costs.
 
 Reviewed rates should retain their supplier evidence, destination/quantity

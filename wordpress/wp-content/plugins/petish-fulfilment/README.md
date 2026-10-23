@@ -1,5 +1,24 @@
 # Petish delivery costs and supplier shipping
 
+## 0.6.0 development candidate
+
+The new **WooCommerce → Delivery operations** page previews reviewed
+exact-quantity or first-item/additional-item delivery rules from private CSVs.
+It cannot save or activate rates. The existing version 1 per-unit book remains
+unchanged; version 2 adds quantity-scoped rules with current catalogue identity,
+destination, explicit supplier evidence and expiry checks.
+
+A private native-order parcel ledger and notification outbox retain replay,
+correction, item coverage and sending outcomes. Both feature flags default off;
+there is no default sender, worker or DSers receiver. The staff page can inspect
+records and queue only confirmed-unsent retries. An uncertain submission needs
+explicit evidence-based resolution before a retry can be queued. Queueing does
+not itself send mail, and submitted does not establish inbox delivery.
+
+See [operation, activation and verification details](../../../../docs/DELIVERY-OPERATIONS.md).
+This candidate is for private staging. Production remains on 0.5.0 until a
+dedicated release and the actual supplier/tracking inputs are verified.
+
 The plugin supports merchant-set automatic delivery prices, a separate reviewed
 quote workflow, and a private delivery cost worksheet. It does not contact DSers
 or synchronise supplier freight automatically. Loading the plugin creates no

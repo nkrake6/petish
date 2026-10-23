@@ -1,0 +1,107 @@
+# Private delivery operations
+
+Development candidate: Petish Fulfilment **0.6.0**, 23 October 2026.
+This extends the live 0.5.0 cost sheet. It does not activate new delivery prices
+or a DSers connection.
+
+## Staff rate preview
+
+On private staging, open
+[WooCommerce → Delivery operations](https://staging.petish.biz/wp-admin/admin.php?page=petish-delivery-operations).
+The Rate preview tab downloads a current catalogue-bound CSV template. Fill in
+the supplier evidence, destination, quantity and separately reviewed customer
+charge, then upload it to preview. Each row is an independent scenario. The
+page has no save or publish action; keep completed working CSVs privately.
+
+Two pricing rules are supported:
+
+- **Exact quantity:** the stated total applies only to that number of the exact
+  product option. A quote for two items never establishes a price for three.
+- **First item + additional items:** a reviewed supplier rate card must state
+  the first-item and additional-item charges and the supported quantity range.
+  The calculation is first + (quantity − 1) × additional, within that range.
+
+Supplier freight stays in its stated currency, separate from the customer
+charge in AUD excluding tax. Blank freight is unknown. An explicitly free
+customer charge needs a separate confirmation and does not approve a supplier
+free-delivery badge.
+
+Rows pin the native product/variation, SKUs, supplier listing and current
+shipping specifications. Evidence expires within seven days; a countrywide
+rule requires an explicit countrywide assertion. Changed products, missing
+coverage, overlapping matches and expired evidence produce no rate. Distinct
+products and suppliers retain independent charges; no parcel consolidation is
+assumed.
+
+The runtime accepts a version 2 reviewed rate book through the existing native
+automatic shipping method. Version 1 keeps its existing per-unit behavior.
+There is no rate-book migration, default rule or automatic publication. A
+version 2 book with a rejected row is blocked as a whole. Its shipping cache
+token changes with the validated book, and cached rates are checked again.
+
+## Parcel and notification records
+
+The new ledger stores one private, versioned record on a native WooCommerce
+order, using order metadata for both HPOS and the older order store. A trusted
+adapter must supply a stable supplier/shipment ID, increasing revision, carrier,
+tracking number/link, dispatch time and actual order-line quantities.
+
+An exact replay does nothing. A conflicting or stale revision is rejected.
+Corrections preserve other parcels and the notification history. Partial and
+fully dispatched states follow physical item quantities; neither means
+delivered. Recording a parcel does not change the native order status.
+
+Each notification retains its immutable parcel snapshot, claim, attempts and
+outcome. The sender claims the event under an order lock before submission.
+Only a definite failure before submission is safe to queue again. A timeout,
+exception or expired sending claim becomes **uncertain**; it is never retried
+automatically. Staff must check the provider evidence and that the prior
+sending process has stopped before resolving it.
+
+The Shipment notifications tab can inspect a selected order and show these
+outcomes. Its nonce-protected controls require `manage_woocommerce`. Queueing
+a retry does not itself send a message. A sender must separately process the
+pending event. Transport acceptance is recorded as submitted; it does not
+prove inbox delivery.
+
+## Activation boundary
+
+Both `petish_shipment_ledger_enabled` and
+`petish_shipment_notifications_enabled` default off. Merely loading the plugin
+does not enable either option. There is no default sender, background worker,
+public ingestion route, or guessed DSers/AST metadata hook. A request must
+explicitly register one sender with a stable identity. The renderer uses
+WooCommerce's branded mail wrapper without sending a message.
+
+Production continues to use its approved five-option AU/VIC/3083 trial and
+existing order emails. Before any live activation:
+
+1. Obtain current supplier evidence for each exact route, option and quantity.
+2. Identify the actual DSers incoming payload and item allocation behavior.
+3. Implement and rehearse that adapter and one notification owner, including
+   correction, replay, concurrency, uncertain submission and split parcels.
+4. Verify the matching customer account display and a separately authorized
+   inbox test. Choose a carrier-event provider only if live delivery milestones
+   are required.
+5. Use a dedicated production release scope, matching staging proof and fresh
+   recovered backup. The old three-file cost-sheet release is insufficient for
+   this larger candidate.
+
+No supplier API calls, subscriptions, real orders, payments or customer emails
+are part of this development candidate.
+
+## Verification
+
+Focused offline tests cover quantity rules, CSV/admin boundaries and outbox
+transitions. The disposable native harness in
+[`scripts/test-fulfilment-native.py`](../scripts/test-fulfilment-native.py)
+uses fresh WordPress/WooCommerce data and cached immutable container images.
+Both database and application containers have networking disabled; they share
+only a private database socket. HTTP, SMTP, cron and asynchronous work are
+blocked. Synthetic products and orders never reach a hosted store.
+
+The separate `verify-delivery-operations` GitHub branch checks the exact
+installed staging source, private guard, permissions, default-off controls and
+read-only runtime behavior. It does not install application code, create hosted
+fixtures, activate rates or send mail. Its screened receipt is separate from
+the native local persistence proof and from production release evidence.

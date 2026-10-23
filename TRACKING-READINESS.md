@@ -109,6 +109,14 @@ to be false. It does not mean production tracking is enabled.
 
 ## Remaining release checks
 
+Fulfilment 0.6.0 now provides a development implementation of the private native
+order parcel ledger and durable notification outbox, with staff lookup,
+evidence-based uncertainty resolution and confirmed-unsent retry queueing.
+There is no sender/worker or DSers adapter, and both feature flags default off.
+See [Delivery operations](docs/DELIVERY-OPERATIONS.md) for its separate local
+native and read-only hosted verification scope. This does not activate AST or
+replace the real-sample DSers checks below.
+
 - Establish whether DSers writes shared `_wc_shipment_tracking_items` metadata,
   uses a shipment-tracking REST route, or sends only order notes. Verify the
   actual DSers account settings or one incoming sample shipment; do not invent
@@ -131,9 +139,10 @@ to be false. It does not mean production tracking is enabled.
   parcels. The rehearsal proves a completion gate using actual fixture
   quantities. Production still needs reliable supplier parcel allocations and
   confirmation of DSers' status behavior with the scheduled split shipment.
-- Define persistent notification state and an operator retry path for failures
-  between saving tracking and sending mail. Suppressing successful request
-  replays is not proof of durable email delivery or exactly-once delivery.
+- Connect and rehearse the new persistent notification state and operator
+  retry path against the actual sender and incoming adapter. Suppressing
+  successful request replays or claiming an event is not proof of inbox
+  delivery or exactly-once delivery.
 - Match real carrier names and links, then verify customer inbox delivery and
   the account view for the real sample order.
 
