@@ -295,8 +295,9 @@ final class Petish_Delivery_Operations_Admin {
         if ($order && is_callable(array($order,'get_edit_order_url'))) echo '<p><a href="' . esc_url($order->get_edit_order_url()) . '">Open native order</a></p>';
         echo '<h3>Parcels</h3><table class="widefat striped"><thead><tr><th>Supplier shipment</th><th>Carrier / tracking</th><th>Dispatched</th><th>Order item quantities</th></tr></thead><tbody>';
         foreach ($ledger['parcels'] ?? array() as $parcel) {
-            echo '<tr><td>' . esc_html(($parcel['supplier_id'] ?? '') . ' / ' . ($parcel['shipment_id'] ?? '')) . '</td><td>' . esc_html($parcel['carrier'] ?? '') . '<br>' . esc_html($parcel['tracking_number'] ?? '') . '</td><td>' . esc_html($parcel['dispatched_utc'] ?? '') . '</td><td>';
-            foreach ($parcel['items'] ?? array() as $line=>$quantity) echo 'Item ' . (int)$line . ': ' . (int)$quantity . '<br>';
+            $shipment = $parcel['shipment'];
+            echo '<tr><td>' . esc_html($shipment['supplier_id'] . ' / ' . $shipment['shipment_id']) . '</td><td>' . esc_html($shipment['carrier']) . '<br>' . esc_html($shipment['tracking_number']) . '</td><td>' . esc_html($shipment['dispatched_utc']) . '</td><td>';
+            foreach ($shipment['items'] as $line=>$quantity) echo 'Item ' . (int)$line . ': ' . (int)$quantity . '<br>';
             echo '</td></tr>';
         }
         echo '</tbody></table><h3>Notification history</h3><p>Submitted means the configured sender accepted the attempt. Uncertain attempts require evidence review before any retry; an expired sending lease is not permission to send again. Queueing a retry records a pending attempt; a connected, approved sender must process the queue.</p><table class="widefat striped"><thead><tr><th>Event</th><th>Status</th><th>Attempts / sender</th><th>Operator action</th></tr></thead><tbody>';
