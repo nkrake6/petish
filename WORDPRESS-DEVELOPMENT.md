@@ -56,7 +56,10 @@ This is code deployment, not database rollback or application acceptance testing
 
 The Fulfilment 0.7.0 development candidate uses a separate staging-only proof in
 `.github/workflows/delivery-operations.yml`. Install its exact source through
-the existing `staging` branch first, then push `verify-delivery-operations`.
+the existing `staging` branch first. Wait for that apply and its automatic
+email-branding preview to finish, then push `verify-delivery-operations`.
+They share a staging concurrency group; a later queued run can otherwise
+replace a pending verifier.
 That proof verifies installed source hashes, staging isolation, permissions,
 customer-view default-off controls, staff preview security and read-only
 behavior; it never applies code, changes settings or sends messages.

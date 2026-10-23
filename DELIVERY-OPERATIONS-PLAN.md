@@ -4,7 +4,7 @@ Updated 23 October 2026 (UTC).
 
 ## Current development candidate
 
-Fulfilment 0.6.0 implements a private quantity-rate preview and native
+The Fulfilment 0.6.0 foundation implements a private quantity-rate preview and native
 quantity-scoped shipping engine, plus an order parcel ledger and notification
 outbox. The staff controls distinguish definite non-submission from uncertain
 sending outcomes. Both tracking flags default off; no DSers adapter, sender,
@@ -16,6 +16,12 @@ activation boundary. Source `db10324` is installed on private staging; all
 51 read-only hosted checks passed in `39918723658-1`. The existing live
 0.5.0 cost sheet and five-option delivery trial described below remain the
 production baseline.
+
+The 0.7.0 presentation update is also deployed on private staging, from
+`8077451`: 146 local native checks passed in each order store and all 59 hosted
+checks passed in `39930256586-1`. It adds owner-only shipment cards and private
+branded staff email previews. All three shipment switches remain off.
+[Sample screenshots](docs/delivery-previews/README.md) use illustrative records.
 
 ## Recommendation
 

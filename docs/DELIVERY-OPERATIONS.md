@@ -1,6 +1,6 @@
 # Private delivery operations
 
-Current development candidate: Petish Fulfilment **0.7.0**, 23 October 2026.
+Verified private staging candidate: Petish Fulfilment **0.7.0**, 23 October 2026.
 The 0.6.0 rate preview and outbox baseline passed the staging checks recorded
 below. This extends the live 0.5.0 cost sheet. It does not activate new delivery
 prices or a DSers connection.
@@ -199,3 +199,15 @@ high, desktop actions aligned, and the animal logo rendered successfully. The
 actual staff response also rendered its sandboxed iframe under the exact
 security policy without a policy violation. These checks verify the component
 and email shell, rather than the entire The7 account page.
+
+The exact 0.7.0 source `8077451256d8eb1f69e7df3da187872be260dc61` deployed in
+[staging run 39930019786-1](https://github.com/nkrake6/petish/tree/automation-status/staging-39930019786-1).
+The subsequent
+[acceptance run 39930256586-1](https://github.com/nkrake6/petish/tree/automation-status/delivery-operations-39930256586-1)
+passed all **59 checks**, matching all 17 installed Fulfilment files. Customer
+tracking, ledger ingestion and notifications remained disabled; no sender was
+configured. Orders, accounts, settings, stock, prices, passports and private
+media were unchanged, and the temporary verification tools were removed.
+Owned-order/customer body rendering and actual branded email rendering were
+proved locally, not against hosted orders. Production and `main` remain
+unchanged.

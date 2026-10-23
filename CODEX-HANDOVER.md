@@ -225,7 +225,7 @@ does not change active rates, prices, orders or supplier connections. Keep
 completed working CSVs private. An exact-quantity supplier quote must retain its
 quantity and destination scope.
 
-Fulfilment **0.6.0 is deployed and verified on private staging**, adding
+Fulfilment **0.6.0 established the verified private staging foundation**, adding
 quantity-scoped rate previews and an order parcel/notification ledger. Both
 tracking flags default off; no rates, DSers receiver, sender or worker are
 activated. Production remains on 0.5.0. Source `db10324` passed staging apply
@@ -235,12 +235,17 @@ The source is saved on `development/delivery-operations`; `main` remains the
 production baseline. See [Delivery operations](docs/DELIVERY-OPERATIONS.md)
 for scope, staff-tool links and evidence.
 
-Fulfilment **0.7.0 is the next private staging candidate**. It adds owner-only
+Fulfilment **0.7.0 is deployed and verified on private staging**. It adds owner-only
 shipment cards on native order details and a private staff email-preview
 button. Customer tracking has its own default-off option; no sender or DSers
 receiver is enabled. Email previews retain event snapshots, while the account
-view shows current corrected parcels. See the same Delivery operations notes
-for validation and deployment evidence as it becomes available.
+view shows current corrected parcels. Source `8077451` passed staging apply
+`39930019786-1` and all 59 hosted checks in `39930256586-1`, with 17 installed
+Fulfilment source hashes matched. Local native verification passed 146 checks
+in each order store, and component/email browser checks passed desktop/mobile.
+All three shipment switches remain off, and production/`main` are unchanged.
+See [sample screenshots](docs/delivery-previews/README.md) and the same Delivery
+operations notes for validation and deployment evidence.
 
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,
