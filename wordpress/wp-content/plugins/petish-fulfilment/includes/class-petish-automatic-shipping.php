@@ -1,6 +1,8 @@
 <?php
 defined('ABSPATH') || exit;
 
+require_once __DIR__ . '/class-petish-delivery-rate-schedules.php';
+
 /** Merchant-set delivery prices, independent of customer quote requests or supplier APIs. */
 final class Petish_Automatic_Shipping {
     const OPTION='petish_automatic_shipping_rates';
@@ -65,6 +67,7 @@ final class Petish_Automatic_Shipping {
     }
     /** Invalid/expired rows remain diagnostic errors, never rates. No defaults are inserted. */
     public static function validate_book($book,$now=null) {
+        if(is_array($book)&&($book['schema_version']??null)===2) return Petish_Delivery_Rate_Schedules::validate_book($book,$now);
         if(!is_array($book)||($book['schema_version']??null)!==1||!is_array($book['rules']??null)||!array_is_list($book['rules'])||count($book['rules'])>10000) return self::error('schema');
         $result=array('rules'=>array(),'errors'=>array(),'revision'=>hash('sha256',wp_json_encode($book)));
         foreach($book['rules'] as $index=>$row) {
@@ -116,6 +119,7 @@ final class Petish_Automatic_Shipping {
         if(is_wp_error($validated)) return $validated;
         $lines=self::snapshot_lines($package); if(is_wp_error($lines)) return $lines;
         $destination=$package['destination']??array(); $country=self::normalized($destination['country']??'');
+        if(($validated['schema_version']??null)===2) return Petish_Delivery_Rate_Schedules::rate_lines($lines,$destination,$validated,$now);
         if(!$country || !isset(WC()->countries->get_shipping_countries()[$country])) return self::error('destination');
         $total=0; $matches=array();
         foreach($lines as $line) {
