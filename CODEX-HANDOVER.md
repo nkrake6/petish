@@ -235,6 +235,13 @@ The source is saved on `development/delivery-operations`; `main` remains the
 production baseline. See [Delivery operations](docs/DELIVERY-OPERATIONS.md)
 for scope, staff-tool links and evidence.
 
+Fulfilment **0.7.0 is the next private staging candidate**. It adds owner-only
+shipment cards on native order details and a private staff email-preview
+button. Customer tracking has its own default-off option; no sender or DSers
+receiver is enabled. Email previews retain event snapshots, while the account
+view shows current corrected parcels. See the same Delivery operations notes
+for validation and deployment evidence as it becomes available.
+
 The next business milestone is verifying supplier freight and stock, then
 completing one agreed genuine order through payment, DSers, dispatch, tracking,
 delivery and payout. Product-linked photo/video reviews are already live in

@@ -117,6 +117,13 @@ See [Delivery operations](docs/DELIVERY-OPERATIONS.md) for its separate local
 native and read-only hosted verification scope. This does not activate AST or
 replace the real-sample DSers checks below.
 
+The 0.7.0 candidate adds the customer presentation layer: owner-only native
+order shipment cards and staff email previews using the existing Petish animal
+logo and branded shell. The customer-view flag also defaults off. Previews
+create no send attempt; current account tracking and historical notification
+snapshots remain distinct. These features can be tested with owned synthetic
+orders before the real supplier update arrives.
+
 - Establish whether DSers writes shared `_wc_shipment_tracking_items` metadata,
   uses a shipment-tracking REST route, or sends only order notes. Verify the
   actual DSers account settings or one incoming sample shipment; do not invent

@@ -1,8 +1,35 @@
 # Private delivery operations
 
-Verified private staging candidate: Petish Fulfilment **0.6.0**, 23 October 2026.
-This extends the live 0.5.0 cost sheet. It does not activate new delivery prices
-or a DSers connection.
+Current development candidate: Petish Fulfilment **0.7.0**, 23 October 2026.
+The 0.6.0 rate preview and outbox baseline passed the staging checks recorded
+below. This extends the live 0.5.0 cost sheet. It does not activate new delivery
+prices or a DSers connection.
+
+## Customer shipment view and staff email previews
+
+The 0.7.0 candidate adds a shipment section to native WooCommerce order details.
+It requires the signed-in owner, the matching My Account order endpoint or
+signed-in order-received page, and the separate
+`petish_shipment_customer_tracking_enabled` option set explicitly to `yes`.
+That option defaults off. No records or no valid parcels means no extra section.
+
+Customer cards show the latest saved carrier, tracking link, dispatch date and
+allocated item quantities. Product labels come from the order lines. Supplier
+identifiers, notification failures, private evidence and customer contact details
+are not included. Physical requirements must still match before a full-dispatch
+summary can be shown. Tracking information does not establish delivery.
+
+Staff can open **Preview email** beside an event in the Shipment notifications
+tab. The private, nonce-protected preview opens separately and clearly states
+that no message was sent. Its customer email uses the saved event snapshot;
+older previews can therefore differ from the latest corrected account view.
+The staff preview label and internal event metadata sit outside the customer
+message. The customer message uses the native WooCommerce wrapper and existing
+Petish email branding, including the approved animal logo.
+
+Viewing a parcel or previewing an email creates no notification attempt and
+changes no order state. The customer-view option is independent of ingestion
+and sending, so disabling a sender need not hide previously saved tracking.
 
 ## Staff rate preview
 

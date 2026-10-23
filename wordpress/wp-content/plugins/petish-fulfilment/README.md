@@ -1,6 +1,18 @@
 # Petish delivery costs and supplier shipping
 
-## 0.6.0 development candidate
+## 0.7.0 development candidate
+
+The native order-details page can show current shipment cards to the signed-in
+order owner. The independent `petish_shipment_customer_tracking_enabled`
+option defaults off. Cards contain carrier links, dispatch dates and item
+allocations; they expose no supplier identifiers or notification internals.
+
+Staff can open **Preview email** for a saved shipment event from Delivery
+operations. The private POST endpoint checks capability and the event-specific
+nonce, then displays the immutable event snapshot using Petish's existing email
+branding. Previewing sends no message and changes no parcel or outbox state.
+
+The following quantity-preview and outbox foundation was introduced in 0.6.0.
 
 The new **WooCommerce → Delivery operations** page previews reviewed
 exact-quantity or first-item/additional-item delivery rules from private CSVs.

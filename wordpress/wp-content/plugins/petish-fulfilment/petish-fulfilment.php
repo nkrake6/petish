@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Petish Fulfilment
- * Description: Reviewed destination delivery, private quantity rate previews and shipment notification operations.
- * Version: 0.6.0
+ * Description: Reviewed delivery rates, private shipment operations and customer tracking views.
+ * Version: 0.7.0
  * Requires PHP: 8.1
  * Requires Plugins: woocommerce
  * Text Domain: petish-fulfilment
@@ -20,6 +20,8 @@ require_once __DIR__ . '/includes/class-petish-shipment-ledger.php';
 require_once __DIR__ . '/includes/class-petish-shipment-notifications.php';
 require_once __DIR__ . '/includes/class-petish-delivery-operations-admin.php';
 Petish_Delivery_Operations_Admin::init();
+require_once __DIR__ . '/includes/class-petish-shipment-customer-view.php';
+Petish_Shipment_Customer_View::init();
 
 // WooCommerce's method base class is autoloadable after its plugins_loaded setup.
 add_action('plugins_loaded', static function () {
