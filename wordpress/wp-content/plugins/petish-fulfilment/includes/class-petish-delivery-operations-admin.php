@@ -248,7 +248,12 @@ final class Petish_Delivery_Operations_Admin {
     private static function notification_form($operation,$order,$event,$label,$confirmation = false) {
         echo '<form method="post" style="margin:8px 0"><input type="hidden" name="petish_operation" value="' . esc_attr($operation) . '"><input type="hidden" name="order_id" value="' . (int)$order . '"><input type="hidden" name="event_id" value="' . esc_attr($event) . '">';
         wp_nonce_field(self::operation_nonce($operation,$order,$event));
-        if ($confirmation) echo '<label><input type="checkbox" name="confirm_resolution" value="yes" required> I checked the sending evidence and confirm this outcome.</label><br>';
+        if ($confirmation) {
+            $text = $operation === 'confirmed_not_sent'
+                ? 'I confirmed the sending process has stopped and provider evidence shows this message was not submitted.'
+                : 'I checked provider evidence and confirm this message was already submitted.';
+            echo '<label><input type="checkbox" name="confirm_resolution" value="yes" required> ' . esc_html($text) . '</label><br>';
+        }
         submit_button($label,'secondary','submit',false); echo '</form>';
     }
     private static function notifications_page() {
@@ -294,11 +299,11 @@ final class Petish_Delivery_Operations_Admin {
             foreach ($parcel['items'] ?? array() as $line=>$quantity) echo 'Item ' . (int)$line . ': ' . (int)$quantity . '<br>';
             echo '</td></tr>';
         }
-        echo '</tbody></table><h3>Notification history</h3><p>Submitted means the configured sender accepted the attempt. Uncertain attempts require evidence review before any retry; an expired sending lease is not permission to send again.</p><table class="widefat striped"><thead><tr><th>Event</th><th>Status</th><th>Attempts / sender</th><th>Operator action</th></tr></thead><tbody>';
+        echo '</tbody></table><h3>Notification history</h3><p>Submitted means the configured sender accepted the attempt. Uncertain attempts require evidence review before any retry; an expired sending lease is not permission to send again. Queueing a retry records a pending attempt; a connected, approved sender must process the queue.</p><table class="widefat striped"><thead><tr><th>Event</th><th>Status</th><th>Attempts / sender</th><th>Operator action</th></tr></thead><tbody>';
         foreach ($ledger['outbox'] ?? array() as $id=>$event) {
             $status = $event['status'] ?? '';
             echo '<tr><td>' . esc_html($event['type'] ?? '') . '<br><small>' . esc_html($id) . '</small></td><td>' . esc_html($status) . '<br>' . esc_html($event['outcome_code'] ?? '') . '</td><td>' . (int)($event['attempts'] ?? 0) . '<br>' . esc_html($event['sender_id'] ?? '') . '</td><td>';
-            if ($status === 'failed' && self::notifications_enabled()) self::notification_form('retry',$order_id,$id,'Retry confirmed unsent notification');
+            if ($status === 'failed' && self::notifications_enabled()) self::notification_form('retry',$order_id,$id,'Queue confirmed unsent retry');
             elseif ($status === 'sending' && is_int($event['lease_until'] ?? null) && $event['lease_until'] <= time()) self::notification_form('reconcile',$order_id,$id,'Reconcile expired attempt (does not send)');
             elseif ($status === 'uncertain') {
                 self::notification_form('confirmed_submitted',$order_id,$id,'Confirm already submitted',true);
