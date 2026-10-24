@@ -1,5 +1,5 @@
 name: Back up the full Petish site to Git
-# Refresh the recovered backup before releasing the verified yellow Cart badge to production.
+# Refresh the recovered backup before a verified production release.
 
 on:
   workflow_dispatch:
@@ -10,6 +10,7 @@ on:
   push:
     branches:
       - main
+      - refresh-release-backup
     paths:
       - .github/workflows/backup-full-site.yml
       - scripts/backup-wordpress-remote.sh
@@ -45,7 +46,7 @@ jobs:
       - name: Check out backup tools
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: main
+          ref: ${{ github.ref_name == 'refresh-release-backup' && github.sha || 'main' }}
           persist-credentials: true
 
       - name: Check the backup passphrase is configured
