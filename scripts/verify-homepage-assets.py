@@ -20,7 +20,12 @@ ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('asset_http',ROOT/'scripts/verify-account-navigation-assets.py')
 http=importlib.util.module_from_spec(spec);spec.loader.exec_module(http)
 http.MAX_BYTES=8388608
-ASSETS={'account_dropdown_script_http_verified':'assets/js/account-dropdown.js',
+ASSETS={'product_payment_script_http_verified':'assets/js/payment-layout.js',
+    'product_payment_stylesheet_http_verified':'assets/css/payment-layout.css',
+    'cart_payment_script_http_verified':'assets/js/cart-payment-layout.js',
+    'cart_payment_stylesheet_http_verified':'assets/css/cart-payment-layout.css',
+    'cart_typography_stylesheet_http_verified':'assets/css/cart-typography.css',
+    'account_dropdown_script_http_verified':'assets/js/account-dropdown.js',
     'account_dropdown_stylesheet_http_verified':'assets/css/account-dropdown.css',
     'hero_editor_script_http_verified':'assets/js/hero-images-admin.js',
     'cart_badge_script_http_verified':'assets/js/cart-badge.js',

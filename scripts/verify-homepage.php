@@ -204,6 +204,20 @@ function petish_homepage_verify_render($root) {
         &&has_action('wp_ajax_petish_account_dropdown',['Petish_Account_Dropdown','state'])!==false
         &&has_action('wp_ajax_nopriv_petish_account_dropdown',['Petish_Account_Dropdown','state'])!==false
         &&Petish_Account_Dropdown::payload()===['signed_in'=>false,'avatar'=>'','initial'=>'','items'=>[]]);
+    petish_homepage_verify_mark('product_payment_layout_registered',class_exists('Petish_Product_Payment_Layout',false)
+        &&(new ReflectionClass('Petish_Product_Payment_Layout'))->getFileName()===$root.'/wp-content/themes/dt-the7-child/includes/payment-layout.php'
+        &&has_filter('woocommerce_paypal_payments_single_product_renderer_hook',['Petish_Product_Payment_Layout','paypal_hook'])!==false
+        &&has_filter('woocommerce_paypal_payments_product_messages_renderer_hook',['Petish_Product_Payment_Layout','paypal_hook'])!==false
+        &&has_filter('woocommerce_paypal_payments_product_messages_renderer_priority',['Petish_Product_Payment_Layout','message_priority'])!==false
+        &&has_action('woocommerce_after_add_to_cart_form',['Petish_Product_Payment_Layout','render_paypal'])===2
+        &&has_action('wp_enqueue_scripts',['Petish_Product_Payment_Layout','assets'])===41
+        &&has_filter('body_class',['Petish_Product_Payment_Layout','body_class'])!==false);
+    petish_homepage_verify_mark('cart_payment_layout_registered',class_exists('Petish_Cart_Payment_Layout',false)
+        &&(new ReflectionClass('Petish_Cart_Payment_Layout'))->getFileName()===$root.'/wp-content/themes/dt-the7-child/includes/cart-payment-layout.php'
+        &&has_action('wp',['Petish_Cart_Payment_Layout','select_google_pay_provider'])===1
+        &&has_filter('woocommerce_paypal_payments_googlepay_button_styles',['Petish_Cart_Payment_Layout','paypal_google_pay_styles'])===30
+        &&has_action('wp_enqueue_scripts',['Petish_Cart_Payment_Layout','enqueue'])===45
+        &&has_filter('body_class',['Petish_Cart_Payment_Layout','body_class'])!==false);
     foreach(['petish_supplier_hot_badge','petish_supplier_free_delivery_eligible','petish_supplier_free_delivery_compare',
         'petish_supplier_free_delivery_badge','petish_supplier_free_delivery_destination_label']as$name)
         if(!function_exists($name))petish_homepage_verify_fail();
@@ -245,6 +259,11 @@ function petish_homepage_verify_render($root) {
         &&parse_url($account_style->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/css/account-dropdown.css'
         &&(string)$account_script->ver===substr(hash_file('sha256',$root.'/wp-content/themes/dt-the7-child/assets/js/account-dropdown.js'),0,12)
         &&(string)$account_style->ver===substr(hash_file('sha256',$root.'/wp-content/themes/dt-the7-child/assets/css/account-dropdown.css'),0,12));
+    $payment_assets_scoped=Petish_Product_Payment_Layout::body_class([])===[]&&Petish_Cart_Payment_Layout::body_class([])===[];
+    foreach(['petish-product-payment-groups','petish-cart-payment-layout','petish-cart-typography']as$handle)
+        $payment_assets_scoped=$payment_assets_scoped&&!wp_style_is($handle,'enqueued')&&!wp_style_is($handle,'done')
+            &&!wp_script_is($handle,'enqueued')&&!wp_script_is($handle,'done');
+    petish_homepage_verify_mark('payment_layout_assets_scoped',$payment_assets_scoped);
     $script=wp_scripts()->registered['petish-for-your-pet']??null;
     petish_homepage_verify_mark('for_your_pet_script_enqueued',(wp_script_is('petish-for-your-pet','enqueued')||wp_script_is('petish-for-your-pet','done'))
         &&is_object($script)&&parse_url($script->src,PHP_URL_PATH)==='/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js'

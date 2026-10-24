@@ -1,9 +1,9 @@
 <?php
-/** Narrow production homepage and header release. Standalone CLI; never boots WordPress. */
+/** Fixed storefront presentation release. Standalone CLI; never boots WordPress. */
 if (PHP_SAPI !== 'cli') exit(1);
 ini_set('display_errors','0'); ini_set('log_errors','0'); error_reporting(0);
 
-// Exact reviewed homepage and header files. All application hashes must be frozen before release.
+// Exact reviewed storefront presentation files. All application hashes must be frozen before release.
 const PETISH_HOMEPAGE_FILES = [
     'assets/images/ui/free-delivery-van.png'=>'4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af',
     'assets/css/home.css'=>'aea70ca0b49d3d23cf6ffacc05e1d17a1a816f49fb33d48fbcb3dd038e28e67c',
@@ -11,7 +11,7 @@ const PETISH_HOMEPAGE_FILES = [
     'includes/supplier-popularity.php'=>'54ef94d249292953c41a81291a5b5eb3f0760ef290f6ee19de79c691747b2e2b',
     'includes/for-your-pet.php'=>'eb3b9d59c63642770366db0c5c0d3375f4ce16539f0b94df01d12b7e87e54aa8',
     'front-page.php'=>'06016dc7d45ce465141b6e1d24da5deaa05e0e06aa1d073ac0229aeb4785e8a8',
-    'functions.php'=>'4e199104034c877c326a0b8c714fe935bce829a4c88051f6ef97690f0ff2000a',
+    'functions.php'=>'82678c4fc83ed2526750ee2d74ff43503736e8ec8fd5ecd09804a6f3ef7c8993',
     'includes/cart-badge.php'=>'04987502e37e3c11ce669168c214078861906baff98add7e013c4b2b2dc14dc8',
     'assets/css/cart-badge.css'=>'e1e39ccad9b779d909946a8755363b435e2647176aa2277a7c2d58c61f7498c7',
     'assets/js/cart-badge.js'=>'3b8d1bd89142ccc846bc019383ff5f97eae0cc16270b242f0adfa5503c290bc7',
@@ -28,6 +28,13 @@ const PETISH_HOMEPAGE_FILES = [
     'assets/js/account-dropdown.js'=>'cd3c4486728143945060cbc5a9820096cda8e67667eb7537ec802b56baccdede',
     'includes/hero-images.php'=>'d29434954109f6ac7f5a4654d8e703464eb6dae0bd63482f42c4e56f205e758a',
     'assets/js/hero-images-admin.js'=>'07e21a7594230daecc8ebfd70b575d7bd10b565d5a2dea87a6c6100f1bc5124f',
+    'includes/payment-layout.php'=>'b80c5fe35fb32cbcdaa55b709728cb0df7a944ef8b004f7bef79d5f840b9fd44',
+    'assets/css/payment-layout.css'=>'39b44694f608b29b34ccb4740ec39023ca6fc3a52409beeb69dc483ca91cb609',
+    'assets/js/payment-layout.js'=>'35bc90288cc5d4e6c0fded553baacfd7d95ef805de42e744ec8c31d6165537bc',
+    'includes/cart-payment-layout.php'=>'fd6610809576340d11db546e37fe86e73cc16930849af972ef8013f8a5edccd3',
+    'assets/css/cart-payment-layout.css'=>'3c00321454259c953c4313871d6a1c8bfa4bf2dd378128c14b30db0db647fd7c',
+    'assets/css/cart-typography.css'=>'6bbf39cd4452c7d3864bf9cdf3af8f8c91440f88836cd20997e9996fc208fad3',
+    'assets/js/cart-payment-layout.js'=>'19cf50fd72e61788428ae5192e83c6fa8208519741ce685043f54fbd9da27f34',
 ];
 const PETISH_HOMEPAGE_BASELINES = [
     'assets/images/ui/free-delivery-van.png'=>'4a731487daec6eda89a4e08aeec2bab86bd4f7a79e1828ad8bb77069600464af',

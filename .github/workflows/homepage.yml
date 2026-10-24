@@ -1,10 +1,10 @@
-name: Verify and release Petish homepage and header
+name: Verify and release Petish storefront presentation
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Verify staging, inspect production, or apply the verified homepage and header files
+        description: Verify staging, inspect production, or apply the reviewed storefront presentation files
         required: true
         default: staging
         type: choice
@@ -29,6 +29,7 @@ on:
       - scripts/consume-litespeed-html-purge.py
       - scripts/sanitize-litespeed-html-purge.py
       - tools/homepage/browser.mjs
+      - tools/homepage/payment-layout-public-proof.js
       - tools/homepage/container-smoke.mjs
       - tools/homepage/cart-badge-browser.mjs
       - operations/homepage-release.json
@@ -55,6 +56,13 @@ on:
       - wordpress/wp-content/themes/dt-the7-child/assets/js/account-dropdown.js
       - wordpress/wp-content/themes/dt-the7-child/includes/hero-images.php
       - wordpress/wp-content/themes/dt-the7-child/assets/js/hero-images-admin.js
+      - wordpress/wp-content/themes/dt-the7-child/includes/payment-layout.php
+      - wordpress/wp-content/themes/dt-the7-child/assets/css/payment-layout.css
+      - wordpress/wp-content/themes/dt-the7-child/assets/js/payment-layout.js
+      - wordpress/wp-content/themes/dt-the7-child/includes/cart-payment-layout.php
+      - wordpress/wp-content/themes/dt-the7-child/assets/css/cart-payment-layout.css
+      - wordpress/wp-content/themes/dt-the7-child/assets/css/cart-typography.css
+      - wordpress/wp-content/themes/dt-the7-child/assets/js/cart-payment-layout.js
 
 permissions:
   contents: write
