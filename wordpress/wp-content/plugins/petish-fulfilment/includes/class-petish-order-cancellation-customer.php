@@ -119,6 +119,10 @@ final class Petish_Order_Cancellation_Customer {
         $post = wp_unslash($_POST);
         $result = self::handle_request($post);
         list($type, $message) = self::notice($result);
+        // WordPress admin-post is an admin request, so Woo may not have loaded
+        // its frontend session. Use only the native session needed for the PRG
+        // notice; do not load the cart or alter the customer's order.
+        if (function_exists('WC') && WC() && !WC()->session && is_callable(array(WC(), 'initialize_session'))) WC()->initialize_session();
         wc_add_notice($message, $type);
         $id = is_array($post) ? self::id($post['order_id'] ?? null) : false;
         $order = $id === false ? null : self::owned_order($id);

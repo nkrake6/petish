@@ -41,7 +41,10 @@ function wp_date($format,$time,$zone) { return gmdate($format,$time); }
 function wp_timezone() { return new DateTimeZone('UTC'); }
 function nocache_headers() { $GLOBALS['cancel_customer']['nocache']=true; }
 function wp_unslash($value) { return $value; }
-function wc_add_notice($message,$type) { $GLOBALS['cancel_customer']['notices'][]=array($type,$message); }
+function wc_add_notice($message,$type) {
+    if (!WC()->session) throw new RuntimeException('Admin-post must initialize the native notice session');
+    $GLOBALS['cancel_customer']['notices'][]=array($type,$message);
+}
 function wp_safe_redirect($url,$status=302) { $GLOBALS['cancel_customer']['redirect']=array($url,$status); throw new CustomerRedirect(); }
 function wp_die($message,$title='',$args=array()) { $GLOBALS['cancel_customer']['die']=$args; throw new CustomerDie(); }
 function wp_mail(...$args) { throw new RuntimeException('No mail from the customer boundary'); }
@@ -59,6 +62,13 @@ class WC_Order {
     public function update_status(...$args) { throw new RuntimeException('No native order status mutation'); }
     public function save() { throw new RuntimeException('No native order save'); }
 }
+class CustomerWoo {
+    public $session = null;
+    public $session_initializations = 0;
+    public function initialize_session() { $this->session = new stdClass(); $this->session_initializations++; }
+    public function initialize_cart() { throw new RuntimeException('Do not initialize the cart'); }
+}
+function WC() { static $woo; return $woo ??= new CustomerWoo(); }
 
 class Petish_Cancellation_Policy {
     public static function request_text() { return 'CANONICAL REVIEW COPY: cancellation is subject to fulfilment and supplier review.'; }
@@ -202,9 +212,11 @@ $_SERVER['REQUEST_METHOD']='POST';$_POST=request_post();$_POST['redirect']='http
 try { $class::submit(); } catch (CustomerRedirect $expected) {}
 check('submit_uses_303_prg_to_native_order',$f['redirect']===array('https://petish.example/my-account/view-order/81/#cancel-request',303));
 check('submit_sets_nocache_and_safe_ack',$f['nocache']===true && end($f['notices'])===array('success','Your cancellation request has been recorded. You can follow its progress on this page.'));
+check('admin_post_initializes_only_native_notice_session',WC()->session instanceof stdClass && WC()->session_initializations===1);
 $_POST=request_post();$_POST['_wpnonce']='invalid';
 try { $class::submit(); } catch (CustomerRedirect $expected) {}
 check('bad_post_errors_are_generic',end($f['notices'])[0]==='error' && !str_contains(end($f['notices'])[1],'PRIVATE-'));
+check('existing_notice_session_preserved',WC()->session_initializations===1);
 $f['user']=22;$_POST=request_post();
 try { $class::submit(); } catch (CustomerRedirect $expected) {}
 check('foreign_request_redirect_does_not_reveal_order',$f['redirect']===array('https://petish.example/my-account/orders/',303));
