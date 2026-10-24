@@ -255,7 +255,7 @@ the product chooser. See
 [cancellation workflow, policy and evidence](docs/CANCELLATION-REQUESTS.md).
 
 The separate **30-file storefront release is live**, adding a larger header
-font and right-aligned avatar/account dropdown using native links and private
+font and an avatar/account dropdown after the currency selector using native links and private
 cache-safe hydration. It also provides
 **Homepage → Hero images** with native Media Library selection, previews,
 reset-to-default and Save changes for all four animal slots. Admin URL:
@@ -264,7 +264,8 @@ choices and all feature switches.
 
 Product pages now group native GPay/Afterpay separately from PayPal, with the
 PayPal instalment message below its buttons and matching maximum widths.
-Afterpay has green emphasis and native message typography matching PayPal.
+Afterpay has green emphasis, its original native text sizing restored, and a
+separate unchanged official 150px brand badge above eligible native messages.
 Categories/tags use 16px text. Cart uses WooPayments for Google Pay when its
 merchant configuration is available, keeps PayPal/Pay in 4 below it, and uses
 larger names, prices, variation information and totals. Actual payment
@@ -279,7 +280,37 @@ changed 16 files, matched all 30 hashes and passed native, cache, canonical
 page/asset and commit checks. Maintenance was removed; no rollback was needed.
 See [payment layout and release evidence](docs/STOREFRONT-PAYMENT-LAYOUT.md).
 
-Both production releases used encrypted full-site backup `40070351575-1`
+The owner then reported duplicate Google Pay controls, a PayPal message outside
+its group, reduced Afterpay text and an Account control before the utilities.
+Live diagnostics identified invalid split-gateway/card-registry assumptions
+and the native PayPal v6 shadow message host. Corrective application source
+`442af87` passed staging install `40080198298-1`, seven-type native email preview
+`40080240145-1`, and all eight full staging phases in `40080482597-1` (tool source
+`cb0fee0`). Production `40080832725-1`, source `3e6c147`, changed nine files within
+the same fixed 30-file scope and passed native, protected-state, cache, health,
+asset and commit checks. Maintenance was removed without rollback. It restores
+native Afterpay typography, uses native main-gateway Cart wallet enablement,
+recognizes PayPal v6 message hosts and positions Account after the currency
+widget. Post-release guest inspection `40081062995-1` verified native Cart
+provider selection, Account after currency and restored 16.74px financing text,
+but caught a remaining badge-visibility bug: WordPress serializes its native
+enabled flag as `"1"`, not boolean `true`. Follow-up `ad6b2e6` accepts both exact
+enabled values without loosening other eligibility checks. It passed staging
+install `40081705741-1` and all 226 required full-staging checks in
+`40081839182-1` (`05c3de2`). Production `40082256383-1`, source `ceaa969`, changed
+one JavaScript file within the same 30-file scope and passed all 178 required
+production checks, including exact hashes, native state, cache, health and
+commit. Maintenance was removed without rollback. Final guest inspection
+`40082669837-1` (`3c1ac7b`, unchanged `ceaa969` application bytes) confirms the
+150px badge, restored product text, See plans on the next product message row,
+Account after currency and native Cart provider selection. The temporary Cart
+and private tools were removed. Its fixed public payment-only crops were
+hash-verified and visually inspected; see the payment-layout document. The
+preceding HTTP-failed inspection created no Cart and changed no app files.
+Isolated staging deliberately disables provider execution;
+headless inspection does not prove wallet authorization or payment processing.
+
+These production releases used encrypted full-site backup `40070351575-1`
 and successful application recovery `40070594356-1`. Earlier 23-file homepage
 release attempts stopped before application writes; browser-proof transport
 handling and the exact reviewed LiteSpeed 7.9.2 support were corrected before

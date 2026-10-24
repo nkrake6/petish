@@ -1,12 +1,19 @@
 # Storefront payment groups and Cart readability
 
-Deployed baseline: application source `3691306`, production release source
-`cff4586`, 24 October 2026 (Australia/Melbourne).
+Current application source: `ad6b2e6`, production release source `ceaa969`,
+24 October 2026 (Australia/Melbourne). Prior baseline: `3691306` / `cff4586`.
 
 Corrective implementation: Afterpay commit `ad24e72` and Cart commit `bcec660`.
-Their new hosted release and production verification are pending. The baseline
-receipts below establish what was deployed; they do not establish that the
-reported live payment presentation issues were resolved.
+The corrective production release succeeded in `40080832725-1`; its hosted
+inspection `40081062995-1` confirmed restored native text and the rightmost
+Account control, but caught a remaining badge-visibility bug. WordPress
+`WP_Scripts::localize()` serializes a top-level PHP `true` as JavaScript `"1"`;
+the badge guard expected boolean `true`. Commit `ad6b2e6` accepts exactly those
+two enabled representations and retains every market, method and visibility
+guard. The one-file follow-up release `40082256383-1` passed all 178 required
+production checks. Actual live visual inspection `40082669837-1` confirms the
+large badge and restored product text. The earlier baseline receipts below
+do not establish that the reported live payment presentation issues were resolved.
 
 On product pages, the existing native WooPayments express button and Afterpay
 message form one group. PayPal and Pay in 4 form a separate group, with the
@@ -14,12 +21,14 @@ native PayPal instalment message beneath the buttons. Both groups use the same
 400px maximum width and shrink to fit mobile screens. Categories and tags use
 16px text with space above them.
 
-## Pending Afterpay correction
+## Afterpay correction
 
 The prior implementation derived financing font sizes from PayPal's message
 configuration. That customization has been removed. Commit `ad24e72` restores
-WooPayments' native financing text and disclosure sizes, including the natural
-See plans link below the branding. It invalidates only the existing customized
+WooPayments' native financing text and disclosure sizes. The actual 400px
+product crop confirms See plans on the next message row. Stripe retains its
+responsive wrapping and exposes no supported disclosure-layout setting.
+The correction invalidates only the existing customized
 product or Cart appearance cache once per browser/scope, before native message
 initialization. Checkout appearance and caches are excluded.
 
@@ -135,9 +144,10 @@ live wallet authorisation, financing eligibility or a real payment test.
 | Installed native policy and public markup | [40078717098-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40078717098-1) | Main express and Cart wallet settings enabled; split Google Pay unavailable and absent from enabled checkout methods; regular-card registry lookup absent; prior selection flag false |
 | Isolated filled guest Cart | [40079103626-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40079103626-1) | One native message placeholder, inside and directly under the Sidebar; temporary guest Cart cleanup verified |
 
-The filled guest run blocked 52 provider-bootstrap POSTs. Its wallets and v6
-message host therefore did not render. That result is inconclusive for live
-provider rendering; it is neither absence proof nor evidence that the
+The filled guest run blocked 52 provider POSTs. The Stripe Afterpay frame did
+render; the blocked count can include telemetry and does not establish which
+initializers failed. Wallets and the v6 message host were absent in that run.
+That result is inconclusive for their live rendering; it is neither absence proof nor evidence that the
 corrective policy or message group works on the hosted site. The direct
 Sidebar/message structure and the native guard failures were nevertheless
 observed from installed code and actual Cart markup.
@@ -150,11 +160,26 @@ actions, and must distinguish an unavailable provider from blocked execution.
 
 | Corrective release step | State |
 |---|---|
-| Final application source, including incoming header correction | Pending |
-| Staging install and native/browser verification receipt | Pending |
-| Hosted native wallet/message render and typography proof | Pending |
-| Production application and verification receipt | Pending |
+| Final application source, including header correction | `442af87` |
+| Staging install and native/browser verification receipt | `40080198298-1`; all eight full verification phases in `40080482597-1` (`cb0fee0`) |
+| Hosted native wallet/message render and typography proof | `40081062995-1`: native text 16.74px, original product cache 17px; rightmost Account and Cart provider policy verified; badge type mismatch found; native SDK wallet rendering remains inconclusive in headless inspection |
+| Production application and verification receipt | [40080832725-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40080832725-1), source `3e6c147`; nine files changed, all 30 hashes verified; native/cache/health/assets/commit passed; maintenance removed without rollback |
+| Localized eligibility follow-up | Staging install `40081705741-1` (`ad6b2e6`), all 226 required full-staging checks in `40081839182-1` (`05c3de2`), production [40082256383-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40082256383-1) (`ceaa969`); one file changed, all 30 hashes and 178 required production checks passed; maintenance removed without rollback |
+| Actual final native product/Cart visuals | [40082669837-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40082669837-1), diagnostic source `3c1ac7b` with unchanged `ceaa969` application bytes; 150×93.75px branding visible, native product appearance matches its original 17px source, guest Cart and temporary tools removed |
+
+Both exact public payment crops were hash-verified and visually inspected:
+[product, 400×172px](https://github.com/nkrake6/petish/blob/4002c721ae729453a7a16ce1d43065c571c6afbd/product-afterpay.png)
+and [Cart, 310×167px](https://github.com/nkrake6/petish/blob/4002c721ae729453a7a16ce1d43065c571c6afbd/cart-payments.png).
+They show the separate large official badge above the unchanged native message
+and inline mark. Product text retains its restored readable size; the final
+13.39px frame measurement belongs to Cart and is not a product-font measurement.
+Native header ordering and Cart DTO selection also remain correct. Headless
+wallet and PayPal message-host rendering remains inconclusive, so this does not
+claim a real wallet, financing or payment test. The preceding visual run
+`40082411731-1` stopped on public HTTP loading before creating a Cart; the retry
+changed no application files.
 
 The baseline also installed the live [hero-image editor](https://petish.biz/wp-admin/admin.php?page=petish-hero-images)
-and account dropdown. Photo choices remain preserved. The incoming header
-correction and its hosted results will be recorded with the corrective release.
+and account dropdown. Photo choices remain preserved. The corrective header
+places the account widget after currency while retaining native visibility and
+breakpoint behavior; hosted provider-specific observations are recorded separately.
