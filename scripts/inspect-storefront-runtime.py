@@ -22,9 +22,10 @@ IDS = set('masthead phantom phantom-mobile mobile-header mobile-menu page main p
           'express-payment-method-ppcp-gateway-paylater wcpay-express-checkout-element '
           'ppc-button-ppcp-gateway ppc-button-ppcp-googlepay ppc-button-googlepay-container '
           'ppc-button-ppcp-googlepay-v6 ppcp-cart-paylater-messages'.split())
-CLASSES = set('masthead header-bar branding main-nav mobile-main-nav mini-widgets mobile-mini-widgets '
+CLASSES = set('masthead header-bar mobile-header-bar inline-header top-header side-header header-side-left header-side-right '
+              'branding main-nav mobile-main-nav mini-nav mini-sub-nav mini-widgets mobile-mini-widgets '
               'mobile-header mobile-navigation mobile-mini-widgets-in-menu mobile-menu-show-divider '
-              'shopping-cart mini-woocommerce-cart wc-ico-cart login the7-login login-modal '
+              'shopping-cart mini-woocommerce-cart wc-shopping-cart wc-ico-cart mini-login login the7-login login-modal '
               'menu-item menu-item-type-post_type menu-item-object-page menu-text sub-nav '
               'petish-account-menu petish-account-avatar petish-account-toggle petish-account-dropdown__panel '
               'petish-theme-switch petish-theme-control petish-market-selector petish-market-selector__toggle '
@@ -45,8 +46,8 @@ TARGETS = {
     'branding': (set(), {'branding'}),
     'header_widgets': (set(), {'mini-widgets'}),
     'mobile_widgets': (set(), {'mobile-mini-widgets', 'mobile-mini-widgets-in-menu'}),
-    'native_cart': ({'shopping-cart'}, {'shopping-cart', 'mini-woocommerce-cart', 'wc-ico-cart'}),
-    'native_login': (set(), {'login', 'the7-login', 'login-modal'}),
+    'native_cart': ({'shopping-cart'}, {'shopping-cart', 'mini-woocommerce-cart', 'wc-shopping-cart', 'wc-ico-cart'}),
+    'native_login': (set(), {'mini-login', 'login', 'the7-login', 'login-modal'}),
     'account_menu': (set(), {'petish-account-menu'}),
     'account_avatar': (set(), {'petish-account-avatar'}),
     'account_panel': (set(), {'petish-account-dropdown__panel'}),
