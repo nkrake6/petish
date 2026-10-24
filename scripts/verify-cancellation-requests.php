@@ -7,6 +7,7 @@ require_once __DIR__ . '/verify-pet-club.php';
 const PETISH_CANCEL_FAQ_CONTENT = "\n\n<!-- petish-cancellation-faq:v1 -->\n[petish_faqs]\n<!-- /petish-cancellation-faq:v1 -->\n";
 const PETISH_CANCEL_DELIVERY_SHA = 'e5c6e2575f72e4bd5c1c9e45fb05dd33f27f816c7db0ae3b63b2805e41b9b065';
 const PETISH_CANCEL_LEGACY_DELIVERY_SHA = 'a6be7ca22b83ce301bf3fa0969f4559f3fa539f716ecaf7236472fa06ac9c000';
+const PETISH_CANCEL_OBSERVED_STAGING_SHA = '4b6552241b12f4bbafecfed151c0ac177c2a6c9cbabcd785abd9a2bda6be9c10';
 const PETISH_CANCEL_FAQ_MARKER = '_petish_cancellation_faq_managed_v1';
 const PETISH_CANCEL_FAQ_OWNER = 'petish-cancellation-faq-v1';
 const PETISH_CANCEL_CHECKS = [
@@ -22,6 +23,7 @@ const PETISH_CANCEL_CHECKS = [
  'hero_settings_hooks_verified','hero_default_resolver_verified','hero_guest_settings_denied','hero_option_unchanged',
  'staff_settings_hook_verified','staff_settings_nonce_verified',
  'faq_page_slug_indexed','faq_transaction_isolation_verified',
+ 'faq_append_plan_verified','faq_prefix_handling_verified',
 ];
 function petish_cancel_mark($key,$valid) {
  global $report;
@@ -220,16 +222,42 @@ function petish_cancel_delivery_valid($row) {
  return is_array($row)&&(int)$row['ID']>0&&$row['post_type']==='page'&&$row['post_status']==='publish'&&$row['post_name']==='delivery-shipping'
   &&is_string($row['post_content'])&&$row['post_password']===''&&(int)$row['post_parent']===0;
 }
+/** Pure append plan. Production callers use the fixed observed hash; no CLI input overrides it. */
+function petish_cancel_faq_plan($current,$reviewed,$observed_sha=PETISH_CANCEL_OBSERVED_STAGING_SHA) {
+ if (!is_string($current)||!is_string($reviewed)||!is_string($observed_sha)||!preg_match('/\A[a-f0-9]{64}\z/D',$observed_sha)
+  ||hash('sha256',$reviewed)!==PETISH_CANCEL_DELIVERY_SHA
+  ||str_contains($current,'[petish_faqs]')||str_contains($current,'petish-cancellation-faq:v1')) return false;
+ $hash=hash('sha256',$current);$aligned=$hash===PETISH_CANCEL_LEGACY_DELIVERY_SHA;
+ if (!$aligned&&!in_array($hash,[PETISH_CANCEL_DELIVERY_SHA,$observed_sha],true)) return false;
+ $prefix=$aligned?$reviewed:$current;
+ return ['content'=>$prefix.PETISH_CANCEL_FAQ_CONTENT,'prefix_sha256'=>hash('sha256',$prefix),'aligned'=>$aligned];
+}
+/** Validate exactly one owned suffix while binding it to the preserved known prefix. */
+function petish_cancel_faq_prefix($content,$observed_sha=PETISH_CANCEL_OBSERVED_STAGING_SHA) {
+ if (!is_string($content)||!is_string($observed_sha)||!preg_match('/\A[a-f0-9]{64}\z/D',$observed_sha)
+  ||!str_ends_with($content,PETISH_CANCEL_FAQ_CONTENT)) return false;
+ $prefix=substr($content,0,-strlen(PETISH_CANCEL_FAQ_CONTENT));$hash=hash('sha256',$prefix);
+ if (!in_array($hash,[PETISH_CANCEL_DELIVERY_SHA,$observed_sha],true)
+  ||str_contains($prefix,'[petish_faqs]')||str_contains($prefix,'petish-cancellation-faq:v1')) return false;
+ return ['content'=>$prefix,'sha256'=>$hash];
+}
 function petish_cancel_faq_valid($row) {
- return petish_cancel_delivery_valid($row)&&$row['post_content']===petish_cancel_faq_base().PETISH_CANCEL_FAQ_CONTENT;
+ return petish_cancel_delivery_valid($row)&&petish_cancel_faq_prefix($row['post_content'])!==false;
+}
+function petish_cancel_faq_owner($content,$observed_sha=PETISH_CANCEL_OBSERVED_STAGING_SHA) {
+ $prefix=petish_cancel_faq_prefix($content,$observed_sha);
+ return $prefix===false?false:PETISH_CANCEL_FAQ_OWNER.'|'.$prefix['sha256'];
 }
 function petish_cancel_faq_markers($id,$for_update=false) {
  global $wpdb;
  $values=$wpdb->get_col($wpdb->prepare("SELECT meta_value FROM `{$wpdb->postmeta}` WHERE post_id=%d AND meta_key=%s ORDER BY meta_id".($for_update?' FOR UPDATE':''),$id,PETISH_CANCEL_FAQ_MARKER));
  if (!is_array($values)||$wpdb->last_error!=='') petish_club_verify_fail();return $values;
 }
-function petish_cancel_faq_marker($id) {
- return petish_cancel_faq_markers($id)===[PETISH_CANCEL_FAQ_OWNER.'|'.PETISH_CANCEL_DELIVERY_SHA];
+function petish_cancel_faq_marker($id,$content=null) {
+ global $wpdb;
+ if ($content===null) $content=$wpdb->get_var($wpdb->prepare("SELECT post_content FROM `{$wpdb->posts}` WHERE ID=%d AND post_type='page'",$id));
+ $owner=petish_cancel_faq_owner($content);
+ return $owner!==false&&petish_cancel_faq_markers($id)===[$owner];
 }
 function petish_cancel_inspect_delivery($rows,$for_update=false) {
  global $report;
@@ -240,19 +268,20 @@ function petish_cancel_inspect_delivery($rows,$for_update=false) {
   $row=$rows[0];$structure=petish_cancel_delivery_valid($row);
   if (is_string($row['post_content']??null)) $hash=hash('sha256',$row['post_content']);
   if (!$structure) $class='structure_unknown';
-  elseif (petish_cancel_faq_markers((int)$row['ID'],$for_update)) $class=petish_cancel_faq_valid($row)&&petish_cancel_faq_marker((int)$row['ID'])?'owned':'marker_unknown';
+  elseif (petish_cancel_faq_markers((int)$row['ID'],$for_update)) $class=petish_cancel_faq_valid($row)&&petish_cancel_faq_marker((int)$row['ID'],$row['post_content'])?'owned':'marker_unknown';
   elseif ($hash===PETISH_CANCEL_DELIVERY_SHA) $class='current';
   elseif ($hash===PETISH_CANCEL_LEGACY_DELIVERY_SHA) $class='legacy';
+  elseif ($hash===PETISH_CANCEL_OBSERVED_STAGING_SHA) $class='observed_staging_copy';
   else $class='manual_content';
  }
  $report['delivery_page']=['classification'=>$class,'content_sha256'=>$hash];
  foreach (['delivery_page_present'=>$present,'delivery_page_unique'=>$unique,'delivery_page_structure_known'=>$structure,
-  'delivery_copy_current'=>$class==='current','delivery_copy_legacy'=>$class==='legacy'] as $name=>$value) $report['observations'][$name]=$value;
+  'delivery_copy_current'=>$class==='current','delivery_copy_legacy'=>$class==='legacy','delivery_copy_observed'=>$class==='observed_staging_copy'] as $name=>$value) $report['observations'][$name]=$value;
  return $class;
 }
 function petish_cancel_faq_verify() {
  $rows=petish_cancel_faq_rows();petish_cancel_mark('faq_page_verified',count($rows)===1&&petish_cancel_faq_valid($rows[0]));
- petish_cancel_mark('faq_marker_verified',petish_cancel_faq_marker((int)$rows[0]['ID']));
+ petish_cancel_mark('faq_marker_verified',petish_cancel_faq_marker((int)$rows[0]['ID'],$rows[0]['post_content']));
 }
 /** Exact prepared-statement grants; every unrelated write is rejected. */
 function petish_cancel_prepare_guard($sql) {
@@ -318,8 +347,8 @@ function petish_cancel_prepare($run) {
   petish_cancel_once('START TRANSACTION');$transaction=true;
   petish_cancel_mark('faq_transaction_isolation_verified',true);
   $rows=petish_cancel_faq_rows(true);$classification=petish_cancel_inspect_delivery($rows,true);
-  petish_cancel_mark('faq_existing_content_safe',in_array($classification,['absent','current','legacy','owned'],true));
-  $base=petish_cancel_faq_base();$before_row=null;$after_row=null;$markers=[];$page=0;
+  petish_cancel_mark('faq_existing_content_safe',in_array($classification,['absent','current','legacy','observed_staging_copy','owned'],true));
+  $base=petish_cancel_faq_base();$before_row=null;$after_row=null;$markers=[];$page=0;$prefix_sha=PETISH_CANCEL_DELIVERY_SHA;$expected_content=$base.PETISH_CANCEL_FAQ_CONTENT;
   if ($classification==='absent') {
    // A counterpart of the existing live delivery page; never a separate /faqs/ page.
    $before=petish_cancel_other_posts();$date=current_time('mysql');$gmt=current_time('mysql',true);
@@ -336,19 +365,23 @@ function petish_cancel_prepare($run) {
   } else {
    $before_row=$rows[0];$page=(int)$before_row['ID'];$before=petish_cancel_other_posts($page);$markers=petish_cancel_faq_markers($page);
    if ($classification!=='owned') {
-    $aligned=$classification==='legacy';
-    $data=['post_content'=>$base.PETISH_CANCEL_FAQ_CONTENT,'post_modified'=>current_time('mysql'),'post_modified_gmt'=>current_time('mysql',true)];
+    $plan=petish_cancel_faq_plan($before_row['post_content'],$base);
+    petish_cancel_mark('faq_append_plan_verified',is_array($plan));
+    $aligned=$plan['aligned'];$prefix_sha=$plan['prefix_sha256'];$expected_content=$plan['content'];
+    $data=['post_content'=>$expected_content,'post_modified'=>current_time('mysql'),'post_modified_gmt'=>current_time('mysql',true)];
     $sql=$wpdb->prepare('UPDATE `'.$wpdb->posts.'` SET `post_content` = %s, `post_modified` = %s, `post_modified_gmt` = %s WHERE `ID` = %d',[$data['post_content'],$data['post_modified'],$data['post_modified_gmt'],$page]);
     $GLOBALS['petish_cancel_next_sql']=$sql;
     if ($wpdb->update($wpdb->posts,$data,['ID'=>$page],['%s','%s','%s'],['%d'])!==1||$wpdb->last_error!==''||($GLOBALS['petish_cancel_next_sql']??null)!==null) petish_club_verify_fail();
     $appended=true;
-   }
+   } else {$prefix=petish_cancel_faq_prefix($before_row['post_content']);$prefix_sha=$prefix['sha256'];$expected_content=$before_row['post_content'];}
   }
-  if ($appended) petish_cancel_native_insert($wpdb->postmeta,['post_id'=>$page,'meta_key'=>PETISH_CANCEL_FAQ_MARKER,'meta_value'=>PETISH_CANCEL_FAQ_OWNER.'|'.PETISH_CANCEL_DELIVERY_SHA],['%d','%s','%s']);
+  petish_cancel_mark('faq_append_plan_verified',true);
+  if ($appended) petish_cancel_native_insert($wpdb->postmeta,['post_id'=>$page,'meta_key'=>PETISH_CANCEL_FAQ_MARKER,'meta_value'=>PETISH_CANCEL_FAQ_OWNER.'|'.$prefix_sha],['%d','%s','%s']);
   petish_cancel_faq_verify();$after_rows=petish_cancel_faq_rows();$after_row=$after_rows[0];
+  petish_cancel_mark('faq_prefix_handling_verified',$after_row['post_content']===$expected_content);
   petish_cancel_mark('delivery_page_only_write_scope_verified',$before===petish_cancel_other_posts($page));
   petish_cancel_checkpoint($run,['schema_version'=>1,'target'=>'staging','page_id'=>$page,'appended'=>$appended,'delivery_counterpart_created'=>$created,'delivery_copy_aligned'=>$aligned,
-   'before'=>$before_row,'after'=>$after_row,'before_markers'=>$markers,'after_marker'=>PETISH_CANCEL_FAQ_OWNER.'|'.PETISH_CANCEL_DELIVERY_SHA]);
+   'before'=>$before_row,'after'=>$after_row,'before_markers'=>$markers,'after_marker'=>PETISH_CANCEL_FAQ_OWNER.'|'.$prefix_sha]);
   petish_cancel_once('COMMIT');$transaction=false;
   $report['observations']['faq_appended']=$appended;$report['observations']['faq_already_owned']=!$appended;
   $report['observations']['delivery_copy_aligned']=$aligned;$report['observations']['delivery_counterpart_created']=$created;
@@ -366,7 +399,7 @@ petish_club_verify_report_start();
 $report+=['schema_version'=>1,'target'=>'staging','mode'=>$argv[2]??'invalid','source_hashes'=>[],'theme_source_hashes'=>[],'delivery_page'=>['classification'=>'unchecked','content_sha256'=>null],
  'observations'=>['hosted_case_mutations_not_exercised'=>true,'external_supplier_cancellation_not_exercised'=>true,
   'gateway_refunds_not_exercised'=>true,'customer_email_body_not_exercised'=>true,'header_authenticated_payload_not_exercised'=>true,'faq_appended'=>false,'faq_already_owned'=>false,'delivery_copy_aligned'=>false,'delivery_counterpart_created'=>false,'hero_attachment_selection_not_exercised'=>true,
-  'delivery_page_present'=>false,'delivery_page_unique'=>false,'delivery_page_structure_known'=>false,'delivery_copy_current'=>false,'delivery_copy_legacy'=>false]];
+  'delivery_page_present'=>false,'delivery_page_unique'=>false,'delivery_page_structure_known'=>false,'delivery_copy_current'=>false,'delivery_copy_legacy'=>false,'delivery_copy_observed'=>false]];
 $body_passed=false;$before=null;$root=null;$manifest=null;$source_before=null;$cases_before=null;$options_before=null;$baseline=null;$mode=$argv[2]??'';$theme_manifest=null;$theme_before=null;
 $finalize=static function()use(&$body_passed,&$before,&$root,&$manifest,&$source_before,&$cases_before,&$options_before,&$baseline,&$mode,&$report,&$theme_manifest,&$theme_before){
  $body_category=$report['category'];

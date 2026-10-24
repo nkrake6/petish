@@ -30,13 +30,13 @@ def proof(mode='verify',kind=None):
     observations.update({'faq_appended':mode=='prepare' and kind!='owned','faq_already_owned':kind=='owned',
       'delivery_copy_aligned':mode=='prepare' and kind=='legacy','delivery_counterpart_created':mode=='prepare' and kind=='absent',
       'delivery_page_present':kind not in {'unchecked','absent'},'delivery_page_unique':kind not in {'unchecked','absent','duplicate'},
-      'delivery_page_structure_known':kind in {'current','legacy','owned','manual_content','marker_unknown'},
-      'delivery_copy_current':kind=='current','delivery_copy_legacy':kind=='legacy'})
+      'delivery_page_structure_known':kind in {'current','legacy','observed_staging_copy','owned','manual_content','marker_unknown'},
+      'delivery_copy_current':kind=='current','delivery_copy_legacy':kind=='legacy','delivery_copy_observed':kind=='observed_staging_copy'})
     return {'schema_version':1,'target':'staging','mode':mode,'status':'success','category':'complete',
             'checks':dict.fromkeys(SCREEN.COMMON | (SCREEN.PREPARE if mode=='prepare' else SCREEN.VERIFY),True),
             'observations':observations,
             'source_hashes':manifest(),'theme_source_hashes':dict.fromkeys(SCREEN.REQUIRED_THEME,'b'*64),
-            'delivery_page':{'classification':kind,'content_sha256':None if kind in {'unchecked','absent','duplicate'} else 'c'*64}}
+            'delivery_page':{'classification':kind,'content_sha256':None if kind in {'unchecked','absent','duplicate'} else SCREEN.OBSERVED_STAGING_SHA if kind=='observed_staging_copy' else 'c'*64}}
 
 
 class ReportBoundary(unittest.TestCase):
@@ -67,7 +67,7 @@ class ReportBoundary(unittest.TestCase):
                 self.assertNotIn('PRIVATE',json.dumps(screened))
 
     def test_missing_current_legacy_and_owned_delivery_states_are_explicit(self):
-        for kind in ['absent','current','legacy','owned']:
+        for kind in ['absent','current','legacy','observed_staging_copy','owned']:
             with self.subTest(kind=kind):
                 value=proof('prepare',kind)
                 self.assertTrue(self.screen(value,'prepare')[1])
@@ -77,6 +77,8 @@ class ReportBoundary(unittest.TestCase):
             self.assertFalse(passed)
             self.assertEqual(safe['delivery_page']['classification'],kind)
         value=proof('prepare','absent');value['observations']['delivery_counterpart_created']=False
+        self.assertFalse(self.screen(value,'prepare')[1])
+        value=proof('prepare','observed_staging_copy');value['delivery_page']['content_sha256']='d'*64
         self.assertFalse(self.screen(value,'prepare')[1])
         for mutate in [lambda v:v['delivery_page'].update(content_sha256='PRIVATE'),
                        lambda v:v['delivery_page'].update(raw_content='PRIVATE'),
@@ -130,6 +132,14 @@ $row=['ID'=>'123','post_type'=>'page','post_status'=>'publish','post_name'=>'del
 $checks['fixed_owned_content']=petish_cancel_faq_valid($row);
 $row['post_content']='Existing unrelated FAQ copy';$checks['unmanaged_content_refused']=!petish_cancel_faq_valid($row);
 $row['post_content']=petish_cancel_faq_base().PETISH_CANCEL_FAQ_CONTENT;$row['post_type']='shop_order';$checks['other_record_type_refused']=!petish_cancel_faq_valid($row);
+$sample="<p>Retain this existing copy — 🐇, 'quotes', \\\\slashes\\\\ and &amp; entities.</p>\n";
+$sample_hash=hash('sha256',$sample);$reviewed=petish_cancel_faq_base();
+$plan=petish_cancel_faq_plan($sample,$reviewed,$sample_hash);
+$checks['observed_copy_exact_append']=$plan['content']===$sample.PETISH_CANCEL_FAQ_CONTENT&&$plan['prefix_sha256']===$sample_hash&&$plan['aligned']===false;
+$checks['observed_copy_exact_prefix']=petish_cancel_faq_prefix($plan['content'],$sample_hash)===['content'=>$sample,'sha256'=>$sample_hash];
+$checks['owner_binds_actual_prefix']=petish_cancel_faq_owner($plan['content'],$sample_hash)===PETISH_CANCEL_FAQ_OWNER.'|'.$sample_hash;
+$checks['arbitrary_prefix_still_refused']=petish_cancel_faq_plan($sample,$reviewed)===false&&petish_cancel_faq_prefix($plan['content'])===false;
+$checks['tamper_still_refused']=petish_cancel_faq_plan($sample.'changed',$reviewed,$sample_hash)===false&&petish_cancel_faq_prefix($plan['content'].PETISH_CANCEL_FAQ_CONTENT,$sample_hash)===false;
 define('ARRAY_A','ARRAY_A');
 $wpdb=new class {public $posts='wp_posts';public $last_error='';public $sql='';function get_results($sql,$mode){$this->sql=$sql;return [];} };
 petish_cancel_faq_rows(true);
@@ -145,7 +155,7 @@ echo json_encode($checks);
             result=command([php,str(fixture),str(helper)],ROOT)
             self.assertEqual(result.stderr,b'')
             checks=json.loads(result.stdout)
-            self.assertEqual(len(checks),9)
+            self.assertEqual(len(checks),14)
             self.assertTrue(all(checks.values()))
 
 

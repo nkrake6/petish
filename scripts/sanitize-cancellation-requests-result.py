@@ -17,6 +17,7 @@ REQUIRED_THEME = {
 }
 SOURCE_PATH = re.compile(r'(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_.-]+\.(?:php|js|css|md|json|svg|png|jpg|jpeg|webp|txt)\Z')
 SHA = re.compile(r'[a-f0-9]{64}\Z')
+OBSERVED_STAGING_SHA = '4b6552241b12f4bbafecfed151c0ac177c2a6c9cbabcd785abd9a2bda6be9c10'
 REQUIRED_SOURCE = {
  'petish-fulfilment.php','includes/class-petish-cancellation-policy.php',
  'includes/class-petish-order-cancellation-requests.php','includes/class-petish-order-cancellation-customer.php',
@@ -46,14 +47,15 @@ VERIFY = {
 PREPARE = {
  'faq_section_prepared','faq_transactional_tables','faq_no_table_triggers','faq_checkpoint_saved','delivery_page_only_write_scope_verified','faq_existing_content_safe','faq_no_cache_dropins',
  'faq_page_slug_indexed','faq_transaction_isolation_verified',
+ 'faq_append_plan_verified','faq_prefix_handling_verified',
 }
 OBSERVATIONS = {'hosted_case_mutations_not_exercised','external_supplier_cancellation_not_exercised',
  'gateway_refunds_not_exercised','customer_email_body_not_exercised','header_authenticated_payload_not_exercised','hero_attachment_selection_not_exercised',
  'faq_appended','faq_already_owned','delivery_copy_aligned','delivery_counterpart_created',
- 'delivery_page_present','delivery_page_unique','delivery_page_structure_known','delivery_copy_current','delivery_copy_legacy'}
-DELIVERY_CLASSES={'unchecked','absent','duplicate','structure_unknown','current','legacy','owned','manual_content','marker_unknown'}
+ 'delivery_page_present','delivery_page_unique','delivery_page_structure_known','delivery_copy_current','delivery_copy_legacy','delivery_copy_observed'}
+DELIVERY_CLASSES={'unchecked','absent','duplicate','structure_unknown','current','legacy','observed_staging_copy','owned','manual_content','marker_unknown'}
 DELIVERY_OBSERVATIONS={'faq_appended','faq_already_owned','delivery_copy_aligned','delivery_counterpart_created',
- 'delivery_page_present','delivery_page_unique','delivery_page_structure_known','delivery_copy_current','delivery_copy_legacy'}
+ 'delivery_page_present','delivery_page_unique','delivery_page_structure_known','delivery_copy_current','delivery_copy_legacy','delivery_copy_observed'}
 CATEGORIES = {'input','paths','source','bootstrap','runtime','snapshot','contracts','controls','prepare','faq','complete','invalid_report'}
 
 
@@ -173,21 +175,23 @@ def screen(path, mode):
             raise ValueError('Invalid missing-page digest')
         if page['classification'] not in {'unchecked','absent','duplicate','structure_unknown'} and page['content_sha256'] is None:
             raise ValueError('Missing content digest')
+        if page['classification']=='observed_staging_copy' and page['content_sha256']!=OBSERVED_STAGING_SHA:
+            raise ValueError('Unreviewed staging prefix digest')
         required = COMMON | (PREPARE if mode == 'prepare' else VERIFY)
         obs = raw['observations']
         finite=DELIVERY_OBSERVATIONS
         kind=page['classification']
         inspection={'delivery_page_present':kind not in {'unchecked','absent'},
                     'delivery_page_unique':kind not in {'unchecked','absent','duplicate'},
-                    'delivery_page_structure_known':kind in {'current','legacy','owned','manual_content','marker_unknown'},
-                    'delivery_copy_current':kind=='current','delivery_copy_legacy':kind=='legacy'}
+                    'delivery_page_structure_known':kind in {'current','legacy','observed_staging_copy','owned','manual_content','marker_unknown'},
+                    'delivery_copy_current':kind=='current','delivery_copy_legacy':kind=='legacy','delivery_copy_observed':kind=='observed_staging_copy'}
         outcome={'faq_appended':mode=='prepare' and kind!='owned','faq_already_owned':kind=='owned',
                  'delivery_copy_aligned':mode=='prepare' and kind=='legacy','delivery_counterpart_created':mode=='prepare' and kind=='absent'}
         passed = raw['status']=='success' and raw['category']=='complete' and bool(raw['source_hashes']) and bool(raw['theme_source_hashes']) \
             and all(raw['checks'].get(key) is True for key in required) and set(obs)==OBSERVATIONS \
             and all(obs.get(key) is True for key in OBSERVATIONS-finite) \
             and all(obs.get(key) is value for key,value in (inspection|outcome).items()) \
-            and (kind in {'absent','current','legacy','owned'} if mode=='prepare' else kind=='owned')
+            and (kind in {'absent','current','legacy','observed_staging_copy','owned'} if mode=='prepare' else kind=='owned')
         if not passed:
             raw['status']='failure'
         return raw,passed
