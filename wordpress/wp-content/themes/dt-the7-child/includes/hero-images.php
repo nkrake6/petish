@@ -48,7 +48,7 @@ final class Petish_Hero_Images {
             || ! in_array( get_post_mime_type( $post ), array( 'image/jpeg','image/png','image/webp','image/avif','image/gif' ), true ) ) return false;
         if ( $post->post_parent ) {
             $parent = get_post( $post->post_parent );
-            if ( ! $parent instanceof WP_Post || $parent->post_status !== 'publish' || ! empty( $parent->post_password ) ) return false;
+            if ( ! $parent instanceof WP_Post || $parent->post_status !== 'publish' || ! empty( $parent->post_password ) || ! is_post_publicly_viewable( $parent ) ) return false;
         }
         $source = wp_get_attachment_image_src( $id, 'full' );
         if ( ! is_array( $source ) || ! is_string( $source[0] ?? null ) || strlen( $source[0] ) > 4096
