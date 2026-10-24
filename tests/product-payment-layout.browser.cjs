@@ -116,6 +116,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
             window.wcpayStripeSiteMessaging.shouldInitializePMME=true;
             const message=document.querySelector('#payment-method-message');
             message.style.setProperty('--petish-afterpay-badge-image','url("http://fixture.test/official-provider-badge.svg")');
+            message.style.setProperty('--fixture-refresh','native-true-restored');
         });
         await page.waitForFunction(()=>document.querySelector('#payment-method-message').classList.contains('petish-afterpay-brand-heading'));
         await page.addScriptTag({content:fs.readFileSync(path.resolve(__dirname,'../tools/homepage/payment-layout-public-proof.js'),'utf8')});
