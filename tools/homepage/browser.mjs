@@ -503,8 +503,8 @@ export function accountDropdownFragmentFacts(headers, ok, payload, accountUrl, i
 export async function inspectAccountDropdownKeyboard(page, expectedItems) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.evaluate(() => scrollTo(0, 0));
-  const toggles = page.locator('.main-nav > .petish-account-menu > [data-petish-account-toggle]');
-  await page.waitForFunction(() => [...document.querySelectorAll('.main-nav > .petish-account-menu > [data-petish-account-toggle]')]
+  const toggles = page.locator('.mini-widgets > [data-petish-account] > [data-petish-account-toggle],.mobile-mini-widgets > [data-petish-account] > [data-petish-account-toggle]');
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-petish-account] > [data-petish-account-toggle]')]
     .some(button => !button.hidden && button.getBoundingClientRect().width > 0));
   let toggle;
   for (const button of await toggles.all()) if (await button.isVisible()) { toggle = button; break; }
@@ -513,11 +513,18 @@ export async function inspectAccountDropdownKeyboard(page, expectedItems) {
   const panel = menu.locator(':scope > [data-petish-account-panel]');
   const native = await menu.evaluate(item => {
     const anchor = item.querySelector(':scope > a'), label = anchor?.querySelector('.menu-text') || anchor;
-    return { url: anchor?.href, last: item.parentElement.lastElementChild === item,
+    const widgets=item.parentElement, siblings=[...widgets.children], visible=node=>node.getBoundingClientRect().width>0&&getComputedStyle(node).display!=='none';
+    const own=siblings.indexOf(item), market=siblings.findIndex(node=>node.matches('[data-petish-market]')&&visible(node));
+    return { url: anchor?.href, last: siblings.slice(own+1).every(node=>node.matches('[data-petish-account]')&&!visible(node))
+        &&siblings.filter(node=>node.matches('[data-petish-account]')&&visible(node)).length===1,
       font: label ? parseFloat(getComputedStyle(label).fontSize) : 0,
-      avatar: !!anchor?.querySelector('.petish-account-avatar') };
+      avatar: !!anchor?.querySelector('.petish-account-avatar'),
+      widget_group: widgets.matches('.mini-widgets,.mobile-mini-widgets'),
+      after_currency: market>=0&&own>market&&item.getBoundingClientRect().left>=siblings[market].getBoundingClientRect().right-1,
+      duplicate_nav: [...document.querySelectorAll('.main-nav > li > a,.mobile-main-nav > li > a')].some(link=>link.href===anchor?.href) };
   });
-  if (native.url !== ORIGIN + '/my-account/' || !native.last || native.font < 15.9 || native.font > 16.1 || !native.avatar) return false;
+  if (native.url !== ORIGIN + '/my-account/' || !native.last || native.font < 15.9 || native.font > 16.1
+      || !native.avatar || !native.widget_group || !native.after_currency || native.duplicate_nav) return false;
   if (await panel.locator('a').count() !== expectedItems.length) return false;
   const actual = await panel.locator('a').evaluateAll(links => links.map(link => ({ label: link.textContent, url: link.href })));
   if (!actual.every((entry, index) => entry.url === expectedItems[index].url && entry.label === expectedItems[index].label)) return false;

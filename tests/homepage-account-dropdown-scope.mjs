@@ -173,10 +173,11 @@ if (process.argv.includes('--browser')) {
       }
       if (request.url() !== origin + '/') return route.abort('blockedbyclient');
       return route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><html><head><style>
-        html{font-size:16px}body{margin:0}.main-nav{display:flex;list-style:none;padding:20px}.main-nav>li{display:flex}
+        html{font-size:16px}body{margin:0}.mini-widgets{display:flex;align-items:center;gap:8px}.main-nav{display:flex;list-style:none;padding:20px}.main-nav>li{display:flex}
         .main-nav>li>a{padding:0 15px;color:#14213d;text-decoration:none}${css}</style></head>
-        <body id="the7-body" class="petish-site"><ul class="main-nav"><li class="petish-account-menu"><a href="${account}"><span class="menu-text">My account</span></a></li>
-        <li><a href="${origin}/cart/"><span class="menu-text">Cart</span><span class="existing-cart-count">2</span></a></li></ul>
+        <body id="the7-body" class="petish-site"><ul class="main-nav"><li><a href="${origin}/cart/"><span class="menu-text">Cart</span><span class="existing-cart-count">2</span></a></li></ul>
+        <div class="mini-widgets"><span class="mini-search">Search</span><span data-petish-theme-switch>Moon</span><span data-petish-market>AUD</span>
+        <div class="petish-account-menu petish-account-widget" data-petish-account><a href="${account}"><span class="menu-text">My account</span></a></div></div>
         <script>window.petishAccountDropdown=${JSON.stringify({ endpoint, action: 'petish_account_dropdown', accountUrl: account, openLabel: 'Open account navigation', closeLabel: 'Close account navigation' })};</script><script>${script}</script></body></html>` });
     });
     await page.goto(origin + '/');

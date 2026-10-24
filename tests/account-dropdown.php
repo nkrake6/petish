@@ -33,6 +33,15 @@ function wp_enqueue_script(...$a){$GLOBALS['account_fixture']['scripts'][]=$a;}
 function wp_add_inline_script(...$a){$GLOBALS['account_fixture']['inline'][]=$a;}
 function wp_json_encode($v){return json_encode($v,JSON_UNESCAPED_SLASHES);}
 function __($v,$domain){return $v;}
+function esc_attr($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
+function esc_html($v){return esc_attr($v);}
+function esc_url($v){return esc_attr($v);}
+function esc_attr__($v,$domain){return esc_attr($v);}
+function esc_html__($v,$domain){return esc_html($v);}
+function presscore_get_mini_widget_class($setting,$extra){
+    $GLOBALS['account_fixture']['widget_class_args']=array($setting,$extra);
+    return array_merge(array('show-on-desktop','near-logo-first-switch','near-logo-second-switch'),(array)$extra);
+}
 function nocache_headers(){$GLOBALS['account_fixture']['no_cache']=true;}
 function wp_send_json_error($v,$status=200){throw new FragmentResponse($v,false,$status);}
 function wp_send_json_success($v,$status=200){throw new FragmentResponse($v,true,$status);}
@@ -44,21 +53,34 @@ $checks=array();$f=&$GLOBALS['account_fixture'];$class=Petish_Account_Dropdown::
 function check($key,$value){global$checks;$checks[$key]=$value===true;if(!$value)throw new RuntimeException($key);}
 function item($id,$url,$parent=0,$classes=array()){return(object)array('ID'=>$id,'url'=>$url,'menu_item_parent'=>$parent,'classes'=>$classes);}
 function state(){try{Petish_Account_Dropdown::state();}catch(FragmentResponse$r){return$r;}throw new RuntimeException('Response missing');}
+if(($argv[1]??'')==='shell'){$class::render();exit;}
 check('include_inert',$f['hooks']===array()&&$f['filters']===array());
 $class::boot();
-check('narrow_hooks_registered',count($f['hooks'])===3&&count($f['filters'])===1
+check('narrow_hooks_registered',count($f['hooks'])===4&&count($f['filters'])===1
     &&$f['filters'][0]===array('wp_nav_menu_objects',array($class,'items'),30,2)
-    &&$f['hooks'][1]===array('wp_ajax_'.$class::AJAX_ACTION,array($class,'state'))
-    &&$f['hooks'][2]===array('wp_ajax_nopriv_'.$class::AJAX_ACTION,array($class,'state')));
+    &&in_array(array('presscore_render_header_element-search',array($class,'render'),20),$f['hooks'],true)
+    &&in_array(array('wp_ajax_'.$class::AJAX_ACTION,array($class,'state')),$f['hooks'],true)
+    &&in_array(array('wp_ajax_nopriv_'.$class::AJAX_ACTION,array($class,'state')),$f['hooks'],true));
+ob_start();$class::render();$public_shell=ob_get_clean();
+check('native_widget_shell_rendered',str_contains($public_shell,'data-petish-account')&&str_contains($public_shell,'petish-account-widget')
+    &&str_contains($public_shell,'https://petish.example/my-account/')&&str_contains($public_shell,'My account'));
+check('widget_uses_search_native_visibility_classes',$f['widget_class_args'][0]==='header-elements-search'
+    &&str_contains($public_shell,'show-on-desktop')&&str_contains($public_shell,'near-logo-second-switch'));
+check('public_widget_no_private_reads',$f['menu_reads']===0&&$f['avatar_reads']===0&&$f['user_reads']===0
+    &&!str_contains($public_shell,'PRIVATE-')&&!str_contains($public_shell,'Nathan')&&!str_contains($public_shell,'_wpnonce'));
 $menu=array(0=>item(1,'https://petish.example/'),1=>item(2,'https://petish.example/my-account/',0,array('native-account')),2=>item(3,'https://petish.example/my-account/orders/',2),3=>item(4,'https://petish.example/cart/'));
 $primary=(object)array('theme_location'=>'primary');
 $moved=$class::items($menu,$primary);
-check('account_branch_last',array_map(static fn($i)=>$i->ID,array_values($moved))===array(1,4,2,3));
-check('tag_only_account',in_array('petish-account-menu',$moved[1]->classes,true)&&$moved[0]->classes===array()&&$moved[2]->classes===array());
+check('account_branch_removed_from_primary',array_map(static fn($i)=>$i->ID,array_values($moved))===array(1,4));
+check('other_menu_objects_and_order_preserved',$moved[0]===$menu[0]&&$moved[3]===$menu[3]);
 check('original_objects_unmodified',$menu[1]->classes===array('native-account'));
 check('cart_object_preserved',$moved[3]===$menu[3]&&$moved[3]->url==='https://petish.example/cart/');
 check('footer_unchanged',$class::items($menu,(object)array('theme_location'=>'footer'))===$menu);
 check('mobile_supported',array_keys($class::items($menu,(object)array('theme_location'=>'mobile')))===array_keys($moved));
+$nested=$menu+array(4=>item(5,'https://petish.example/my-account/deep/',3));
+check('nested_account_descendants_removed',array_keys($class::items($nested,$primary))===array(0,3));
+$duplicates=$nested+array(5=>item(6,'https://petish.example/my-account/'),6=>item(7,'https://petish.example/my-account/orders/',6));
+check('duplicate_account_branches_removed',array_keys($class::items($duplicates,$primary))===array(0,3));
 $foreign=array(item(5,'https://attacker.example/my-account/'));
 check('external_account_not_tagged',$class::items($foreign,$primary)===$foreign);
 $query=array(item(6,'https://petish.example/my-account/?my-reviews=1'));

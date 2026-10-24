@@ -1,4 +1,4 @@
-"""Own-session account header fragments and native menu ordering boundaries."""
+"""Own-session account widgets and native menu branch boundaries."""
 import json
 from pathlib import Path
 import shutil
@@ -17,7 +17,7 @@ class AccountDropdownTests(unittest.TestCase):
         self.assertEqual(result.stderr, "")
         report = json.loads(result.stdout)
         self.assertEqual(report["status"], "success")
-        self.assertGreaterEqual(len(report["checks"]), 30)
+        self.assertGreaterEqual(len(report["checks"]), 40)
         self.assertTrue(all(report["checks"].values()))
 
 
