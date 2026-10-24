@@ -10,6 +10,7 @@ function wp_remote_get(...$args) { throw new RuntimeException('No image download
 function wp_mail(...$args) { throw new RuntimeException('No hero email.'); }
 function get_post($id) { return $GLOBALS['hero_fixture']['posts'][$id] ?? null; }
 function get_post_status($id) { $post=is_object($id)?$id:get_post($id);return $post->post_status ?? false; }
+function is_post_publicly_viewable($post) { $post=is_object($post)?$post:get_post($post);return $post instanceof WP_Post&&$post->post_status==='publish'&&in_array($post->post_type,array('post','page','product'),true); }
 function get_post_mime_type($id) { $post=is_object($id)?$id:get_post($id);return $post->post_mime_type ?? false; }
 function get_post_field($field,$id,$context='display') { return get_post($id)->$field ?? ''; }
 function get_post_meta($id,$key,$single=true) { return $GLOBALS['hero_fixture']['meta'][$id][$key] ?? ($single?'':array()); }
@@ -102,6 +103,9 @@ $f['posts'][201]->post_status='private';check('private_parent_rejected',$class::
 $f['posts'][201]->post_status='draft';check('draft_parent_rejected',$class::image(26)===false);
 $f['posts'][201]->post_status='publish';$f['posts'][201]->post_password='secret';check('password_parent_rejected',$class::image(26)===false);
 fixture_image(27,'image/jpeg',999);check('missing_parent_rejected',$class::image(27)===false);
+$f['posts'][202]=new WP_Post(array('ID'=>202,'post_type'=>'petish_cancel_req','post_status'=>'publish','post_password'=>''));
+fixture_image(28,'image/jpeg',202);
+check('published_nonpublic_parent_rejected',$class::image(28)===false);
 foreach(array('javascript:alert(1)','data:image/png;base64,AA==','file:///private/photo.jpg','https://user:pass@petish.example/a.jpg','https://petish.example/a.jpg#fragment','https://petish.example/a%250a.jpg')as$index=>$url){fixture_image(30);$f['images'][30][0]=$url;check('unsafe_url_'.$index,$class::image(30)===false);}
 fixture_image(30);$f['images'][30][1]=0;check('zero_width_rejected',$class::image(30)===false);
 $f['images'][30][1]=1800;$f['images'][30][2]=-2;check('negative_height_rejected',$class::image(30)===false);
@@ -117,10 +121,14 @@ check('sanitize_does_not_write',$f['options']===$before);
 check('malformed_input_preserves_current',$class::sanitize('not-an-image-map')===$class::settings());
 $errors=count($f['errors']);$invalid=$class::sanitize(array('rabbit'=>'999','hamster'=>'12abc'));
 check('invalid_input_preserves_previous',$invalid['rabbit']===11&&$invalid['hamster']===12&&count($f['errors'])>$errors);
+$private_parent=$class::sanitize(array('rabbit'=>'28'));
+check('published_nonpublic_parent_selection_preserves_previous',$private_parent['rabbit']===11);
 $partial=$class::sanitize(array('rabbit'=>'0'));
 check('partial_save_preserves_other_slots',$partial['rabbit']===0&&$partial['hamster']===12&&array_keys($partial)===$slots);
 $foreign=$class::sanitize(array('rabbit'=>'11','unrecognised'=>'12'));
 check('unknown_input_not_persisted',array_keys($foreign)===$slots&&!isset($foreign['unrecognised']));
+$f['options'][$class::OPTION]=array('rabbit'=>28);
+check('stored_nonpublic_parent_is_not_exposed',$class::settings()['rabbit']===0&&$class::resolve(defaults())[0]===defaults()[0]);
 $f['options'][$class::OPTION]=array('rabbit'=>999,'guinea-pig'=>23,'hamster'=>21,'chinchilla'=>array());
 check('stale_or_private_stored_values_reset',$class::settings()===$empty);
 $fallback=$class::resolve(defaults());
