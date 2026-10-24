@@ -9,6 +9,8 @@ final class Petish_Account_Dropdown {
 
     public static function boot() {
         add_filter( 'wp_nav_menu_objects', array( __CLASS__, 'items' ), 30, 2 );
+        // The native search widget is followed by appearance (5) and market (10).
+        add_action( 'presscore_render_header_element-search', array( __CLASS__, 'render' ), 20 );
         add_action( 'wp_enqueue_scripts', array( __CLASS__, 'assets' ), 46 );
         add_action( 'wp_ajax_' . self::AJAX_ACTION, array( __CLASS__, 'state' ) );
         add_action( 'wp_ajax_nopriv_' . self::AJAX_ACTION, array( __CLASS__, 'state' ) );
@@ -41,19 +43,17 @@ final class Petish_Account_Dropdown {
             && empty( $actual['query'] ) && empty( $actual['fragment'] );
     }
 
-    /** Preserve every native item, descendant and filter; only move/tag the account branch. */
+    /** The account control lives after the header widgets, so remove its old menu branch. */
     public static function items( $items, $args ) {
         if ( ! is_array( $items ) || ! in_array( $args->theme_location ?? '', array( 'primary', 'mobile' ), true )
             || ! function_exists( 'wc_get_page_permalink' ) ) return $items;
-        $account = wc_get_page_permalink( 'myaccount' ); $account_id = null;
+        $account = wc_get_page_permalink( 'myaccount' ); $branch_ids = array();
         foreach ( $items as $item ) {
             if ( is_object( $item ) && isset( $item->ID, $item->url ) && empty( $item->menu_item_parent ) && self::is_account_url( $item->url, $account ) ) {
-                $account_id = (string) $item->ID;
-                break;
+                $branch_ids[(string) $item->ID] = true;
             }
         }
-        if ( null === $account_id ) return $items;
-        $branch_ids = array( $account_id => true );
+        if ( ! $branch_ids ) return $items;
         for ( $pass = 0; $pass < count( $items ); $pass++ ) {
             $changed = false;
             foreach ( $items as $item ) if ( is_object( $item ) && isset( $item->ID, $item->menu_item_parent )
@@ -62,17 +62,24 @@ final class Petish_Account_Dropdown {
             }
             if ( ! $changed ) break;
         }
-        $other = array(); $branch = array();
-        foreach ( $items as $key => $item ) {
-            if ( is_object( $item ) && isset( $branch_ids[(string) $item->ID] ) ) {
-                if ( (string) $item->ID === $account_id ) {
-                    $item = clone $item;
-                    $item->classes = array_values( array_unique( array_merge( (array) ( $item->classes ?? array() ), array( 'petish-account-menu' ) ) ) );
-                }
-                $branch[$key] = $item;
-            } else $other[$key] = $item;
+        return array_filter( $items, static function ( $item ) use ( $branch_ids ) {
+            return ! is_object( $item ) || ! isset( $item->ID ) || ! isset( $branch_ids[(string) $item->ID] );
+        } );
+    }
+
+    /** Cacheable native mini-widget shell: never read account identity or private links. */
+    public static function render() {
+        if ( ! function_exists( 'wc_get_page_permalink' ) ) return;
+        $account = wc_get_page_permalink( 'myaccount' );
+        if ( ! self::local_url( $account ) ) return;
+        $classes = array( 'petish-account-menu', 'petish-account-widget' );
+        if ( function_exists( 'presscore_get_mini_widget_class' ) ) {
+            $classes = presscore_get_mini_widget_class( 'header-elements-search', $classes );
         }
-        return $other + $branch;
+        echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '" data-petish-account>';
+        echo '<a class="petish-account-link" href="' . esc_url( $account ) . '" aria-label="' . esc_attr__( 'My account', 'petish' ) . '">';
+        echo '<svg class="petish-account-glyph" aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        echo '<span class="menu-text">' . esc_html__( 'My account', 'petish' ) . '</span></a></div>';
     }
 
     public static function assets() {

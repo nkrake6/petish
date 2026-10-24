@@ -4,26 +4,32 @@ body#the7-body.petish-site #phantom .main-nav > li > a .menu-text {
   font-size: 1rem;
   line-height: 1.4;
 }
-body#the7-body.petish-site :is(.main-nav, .mobile-main-nav) > .petish-account-menu {
+/* The7 owns widget visibility/placement classes; keep its display rules. */
+body#the7-body.petish-site .petish-account-widget {
   position: relative;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-body#the7-body.petish-site .main-nav > .petish-account-menu {
-  order: 100;
   flex: 0 0 auto;
-  flex-wrap: nowrap;
-  margin-inline-start: auto;
+  order: 100;
+  min-width: 0;
+  margin-inline-start: 12px;
+  line-height: 0;
+  white-space: nowrap;
+  vertical-align: middle;
 }
-body#the7-body.petish-site :is(.main-nav, .mobile-main-nav) > .petish-account-menu > a {
+body#the7-body.petish-site .petish-account-widget > a {
   display: inline-flex;
   align-items: center;
   gap: 9px;
   min-height: 44px;
-  white-space: nowrap;
+  padding: 0;
+  color: var(--color-text, #14213d);
+  text-decoration: none;
+  vertical-align: middle;
 }
+body#the7-body.petish-site .petish-account-widget .menu-text {
+  font: 500 1rem/1.4 var(--font-label, "DM Sans", sans-serif);
+}
+body#the7-body.petish-site .petish-account-widget .petish-account-glyph { flex: 0 0 22px; }
+body#the7-body.petish-site .petish-account-widget > a:has(> .petish-account-avatar) > .petish-account-glyph { display: none; }
 body#the7-body.petish-site .petish-account-avatar {
   display: inline-flex;
   align-items: center;
@@ -60,6 +66,7 @@ body#the7-body.petish-site .petish-account-toggle {
   background: transparent;
   color: var(--color-text, #14213d);
   cursor: pointer;
+  vertical-align: middle;
 }
 body#the7-body.petish-site .petish-account-toggle svg { width: 16px; height: 16px; transition: transform .15s ease; }
 body#the7-body.petish-site .petish-account-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
@@ -103,18 +110,37 @@ body#the7-body.petish-site .petish-account-menu :is(a, button):focus-visible {
 body#the7-body.petish-site .petish-account-menu > :is(.sub-nav, .next-level-button),
 body#the7-body.petish-site .petish-account-toggle[hidden],
 body#the7-body.petish-site .petish-account-dropdown__panel[hidden] { display: none !important; }
-body#the7-body.petish-site .mobile-main-nav > .petish-account-menu > a { flex: 1 1 auto; }
-body#the7-body.petish-site .mobile-main-nav .petish-account-dropdown__panel {
-  position: static;
-  flex: 1 0 100%;
-  width: 100%;
-  max-width: 100%;
-  box-shadow: none;
-  margin: 0 0 8px;
+@media (max-width: 1119px) {
+  body#the7-body.petish-site .petish-account-widget { margin-inline-start: 3px; }
+  body#the7-body.petish-site .petish-account-widget > a {
+    justify-content: center;
+    box-sizing: border-box;
+    width: 24px;
+    min-width: 24px;
+    gap: 0;
+  }
+  body#the7-body.petish-site .petish-account-widget .menu-text { display: none; }
+  body#the7-body.petish-site .petish-account-widget .petish-account-avatar { box-sizing: border-box; flex-basis: 24px; width: 24px; height: 24px; }
+  body#the7-body.petish-site .petish-account-widget .petish-account-toggle { width: 24px; flex-basis: 24px; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets { flex-wrap: nowrap; }
 }
-@media (min-width: 1120px) and (max-width: 1280px) {
-  body#the7-body.petish-site .main-nav > li > a { padding-inline: 9px; }
-  body#the7-body.petish-site .main-nav > .petish-account-menu > a { gap: 6px; }
+@media (max-width: 767px) {
+  body#the7-body.petish-site .mobile-header-bar .mobile-branding { flex: 1 1 auto; min-width: 0; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-branding > a { max-width: 100%; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-branding .petish-logo { max-width: 100%; object-fit: contain; }
+  body#the7-body.petish-site .mobile-header-bar .mobile-mini-widgets > .petish-account-widget { margin: 0; }
+  /* Retain both location and currency in the same 44px-high mobile row. */
+  body#the7-body.petish-site .mobile-header-bar .petish-market__trigger {
+    box-sizing: border-box;
+    flex-direction: column;
+    width: 28px;
+    min-width: 28px;
+    min-height: 44px;
+    padding: 2px 0;
+    gap: 0;
+  }
+  body#the7-body.petish-site .mobile-header-bar .petish-market__code { font-size: 10px; line-height: 12px; }
+  body#the7-body.petish-site .mobile-header-bar .petish-market__trigger > svg:not(.petish-market__flag) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   body#the7-body.petish-site .petish-account-toggle svg { transition: none; }

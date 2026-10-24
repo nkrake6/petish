@@ -1,4 +1,4 @@
-/* A private own-session fragment enriches only the existing My account menu item. */
+/* A private own-session fragment enriches the native header account widget. */
 (function () {
     'use strict';
     const config = window.petishAccountDropdown;
@@ -9,7 +9,7 @@
         account = new URL(config.accountUrl, location.href);
         if (endpoint.origin !== location.origin || account.origin !== location.origin || config.action !== 'petish_account_dropdown') return;
     } catch (e) { return; }
-    const selector = '.main-nav > .petish-account-menu, .mobile-main-nav > .petish-account-menu, #primary-menu > .petish-account-menu, #mobile-menu > .petish-account-menu';
+    const selector = '[data-petish-account]';
     const initialized = new WeakSet();
     const hoverTimers = new WeakMap();
     let counter = 0, current = null, controller = null, revision = 0;
@@ -83,10 +83,29 @@
         parts.button.hidden = !current.items.length;
     }
     function attach() {
+        const parents = new Set(Array.from(document.querySelectorAll(selector), item => item.parentElement));
+        parents.forEach(parent => {
+            // The7 puts first/second-breakpoint copies in the same group. Keep
+            // those distinct, and discard only duplicate copies of one variant.
+            const variants = new Map();
+            Array.from(parent.children).filter(node => node.matches(selector)).forEach(item => {
+                const key = ['show-on-first-switch', 'show-on-second-switch', 'hide-on-first-switch', 'hide-on-second-switch']
+                    .filter(name => item.classList.contains(name)).join('|');
+                const previous = variants.get(key);
+                if (!previous) { variants.set(key, item); return; }
+                if (item.contains(document.activeElement)) { previous.remove(); variants.set(key, item); }
+                else item.remove();
+            });
+            const children = Array.from(parent.children), first = children.findIndex(node => node.matches(selector));
+            // Move the complete block once. Appending each breakpoint copy in
+            // turn would keep reordering siblings inside our MutationObserver.
+            if (first >= 0 && children.slice(first + 1).some(node => !node.matches(selector))) {
+                children.filter(node => node.matches(selector)).forEach(item => parent.appendChild(item));
+            }
+        });
         document.querySelectorAll(selector).forEach(item => {
             const anchor = item.querySelector(':scope > a');
             if (!anchor || !safeUrl(anchor.href)) return;
-            if (item.parentElement.lastElementChild !== item) item.parentElement.appendChild(item);
             if (initialized.has(item)) return;
             initialized.add(item);
             let {button, panel} = controls(item);
@@ -159,7 +178,8 @@
             hoverTimers.set(item, setTimeout(() => { if (!item.contains(document.activeElement)) close(item, false); }, 150));
         });
         new MutationObserver(records => {
-            if (records.some(record => Array.from(record.addedNodes).some(node => node.nodeType === 1 && (node.matches('.petish-account-menu, .main-nav, .mobile-main-nav') || node.querySelector('.petish-account-menu'))))) attach();
+            if (records.some(record => record.target.matches?.('.mini-widgets,.mobile-mini-widgets,.mobile-mini-widgets-in-menu')
+                || Array.from(record.addedNodes).some(node => node.nodeType === 1 && (node.matches(selector) || node.querySelector(selector))))) attach();
         }).observe(document.body, {childList: true, subtree: true});
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true}); else start();
