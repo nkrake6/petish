@@ -1,0 +1,20 @@
+{
+  "category": "complete",
+  "encrypted_result_present": false,
+  "format": "petish-order-refund-status-v1",
+  "phase": "prepare",
+  "prepared": {
+    "expires_utc": "2026-10-24T23:55:57Z",
+    "format": "petish-order-refund-prepared-v1",
+    "issued_utc": "2026-10-24T22:55:57Z",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA4O0FlyBlAKYvy4aEQzGo\nTMsykgrAEyNJ4CuHwZK1hl96UWohI5bs60wtBnLFOQZL+LxdmKu77LbbQm/SKG9F\nt2Yu4viqcZw2H616caSBKww3wUSnVidLz+2HaCe9CSv2dPnqh/dqtjqA7iv70GBb\nay76v0d8lMnRavbMGF0pYBA7BdBxunyZqsJTLsw6aEecq1rnWCfXZLjQ43wnYDVm\nsVPB+Ikl+/pIlVXxyZMAYqD7b2cbP49aeA7DE6d792rSV1jXfLTQ1mcK5fwdjXmB\nxrkvJn0IbbQx5r+SMsrzqlgBGcM59oc0mb2zLgPvHtVcSbbGp8ksQZEMYgFPwnRU\nfA0bfMoHoDIGOEAmZwIy3iAlMxNU+lg8A3tGt3sqgKJda2EIWii0NmnQJlpLip80\nGiddMVtOoSLU8PJIB+hpmeMGcp0v6cjGTpFLOqogQAG3R4S3odjkIJ82GBasUWul\nCUdCT4nBmWpCsawOCsM0k+k2utmW1tyq5bbjXTAlLIYlSrcypXU+mxc37od73nv5\n48Ye1zVf1bci0vb5BNOf+zHZvkmSwm4sAXpRp/bB2fBFVCIXfwBGyzrNSApfcRn/\nJ2M56BBpApFzA87G7CDbOqUp3pldTihbZ1Mxeh1wKIKFsQINL93AXTB42svGPlNv\nNdKQhaWRI+7J2QgsqJsmIG0CAwEAAQ==\n-----END PUBLIC KEY-----\n",
+    "request_key_sha256": "77680cd1a23e1fa5ef5979812061a8b7a5922301a2c403222e9a58d4c01c67b0",
+    "run_id": "40140611834-1",
+    "source_commit": "5a4ee8e08fb46e14ea0e32de6e0ab63c6e271d54"
+  },
+  "request_key_retained": true,
+  "run_id": "40140611834-1",
+  "source_commit": "5a4ee8e08fb46e14ea0e32de6e0ab63c6e271d54",
+  "status": "success",
+  "temporary_files_removed": false
+}
