@@ -1,6 +1,6 @@
 # Petish — current Codex handover
 
-Updated 24 October 2026 (Australia/Melbourne). Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
+Updated 25 October 2026 (Australia/Melbourne). Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
 for the current cloud workflow. The Mac setup below is archived history.
 
 ## Current site and code
@@ -265,7 +265,7 @@ choices and all feature switches.
 Product pages now group native GPay/Afterpay separately from PayPal, with the
 PayPal instalment message below its buttons and matching maximum widths.
 Afterpay has green emphasis, its original native text sizing restored, and a
-separate unchanged official 64×40px brand badge above eligible native messages.
+separate unchanged official 64×40px brand badge beside eligible native messages.
 Categories/tags use 16px text. Cart uses WooPayments for Google Pay when its
 merchant configuration is available, keeps PayPal/Pay in 4 below it, and uses
 larger names, prices, variation information and totals. Actual payment
@@ -323,7 +323,7 @@ still matches its original 17px source; the Cart-only provider measurement is
 13.39px, unchanged from its previous run. Both actual crops were hash-verified
 and visually inspected; the temporary guest Cart and private tools were removed.
 
-These production releases used encrypted full-site backup `40070351575-1`
+Those 24 October production releases used encrypted full-site backup `40070351575-1`
 and successful application recovery `40070594356-1`. Earlier 23-file homepage
 release attempts stopped before application writes; browser-proof transport
 handling and the exact reviewed LiteSpeed 7.9.2 support were corrected before
@@ -331,6 +331,26 @@ the final release. No guard was bypassed. Historical cost-sheet/review release
 requests pin older source and must not be reused without refreshed scope/proof.
 Current verified source and handover are saved in Git; the six unrelated dirty
 static-prototype edits in this workspace were deliberately not committed.
+
+The 25 October text-alignment follow-up places native payment text to the right
+of the 64×40px badge, with a 12px gap. Application CSS `2ae81fd` reserves 88px of
+start padding and positions the badge independently of native display, so
+WooPayments' inline hide/show and quantity updates remain authoritative. No
+JavaScript, PHP, font-setting or provider content changes were made. Four responsive
+fixtures, native hide/show and SDK-node preservation checks passed. Staging
+install `40123310426-1` (`6aede0d`) and full proof `40123521325-1` (`15355c2`)
+passed all 226 required checks. Fresh encrypted full backup `40122768140-1` and
+matching restored-application proof `40123260114-1` passed before production
+`40124005493-1` (`2a867ec`), which changed one CSS file and passed all ten phases,
+178 required checks and all 30 hashes. Cache and maintenance cleanup passed.
+Final live inspection `40124165126-1` (`2a867ec`) confirms the 64×40px badge is
+left of native text on both product and Cart, with 40px vertical overlap.
+Native iframe-edge gap is 8px within the CSS's reserved 12px gap; native SDK
+insets remain intact. Product native frame text/link measured 15.81px, distinct
+from the unchanged 17px quantity/cache source; Cart measured 13.39px. The actual
+400×68px product and 310×67px Cart crops were hash-verified and visually
+inspected. Guest Cart and private tools were removed. See the payment-layout
+document for immutable image links and the wallet-verification boundary.
 
 Fulfilment **0.7.0 was verified on private staging** and is now included in
 live 0.8.0. It adds owner-only

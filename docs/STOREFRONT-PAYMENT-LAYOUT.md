@@ -1,7 +1,7 @@
 # Storefront payment groups and Cart readability
 
-Current application source: `86391bb`, production release source `b83783e`,
-24 October 2026 (Australia/Melbourne). Prior baseline: `3691306` / `cff4586`.
+Current application source: `2ae81fd`, production release source `2a867ec`,
+25 October 2026 (Australia/Melbourne). Prior baseline: `3691306` / `cff4586`.
 
 Corrective implementation: Afterpay commit `ad24e72` and Cart commit `bcec660`.
 The corrective production release succeeded in `40080832725-1`; its hosted
@@ -33,7 +33,7 @@ product or Cart appearance cache once per browser/scope, before native message
 initialization. Checkout appearance and caches are excluded.
 
 The green message highlight remains in light and dark appearances. A separate,
-decorative heading above the native Afterpay message uses the exact unchanged
+decorative badge beside the native Afterpay message uses the exact unchanged
 SVG shipped by WooPayments: 64px wide and 40px tall, limited to its container width, with its
 original aspect ratio and colours. The provider's own inline mark, amounts,
 financing text and See plans link remain inside its message. There is no iframe
@@ -201,6 +201,40 @@ Cart and private tools were removed.
 The current compact images were hash-verified and visually inspected:
 [product, 400×111px](https://github.com/nkrake6/petish/blob/7539efa246bb918464d421354c3f772d2363ac5f/product-afterpay.png)
 and [Cart, 310×113px](https://github.com/nkrake6/petish/blob/7539efa246bb918464d421354c3f772d2363ac5f/cart-payments.png).
+
+## Native text beside the compact badge
+
+The owner then requested the payment text to the right of the badge. CSS-only
+application `2ae81fd` keeps the badge at 64×40px, reserves 88px of start padding
+(12px outer padding, 64px badge, 12px gap), and centers the badge vertically.
+The existing native host stays in normal flow with its original fonts and
+controls. This does not override native display, fix iframe heights or change DOM order;
+WooPayments can still hide/show its message with inline display and update its
+own height after quantity changes. At a 400px panel the native content gets
+298px and wraps naturally. The 66px minimum panel height accommodates the badge,
+padding and borders without clipping.
+
+Responsive and native hide/show checks passed at 320, 390, 800 and 1440px.
+Staging install `40123310426-1` (`6aede0d`) passed all eight steps; full proof
+`40123521325-1` (`15355c2`) matched all 30 hashes and all 226 required checks.
+Fresh encrypted backup `40122768140-1` and matching restored-application proof
+`40123260114-1` passed. Production
+[40124005493-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40124005493-1)
+(`2a867ec`) changed one stylesheet and passed all ten phases, 178 required checks
+and all 30 hashes. Cache and maintenance cleanup passed. Final native inspection
+[40124165126-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40124165126-1)
+(`2a867ec`) confirms the compact badge sits left of the native message on both
+product and Cart, with 40px vertical overlap. The native iframe-edge gap is
+8px within the reserved 12px spacing; the SDK's own insets are untouched.
+Product actual native-frame text/link measured 15.81px, separately from its
+unchanged 17px quantity/cache source. Cart measured 13.39px. No font setting was
+overridden. Both fixed crops were hash-verified and visually inspected; guest
+Cart and private tools were removed. This verifies layout, not wallet
+authorization or payment processing.
+
+Current aligned previews:
+[product, 400×68px](https://github.com/nkrake6/petish/blob/eea3c777cca28a95d80f6950c5b841dd759245e1/product-afterpay.png)
+and [Cart, 310×67px](https://github.com/nkrake6/petish/blob/eea3c777cca28a95d80f6950c5b841dd759245e1/cart-payments.png).
 
 The baseline also installed the live [hero-image editor](https://petish.biz/wp-admin/admin.php?page=petish-hero-images)
 and account dropdown. Photo choices remain preserved. The corrective header
