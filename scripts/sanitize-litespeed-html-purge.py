@@ -6,7 +6,11 @@ from pathlib import Path
 import stat
 import sys
 
-COMMON = {'target_paths_verified', 'target_environment_verified', 'woocommerce_runtime_verified',
+RUNTIME = {'purge_version_pinned', 'purge_cli_mode_verified', 'purge_single_site_verified',
+           'purge_class_available', 'purge_tag_class_available', 'purge_queue_name_verified',
+           'purge_queue2_name_verified', 'purge_class_source_verified', 'purge_object_cache_absent',
+           'purge_advanced_cache_absent', 'purge_emptycache_disabled'}
+COMMON = RUNTIME | {'target_paths_verified', 'target_environment_verified', 'woocommerce_runtime_verified',
           'all_outbound_http_blocked', 'mail_calls_blocked', 'remote_file_access_disabled',
           'cron_and_async_runner_disabled', 'jetpack_sync_isolated', 'purge_runtime_verified'}
 IDLE = {'purge_queue_idle', 'purge_queue2_idle', 'purge_transactional_options'}

@@ -84,6 +84,30 @@ class PurgeConsumerTests(unittest.TestCase):
     def test_consumer_check_names_match_shared_sanitizer(self):
         self.assertEqual(consumer.CHECKS, safe.REQUIRED['consume'])
 
+    def test_runtime_diagnostics_are_preserved_on_failure_and_required_for_success(self):
+        with tempfile.TemporaryDirectory(prefix='petish-cache-runtime-report-') as temporary:
+            path = Path(temporary) / 'raw.json'
+            for phase in ('inspect', 'queue', 'verify'):
+                baseline = dict.fromkeys(safe.REQUIRED[phase], True)
+                self.assertTrue(safe.RUNTIME <= set(baseline))
+                for name in safe.RUNTIME:
+                    with self.subTest(phase=phase, predicate=name):
+                        raw = {'status': 'failure', 'category': 'cache_runtime',
+                               'checks': {**baseline, name: False, 'purge_runtime_verified': False}}
+                        path.write_text(json.dumps(raw))
+                        result, passed = safe.screen(phase, path)
+                        self.assertFalse(passed)
+                        self.assertEqual(result, raw)
+                        raw['status'] = 'success'
+                        raw['category'] = 'complete'
+                        path.write_text(json.dumps(raw))
+                        result, passed = safe.screen(phase, path)
+                        self.assertFalse(passed)
+                        self.assertEqual(result['status'], 'failure')
+                        raw['checks'].pop(name)
+                        path.write_text(json.dumps(raw))
+                        self.assertFalse(safe.screen(phase, path)[1])
+
 
 if __name__ == '__main__':
     unittest.main()

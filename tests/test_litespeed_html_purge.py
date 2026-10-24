@@ -1,4 +1,5 @@
 """Exercise native-cache queue ownership, one-row scope, and failed-consumer rollback."""
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,9 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 PHP = shutil.which('php') or '/workspace/.petish-dev/bin/php'
 HELPER = ROOT / 'scripts/litespeed-html-purge.php'
+SPEC = importlib.util.spec_from_file_location('html_purge_screen', ROOT / 'scripts/sanitize-litespeed-html-purge.py')
+SAFE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(SAFE)
 
 HOOKS = r'''<?php
 $GLOBALS['filters']=[];
@@ -32,7 +36,11 @@ function do_action($name,...$args){apply_filters($name,$args[0]??null,...array_s
 NATIVE = r'''<?php namespace LiteSpeed;
 class Purge {
  const DB_QUEUE='queue';const DB_QUEUE2='queue2';
- static function name($name){return 'litespeed.purge.'.$name;}
+ static function name($name){
+  if(getenv('FAULT')==='runtime_name_throw')throw new \Exception('private runtime sentinel');
+  if(getenv('FAULT')==='runtime_'.$name)return 'private runtime sentinel';
+  return 'litespeed.purge.'.$name;
+ }
  static function cls(){return new self;}
  static function add($tag){
   $value='X-LiteSpeed-Purge: public,abc_'.$tag;
@@ -50,7 +58,10 @@ class Tag {static function get_uri_tag($uri){return 'URL.'.md5($uri);}}
 
 HARNESS = r'''<?php
 define('PETISH_HTML_PURGE_LIBRARY',true);define('ARRAY_A','ARRAY_A');
-define('LSCWP_V','7.9.1');define('LITESPEED_CLI',true);define('LSWCP_TAG_PREFIX','abc');
+if(getenv('FAULT')!=='version_missing')define('LSCWP_V',getenv('FAULT')==='version'?'7.9.2':'7.9.1');
+if(getenv('FAULT')!=='cli_missing')define('LITESPEED_CLI',getenv('FAULT')==='cli_false'?false:(getenv('FAULT')==='cli_string'?'1':true));
+if(getenv('FAULT')==='emptycache')define('LSWCP_EMPTYCACHE',true);
+define('LSWCP_TAG_PREFIX','abc');
 require getenv('HELPER');
 $report=['checks'=>[]];
 function petish_club_verify_path($path,$dir=false){return realpath($path)===$path&&!is_link($path)&&($dir?is_dir($path):is_file($path));}
@@ -63,10 +74,10 @@ function petish_club_verify_write_json($path,$data,$replace=false){
 function petish_club_verify_read_json($path){if(!is_file($path)||(fileperms($path)&0777)!==0600)throw new Exception();return json_decode(file_get_contents($path),true);}
 function petish_club_verify_bootstrap($target,$read_only){
  if($target!=='production'||$read_only!==false)throw new Exception();
- require getenv('HOME').'/domains/petish.biz/public_html/wp-content/plugins/litespeed-cache/src/purge.cls.php';
+ require getenv('FAULT')==='runtime_source'?getenv('HOME').'/other-purge.php':getenv('HOME').'/domains/petish.biz/public_html/wp-content/plugins/litespeed-cache/src/purge.cls.php';
  return getenv('HOME').'/domains/petish.biz/public_html';
 }
-function is_multisite(){return false;}
+function is_multisite(){return getenv('FAULT')==='multisite';}
 function wp_cache_delete($key,$group){return true;}
 function get_option($name){return $GLOBALS['wpdb']->rows[$name]['option_value']??false;}
 function update_option($name,$value){$old=get_option($name);$value=apply_filters('pre_update_option',$value,$name,$old);if($old===$value)return false;throw new Exception('Native write escaped interception');}
@@ -123,7 +134,9 @@ class PurgeBoundaryTests(unittest.TestCase):
         (root / 'wp-includes').mkdir(parents=True)
         (root / 'wp-includes/plugin.php').write_text(HOOKS)
         (root / 'wp-content/plugins/litespeed-cache/src').mkdir(parents=True)
-        (root / 'wp-content/plugins/litespeed-cache/src/purge.cls.php').write_text(NATIVE)
+        self.native = root / 'wp-content/plugins/litespeed-cache/src/purge.cls.php'
+        self.native.write_text(NATIVE)
+        (self.home / 'other-purge.php').write_text(NATIVE)
         self.harness = self.home / 'harness.php'
         self.harness.write_text(HARNESS)
         self.state = self.home / 'state.json'
@@ -159,6 +172,58 @@ class PurgeBoundaryTests(unittest.TestCase):
                 result = self.call('inspect')
                 self.assertFalse(result['ok'])
                 self.assertEqual(result['rows'], before)
+
+    def test_runtime_predicates_are_complete_strict_and_prevent_all_queue_work(self):
+        faults = {
+            'version': {'purge_version_pinned'},
+            'version_missing': {'purge_version_pinned'},
+            'cli_false': {'purge_cli_mode_verified'},
+            'cli_string': {'purge_cli_mode_verified'},
+            'cli_missing': {'purge_cli_mode_verified'},
+            'multisite': {'purge_single_site_verified'},
+            'emptycache': {'purge_emptycache_disabled'},
+            'runtime_queue': {'purge_queue_name_verified'},
+            'runtime_queue2': {'purge_queue2_name_verified'},
+            'runtime_name_throw': {'purge_queue_name_verified', 'purge_queue2_name_verified'},
+            'runtime_source': {'purge_class_source_verified'},
+        }
+        for fault, failed in faults.items():
+            with self.subTest(fault=fault):
+                result = self.call('inspect', fault=fault)
+                self.assertFalse(result['ok'])
+                actual = {name: result['checks'][name] for name in SAFE.RUNTIME}
+                self.assertEqual(actual, {name: name not in failed for name in SAFE.RUNTIME})
+                self.assertTrue(all(type(value) is bool for value in actual.values()))
+                self.assertFalse(result['checks']['purge_runtime_verified'])
+                self.assertEqual(result['rows'], rows())
+                self.assertEqual(result['sql'], [])
+                self.assertNotIn('private runtime sentinel', json.dumps(result))
+
+    def test_missing_native_classes_keep_other_diagnostics_available_without_writes(self):
+        for old, new, failed in [
+            ('class Purge {', 'class MissingPurge {', {'purge_class_available', 'purge_queue_name_verified', 'purge_queue2_name_verified', 'purge_class_source_verified'}),
+            ('class Tag {', 'class MissingTag {', {'purge_tag_class_available'}),
+        ]:
+            with self.subTest(missing=old):
+                self.native.write_text(NATIVE.replace(old, new))
+                result = self.call('inspect')
+                self.assertFalse(result['ok'])
+                self.assertEqual({name for name in SAFE.RUNTIME if result['checks'][name] is False}, failed)
+                self.assertEqual(result['rows'], rows())
+                self.assertEqual(result['sql'], [])
+        self.native.write_text(NATIVE)
+
+    def test_multiple_runtime_failures_report_together_and_never_expose_paths(self):
+        root = self.home / 'domains/petish.biz/public_html/wp-content'
+        (root / 'object-cache.php').write_text('<?php')
+        (root / 'advanced-cache.php').symlink_to(root / 'absent-target.php')
+        result = self.call('inspect', fault='version')
+        self.assertFalse(result['ok'])
+        self.assertEqual({name for name in SAFE.RUNTIME if result['checks'][name] is False},
+                         {'purge_version_pinned', 'purge_object_cache_absent', 'purge_advanced_cache_absent'})
+        self.assertEqual(result['rows'], rows())
+        self.assertEqual(result['sql'], [])
+        self.assertNotIn(str(self.home), json.dumps(result['checks']))
 
     def test_native_site_and_delivery_scopes_touch_exactly_one_existing_value(self):
         import hashlib

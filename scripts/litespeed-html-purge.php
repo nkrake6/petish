@@ -125,6 +125,44 @@ final class Petish_HTML_Purge {
             self::$captured_header = null;
         }
     }
+    /** Report every fixed runtime predicate before rejecting an incompatible cache. */
+    private static function runtime($root) {
+        global $report;
+        $predicates = [
+            'purge_version_pinned' => static function () { return defined('LSCWP_V') && LSCWP_V === '7.9.1'; },
+            'purge_cli_mode_verified' => static function () { return defined('LITESPEED_CLI') && LITESPEED_CLI === true; },
+            'purge_single_site_verified' => static function () { return !is_multisite(); },
+            'purge_class_available' => static function () { return class_exists('LiteSpeed\\Purge'); },
+            'purge_tag_class_available' => static function () { return class_exists('LiteSpeed\\Tag'); },
+            'purge_queue_name_verified' => static function () {
+                return class_exists('LiteSpeed\\Purge') && \LiteSpeed\Purge::name(\LiteSpeed\Purge::DB_QUEUE) === self::QUEUE;
+            },
+            'purge_queue2_name_verified' => static function () {
+                return class_exists('LiteSpeed\\Purge') && \LiteSpeed\Purge::name(\LiteSpeed\Purge::DB_QUEUE2) === self::QUEUE2;
+            },
+            'purge_class_source_verified' => static function () use ($root) {
+                return class_exists('LiteSpeed\\Purge') && (new ReflectionClass('LiteSpeed\\Purge'))->getFileName()
+                    === $root . '/wp-content/plugins/litespeed-cache/src/purge.cls.php';
+            },
+            // The queue CAS deliberately avoids native option hooks. Refuse a site where
+            // HTTP could keep an old queue value in a persistent cache we did not invalidate.
+            'purge_object_cache_absent' => static function () use ($root) {
+                return !file_exists($root . '/wp-content/object-cache.php') && !is_link($root . '/wp-content/object-cache.php');
+            },
+            'purge_advanced_cache_absent' => static function () use ($root) {
+                return !file_exists($root . '/wp-content/advanced-cache.php') && !is_link($root . '/wp-content/advanced-cache.php');
+            },
+            'purge_emptycache_disabled' => static function () { return !defined('LSWCP_EMPTYCACHE') || LSWCP_EMPTYCACHE !== true; },
+        ];
+        $valid = true;
+        foreach ($predicates as $name => $predicate) {
+            try { $passed = $predicate() === true; }
+            catch (Throwable $ignored) { $passed = false; }
+            $report['checks'][$name] = $passed;
+            $valid = $valid && $passed;
+        }
+        self::mark('purge_runtime_verified', $valid);
+    }
     private static function bootstrap() {
         $home = getenv('HOME');
         if (!petish_club_verify_path($home, true)) self::fail();
@@ -143,17 +181,7 @@ final class Petish_HTML_Purge {
             && (!class_exists($sync) || ($sync::$listener === null && $sync::$sender === null)));
         global $report;
         $report['category'] = 'cache_runtime';
-        self::mark('purge_runtime_verified', defined('LSCWP_V') && LSCWP_V === '7.9.1'
-            && defined('LITESPEED_CLI') && LITESPEED_CLI === true && !is_multisite()
-            && class_exists('LiteSpeed\\Purge') && class_exists('LiteSpeed\\Tag')
-            && \LiteSpeed\Purge::name(\LiteSpeed\Purge::DB_QUEUE) === self::QUEUE
-            && \LiteSpeed\Purge::name(\LiteSpeed\Purge::DB_QUEUE2) === self::QUEUE2
-            && (new ReflectionClass('LiteSpeed\\Purge'))->getFileName() === $root . '/wp-content/plugins/litespeed-cache/src/purge.cls.php'
-            // The queue CAS deliberately avoids native option hooks. Refuse a site where
-            // HTTP could keep an old queue value in a persistent cache we did not invalidate.
-            && !file_exists($root . '/wp-content/object-cache.php') && !is_link($root . '/wp-content/object-cache.php')
-            && !file_exists($root . '/wp-content/advanced-cache.php') && !is_link($root . '/wp-content/advanced-cache.php')
-            && (!defined('LSWCP_EMPTYCACHE') || LSWCP_EMPTYCACHE !== true));
+        self::runtime($root);
         self::$strict = true;
     }
     private static function receipt_path($run, $scope, $operation, $create) {
