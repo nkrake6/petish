@@ -1,0 +1,67 @@
+name: Inspect installed Petish storefront runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [inspect-storefront-native, inspect-storefront-runtime]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petish-production-backup-mail
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: github.repository == 'nkrake6/petish' && (github.ref_name == 'inspect-storefront-native' || github.ref_name == 'inspect-storefront-runtime')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SSH_HOST: 82.29.81.104
+      SSH_PORT: '65002'
+      SSH_USER: u839205597
+    steps:
+      - name: Check out exact inspection tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - name: Prepare pinned SSH and passive browser tools
+        id: prepare
+        timeout-minutes: 8
+        continue-on-error: true
+        run: |
+          preparation_stage=connection
+          trap 'printf "stage=%s\n" "$preparation_stage" >> "$GITHUB_OUTPUT"' EXIT
+          umask 077
+          for attempt in 1 2 3; do
+            if ssh-keyscan -T 15 -p "$SSH_PORT" -t ed25519,ecdsa,rsa "$SSH_HOST" > "$RUNNER_TEMP/petish-candidate-host-keys" 2>/dev/null \
+                && [[ -s "$RUNNER_TEMP/petish-candidate-host-keys" ]]; then break; fi
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep 2
+          done
+          preparation_stage=ssh_tools
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends sshpass
+          fi
+          if [[ "$GITHUB_REF_NAME" == inspect-storefront-runtime ]]; then
+            preparation_stage=browser_tools
+            PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 timeout --kill-after=5s 120s npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
+            timeout --kill-after=5s 240s tools/staging-rehearsal/node_modules/.bin/playwright install --with-deps chromium
+          fi
+          preparation_stage=complete
+      - name: Inspect public HTML, native policy and an isolated guest cart
+        if: always()
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          SSH_EXPECTED_FINGERPRINT: ${{ vars.HOSTINGER_SSH_FINGERPRINT }}
+          STOREFRONT_RUNTIME_PREREQUISITES: ${{ steps.prepare.outcome }}
+          STOREFRONT_RUNTIME_PREPARATION_STAGE: ${{ steps.prepare.outputs.stage }}
+        run: bash scripts/hostinger-storefront-runtime.sh
+      - name: Remove private runner files
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/petish-storefront-runtime.*
+          rm -f -- "$RUNNER_TEMP/petish-candidate-host-keys" "$RUNNER_TEMP/petish-verified-automation-host-keys"
