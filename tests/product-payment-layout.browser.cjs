@@ -144,6 +144,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         assert.equal(v6.rules['.Text--redirect'].color,'#0f4c5c');
         await page.evaluate(() => {
             window.petishPaymentMessagePage='cart'; window.wc_ppcp_sdk_v6.messages.style.fontSize='20px';
+            window.wcpayStripeSiteMessaging={shouldInitializePMME:'1',country:'AU',currencyCode:'AUD',paymentMethods:['afterpay_clearpay']};
             document.body.classList.add('petish-site','woocommerce-cart'); document.documentElement.dataset.theme='light';
             localStorage.setItem('wcpay_appearance_bnpl_cart_block','stale');
             localStorage.setItem('wcpay_appearance_bnpl_classic_cart','stale');
@@ -160,7 +161,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
             document.dispatchEvent(new CustomEvent('wcpay_elements_appearance',{detail:{elementsLocation:'bnpl_cart_block',appearance}}));
             document.dispatchEvent(new CustomEvent('wcpay_elements_appearance',{detail:{elementsLocation:'blocks_checkout',appearance:unrelated}}));
             const style=getComputedStyle(document.querySelector('.wc-block-components-bnpl-wrapper'));
-            return {appearance,unrelated,light:style.backgroundColor,padding:style.paddingTop,
+            return {appearance,unrelated,light:style.backgroundColor,padding:style.paddingTop,badge:document.querySelector('.wc-block-components-bnpl-wrapper').classList.contains('petish-afterpay-brand-heading'),badgeWidth:getComputedStyle(document.querySelector('.wc-block-components-bnpl-wrapper'),'::before').width,
                 cartBlock:localStorage.getItem('wcpay_appearance_bnpl_cart_block'),classicCart:localStorage.getItem('wcpay_appearance_bnpl_classic_cart'),
                 product:localStorage.getItem('wcpay_appearance_bnpl_product_page'),checkout:localStorage.getItem('wcpay_appearance_blocks_checkout')};
         });
@@ -168,6 +169,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         assert.equal(cartAppearance.appearance.rules['.Text'].color,'#14213d');
         assert.equal(cartAppearance.unrelated.variables.fontSizeBase,'19px');
         assert.equal(cartAppearance.light,'rgb(239, 250, 245)'); assert.equal(cartAppearance.padding,'12px');
+        assert.equal(cartAppearance.badge,true); assert.equal(cartAppearance.badgeWidth,'150px');
         assert.equal(cartAppearance.cartBlock,null); assert.equal(cartAppearance.classicCart,null);
         assert.equal(cartAppearance.product,'keep-product'); assert.equal(cartAppearance.checkout,'keep-checkout');
         await page.evaluate(()=>document.documentElement.dataset.theme='dark');
