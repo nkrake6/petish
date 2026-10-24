@@ -183,6 +183,10 @@ try{
  const noLink=await page.evaluate(()=>{document.querySelector('a').textContent='Learn more';return true;});assert(noLink);
  const changed=await page.evaluate(m.afterpayDOMFacts,{providerFrame:true,afterpayOnly:true});
  assert.equal(changed.observations.afterpay_see_plans_present,false);assert.equal(changed.observations.afterpay_learn_more_present,true);
+ await page.setContent('<span class="afterpay-logo" style="display:inline-block;width:49px;height:16px;font-size:11px">Afterpay</span>');
+ const logoOnly=await page.evaluate(m.afterpayDOMFacts,{providerFrame:true,afterpayOnly:true});
+ assert.equal(logoOnly.observations.afterpay_logo_present,true);assert.equal(logoOnly.observations.afterpay_financing_text_measured,false);assert.equal(logoOnly.metrics.afterpay_font_px,0);
+
  await page.setContent(`<style>body{margin:0}#masthead{height:60px}#payment-method-message{margin-top:60px;width:360px;min-height:120px}iframe{display:block;border:0;width:350px;height:100px}</style><header id="masthead">PRIVATE_HEADER_IDENTITY</header><main class="product"><section class="summary"><div id="payment-method-message"><iframe srcdoc="<p>Public payment information</p>"></iframe></div></section></main>`);
  const crop=await m.capturePublicPanel(page,cropDir,'product');assert.equal(crop.saved,true);assert(crop.width<=1600&&crop.height<=1600);
  const png=path.join(cropDir,'product-afterpay.private.png');assert.equal(fs.statSync(png).mode&0o7777,0o600);const before=fs.readFileSync(png);
