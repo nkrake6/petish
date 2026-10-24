@@ -358,10 +358,10 @@ assert(!JSON.stringify(facts).includes(input.login));
         self.assertEqual(len(stage['source_hashes']),23)
         with self.assertRaises(ValueError):evidence.validate(path)
 
-    def test_previous_thirty_file_receipt_cannot_authorize_changed_payment_script(self):
+    def test_previous_thirty_file_receipt_cannot_authorize_changed_payment_stylesheet(self):
         path,_,stage,_=self.fixture_evidence()
         previous={name:hashlib.sha256(subprocess.check_output(['git','show',
-            '3e6c1477f5070ff3f2eb339dd686ea71cdef8190:'+evidence.PREFIX+name],cwd=ROOT)).hexdigest()
+            'ceaa9691f7a8066faa6041dd5514e06c07d0cb31:'+evidence.PREFIX+name],cwd=ROOT)).hexdigest()
             for name in evidence.FILES}
         self.assertEqual(len(previous),30)
         self.assertNotEqual(previous,stage['source_hashes'])
