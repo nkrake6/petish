@@ -1,0 +1,10 @@
+{
+  "format": "petish-cancellation-production-v1",
+  "staging_source_commit": "f992218c19db662f25af25af59c6a2398b2d6db3",
+  "staging_status_branch": "automation-status/cancellation-requests-40057924326-1",
+  "staging_prepare_branch": "automation-status/cancellation-requests-40057865883-1",
+  "staging_install_branch": "automation-status/staging-40056331426-1",
+  "backup_branch": "full-site-backup/40070351575-1",
+  "backup_result_branch": "automation-status/backup-40070351575-1",
+  "recovery_result_branch": "automation-status/recovery-40070594356-1"
+}
