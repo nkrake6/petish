@@ -358,6 +358,16 @@ assert(!JSON.stringify(facts).includes(input.login));
         self.assertEqual(len(stage['source_hashes']),23)
         with self.assertRaises(ValueError):evidence.validate(path)
 
+    def test_previous_thirty_file_receipt_cannot_authorize_changed_header(self):
+        path,_,stage,_=self.fixture_evidence()
+        previous={name:hashlib.sha256(subprocess.check_output(['git','show',
+            'cff458658f50685fa879fe18dfd9aaaa5226b680:'+evidence.PREFIX+name],cwd=ROOT)).hexdigest()
+            for name in evidence.FILES}
+        self.assertEqual(len(previous),30)
+        self.assertNotEqual(previous,stage['source_hashes'])
+        stage['source_hashes']=previous
+        with self.assertRaises(ValueError):evidence.validate(path)
+
     def test_public_contracts_match_native_browser_and_asset_helpers(self):
         native=(ROOT/'scripts/verify-homepage.php').read_text()
         self.assertEqual(safe.VERIFY,set(re.findall(r"petish_homepage_verify_mark\('([a-z_]+)'",native)))
@@ -466,7 +476,7 @@ class HomepagePublicAssetsTests(unittest.TestCase):
         stream=io.BytesIO();Image.new('RGBA',(3,2),color).save(stream,format='PNG',compress_level=level)
         return stream.getvalue()
 
-    def fixture(self,changed=None,subtitle=False,redirect=False,old_header=False,old_cart_header=False):
+    def fixture(self,changed=None,subtitle=False,redirect=False,old_header=False,old_cart_header=False,old_account_menu=False,private_avatar=False):
         expected={name:self.png() if name.endswith('.png') else ('Reviewed '+name).encode() for name in assets.ASSETS.values()}
         expected['assets/images/ui/country-flags.svg']=b'<svg><defs><symbol id="flag-au"></symbol><symbol id="flag-globe"></symbol></defs></svg>'
         class Opener:
@@ -476,7 +486,9 @@ class HomepagePublicAssetsTests(unittest.TestCase):
                 url=request.full_url
                 if url=='https://petish.biz/':
                     body=b'<h1 id="petish-home-title">Petish</h1><script>window.petishCartBadge={"endpoint":"/?wc-ajax=petish_cart_count","cartUrl":"https://petish.biz/cart/"};</script>'
-                    body+=b'<ul class="main-nav"><li class="petish-account-menu"><a href="https://petish.biz/my-account/">My account</a></li></ul><script>window.petishAccountDropdown={"endpoint":"https://petish.biz/wp-admin/admin-ajax.php","action":"petish_account_dropdown","accountUrl":"https://petish.biz/my-account/"};</script>'
+                    body+=(b'<ul class="main-nav"><li class="petish-account-menu"><a href="https://petish.biz/my-account/">My account</a></li></ul>' if old_account_menu else b'<div class="mini-widgets"><div class="petish-account-menu petish-account-widget" data-petish-account><a href="https://petish.biz/my-account/">My account</a></div></div>')
+                    body+=b'<script>window.petishAccountDropdown={"endpoint":"https://petish.biz/wp-admin/admin-ajax.php","action":"petish_account_dropdown","accountUrl":"https://petish.biz/my-account/"};</script>'
+                    if private_avatar:body+=b'<span class="petish-account-avatar">PRIVATE-SENTINEL</span>'
                     if not old_header:body+=HomepagePublicAssetsTests.HEADER.encode()
                     if subtitle:body+=b'<p>Selected by supplier-reported orders.</p>'
                 elif url=='https://petish.biz/cart/':
@@ -500,7 +512,7 @@ class HomepagePublicAssetsTests(unittest.TestCase):
                           {'changed':'assets/js/market-selector.js'},{'changed':'assets/css/market-selector.css'},
                           {'changed':'assets/images/ui/country-flags.svg'},{'changed':'assets/images/ui/country-flags.LICENSE.txt'},
                           {'changed':'assets/js/for-your-pet.js'},{'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},
-                          {'subtitle':True},{'redirect':True},{'old_header':True},{'old_cart_header':True}):
+                          {'subtitle':True},{'redirect':True},{'old_header':True},{'old_cart_header':True},{'old_account_menu':True},{'private_avatar':True}):
             opener,expected=self.fixture(**arguments);self.assertEqual(assets.verify(opener,expected)['status'],'failure')
 
     def test_public_switch_markup_requires_header_order_and_accessible_control(self):

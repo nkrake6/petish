@@ -20,12 +20,14 @@ spec = importlib.util.spec_from_file_location('homepage_evidence', ROOT / 'scrip
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
-BASELINE = '19b08bbe998839a98dc845c9afac4ecd651c4e26'
-NEW_FILES = {'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
+BASELINE = 'cff458658f50685fa879fe18dfd9aaaa5226b680'
+HISTORICAL_BASELINE = '19b08bbe998839a98dc845c9afac4ecd651c4e26'
+HISTORICAL_NEW_FILES = {'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
              'includes/hero-images.php','assets/js/hero-images-admin.js',
              'includes/payment-layout.php','assets/css/payment-layout.css','assets/js/payment-layout.js',
              'includes/cart-payment-layout.php','assets/css/cart-payment-layout.css',
              'assets/css/cart-typography.css','assets/js/cart-payment-layout.js'}
+NEW_FILES = set()
 EXISTING = [name for name in FILES if name not in NEW_FILES]
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+bfr0AAAAASUVORK5CYII=')
 
@@ -146,15 +148,15 @@ class HomepageDeploymentTests(unittest.TestCase):
         self.assertTrue(self.execute('rollback')['checks']['rollback_completed'])
         self.assertEqual(self.snapshot(), before)
 
-    def test_new_presentation_files_are_absent_again_after_rollback(self):
+    def test_all_thirty_existing_files_are_restored_after_rollback(self):
         self.assertEqual(len(FILES), 30)
-        self.assertEqual(set(FILES) - set(self.originals), NEW_FILES)
+        self.assertEqual(set(FILES), set(self.originals))
         before = self.snapshot()
-        self.assertTrue(all(not (self.theme / name).exists() for name in NEW_FILES))
+        self.assertTrue(all((self.theme / name).is_file() for name in FILES))
         self.assertEqual(self.execute('apply')['status'], 'success')
-        self.assertTrue(all((self.theme / name).is_file() for name in NEW_FILES))
+        self.assertTrue(all((self.theme / name).is_file() for name in FILES))
         self.assertEqual(self.execute('rollback')['status'], 'success')
-        self.assertTrue(all(not (self.theme / name).exists() for name in NEW_FILES))
+        self.assertTrue(all((self.theme / name).is_file() for name in FILES))
         self.assertEqual(self.snapshot(), before)
 
     def test_concurrent_live_changes_are_never_overwritten(self):
@@ -391,7 +393,7 @@ class HomepageDeploymentTests(unittest.TestCase):
         inspection=self.execute('inspect', script=SCRIPT)
         self.assertEqual(inspection['status'], 'success')
         self.assertEqual(inspection['changed_file_count'],len(expected_changed))
-        self.assertTrue(NEW_FILES <= expected_changed)
+        self.assertTrue(expected_changed)
         self.assertEqual(self.execute('apply', script=SCRIPT)['status'], 'success')
         after=self.snapshot()
         self.assertEqual({name for name in set(before)|set(after) if before.get(name)!=after.get(name)},
@@ -404,10 +406,10 @@ class HomepageDeploymentTests(unittest.TestCase):
         historical_manifest = {}
         for name in FILES:
             target = self.payload / name
-            if name in NEW_FILES:
+            if name in HISTORICAL_NEW_FILES:
                 target.unlink()
                 continue
-            content = subprocess.check_output(['git', 'show', BASELINE + ':' + PREFIX + name], cwd=ROOT)
+            content = subprocess.check_output(['git', 'show', HISTORICAL_BASELINE + ':' + PREFIX + name], cwd=ROOT)
             target.write_bytes(content)
             historical_manifest[name] = hashlib.sha256(content).hexdigest()
         self.assertEqual(len(historical_manifest),18)
