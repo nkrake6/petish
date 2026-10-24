@@ -154,7 +154,7 @@ check('owner_form_visible',str_contains($html,'Send cancellation request') && st
 check('request_not_automatic_cancel',str_contains($html,'I understand this is a request and cancellation is subject to review.'));
 check('canonical_policy_used',str_contains($html,'CANONICAL REVIEW COPY') && str_contains($html,'CANONICAL FEE COPY'));
 check('fee_not_flat_or_blanket',!str_contains($html,'$10') && !str_contains($html,'non-refundable'));
-check('faq_link_canonical',str_contains($html,'https://petish.example/faqs/#change-of-mind'));
+check('faq_link_canonical',str_contains($html,'https://petish.example/delivery-shipping/#change-of-mind'));
 check('form_post_own_action_and_nonce',str_contains($html,'method="post"') && str_contains($html,'https://petish.example/wp-admin/admin-post.php')
     && str_contains($html,$class::POST_ACTION) && str_contains($html,'nonce:'.$class::nonce_action(81)));
 check('saved_names_escaped',str_contains($html,'Rabbit &lt;b&gt;hide&lt;/b&gt; &amp; cave') && !str_contains($html,'Rabbit <b>'));
