@@ -108,6 +108,41 @@ class PurgeConsumerTests(unittest.TestCase):
                         path.write_text(json.dumps(raw))
                         self.assertFalse(safe.screen(phase, path)[1])
 
+    def test_version_diagnostics_allow_only_two_fixed_public_semvers_during_failed_version_gate(self):
+        with tempfile.TemporaryDirectory(prefix='petish-cache-versions-') as temporary:
+            path = Path(temporary) / 'raw.json'
+            raw = {'status': 'failure', 'category': 'cache_runtime',
+                   'checks': {'purge_version_pinned': False, 'purge_version_constant_defined': True},
+                   'software_versions': {'litespeed_constant': '7.9.2', 'litespeed_plugin_header': '7.9.2'}}
+            path.write_text(json.dumps(raw))
+            self.assertEqual(safe.screen('inspect', path), (raw, False))
+            raw['software_versions']['litespeed_constant'] = None
+            path.write_text(json.dumps(raw))
+            self.assertEqual(safe.screen('inspect', path), (raw, False))
+            import copy
+            mutations = []
+            for value in ('private sentinel', '7.9.2 private sentinel', '07.9.2', '9999.9.9', 7, True, [], {}):
+                item = copy.deepcopy(raw)
+                item['software_versions']['litespeed_constant'] = value
+                mutations.append(item)
+            item = copy.deepcopy(raw)
+            item['software_versions']['private sentinel'] = '7.9.2'
+            mutations.append(item)
+            item = copy.deepcopy(raw)
+            item['status'] = 'success'
+            mutations.append(item)
+            item = copy.deepcopy(raw)
+            item['checks']['purge_version_pinned'] = True
+            mutations.append(item)
+            for invalid in mutations:
+                path.write_text(json.dumps(invalid))
+                result, passed = safe.screen('inspect', path)
+                self.assertFalse(passed)
+                self.assertEqual(result['category'], 'invalid_report')
+                self.assertNotIn('private sentinel', str(result))
+            path.write_text(json.dumps(raw))
+            self.assertEqual(safe.screen('consume', path)[0]['category'], 'invalid_report')
+
 
 if __name__ == '__main__':
     unittest.main()

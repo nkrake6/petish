@@ -58,7 +58,7 @@ class Tag {static function get_uri_tag($uri){return 'URL.'.md5($uri);}}
 
 HARNESS = r'''<?php
 define('PETISH_HTML_PURGE_LIBRARY',true);define('ARRAY_A','ARRAY_A');
-if(getenv('FAULT')!=='version_missing')define('LSCWP_V',getenv('FAULT')==='version'?'7.9.2':'7.9.1');
+if(getenv('FAULT')!=='version_missing')define('LSCWP_V',getenv('FAULT')==='version'?'7.9.3':(getenv('FAULT')==='version_unsafe'?'private runtime sentinel':(getenv('FAULT')==='version_type'?42:getenv('NATIVE_VERSION'))));
 if(getenv('FAULT')!=='cli_missing')define('LITESPEED_CLI',getenv('FAULT')==='cli_false'?false:(getenv('FAULT')==='cli_string'?'1':true));
 if(getenv('FAULT')==='emptycache')define('LSWCP_EMPTYCACHE',true);
 define('LSWCP_TAG_PREFIX','abc');
@@ -114,7 +114,9 @@ try{
  $ok=true;
 }catch(Throwable $ignored){}
 file_put_contents(getenv('STATE'),json_encode($wpdb->rows));
-echo json_encode(['ok'=>$ok,'checks'=>$report['checks'],'rows'=>$wpdb->rows,'sql'=>$wpdb->sql]);
+$output=['ok'=>$ok,'checks'=>$report['checks'],'rows'=>$wpdb->rows,'sql'=>$wpdb->sql];
+if(isset($report['software_versions']))$output['software_versions']=$report['software_versions'];
+echo json_encode($output);
 '''
 
 
@@ -136,15 +138,17 @@ class PurgeBoundaryTests(unittest.TestCase):
         (root / 'wp-content/plugins/litespeed-cache/src').mkdir(parents=True)
         self.native = root / 'wp-content/plugins/litespeed-cache/src/purge.cls.php'
         self.native.write_text(NATIVE)
+        self.header = root / 'wp-content/plugins/litespeed-cache/litespeed-cache.php'
+        self.header.write_text('<?php\n/**\n * Version: 7.9.1\n */\n')
         (self.home / 'other-purge.php').write_text(NATIVE)
         self.harness = self.home / 'harness.php'
         self.harness.write_text(HARNESS)
         self.state = self.home / 'state.json'
         self.state.write_text(json.dumps(rows()))
 
-    def call(self, mode='queue', scope='site', operation='apply', run='123-1', fault=''):
+    def call(self, mode='queue', scope='site', operation='apply', run='123-1', fault='', version='7.9.1'):
         env = dict(os.environ, HOME=str(self.home), STATE=str(self.state), HELPER=str(HELPER),
-                   MODE=mode, SCOPE=scope, OPERATION=operation, RUN=run, FAULT=fault)
+                   MODE=mode, SCOPE=scope, OPERATION=operation, RUN=run, FAULT=fault, NATIVE_VERSION=version)
         result = subprocess.run([PHP, str(self.harness)], env=env, capture_output=True, text=True, check=True)
         self.assertEqual(result.stderr, '')
         return json.loads(result.stdout)
@@ -176,7 +180,9 @@ class PurgeBoundaryTests(unittest.TestCase):
     def test_runtime_predicates_are_complete_strict_and_prevent_all_queue_work(self):
         faults = {
             'version': {'purge_version_pinned'},
-            'version_missing': {'purge_version_pinned'},
+            'version_missing': {'purge_version_constant_defined', 'purge_version_pinned'},
+            'version_unsafe': {'purge_version_pinned'},
+            'version_type': {'purge_version_pinned'},
             'cli_false': {'purge_cli_mode_verified'},
             'cli_string': {'purge_cli_mode_verified'},
             'cli_missing': {'purge_cli_mode_verified'},
@@ -198,6 +204,54 @@ class PurgeBoundaryTests(unittest.TestCase):
                 self.assertEqual(result['rows'], rows())
                 self.assertEqual(result['sql'], [])
                 self.assertNotIn('private runtime sentinel', json.dumps(result))
+
+    def test_version_diagnostics_publish_only_exact_public_numeric_versions_on_mismatch(self):
+        self.assertNotIn('software_versions', self.call('inspect'))
+        self.header.write_text('<?php\n/**\n * Version: 7.9.2\n */\n')
+        result = self.call('inspect', fault='version')
+        self.assertEqual(result['software_versions'], {'litespeed_constant': '7.9.3', 'litespeed_plugin_header': '7.9.2'})
+        self.assertTrue(result['checks']['purge_version_constant_defined'])
+        self.assertEqual(result['sql'], [])
+        self.assertEqual(self.call('inspect', fault='version_missing')['software_versions']['litespeed_constant'], None)
+        for fault in ('version_unsafe', 'version_type'):
+            self.assertIsNone(self.call('inspect', fault=fault)['software_versions']['litespeed_constant'])
+        for header in ('private runtime sentinel', '7.9.2 private runtime sentinel', '07.9.2', '9999.9.9', '7.9.2\n * Version: 7.9.1'):
+            self.header.write_text('<?php\n/**\n * Version: ' + header + '\n */\n')
+            result = self.call('inspect', fault='version')
+            self.assertIsNone(result['software_versions']['litespeed_plugin_header'])
+            self.assertNotIn('private runtime sentinel', json.dumps(result))
+        self.header.unlink()
+        self.assertIsNone(self.call('inspect', fault='version')['software_versions']['litespeed_plugin_header'])
+        private = self.home / 'private.php'
+        private.write_text('<?php\n/**\n * Version: 7.9.2\n */\n')
+        self.header.symlink_to(private)
+        self.assertIsNone(self.call('inspect', fault='version')['software_versions']['litespeed_plugin_header'])
+
+    def test_only_two_exact_reviewed_versions_are_accepted_and_preserve_native_queue_guards(self):
+        for version in ('7.9.1', '7.9.2'):
+            for scope in ('site', 'delivery'):
+                with self.subTest(version=version, scope=scope):
+                    self.state.write_text(json.dumps(rows()))
+                    result = self.call(scope=scope, run=f'{791 if version == "7.9.1" else 792}-{1 if scope == "site" else 2}', version=version)
+                    self.assertTrue(result['ok'])
+                    self.assertTrue(all(result['checks'][name] for name in SAFE.RUNTIME))
+                    self.assertEqual(len([sql for sql in result['sql'] if sql.startswith('UPDATE ')]), 1)
+                    self.assertEqual(result['rows']['litespeed.purge.queue2'], rows()['litespeed.purge.queue2'])
+            for index, fault in enumerate(('native_extra', 'wrong_queue', 'native_write', 'cas', 'drift', 'commit')):
+                with self.subTest(version=version, fault=fault):
+                    self.state.write_text(json.dumps(rows()))
+                    result = self.call(run=f'{791 if version == "7.9.1" else 792}-{10 + index}', fault=fault, version=version)
+                    self.assertFalse(result['ok'])
+                    self.assertEqual(result['rows'], rows())
+                    self.assertIn('ROLLBACK', result['sql'])
+        for version in ('7.9.0', '7.9.3', '7.10.0', '8.0.0', '7.9.2.0', '7.9.2-beta', ''):
+            with self.subTest(version=version):
+                self.state.write_text(json.dumps(rows()))
+                result = self.call('inspect', version=version)
+                self.assertFalse(result['ok'])
+                self.assertFalse(result['checks']['purge_version_pinned'])
+                self.assertEqual(result['rows'], rows())
+                self.assertEqual(result['sql'], [])
 
     def test_missing_native_classes_keep_other_diagnostics_available_without_writes(self):
         for old, new, failed in [

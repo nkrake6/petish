@@ -3,10 +3,11 @@
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import sys
 
-RUNTIME = {'purge_version_pinned', 'purge_cli_mode_verified', 'purge_single_site_verified',
+RUNTIME = {'purge_version_constant_defined', 'purge_version_pinned', 'purge_cli_mode_verified', 'purge_single_site_verified',
            'purge_class_available', 'purge_tag_class_available', 'purge_queue_name_verified',
            'purge_queue2_name_verified', 'purge_class_source_verified', 'purge_object_cache_absent',
            'purge_advanced_cache_absent', 'purge_emptycache_disabled'}
@@ -38,7 +39,18 @@ def screen(phase, path):
             if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
                 raise ValueError()
             raw = json.loads(stream.read(65537))
-        if not isinstance(raw, dict) or set(raw) != {'status', 'category', 'checks'} \
+        fields = {'status', 'category', 'checks'}
+        if isinstance(raw, dict) and 'software_versions' in raw:
+            fields.add('software_versions')
+            versions = raw['software_versions']
+            if phase == 'consume' or raw.get('status') != 'failure' \
+                    or not isinstance(raw.get('checks'), dict) or raw['checks'].get('purge_version_pinned') is not False \
+                    or not isinstance(versions, dict) or set(versions) != {'litespeed_constant', 'litespeed_plugin_header'} \
+                    or any(value is not None and (not isinstance(value, str) or not re.fullmatch(
+                        r'(?:0|[1-9][0-9]{0,2})\.(?:0|[1-9][0-9]{0,2})\.(?:0|[1-9][0-9]{0,2})', value))
+                           for value in versions.values()):
+                raise ValueError()
+        if not isinstance(raw, dict) or set(raw) != fields \
                 or raw['status'] not in {'success', 'failure'} or raw['category'] not in CATEGORIES \
                 or not isinstance(raw['checks'], dict) or not set(raw['checks']) <= REQUIRED[phase] \
                 or any(type(value) is not bool for value in raw['checks'].values()):

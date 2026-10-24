@@ -5,6 +5,8 @@ if (PHP_SAPI !== 'cli') exit(1);
 final class Petish_HTML_Purge {
     const QUEUE = 'litespeed.purge.queue';
     const QUEUE2 = 'litespeed.purge.queue2';
+    // Exact reviewed versions: native fixed-scope header builders are equivalent.
+    const VERSIONS = ['7.9.1', '7.9.2'];
     private static $next_sql = null;
     private static $strict = false;
     private static $expected_header = null;
@@ -125,11 +127,34 @@ final class Petish_HTML_Purge {
             self::$captured_header = null;
         }
     }
+    private static function public_version($value) {
+        return is_string($value) && preg_match('/\A(?:0|[1-9][0-9]{0,2})\.(?:0|[1-9][0-9]{0,2})\.(?:0|[1-9][0-9]{0,2})\z/D', $value) === 1
+            ? $value : null;
+    }
+    /** Read only the fixed public plugin header; never expose arbitrary constant/file data. */
+    private static function versions($root) {
+        $versions = ['litespeed_constant' => defined('LSCWP_V') ? self::public_version(LSCWP_V) : null,
+            'litespeed_plugin_header' => null];
+        $path = $root . '/wp-content/plugins/litespeed-cache/litespeed-cache.php';
+        if (!petish_club_verify_path($path)) return $versions;
+        $handle = @fopen($path, 'rb');
+        if (!$handle) return $versions;
+        try {
+            $info = fstat($handle);
+            if (!$info || ($info['mode'] & 0170000) !== 0100000 || $info['nlink'] !== 1) return $versions;
+            $bytes = fread($handle, 8192);
+            if (is_string($bytes) && preg_match_all('/^[ \t\/*#@]*Version:[ \t]*([^\r\n]*)/mi', $bytes, $matches) === 1) {
+                $versions['litespeed_plugin_header'] = self::public_version(trim($matches[1][0]));
+            }
+        } finally { fclose($handle); }
+        return $versions;
+    }
     /** Report every fixed runtime predicate before rejecting an incompatible cache. */
     private static function runtime($root) {
         global $report;
         $predicates = [
-            'purge_version_pinned' => static function () { return defined('LSCWP_V') && LSCWP_V === '7.9.1'; },
+            'purge_version_constant_defined' => static function () { return defined('LSCWP_V'); },
+            'purge_version_pinned' => static function () { return defined('LSCWP_V') && in_array(LSCWP_V, self::VERSIONS, true); },
             'purge_cli_mode_verified' => static function () { return defined('LITESPEED_CLI') && LITESPEED_CLI === true; },
             'purge_single_site_verified' => static function () { return !is_multisite(); },
             'purge_class_available' => static function () { return class_exists('LiteSpeed\\Purge'); },
@@ -161,6 +186,7 @@ final class Petish_HTML_Purge {
             $report['checks'][$name] = $passed;
             $valid = $valid && $passed;
         }
+        if ($report['checks']['purge_version_pinned'] !== true) $report['software_versions'] = self::versions($root);
         self::mark('purge_runtime_verified', $valid);
     }
     private static function bootstrap() {
