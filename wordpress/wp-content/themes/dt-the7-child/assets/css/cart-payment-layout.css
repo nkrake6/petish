@@ -93,4 +93,55 @@ body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-c
 body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__submit {
   order: 40;
 }
+
+/* The native OrderMeta fill sits inside the summary, before express payments.
+   Space its panel away from both native dividers even on an unknown layout. */
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-bnpl-wrapper {
+  margin-block: 16px;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-order-meta:has(> .wc-block-components-bnpl-wrapper) {
+  /* Contain the panel margins even when no native wallet is available. */
+  display: flow-root;
+}
+
+/* Only the exact native shape checked by the Cart script joins this flex flow.
+   The Slot/OrderMeta/BNPL boxes, summary children and all SDK nodes stay put. */
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-native-bnpl-order > .wp-block-woocommerce-cart-order-summary-block,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-native-bnpl-order > .wc-block-cart__payment-options > .wc-block-components-express-payment--cart,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-native-bnpl-order > .wc-block-cart__payment-options > .wc-block-components-express-payment--cart > .wc-block-components-express-payment__content,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-native-bnpl-order > .wc-block-cart__payment-options > .wc-block-components-express-payment--cart > .wc-block-components-express-payment__content > .wc-block-components-express-payment__event-buttons {
+  display: contents;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-native-bnpl-order > .wp-block-woocommerce-cart-order-summary-block > .wc-block-components-totals-wrapper.slot-wrapper {
+  display: flow-root;
+  order: 15;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--petish-cart-payment-width);
+  margin: 16px 0;
+  /* Retain the native slot top divider and the summary's bottom divider. */
+  border-bottom: inherit;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-native-bnpl-order .wc-block-components-express-payment__event-buttons > :is(div,li) {
+  order: 20;
+  max-width: var(--petish-cart-payment-width);
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-native-bnpl-order #express-payment-method-woocommerce_payments_express_checkout_googlePay,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-native-bnpl-order #express-payment-method-ppcp-googlepay {
+  order: 10;
+  margin: 16px 0 0;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-native-bnpl-order #express-payment-method-ppcp-gateway-paypal {
+  order: 20;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-native-bnpl-order #express-payment-method-ppcp-gateway-paylater {
+  order: 21;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-native-bnpl-order > .ppcp-messages[data-block-name="woocommerce-paypal-payments/cart-paylater-messages"] {
+  order: 22;
+}
+/* The native processing wrapper has no box in this flow; keep its dimming. */
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-native-bnpl-order .wc-block-components-express-payment--disabled > .wc-block-components-express-payment__content > .wc-block-components-express-payment__event-buttons > :is(div,li) {
+  opacity: 0.6;
+}
 /* Google Pay's display provider is selected natively before Cart assets load. */

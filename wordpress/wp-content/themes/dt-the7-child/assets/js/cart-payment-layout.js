@@ -24,6 +24,34 @@
         return true;
     }
 
+    function emptyNativeExpressNotice(node) {
+        if (node.matches('.wc-block-components-notices')) return node.childNodes.length === 0;
+        if (!node.matches('.wc-block-components-notices__snackbar.wc-block-components-notice-snackbar-list')) return false;
+        return node.childNodes.length === 0 || (node.childNodes.length === 1
+            && node.firstElementChild && node.firstElementChild.tagName === 'DIV'
+            && node.firstElementChild.childNodes.length === 0);
+    }
+
+    function nativeBnplFlow(sidebar) {
+        var summary = sidebar.querySelector(':scope > .wp-block-woocommerce-cart-order-summary-block');
+        var slot = summary && summary.querySelector(':scope > .wc-block-components-totals-wrapper.slot-wrapper');
+        var meta = slot && slot.querySelector(':scope > .wc-block-components-order-meta');
+        var bnpl = meta && meta.querySelector(':scope > .wc-block-components-bnpl-wrapper');
+        var payments = sidebar.querySelector(':scope > .wc-block-cart__payment-options');
+        var express = payments && payments.querySelector(':scope > .wc-block-components-express-payment--cart');
+        var content = express && express.querySelector(':scope > .wc-block-components-express-payment__content');
+        var methods = content && content.querySelector(':scope > .wc-block-components-express-payment__event-buttons');
+        var wallet = methods && methods.querySelector(':scope > #express-payment-method-woocommerce_payments_express_checkout_googlePay, :scope > #express-payment-method-ppcp-googlepay');
+
+        // Keep the entire native OrderMeta slot intact. A mixed fill, an extra
+        // wrapper or a payment notice retains its normal native layout.
+        return summary && slot && meta && bnpl && methods && wallet
+            && slot.children.length === 1 && meta.children.length === 1
+            && express.children.length === 1
+            && Array.from(content.children).every(function (node) { return node === methods || emptyNativeExpressNotice(node); })
+            && visible(bnpl) && visible(wallet) ? {slot: slot, bnpl: bnpl} : null;
+    }
+
     function update() {
         frame = 0;
         if (stopped) return;
@@ -41,7 +69,11 @@
             // host whose internal iframe can be inside a closed shadow root.
             var messageHosts = message ? Array.from(message.querySelectorAll('iframe, paypal-message')).slice(0, 4) : [];
             var hasMessage = messageHosts.some(visible);
+            var bnplFlow = nativeBnplFlow(sidebar);
+            var flowClass = 'petish-cart-native-bnpl-order';
+            if (sidebar.classList.contains(flowClass) !== !!bnplFlow) sidebar.classList.toggle(flowClass, !!bnplFlow);
             nextResizeTargets.push(sidebar);
+            if (bnplFlow) nextResizeTargets.push(bnplFlow.slot, bnplFlow.bnpl);
             if (message) nextResizeTargets.push(message);
             messageHosts.forEach(function (host) { nextResizeTargets.push(host); });
             [['petish-cart-has-paypal', hasPayPal], ['petish-cart-has-paylater', hasPayLater], ['petish-cart-has-paypal-message', hasMessage]].forEach(function (entry) {
