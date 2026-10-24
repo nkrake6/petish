@@ -88,7 +88,7 @@ html[data-theme="dark"] body#the7-body.petish-site.woocommerce-cart .cart_totals
 .petish-afterpay-brand-heading::before {
     content: "";
     display: block;
-    width: min(150px, 100%);
+    width: min(64px, 100%);
     aspect-ratio: 8 / 5;
     margin: 0 0 10px;
     background: var(--petish-afterpay-badge-image) left center / contain no-repeat;

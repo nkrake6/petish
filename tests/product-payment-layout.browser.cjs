@@ -56,7 +56,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
             assert.equal(initial.target.variables.fontSizeBase,'18px');
             assert.equal(initial.target.rules['.Text'].fontSize,'18px');
             assert.equal(initial.badge,true);
-            assert.equal(initial.badgeWidth,'150px');
+            assert.equal(initial.badgeWidth,'64px');
             assert.equal(initial.target.rules['.Text'].color,'#14213d');
             assert.equal(initial.unrelated.variables.fontSizeBase,'19px');
             assert.equal(initial.cache,null);
@@ -169,7 +169,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         assert.equal(cartAppearance.appearance.rules['.Text'].color,'#14213d');
         assert.equal(cartAppearance.unrelated.variables.fontSizeBase,'19px');
         assert.equal(cartAppearance.light,'rgb(239, 250, 245)'); assert.equal(cartAppearance.padding,'12px');
-        assert.equal(cartAppearance.badge,true); assert.equal(cartAppearance.badgeWidth,'150px');
+        assert.equal(cartAppearance.badge,true); assert.equal(cartAppearance.badgeWidth,'64px');
         assert.equal(cartAppearance.cartBlock,null); assert.equal(cartAppearance.classicCart,null);
         assert.equal(cartAppearance.product,'keep-product'); assert.equal(cartAppearance.checkout,'keep-checkout');
         await page.evaluate(()=>document.documentElement.dataset.theme='dark');
