@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(new URL('./staging-rehearsal/package.json', import.meta.url));
 const ORIGIN = 'https://petish.biz';
 const PRODUCT = '/product/rainbow-habitat-hideout/';
-export const PUBLIC_SCHEMA = {"checks":["browser_started","fresh_guest_context","initial_cart_empty","public_variation_selected","guest_cart_created","cart_quantity_verified","cart_page_loaded","passive_sdk_inspected","network_barrier_enforced","created_guest_cart_cleared"],"observations":["home_http_ok","product_http_ok","cart_http_ok","home_account_in_navigation","home_account_avatar_present","home_native_cart_present","home_cart_badge_present","product_afterpay_present","product_paypal_present","cart_block_present","cart_sidebar_present","cart_express_in_sidebar","cart_paypal_in_express","cart_afterpay_in_express","cart_afterpay_in_sidebar","cart_wcpay_google_in_express","cart_paypal_google_in_express","cart_paylater_in_express","cart_paypal_google_v5_present","cart_paypal_google_v6_present","cart_paypal_v6_present","cart_paypal_message_in_sidebar","cart_paypal_message_in_express","cart_paypal_message_shadow_host_present","cart_paypal_message_shadow_host_visible","cart_paypal_message_direct_sidebar","cart_paypal_message_bare_sidebar_wrapper","cart_paypal_message_block_wrapper","cart_stripe_message_in_sidebar","cart_google_visible","cart_paypal_visible","cart_afterpay_visible","afterpay_frame_present","afterpay_frame_inspected","afterpay_logo_present","afterpay_see_plans_present","afterpay_see_plans_below","checkout_requests_blocked","other_requests_blocked","provider_get_blocked","provider_post_blocked","store_api_blocked","payment_action_blocked","provider_bootstrap_blocked","stripe_session_initialization_allowed","account_fragment_read_allowed","cart_count_fragment_read_allowed","home_account_after_currency","afterpay_brand_badge_present","afterpay_message_below_brand_badge"],"metrics":["home_account_count","home_native_cart_count","home_badge_count","cart_row_count","cart_express_count","cart_paypal_count","cart_wcpay_google_count","cart_paypal_google_count","cart_paylater_count","cart_afterpay_count","cart_paypal_message_count","cart_paypal_message_shadow_host_count","cart_paypal_message_shadow_host_width_px","cart_paypal_message_shadow_host_height_px","cart_afterpay_frame_count","afterpay_logo_count","afterpay_logo_width_px","afterpay_logo_height_px","afterpay_font_px","afterpay_link_font_px","afterpay_message_width_px","afterpay_message_height_px","blocked_request_count","blocked_provider_get_count","blocked_provider_post_count","blocked_store_api_count","blocked_payment_action_count","stripe_session_initialization_count","account_fragment_read_count","cart_count_fragment_read_count","home_account_left_px","home_market_right_px","afterpay_brand_badge_width_px","afterpay_brand_badge_height_px"],"categories":["input","browser","home","product","cart","providers","cleanup","complete"]};
+export const PUBLIC_SCHEMA = {"checks":["browser_started","fresh_guest_context","initial_cart_empty","public_variation_selected","guest_cart_created","cart_quantity_verified","cart_page_loaded","passive_sdk_inspected","network_barrier_enforced","created_guest_cart_cleared"],"observations":["home_http_ok","product_http_ok","cart_http_ok","home_account_in_navigation","home_account_avatar_present","home_native_cart_present","home_cart_badge_present","product_afterpay_present","product_paypal_present","cart_block_present","cart_sidebar_present","cart_express_in_sidebar","cart_paypal_in_express","cart_afterpay_in_express","cart_afterpay_in_sidebar","cart_wcpay_google_in_express","cart_paypal_google_in_express","cart_paylater_in_express","cart_paypal_google_v5_present","cart_paypal_google_v6_present","cart_paypal_v6_present","cart_paypal_message_in_sidebar","cart_paypal_message_in_express","cart_paypal_message_shadow_host_present","cart_paypal_message_shadow_host_visible","cart_paypal_message_direct_sidebar","cart_paypal_message_bare_sidebar_wrapper","cart_paypal_message_block_wrapper","cart_stripe_message_in_sidebar","cart_google_visible","cart_paypal_visible","cart_afterpay_visible","afterpay_frame_present","afterpay_frame_inspected","afterpay_logo_present","afterpay_see_plans_present","afterpay_see_plans_below","checkout_requests_blocked","other_requests_blocked","provider_get_blocked","provider_post_blocked","store_api_blocked","payment_action_blocked","provider_bootstrap_blocked","stripe_session_initialization_allowed","account_fragment_read_allowed","cart_count_fragment_read_allowed","home_account_after_currency","afterpay_brand_badge_present","afterpay_message_below_brand_badge","paypal_sdk_token_initialization_allowed","stripe_session_get_allowed","stripe_telemetry_blocked","paypal_graphql_query_blocked","paypal_graphql_mutation_blocked","paypal_logger_blocked","unknown_provider_request_blocked","afterpay_financing_text_measured","afterpay_learn_more_present","afterpay_info_control_present","afterpay_native_single_method","stripe_session_request_blocked","product_native_font_cache_present","product_native_font_cache_matches","product_payment_crop_saved","cart_payment_crop_saved"],"metrics":["home_account_count","home_native_cart_count","home_badge_count","cart_row_count","cart_express_count","cart_paypal_count","cart_wcpay_google_count","cart_paypal_google_count","cart_paylater_count","cart_afterpay_count","cart_paypal_message_count","cart_paypal_message_shadow_host_count","cart_paypal_message_shadow_host_width_px","cart_paypal_message_shadow_host_height_px","cart_afterpay_frame_count","afterpay_logo_count","afterpay_logo_width_px","afterpay_logo_height_px","afterpay_font_px","afterpay_link_font_px","afterpay_message_width_px","afterpay_message_height_px","blocked_request_count","blocked_provider_get_count","blocked_provider_post_count","blocked_store_api_count","blocked_payment_action_count","stripe_session_initialization_count","account_fragment_read_count","cart_count_fragment_read_count","home_account_left_px","home_market_right_px","afterpay_brand_badge_width_px","afterpay_brand_badge_height_px","paypal_sdk_token_initialization_count","stripe_session_get_count","blocked_stripe_telemetry_count","blocked_paypal_graphql_query_count","blocked_paypal_graphql_mutation_count","blocked_paypal_graphql_other_count","blocked_paypal_logger_count","blocked_google_provider_count","blocked_unknown_provider_count","blocked_paypal_sdk_token_count","afterpay_text_font_min_px","afterpay_text_font_max_px","blocked_stripe_session_get_count","blocked_stripe_session_post_count","product_native_quantity_font_px","product_cached_base_font_px","product_cached_text_font_px","product_crop_width_px","product_crop_height_px","cart_crop_width_px","cart_crop_height_px"],"categories":["input","browser","home","product","cart","providers","cleanup","complete"]};
 const DOCUMENTS = new Set(['/', PRODUCT, '/cart/']);
 const PAYMENT_ACTION = /\/(?:checkout|checkoutnow|orders?|payments?|payment_intents|setup_intents|confirm|capture|authorize|approve|refunds?|customers)(?:\/|$)/i;
 const PROVIDER_HOST = /(?:^|\.)(?:paypal\.com|paypalobjects\.com|stripe\.com|afterpay\.com|squarecdn\.com|cash\.app)$/i;
@@ -38,6 +38,32 @@ export function auditedSessionRead(raw, method, body = '') {
   if (url.pathname === '/' && url.search === '?wc-ajax=petish_cart_count' && body === '') return 'cart_count';
   return null;
 }
+/** Audited SDK v6 nonce-only initializer; vendor creates a domain SDK token, never an order. */
+export function paypalSdkTokenRead(raw, method, body = '') {
+  let url; try { url = new URL(raw); } catch { return false; }
+  return url.origin === ORIGIN && !url.username && !url.password && !url.port && !url.hash && method === 'POST'
+    && url.pathname === '/' && url.search === '?wc-ajax=ppc-sdk-v6-client-token'
+    && typeof body === 'string' && /^\{"nonce":"[a-zA-Z0-9]{6,64}"\}$/.test(body);
+}
+/** Fixed diagnostic enum only; request paths, operation names, bodies and tokens never leave. */
+export function providerRequestKind(raw, method, body = '') {
+  let url; try { url = new URL(raw); } catch { return 'other'; }
+  if (url.origin === ORIGIN && url.pathname === '/' && url.search === '?wc-ajax=ppc-sdk-v6-client-token') return 'paypal_sdk_token';
+  if (url.hostname === 'api.stripe.com' && url.pathname === '/v1/elements/sessions') return method === 'GET' ? 'stripe_session_get' : 'stripe_session_post';
+  if ((url.hostname === 'r.stripe.com' && url.pathname === '/b') || (url.hostname === 'm.stripe.com' && url.pathname === '/6') || url.hostname === 'q.stripe.com') return 'stripe_telemetry';
+  if (/(?:^|\.)paypal\.com$/i.test(url.hostname) && ['/graphql', '/graphql/', '/smart/api/graphql'].includes(url.pathname)) {
+    try {
+      const value = JSON.parse(body), entries = Array.isArray(value) ? value : [value];
+      if (!entries.length || entries.length > 16) return 'paypal_graphql_other';
+      if (entries.some(item => typeof item?.query === 'string' && /^\s*mutation\b/i.test(item.query))) return 'paypal_graphql_mutation';
+      if (entries.every(item => typeof item?.query === 'string' && /^\s*(?:query\b|\{)/i.test(item.query))) return 'paypal_graphql_query';
+    } catch {}
+    return 'paypal_graphql_other';
+  }
+  if (/(?:^|\.)paypal\.com$/i.test(url.hostname) && ['/xoplatform/logger/api/logger', '/smart/api/logger'].includes(url.pathname)) return 'paypal_logger';
+  if (url.hostname === 'pay.google.com') return 'google_provider';
+  return PROVIDER_HOST.test(url.hostname) ? 'unknown_provider' : 'other';
+}
 /** Native Stripe Elements display sessions are read-only widget initialization. */
 export function publicStripeSession(raw, method, body) {
   let url; try { url = new URL(raw); } catch { return false; }
@@ -51,7 +77,7 @@ export function publicStripeSession(raw, method, body) {
 export function allowedRequest(raw, method = 'GET', type = 'fetch', body = '', permit = null) {
   let url; try { url = new URL(raw); } catch { return false; }
   if (url.protocol !== 'https:' || url.username || url.password || url.port || PAYMENT_ACTION.test(url.pathname)) return false;
-  if (publicStripeSession(raw, method, body) || auditedSessionRead(raw, method, body)) return true;
+  if (publicStripeSession(raw, method, body) || auditedSessionRead(raw, method, body) || paypalSdkTokenRead(raw, method, body)) return true;
   if (url.origin === ORIGIN) {
     if (permit && !permit.used && method === permit.method && url.pathname === permit.path && !url.search && body === permit.body) {
       if (method === 'DELETE') return permit.path === '/wp-json/wc/store/v1/cart/items' && body === '';
@@ -107,7 +133,22 @@ async function pageFacts(page, location) {
         home_account_after_currency: !!(accountBox && marketBox && accountBox.left >= marketBox.right - 1 && Math.abs(accountBox.top - marketBox.top) < 48) },
       metrics: { home_account_count: count('.petish-account-menu'), home_native_cart_count: count('.shopping-cart, .wc-shopping-cart, .mini-woocommerce-cart, .wc-ico-cart'), home_badge_count: count('.petish-cart-badge'), home_account_left_px: accountBox?.left || 0, home_market_right_px: marketBox?.right || 0 } };
     }
-    if (where === 'product') return { observations: { product_afterpay_present: count(selectors.afterpay) > 0, product_paypal_present: count('.petish-product-paypal, #ppc-button-ppcp-gateway') > 0 }, metrics: {} };
+    if (where === 'product') {
+      const quantity = document.querySelector('.product .cart .quantity');
+      const sourceFont = quantity ? parseFloat(getComputedStyle(quantity).fontSize) || 0 : 0;
+      let base = 0, text = 0, present = false;
+      try {
+        const raw = localStorage.getItem('wcpay_appearance_bnpl_product_page');
+        if (raw && raw.length <= 65536) {
+          const value = JSON.parse(raw), appearance = value?.appearance;
+          const pixels = item => typeof item === 'string' && /^\d+(?:\.\d+)?px$/.test(item) ? parseFloat(item) : 0;
+          base = pixels(appearance?.variables?.fontSizeBase); text = pixels(appearance?.rules?.['.Text']?.fontSize); present = base > 0 || text > 0;
+        }
+      } catch {}
+      return { observations: { product_afterpay_present: count(selectors.afterpay) > 0, product_paypal_present: count('.petish-product-paypal, #ppc-button-ppcp-gateway') > 0,
+        product_native_font_cache_present: present, product_native_font_cache_matches: sourceFont > 0 && base > 0 && text > 0 && Math.abs(sourceFont - base) < 0.1 && Math.abs(sourceFont - text) < 0.1 },
+        metrics: { product_native_quantity_font_px: sourceFont, product_cached_base_font_px: base, product_cached_text_font_px: text } };
+    }
     const express = '.wc-block-components-express-payment', sidebar = '.wc-block-cart__sidebar';
     const host = all('paypal-message').find(visible), hostBox = host?.getBoundingClientRect();
     return { observations: {
@@ -135,7 +176,46 @@ function merge(report, facts) {
   for (const [key, value] of Object.entries(facts.observations)) if (PUBLIC_SCHEMA.observations.includes(key) && typeof value === 'boolean') report.observations[key] = value;
   for (const [key, value] of Object.entries(facts.metrics)) if (PUBLIC_SCHEMA.metrics.includes(key)) report.metrics[key] = bounded(value);
 }
+/** Read native message typography without returning its sentence, price, URL or markup. */
+export function afterpayDOMFacts(input = false) {
+  const isProviderFrame = typeof input === 'object' ? input.providerFrame === true : input === true;
+  const afterpayOnly = typeof input === 'object' && input.afterpayOnly === true;
+  const visible = el => { const r = el.getBoundingClientRect(), st = getComputedStyle(el); return r.width > 0 && r.height > 0 && st.display !== 'none' && st.visibility !== 'hidden'; };
+  const logos = [...document.querySelectorAll('.afterpay-logo, [class*="afterpay" i][class*="logo" i], img[alt*="Afterpay" i], svg[aria-label*="Afterpay" i]')].filter(visible);
+  const candidates = [...document.querySelectorAll('.afterpay-paragraph, [class*="afterpay-paragraph" i], [class*="afterpay-message" i], [class*="AfterpayClearpayMessage"]')].filter(el => visible(el) && !el.matches('[class*="logo" i], svg, img'));
+  const logo = logos[0];
+  const outer = candidates.find(el => !candidates.some(parent => parent !== el && parent.contains(el)));
+  const scope = isProviderFrame ? document.body : outer || logo?.parentElement;
+  const finance = [], fallback = [];
+  if (scope) {
+    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT); let text, visited = 0;
+    while ((text = walker.nextNode()) && visited++ < 2000) {
+      const parent = text.parentElement, value = (text.nodeValue || '').trim();
+      if (!value || !parent || !visible(parent) || parent.closest('a, button, svg, script, style, [class*="logo" i]')) continue;
+      fallback.push(parent);
+      if (/interest[ -]?free|instalments?|installments?|pay\s+in\s+4|over\s+6\s+weeks|split.{0,30}payments|pay\s+later/i.test(value)) finance.push(parent);
+    }
+  }
+  const identified = !!logo || !!outer || (isProviderFrame && afterpayOnly && finance.length > 0);
+  const message = identified ? (isProviderFrame ? document.body : outer || logo?.parentElement) : null;
+  const textNodes = identified ? (finance.length ? finance : fallback).slice(0, 100) : [];
+  const fonts = textNodes.map(el => parseFloat(getComputedStyle(el).fontSize) || 0).filter(value => value > 0);
+  const links = message ? [...message.querySelectorAll('a, button, [role="button"]')].filter(visible) : [];
+  const plans = links.find(el => /see\s+plans/i.test(el.textContent || ''));
+  const learn = links.some(el => /learn\s+more/i.test(el.textContent || ''));
+  const info = links.some(el => /(?:more\s+)?info(?:rmation)?|about\s+(?:afterpay|clearpay)/i.test(el.getAttribute('aria-label') || ''));
+  const l = logo?.getBoundingClientRect(), m = message?.getBoundingClientRect(), link = plans?.getBoundingClientRect();
+  return { observations: { afterpay_logo_present: !!logo, afterpay_see_plans_present: !!plans,
+    afterpay_see_plans_below: !!(link && l && link.top >= l.bottom - 1), afterpay_financing_text_measured: identified && finance.length > 0,
+    afterpay_learn_more_present: learn, afterpay_info_control_present: info },
+    metrics: { afterpay_logo_count: Math.min(99, logos.length), afterpay_logo_width_px: l?.width || 0, afterpay_logo_height_px: l?.height || 0,
+      afterpay_font_px: fonts[0] || 0, afterpay_link_font_px: plans ? parseFloat(getComputedStyle(plans).fontSize) || 0 : 0,
+      afterpay_message_width_px: m?.width || 0, afterpay_message_height_px: m?.height || 0,
+      afterpay_text_font_min_px: fonts.length ? Math.min(...fonts) : 0, afterpay_text_font_max_px: fonts.length ? Math.max(...fonts) : 0 } };
+}
 async function inspectAfterpay(page, report) {
+  const afterpayOnly = await page.evaluate(() => { const value = window.wcpayStripeSiteMessaging; return !!(value && value.country === 'AU' && value.currencyCode === 'AUD' && Array.isArray(value.paymentMethods) && value.paymentMethods.length === 1 && value.paymentMethods[0] === 'afterpay_clearpay'); });
+  report.observations.afterpay_native_single_method = afterpayOnly;
   const brand = await page.evaluate(() => {
     const el = document.querySelector('.petish-afterpay-brand-heading'), frame = el?.querySelector('iframe');
     if (!el || !frame) return { present: false, below: false, width: 0, height: 0 };
@@ -150,23 +230,8 @@ async function inspectAfterpay(page, report) {
   report.metrics.cart_afterpay_frame_count = 0;
   for (const frame of [page.mainFrame(), ...frames]) {
     try {
-      const facts = await frame.evaluate(isProviderFrame => {
-        const visible = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'; };
-        const logos = [...document.querySelectorAll('.afterpay-logo, [class*="afterpay" i][class*="logo" i], img[alt*="Afterpay" i], svg[aria-label*="Afterpay" i]')].filter(visible);
-        const paragraphs = [...document.querySelectorAll('.afterpay-paragraph, [class*="afterpay-paragraph" i], [class*="afterpay-message" i], [class*="AfterpayClearpayMessage"]')].filter(visible);
-        const logo = logos[0], message = paragraphs.find(el => logo && el.contains(logo)) || paragraphs[0] || (isProviderFrame && logo ? document.body : logo?.parentElement);
-        const links = message ? [...message.querySelectorAll('a, button')].filter(el => visible(el) && /see\s+plans/i.test(el.textContent || '')) : [];
-        const link = links[0];
-        const box = el => el?.getBoundingClientRect();
-        const l = box(logo), m = box(message), a = box(link);
-        return { observations: { afterpay_logo_present: !!logo, afterpay_see_plans_present: !!link,
-          afterpay_see_plans_below: !!(a && l && a.top >= l.bottom - 1) },
-          metrics: { afterpay_logo_count: Math.min(99, logos.length), afterpay_logo_width_px: l?.width || 0, afterpay_logo_height_px: l?.height || 0,
-            afterpay_font_px: message ? parseFloat(getComputedStyle(message).fontSize) || 0 : 0,
-            afterpay_link_font_px: link ? parseFloat(getComputedStyle(link).fontSize) || 0 : 0,
-            afterpay_message_width_px: m?.width || 0, afterpay_message_height_px: m?.height || 0 } };
-      }, frame !== page.mainFrame());
-      if (frame !== page.mainFrame() && (facts.observations.afterpay_logo_present || /afterpay/i.test(frame.url()))) {
+      const facts = await frame.evaluate(afterpayDOMFacts, {providerFrame: frame !== page.mainFrame(), afterpayOnly});
+      if (frame !== page.mainFrame() && (facts.observations.afterpay_logo_present || facts.observations.afterpay_financing_text_measured || /afterpay/i.test(frame.url()))) {
         report.observations.afterpay_frame_present = true; report.observations.afterpay_frame_inspected = true;
         report.metrics.cart_afterpay_frame_count = Math.min(99, report.metrics.cart_afterpay_frame_count + 1);
       }
@@ -174,6 +239,39 @@ async function inspectAfterpay(page, report) {
       for (const [key, value] of Object.entries(facts.metrics)) report.metrics[key] = Math.max(report.metrics[key], bounded(value));
     } catch { /* A detached or blocked provider frame is an observation, never fabricated content. */ }
   }
+}
+/** Optional public guest payment crops: fixed filenames, no headers, identity or form inputs. */
+export async function capturePublicPanel(page, directory, kind) {
+  const absent = {saved:false,width:0,height:0};
+  if (!directory || !['product','cart'].includes(kind)) return absent;
+  try {
+    if (!path.isAbsolute(directory) || fs.realpathSync(directory) !== directory || (fs.statSync(directory).mode & 0o7777) !== 0o700) return absent;
+    const clip = await page.evaluate(which => {
+      const selectors = which === 'product' ? ['.product .summary #payment-method-message'] :
+        ['.wc-block-cart__sidebar .wc-block-components-express-payment','.wc-block-cart__sidebar .wc-block-components-bnpl-wrapper','.wc-block-cart__sidebar .ppcp-messages','.wc-block-cart__sidebar paypal-message','.cart_totals #payment-method-message'];
+      const visible = el => {const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden';};
+      const elements = [...new Set(selectors.flatMap(selector=>[...document.querySelectorAll(selector)]))].filter(visible);
+      if (!elements.length || (which==='product' && !elements.some(el=>[...el.querySelectorAll('iframe')].some(visible)))) return null;
+      const boxes=elements.map(el=>el.getBoundingClientRect());
+      const box={left:Math.min(...boxes.map(r=>r.left)),top:Math.min(...boxes.map(r=>r.top)),right:Math.max(...boxes.map(r=>r.right)),bottom:Math.max(...boxes.map(r=>r.bottom))};
+      const headers=[...document.querySelectorAll('#masthead,.mobile-header-bar')].filter(visible).map(el=>el.getBoundingClientRect()).filter(r=>r.top>=0&&r.height<400);
+      const headerBottom=Math.max(60,...headers.map(r=>r.bottom));
+      if(box.left<0||box.right>innerWidth+1||box.top<headerBottom||box.bottom<=box.top)return null;
+      const sensitive=[...document.querySelectorAll('input:not([type="hidden"]),textarea,select,.woocommerce-customer-details,.wc-block-components-address-card,.woocommerce-billing-fields,.woocommerce-shipping-fields')].filter(visible);
+      if(sensitive.some(el=>{const r=el.getBoundingClientRect();return r.left<box.right&&r.right>box.left&&r.top<box.bottom&&r.bottom>box.top;}))return null;
+      const x=Math.floor(box.left+scrollX),y=Math.floor(box.top+scrollY),width=Math.ceil(box.right+scrollX)-x,height=Math.ceil(box.bottom+scrollY)-y;
+      return width>0&&height>0&&width<=1600&&height<=1600?{x,y,width,height}:null;
+    }, kind);
+    if (!clip) return absent;
+    const bytes = await page.screenshot({type:'png',clip,animations:'disabled'});
+    if (bytes.length < 33 || bytes.length > 4194304 || bytes.subarray(0,8).toString('hex') !== '89504e470d0a1a0a') return absent;
+    const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
+    if(width<1||height<1||width>1600||height>1600)return absent;
+    const filename=path.join(directory,kind==='product'?'product-afterpay.private.png':'cart-payments.private.png');
+    const descriptor=fs.openSync(filename,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_EXCL|fs.constants.O_NOFOLLOW,0o600);
+    try{fs.writeFileSync(descriptor,bytes);fs.fsyncSync(descriptor);}finally{fs.closeSync(descriptor);}
+    return {saved:true,width,height};
+  } catch {return absent;}
 }
 async function cartAPI(page, method, pathname, nonce, body = '') {
   return page.evaluate(async args => {
@@ -185,7 +283,7 @@ async function cartAPI(page, method, pathname, nonce, body = '') {
       items: Array.isArray(value.items) ? value.items.map(item => ({ id: item.id, quantity: item.quantity })) : null };
   }, { method, pathname, nonce, body });
 }
-export async function inspectLive() {
+export async function inspectLive(options = {}) {
   const report = emptyReport(); let browser, context, page, permit = null, nonce = '', selected = 0, ownedCart = false, blocked = 0;
   try {
     report.category = 'browser'; const { chromium } = require('playwright');
@@ -197,6 +295,9 @@ export async function inspectLive() {
     await context.route('**/*', async route => {
       const request = route.request();
       if (allowedRequest(request.url(), request.method(), request.resourceType(), request.postData() || '', permit)) {
+        const requestKind = providerRequestKind(request.url(), request.method(), request.postData() || '');
+        if (requestKind === 'stripe_session_get') { report.observations.stripe_session_get_allowed = true; report.metrics.stripe_session_get_count = Math.min(METRIC_MAX, report.metrics.stripe_session_get_count + 1); }
+        if (paypalSdkTokenRead(request.url(), request.method(), request.postData() || '')) { report.observations.paypal_sdk_token_initialization_allowed = true; report.metrics.paypal_sdk_token_initialization_count = Math.min(METRIC_MAX, report.metrics.paypal_sdk_token_initialization_count + 1); }
         const ownRead = auditedSessionRead(request.url(), request.method(), request.postData() || '');
         if (ownRead) { const kind = ownRead === 'account' ? 'account_fragment_read' : 'cart_count_fragment_read'; report.observations[kind + '_allowed'] = true; report.metrics[kind + '_count'] = Math.min(METRIC_MAX, report.metrics[kind + '_count'] + 1); }
         if (publicStripeSession(request.url(), request.method(), request.postData() || '')) { report.observations.stripe_session_initialization_allowed = true; report.metrics.stripe_session_initialization_count = Math.min(METRIC_MAX, report.metrics.stripe_session_initialization_count + 1); }
@@ -205,11 +306,18 @@ export async function inspectLive() {
       }
       blocked++; report.observations.other_requests_blocked = true;
       try {
-        const url = new URL(request.url()), method = request.method();
+        const url = new URL(request.url()), method = request.method(), kind = providerRequestKind(request.url(), request.method(), request.postData() || '');
+        const blockedKind = {stripe_telemetry:'stripe_telemetry',paypal_graphql_query:'paypal_graphql_query',paypal_graphql_mutation:'paypal_graphql_mutation',paypal_graphql_other:'paypal_graphql_other',paypal_logger:'paypal_logger',google_provider:'google_provider',unknown_provider:'unknown_provider',paypal_sdk_token:'paypal_sdk_token',stripe_session_get:'stripe_session_get',stripe_session_post:'stripe_session_post'}[kind];
+        if (blockedKind) {
+          const key = 'blocked_' + blockedKind + '_count'; report.metrics[key] = Math.min(METRIC_MAX, report.metrics[key] + 1);
+          const observation = {stripe_telemetry:'stripe_telemetry_blocked',paypal_graphql_query:'paypal_graphql_query_blocked',paypal_graphql_mutation:'paypal_graphql_mutation_blocked',paypal_logger:'paypal_logger_blocked',unknown_provider:'unknown_provider_request_blocked'}[kind];
+          if (observation) report.observations[observation] = true;
+          if (kind === 'stripe_session_get' || kind === 'stripe_session_post') report.observations.stripe_session_request_blocked = true;
+        }
         if (PAYMENT_ACTION.test(url.pathname)) { report.observations.checkout_requests_blocked = true; report.observations.payment_action_blocked = true; report.metrics.blocked_payment_action_count = Math.min(METRIC_MAX, report.metrics.blocked_payment_action_count + 1); }
         if (PROVIDER_HOST.test(url.hostname) || url.hostname === 'pay.google.com') {
           const key = method === 'GET' || method === 'HEAD' ? 'get' : 'post'; report.observations['provider_' + key + '_blocked'] = true;
-          if (key === 'post' && !PAYMENT_ACTION.test(url.pathname)) report.observations.provider_bootstrap_blocked = true;
+          if (key === 'post' && !PAYMENT_ACTION.test(url.pathname) && !['stripe_telemetry','paypal_logger'].includes(kind)) report.observations.provider_bootstrap_blocked = true;
           report.metrics['blocked_provider_' + key + '_count'] = Math.min(METRIC_MAX, report.metrics['blocked_provider_' + key + '_count'] + 1);
         }
         if (url.origin === ORIGIN && url.pathname.startsWith('/wp-json/wc/store/')) { report.observations.store_api_blocked = true; report.metrics.blocked_store_api_count = Math.min(METRIC_MAX, report.metrics.blocked_store_api_count + 1); }
@@ -222,7 +330,10 @@ export async function inspectLive() {
     const initial = await cartAPI(page, 'GET', '/wp-json/wc/store/v1/cart', nonce);
     if (!initial.ok || !Array.isArray(initial.items) || initial.items.length !== 0 || typeof initial.nonce !== 'string' || !/^[a-zA-Z0-9]{6,64}$/.test(initial.nonce)) throw new Error('cart');
     nonce = initial.nonce; report.checks.initial_cart_empty = true;
-    await navigate(PRODUCT, 'product'); report.observations.product_http_ok = true; await page.waitForTimeout(1500); merge(report, await pageFacts(page, 'product'));
+    await navigate(PRODUCT, 'product'); report.observations.product_http_ok = true; await page.waitForTimeout(1500);
+    try { await page.waitForFunction(() => {const el=document.querySelector('.product .summary #payment-method-message iframe');return el&&el.getBoundingClientRect().height>8;},null,{timeout:6000}); } catch {}
+    merge(report, await pageFacts(page, 'product'));
+    const productCrop=await capturePublicPanel(page,options.artifactDirectory,'product'); report.observations.product_payment_crop_saved=productCrop.saved;report.metrics.product_crop_width_px=productCrop.width;report.metrics.product_crop_height_px=productCrop.height;
     selected = await page.locator('form.variations_form').evaluate(form => {
       const values = JSON.parse(form.getAttribute('data-product_variations') || 'null');
       if (!Array.isArray(values)) return 0;
@@ -237,7 +348,9 @@ export async function inspectLive() {
     await navigate('/cart/', 'cart'); report.observations.cart_http_ok = true;
     await page.locator('.wc-block-cart-items__row, .cart_item').first().waitFor({ state: 'visible', timeout: 30000 });
     report.checks.cart_page_loaded = true; report.category = 'providers';
-    await page.waitForTimeout(8000); merge(report, await pageFacts(page, 'cart')); await inspectAfterpay(page, report); report.checks.passive_sdk_inspected = true;
+    await page.waitForTimeout(8000); merge(report, await pageFacts(page, 'cart')); await inspectAfterpay(page, report);
+    const cartCrop=await capturePublicPanel(page,options.artifactDirectory,'cart');report.observations.cart_payment_crop_saved=cartCrop.saved;report.metrics.cart_crop_width_px=cartCrop.width;report.metrics.cart_crop_height_px=cartCrop.height;
+    report.checks.passive_sdk_inspected = true;
   } catch { /* Report only the finite stage and observations; never exception text, page data or SDK URLs. */ }
   finally {
     if (page && report.checks.initial_cart_empty) {
@@ -257,6 +370,6 @@ export async function inspectLive() {
   return screenReport(report);
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try { if (process.argv.length !== 3) throw new Error('input'); reportDestination(process.argv[2]); const report = await inspectLive(); writeReport(process.argv[2], report); process.exitCode = report.status === 'success' ? 0 : 1; }
+  try { if (process.argv.length !== 3) throw new Error('input'); reportDestination(process.argv[2]); const report = await inspectLive({artifactDirectory:path.dirname(process.argv[2])}); writeReport(process.argv[2], report); process.exitCode = report.status === 'success' ? 0 : 1; }
   catch { process.stderr.write('The fixed live storefront inspection could not be completed.\n'); process.exitCode = 1; }
 }

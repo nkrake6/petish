@@ -125,6 +125,22 @@ assert(allow('/?wc-ajax=petish_cart_count','POST','fetch',''));
 for(const [route,body] of [['/wp-admin/admin-ajax.php?extra=1','action=petish_account_dropdown'],['/wp-admin/admin-ajax.php','action=petish_account_dropdown&private=1'],['/wp-admin/admin-ajax.php','action=other_action'],['/?wc-ajax=petish_cart_count&extra=1',''],['/?wc-ajax=petish_cart_count','private=1'],['/?wc-ajax=checkout','']])assert(!allow(route,'POST','fetch',body));
 assert(!m.auditedSessionRead('https://other.invalid/wp-admin/admin-ajax.php','POST','action=petish_account_dropdown'));
 assert(!m.auditedSessionRead('https://petish.biz/wp-admin/admin-ajax.php','GET','action=petish_account_dropdown'));
+const nativeNonce=JSON.stringify({nonce:'SYNTHETIC12345'});
+assert(allow('/?wc-ajax=ppc-sdk-v6-client-token','POST','fetch',nativeNonce));
+for(const bad of [JSON.stringify({nonce:'SYNTHETIC12345',order_id:1}),JSON.stringify({nonce:'x'}),'{"nonce":"SYNTHETIC12345","nonce":"OTHER12345"}',JSON.stringify({action:'checkout'})])assert(!m.paypalSdkTokenRead('https://petish.biz/?wc-ajax=ppc-sdk-v6-client-token','POST',bad));
+assert(!m.paypalSdkTokenRead('https://petish.biz/?wc-ajax=ppc-sdk-v6-client-token&extra=1','POST',nativeNonce));
+assert(!m.paypalSdkTokenRead('https://other.invalid/?wc-ajax=ppc-sdk-v6-client-token','POST',nativeNonce));
+for(const [url,method,body,kind] of [
+ ['https://api.stripe.com/v1/elements/sessions?key=PRIVATE','GET','','stripe_session_get'],
+ ['https://r.stripe.com/b','POST','PRIVATE','stripe_telemetry'],
+ ['https://m.stripe.com/6','POST','PRIVATE','stripe_telemetry'],
+ ['https://www.paypal.com/graphql','POST',JSON.stringify({query:'query MerchantConfiguration { public }',operationName:'PRIVATE'}),'paypal_graphql_query'],
+ ['https://www.paypal.com/graphql','POST',JSON.stringify({query:'mutation CreateOrder { private }'}),'paypal_graphql_mutation'],
+ ['https://www.paypal.com/graphql','POST',JSON.stringify({operationName:'PRIVATE'}),'paypal_graphql_other'],
+ ['https://www.paypal.com/xoplatform/logger/api/logger','POST','PRIVATE','paypal_logger'],
+ ['https://api.stripe.com/unknown-private-path','POST','PRIVATE','unknown_provider'],
+]){assert.equal(m.providerRequestKind(url,method,body),kind);assert(!kind.includes('PRIVATE'));}
+
 assert(allow('/wp-json/wc/store/v1/cart'));assert(allow('/wp-content/plugins/woocommerce/assets/test.js'));
 for(const route of ['/checkout/','/wp-json/wc/store/v1/checkout','/wp-json/wc/v3/orders','/?add-to-cart=1','/cart/?remove_item=1'])assert(!allow(route));
 for(const verb of ['POST','DELETE','PUT','PATCH'])assert(!allow('/wp-json/wc/store/v1/cart/items',verb));
@@ -147,6 +163,37 @@ console.log('Fixed live-browser policy and finite report verified.');'''
         result = subprocess.run(['node', '--input-type=module', '-e', code], cwd=ROOT, text=True, capture_output=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('verified', result.stdout)
+
+    def test_native_financing_measurement_uses_whole_message_and_sentence_font(self):
+        code = r'''import assert from 'node:assert/strict';
+import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
+import {createRequire} from 'node:module';
+const require=createRequire(new URL('./tools/staging-rehearsal/package.json',import.meta.url));
+const {chromium}=require('playwright');const m=await import('./tools/storefront-live-inspect.mjs');
+const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+const cropDir=fs.mkdtempSync(path.join(os.tmpdir(),'petish-public-payment-crop-'));fs.chmodSync(cropDir,0o700);
+try{
+ const page=await browser.newPage({viewport:{width:400,height:240}});await page.route('**/*',r=>r.abort());
+ await page.setContent(`<style>body{margin:0;width:380px;font-size:12px}.afterpay-logo{display:inline-block;width:49.66px;height:15px;font-size:11.16px}.finance{font-size:18px}a{display:block;font-size:14px}</style><span class="afterpay-logo">Afterpay</span><p class="finance">Four interest-free payments of PRIVATE_AMOUNT.</p><a href="https://private.invalid/PRIVATE_TOKEN">See plans</a>`);
+ const facts=await page.evaluate(m.afterpayDOMFacts,{providerFrame:true,afterpayOnly:true});
+ assert.equal(facts.observations.afterpay_financing_text_measured,true);assert.equal(facts.observations.afterpay_see_plans_present,true);
+ assert.equal(facts.observations.afterpay_see_plans_below,true);assert.equal(facts.metrics.afterpay_font_px,18);
+ assert.equal(facts.metrics.afterpay_link_font_px,14);assert(facts.metrics.afterpay_message_width_px>300);
+ assert(facts.metrics.afterpay_logo_width_px<60);assert(!JSON.stringify(facts).includes('PRIVATE'));
+ const noLink=await page.evaluate(()=>{document.querySelector('a').textContent='Learn more';return true;});assert(noLink);
+ const changed=await page.evaluate(m.afterpayDOMFacts,{providerFrame:true,afterpayOnly:true});
+ assert.equal(changed.observations.afterpay_see_plans_present,false);assert.equal(changed.observations.afterpay_learn_more_present,true);
+ await page.setContent(`<style>body{margin:0}#masthead{height:60px}#payment-method-message{margin-top:60px;width:360px;min-height:120px}iframe{display:block;border:0;width:350px;height:100px}</style><header id="masthead">PRIVATE_HEADER_IDENTITY</header><main class="product"><section class="summary"><div id="payment-method-message"><iframe srcdoc="<p>Public payment information</p>"></iframe></div></section></main>`);
+ const crop=await m.capturePublicPanel(page,cropDir,'product');assert.equal(crop.saved,true);assert(crop.width<=1600&&crop.height<=1600);
+ const png=path.join(cropDir,'product-afterpay.private.png');assert.equal(fs.statSync(png).mode&0o7777,0o600);const before=fs.readFileSync(png);
+ await page.evaluate(()=>{const input=document.createElement('input');input.value='PRIVATE_CUSTOMER';document.querySelector('#payment-method-message').prepend(input);});
+ const blocked=await m.capturePublicPanel(page,cropDir,'product');assert.equal(blocked.saved,false);assert(fs.readFileSync(png).equals(before));
+
+}finally{await browser.close();fs.rmSync(cropDir,{recursive:true,force:true});}
+console.log('Native financing metrics remain scoped and private.');'''
+        result = subprocess.run(['node', '--input-type=module', '-e', code], cwd=ROOT, text=True, capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('private', result.stdout)
 
     def test_native_report_requires_real_guard_truth_without_exposing_observations(self):
         checks = dict.fromkeys(RUNTIME.native_schema(), True)
