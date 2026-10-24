@@ -1,0 +1,96 @@
+/* Cart-only native provider hosts; never style inside a payment iframe. */
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar {
+  --petish-cart-payment-width: 400px;
+  --petish-cart-payment-padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__payment-options {
+  display: contents;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-express-payment--cart {
+  order: 10;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--petish-cart-payment-width);
+  min-width: 0;
+  margin: 16px 0 0;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-express-payment__event-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: visible;
+  list-style: none;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-express-payment__event-buttons > :is(div,li) {
+  box-sizing: border-box;
+  order: 0;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: var(--petish-cart-payment-padding);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart #express-payment-method-woocommerce_payments_express_checkout_googlePay,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart #express-payment-method-ppcp-googlepay {
+  order: -10;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart #express-payment-method-ppcp-gateway-paypal {
+  order: 10;
+  margin-bottom: 0;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart #express-payment-method-ppcp-gateway-paylater {
+  order: 11;
+  margin-bottom: 0;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-has-paylater #express-payment-method-ppcp-gateway-paypal,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-has-paypal-message #express-payment-method-ppcp-gateway-paypal {
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  padding-bottom: 8px;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-has-paypal #express-payment-method-ppcp-gateway-paylater {
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  padding-top: 0;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-has-paypal-message #express-payment-method-ppcp-gateway-paylater {
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  padding-bottom: 8px;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .petish-cart-has-paypal.petish-cart-has-paypal-message #express-payment-method-ppcp-gateway-paylater {
+  border-radius: 0;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar > .ppcp-messages[data-block-name="woocommerce-paypal-payments/cart-paylater-messages"] {
+  box-sizing: border-box;
+  order: 20;
+  width: 100%;
+  max-width: var(--petish-cart-payment-width);
+  min-width: 0;
+  margin: 0;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-has-paypal-message > .ppcp-messages[data-block-name="woocommerce-paypal-payments/cart-paylater-messages"] {
+  padding: var(--petish-cart-payment-padding);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-has-paypal.petish-cart-has-paypal-message > .ppcp-messages[data-block-name="woocommerce-paypal-payments/cart-paylater-messages"],
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__sidebar.petish-cart-has-paylater.petish-cart-has-paypal-message > .ppcp-messages[data-block-name="woocommerce-paypal-payments/cart-paylater-messages"] {
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  padding-top: 0;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-express-payment-continue-rule--cart {
+  order: 30;
+  width: 100%;
+  max-width: var(--petish-cart-payment-width);
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__submit {
+  order: 40;
+}
+/* Both native Google Pay controls remain until mounted readiness is observable. */

@@ -1,0 +1,77 @@
+/* Cart Block only. Keep Woo's native links, metadata and quantity controls. */
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart-items__header {
+  font-size: 16px;
+  line-height: 1.4;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart table.wc-block-cart-items .wc-block-components-product-name {
+  max-width: 100%;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart table.wc-block-cart-items .wc-block-cart-item__prices {
+  flex-wrap: wrap;
+  font-size: 18px;
+  line-height: 1.4;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-product-metadata,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-product-details,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-product-metadata__variation-data,
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-product-metadata__description > :is(p,h1,h2,h3,h4,h5,h6) {
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart table.wc-block-cart-items .wc-block-cart-item__total {
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart-item__wrap {
+  min-width: 0;
+  gap: 8px;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart-item__quantity {
+  flex-wrap: wrap;
+  font-size: 18px;
+  line-height: 1.4;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-quantity-selector__input {
+  font-size: 18px;
+  line-height: 24px;
+}
+body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-components-quantity-selector__button {
+  font-size: 20px;
+}
+
+/* Woo's Cart supplies the inline-size container used by its own styles. */
+@container (max-width: 599px) {
+  body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart table.wc-block-cart-items .wc-block-cart-items__row {
+    grid-template-columns: 64px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 12px;
+  }
+  body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart table.wc-block-cart-items .wc-block-cart-item__image {
+    padding-right: 0;
+  }
+  body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart table.wc-block-cart-items .wc-block-cart-item__product {
+    grid-column: 2;
+    min-width: 0;
+  }
+  body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart table.wc-block-cart-items .wc-block-cart-item__total {
+    grid-column: 2;
+    grid-row: 2;
+    justify-content: flex-start;
+    min-width: 0;
+    text-align: left;
+  }
+  body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart-item__total-price-and-sale-badge-wrapper {
+    align-items: flex-start;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart table.wc-block-cart-items .wc-block-components-product-name {
+    font-size: 18px;
+  }
+}

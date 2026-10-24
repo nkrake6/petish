@@ -1,0 +1,84 @@
+/* Both native button stacks share the existing WooPayments 400px width. */
+body.petish-product-payment-groups .summary :is(.petish-product-payments, .petish-product-paypal) {
+    box-sizing: border-box;
+    clear: both;
+    width: 100%;
+    max-width: var(--petish-product-payment-width, 400px);
+    min-width: 0;
+}
+
+body.petish-product-payment-groups .summary .petish-product-payments {
+    margin: 0 0 24px;
+}
+
+body.petish-product-payment-groups .summary .petish-product-payments #payment-method-message {
+    box-sizing: border-box;
+    margin: 12px 0 0;
+    padding: 12px;
+    border: 1px solid #74bca4;
+    border-radius: 10px;
+    background: #effaf5;
+    color: var(--color-text, #14213d);
+    /* The SDK owns its iframe height and all native brand/disclosure artwork. */
+    height: auto;
+    min-height: 4em;
+}
+
+html[data-theme="dark"] body.petish-product-payment-groups .summary .petish-product-payments #payment-method-message {
+    border-color: #47977d;
+    background: #132f2b;
+}
+
+body.petish-product-payment-groups .summary .petish-product-paypal {
+    margin: 0 0 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border, #e3e7ef);
+}
+
+body.petish-product-payment-groups .summary .petish-product-paypal > .ppc-button-wrapper,
+body.petish-product-payment-groups .summary .petish-product-paypal :is(#ppc-button-ppcp-gateway, #ppc-button-ppcp-gateway-v6) {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+body.petish-product-payment-groups .summary .petish-product-paypal > .ppcp-messages {
+    margin-top: 12px;
+}
+
+body#the7-body.petish-product-payment-groups .summary .product_meta {
+    clear: both;
+    margin-top: 30px;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+body#the7-body.petish-product-payment-groups .summary .product_meta :is(.posted_in, .tagged_as) {
+    display: block;
+    margin: 0 0 7px;
+    font-size: 16px;
+}
+
+body#the7-body.petish-product-payment-groups .summary .product_meta :is(.posted_in, .tagged_as) :is(a, span) {
+    font-size: 16px;
+}
+
+/* Cart has its own native React BNPL wrapper, not the product message ID. */
+body#the7-body.petish-site.woocommerce-cart .wc-block-cart .wc-block-components-bnpl-wrapper,
+body#the7-body.petish-site.woocommerce-cart .cart_totals #payment-method-message {
+    box-sizing: border-box;
+    max-width: 400px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #74bca4;
+    border-radius: 10px;
+    background: #effaf5;
+    color: var(--color-text, #14213d);
+}
+
+html[data-theme="dark"] body#the7-body.petish-site.woocommerce-cart .wc-block-cart .wc-block-components-bnpl-wrapper,
+html[data-theme="dark"] body#the7-body.petish-site.woocommerce-cart .cart_totals #payment-method-message {
+    border-color: #47977d;
+    background: #132f2b;
+}
