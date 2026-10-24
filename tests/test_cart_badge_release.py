@@ -45,16 +45,38 @@ class CartReleaseBoundaryTests(unittest.TestCase):
                 report,passed=safe.screen('cart_browser',path);self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
                 self.assertNotIn('sentinel',json.dumps(report))
 
-    def test_only_four_theme_files_change_and_dependencies_precede_header(self):
+    def test_reviewed_theme_files_change_and_cart_dependencies_precede_header(self):
         evidence=module('validate-homepage-release')
-        changed={'includes/header-navigation.php','includes/cart-badge.php','assets/css/cart-badge.css','assets/js/cart-badge.js'}
+        changed={'includes/header-navigation.php','functions.php','front-page.php','assets/css/home.css',
+            'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
+            'includes/hero-images.php','assets/js/hero-images-admin.js','includes/payment-layout.php',
+            'assets/css/payment-layout.css','assets/js/payment-layout.js','includes/cart-payment-layout.php',
+            'assets/css/cart-payment-layout.css','assets/css/cart-typography.css','assets/js/cart-payment-layout.js'}
         actual=set()
         for name in evidence.FILES:
-            prior=subprocess.run(['git','show','f8be162:'+evidence.PREFIX+name],cwd=ROOT,capture_output=True)
+            prior=subprocess.run(['git','show','19b08bbe998839a98dc845c9afac4ecd651c4e26:'+evidence.PREFIX+name],cwd=ROOT,capture_output=True)
             if prior.returncode or prior.stdout!=(ROOT/(evidence.PREFIX+name)).read_bytes():actual.add(name)
         self.assertEqual(actual,changed)
-        for dependency in changed-{'includes/header-navigation.php'}:
+        for dependency in ('includes/cart-badge.php','assets/css/cart-badge.css','assets/js/cart-badge.js'):
             self.assertLess(evidence.FILES.index(dependency),evidence.FILES.index('includes/header-navigation.php'))
+
+    def test_native_cart_payment_observations_are_read_only_bounded_and_optional(self):
+        completed=subprocess.run(['node','tests/homepage-cart-payment-proof.mjs'],cwd=ROOT,capture_output=True,timeout=15)
+        self.assertEqual(completed.returncode,0,completed.stderr.decode())
+        self.assertIn(b'Cart native payment/layout proof checks passed',completed.stdout)
+        source=(ROOT/'tools/homepage/cart-badge-browser.mjs').read_text()
+        self.assertLess(source.index("mark(report,'add_two_quantity_verified'"),source.index('await inspectPopulatedCartPaymentLayout(page)'))
+        self.assertLess(source.index('await inspectPopulatedCartPaymentLayout(page)'),source.index("if(blocks){const plus="))
+
+    def test_cart_layout_diagnostics_cannot_replace_native_required_checks(self):
+        safe=module('sanitize-homepage-result')
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'report.json'
+            for key in ('cart_payment_layout_verified','cart_typography_verified'):
+                raw={'status':'success','category':'complete','checks':dict.fromkeys(safe.CART_BROWSER,True),
+                     'diagnostics':dict.fromkeys(safe.CART_BROWSER_DIAGNOSTICS,True)}
+                raw['checks'][key]=False;path.write_text(json.dumps(raw))
+                self.assertFalse(safe.screen('cart_browser',path)[1])
 
     def test_cart_cleanup_failure_retains_remote_recovery_tools(self):
         source=(ROOT/'scripts/hostinger-homepage.sh').read_text()
