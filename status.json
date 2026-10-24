@@ -1,7 +1,7 @@
 {
-  "category": "inspect",
+  "category": "complete",
   "format": "petish-cancellation-production-v1",
-  "generated_utc": "2026-10-24T07:01:49.456372+00:00",
+  "generated_utc": "2026-10-24T07:01:51.520411+00:00",
   "live_source_hashes": {
     "plugins/petish-fulfilment/README.md": "6dfc2699d4ba2f8a002c25e2e28dd150ca6cd604f90d016c536297fd34cf6f9a",
     "plugins/petish-fulfilment/assets/cancellation-faq.css": null,
@@ -77,7 +77,7 @@
     }
   },
   "preparation_stage": "complete",
-  "remote_tools_removed": false,
+  "remote_tools_removed": true,
   "rollback_attempted": false,
   "rollback_verified": false,
   "run_id": "40072515931-1",
@@ -113,6 +113,6 @@
     "plugins/petish-passport/templates/customer-reviews-dashboard.php": "1e42b1f98d7cbf16550720183a232b13625884ca8ade08e37467a6e01cc1cef0"
   },
   "staging_source_verified": false,
-  "status": "in_progress",
+  "status": "success",
   "target": "production"
 }
