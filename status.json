@@ -1,0 +1,26 @@
+{
+  "AUTOMATION_KIND": "staging",
+  "AUTOMATION_RESULT": "success",
+  "GITHUB_RUN_ID": "40123310426",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "6aede0d26ec118982498dbf2add4ec0d0e11323e",
+  "generated_utc": "2026-10-24T19:00:57.389847+00:00",
+  "staging_runner_steps": {
+    "checkout": "success",
+    "revision": "success",
+    "source": "success",
+    "package": "success",
+    "screening": "success",
+    "prerequisites": "success",
+    "execution": "success",
+    "summary": "success"
+  },
+  "staging_preparation_stage": "complete",
+  "staging_requested_source_commit": "6aede0d26ec118982498dbf2add4ec0d0e11323e",
+  "staging_mode": "apply",
+  "task": {
+    "phase": "staging",
+    "categories": [],
+    "exit_code": 0
+  }
+}
