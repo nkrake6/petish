@@ -131,6 +131,7 @@ class HomepageReleaseTests(unittest.TestCase):
             self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
 
             self.assertNotIn('private-sentinel',json.dumps(report))
+
         for kind in ('extra_view','missing_view','extra_field','missing_field'):
             raw=copy.deepcopy(value)
             if kind=='extra_view':raw['theme_geometry']['private-sentinel']={}
@@ -140,6 +141,24 @@ class HomepageReleaseTests(unittest.TestCase):
             report,passed=self.screen('browser',raw)
             self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
 
+    def test_account_fragment_diagnostics_keep_failure_finite_and_private(self):
+        facts={'account_dropdown_'+key for key in ('no_store','no_litespeed_hit','vary_cookie','nosniff',
+               'status_ok','exact_shape','signed_in','account_url','identity_bounded','native_links','native_reviews_query')}
+        self.assertTrue(facts|{'account_dropdown_response_received','account_dropdown_json_parsed'} <= safe.BROWSER_DIAGNOSTICS)
+        value=self.raw('browser');value.update(status='failure',category='account_dropdown')
+        value['checks']['account_dropdown_private_fragment_verified']=False
+        value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,False)
+        for key in facts:value['diagnostics'][key]=True
+        report,passed=self.screen('browser',value)
+        self.assertFalse(passed);self.assertEqual(report,value)
+        for mutation in ('payload','value'):
+            invalid=copy.deepcopy(value)
+            if mutation=='payload':invalid['diagnostics']['account_dropdown_payload']={'_wpnonce':'private-sentinel'}
+            else:invalid['diagnostics']['account_dropdown_native_links']='private-sentinel'
+            report,passed=self.screen('browser',invalid)
+            self.assertFalse(passed);self.assertEqual(report['category'],'invalid_report')
+            self.assertNotIn('private-sentinel',json.dumps(report))
+
     def test_browser_geometry_export_matches_exact_fixed_numeric_schema(self):
         code="import { THEME_GEOMETRY_KEYS, DIAGNOSTIC_KEYS, CART_METRIC_KEYS, CART_METRIC_ENGINES } from './tools/homepage/browser.mjs'; process.stdout.write(JSON.stringify({geometry:THEME_GEOMETRY_KEYS,diagnostics:DIAGNOSTIC_KEYS,cart_keys:CART_METRIC_KEYS,cart_engines:CART_METRIC_ENGINES}));"
         output=subprocess.run(['node','--input-type=module','-e',code],cwd=ROOT,
@@ -148,7 +167,7 @@ class HomepageReleaseTests(unittest.TestCase):
         self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
-        self.assertEqual(len(exports['diagnostics']),115)
+        self.assertEqual(len(exports['diagnostics']),128)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))
         self.assertEqual(set(exports['diagnostics']),safe.BROWSER_DIAGNOSTICS)
         self.assertEqual(len(exports['cart_keys']),13)

@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import { allowedHomepageRequest, accountDropdownFragmentFacts, inspectAccountDropdownKeyboard } from '../tools/homepage/browser.mjs';
+import { allowedHomepageRequest, accountDropdownFragmentFacts, inspectAccountDropdownKeyboard,
+  publicReport, DIAGNOSTIC_KEYS, CHECK_KEYS } from '../tools/homepage/browser.mjs';
 
 const origin = 'https://staging.petish.biz', endpoint = origin + '/wp-admin/admin-ajax.php';
 const body = 'action=petish_account_dropdown';
@@ -69,6 +70,20 @@ for (const [name, value, key] of [['cache-control', 'private, max-age=0', 'no_st
 check(facts(payload, headers, 'https://petish.biz/my-account/').account_url === false);
 check(facts(payload, headers, account, false).status_ok === false);
 check(Object.values(facts(null)).every(value => typeof value === 'boolean'));
+const fragmentFacts = ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff', 'status_ok', 'exact_shape',
+  'signed_in', 'account_url', 'identity_bounded', 'native_links', 'native_reviews_query'];
+check(Object.keys(facts()).sort().join(',') === [...fragmentFacts].sort().join(','));
+check(fragmentFacts.every(key => DIAGNOSTIC_KEYS.includes('account_dropdown_' + key)));
+const privateChecks = Object.fromEntries(CHECK_KEYS.map(key => [key, true]));
+privateChecks.account_dropdown_private_fragment_verified = false;
+const diagnosticReport = publicReport({ status: 'failure', category: 'account_dropdown', checks: privateChecks,
+  diagnostics: { ...Object.fromEntries(Object.entries(facts()).map(([key, value]) => ['account_dropdown_' + key, value])),
+    private_payload: payload, private_email: input.customer_email, private_password: input.password } });
+check(diagnosticReport.status === 'failure' && diagnosticReport.category === 'account_dropdown');
+check(fragmentFacts.every(key => diagnosticReport.diagnostics['account_dropdown_' + key] === true));
+check(Object.values(diagnosticReport.diagnostics).every(value => typeof value === 'boolean'));
+check(!JSON.stringify(diagnosticReport).includes('synthetic-only') && !JSON.stringify(diagnosticReport).includes(input.customer_email)
+  && !JSON.stringify(diagnosticReport).includes(input.password));
 
 if (process.argv.includes('--browser')) {
   const require = createRequire(new URL('../tools/staging-rehearsal/package.json', import.meta.url));
