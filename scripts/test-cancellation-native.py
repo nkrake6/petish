@@ -70,6 +70,7 @@ def main():
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--keep-sandbox", action="store_true")
     parser.add_argument("--export-visuals", action="store_true")
+    parser.add_argument("--helper-only", action="store_true", help="Only verify native FAQ preparation and hosted verifier helpers.")
     args = parser.parse_args()
     if args.sandbox:
         work = args.sandbox.absolute()
@@ -94,6 +95,10 @@ def main():
             if source.is_symlink() or not source.is_file() or source.stat().st_size > 2097152:
                 raise native.Failure("proof_source")
             native.private_write(work / "native-verifiers" / name, source.read_bytes())
+        delivery = ROOT / "operations/delivery-page-content.html"
+        if delivery.is_symlink() or not delivery.is_file() or delivery.stat().st_size > 32768:
+            raise native.Failure("proof_source")
+        native.private_write(work / "native-verifiers/delivery-page-content.html", delivery.read_bytes())
         native.wp(state, work, ["plugin", "activate", "petish-fulfilment"])
         proof = ROOT / "tests/cancellation-native.php"
         if proof.is_symlink() or not proof.is_file():
@@ -103,15 +108,16 @@ def main():
             native.wp(state, work, ["option", "update", "woocommerce_custom_orders_table_enabled", mode])
             data = native.run(["exec", state["application"], "php", "-d", "sendmail_path=/bin/false", "-d",
                                "display_errors=0", "-d", "log_errors=1", "-d", "error_log=/checks/php-errors.log",
-                               "/repo/tests/cancellation-native.php", mode], work, "cancellation_native_proof", timeout=300)
+                               "/repo/tests/cancellation-native.php", mode, "helpers" if args.helper_only else "full"], work, "cancellation_native_proof", timeout=300)
             report = json.loads(data)
             native.private_write(work / ("cancellation-proof-" + mode + ".json"), json.dumps(report))
             if report.get("status") != "success" or not report.get("checks") or not all(v is True for v in report["checks"].values()):
                 raise native.Failure("cancellation_native_proof")
             reports.append({"storage": report["storage"], "status": "success", "checks_passed": len(report["checks"])})
         result = {"status": "success", "modes": reports, "fresh_database": True,
-                  "external_network_disabled": True, "original_configuration_not_used": True}
-        if args.export_visuals:
+                  "external_network_disabled": True, "original_configuration_not_used": True,
+                  "scope": "faq_prepare_helpers" if args.helper_only else "full_cancellation_flow"}
+        if args.export_visuals and not args.helper_only:
             result["visual_artifacts"] = export_artifacts(work)
         print(json.dumps(result))
     finally:

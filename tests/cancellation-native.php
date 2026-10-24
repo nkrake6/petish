@@ -129,26 +129,42 @@ try {
     petish_cancel_contracts(rtrim(ABSPATH,'/')); cancel_check('hosted_verifier_native_contracts',!in_array(false,$report['checks'],true));
     petish_cancel_controls(); cancel_check('hosted_verifier_native_controls',!in_array(false,$report['checks'],true));
     petish_cancel_policy(); cancel_check('hosted_verifier_native_policy',!in_array(false,$report['checks'],true));
-    $collision=wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_name'=>'faqs','post_title'=>'Owned collision fixture',
+    $collision=wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_name'=>'delivery-shipping','post_title'=>'Delivery & shipping',
         'post_content'=>'Keep this unrelated page','meta_input'=>array('_petish_native_owner'=>$owner)),true);
-    cancel_ok($collision,'owned_faq_collision_created');
+    cancel_ok($collision,'owned_existing_delivery_page_created');
+    $pages[]=(int)$collision;
     $collision_before=get_post($collision)->to_array(); $rejected=false;
     add_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);
     try { try { petish_cancel_prepare(random_int(100000000,999999999).'-1'); } catch(Throwable $ignored) { $rejected=true; } }
     finally { remove_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX); }
     cancel_check('faq_prepare_collision_rejected_without_overwrite',$rejected && get_post($collision)->to_array()===$collision_before);
-    wp_delete_post($collision,true);
+    wp_update_post(array('ID'=>$collision,'post_content'=>wp_slash(petish_cancel_faq_base())));
+    $before_append=petish_cancel_faq_rows();
+    $post_count=(int)$wpdb->get_var("SELECT COUNT(*) FROM `{$wpdb->posts}`");
+    $rollback_run=random_int(100000000,999999999).'-1';
+    petish_cancel_checkpoint($rollback_run,array('owned_native_fixture'=>true));
+    $rollback_rejected=false;
+    add_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);
+    try {try{petish_cancel_prepare($rollback_run);}catch(Throwable $ignored){$rollback_rejected=true;}}
+    finally{remove_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);}
+    cancel_check('faq_append_failure_rolls_back_content_and_marker',$rollback_rejected && petish_cancel_faq_rows()===$before_append && petish_cancel_faq_markers((int)$collision)===array());
     add_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);
     try {
         petish_cancel_prepare(random_int(100000000,999999999).'-1');
         $faq_rows=petish_cancel_faq_rows(); $faq_id=(int)$faq_rows[0]['ID'];
-        cancel_check('faq_prepare_created_exact_native_page',count($faq_rows)===1 && petish_cancel_faq_valid($faq_rows[0]) && petish_cancel_faq_marker($faq_id) && $report['observations']['faq_created']===true);
+        cancel_check('faq_prepare_appends_to_existing_delivery_page',count($faq_rows)===1 && $faq_id===(int)$collision && petish_cancel_faq_valid($faq_rows[0]) && petish_cancel_faq_marker($faq_id) && $report['observations']['faq_appended']===true);
+        cancel_check('faq_prepare_keeps_prior_delivery_text',str_starts_with($faq_rows[0]['post_content'],$before_append[0]['post_content']) && $faq_rows[0]['post_content']===$before_append[0]['post_content'].PETISH_CANCEL_FAQ_CONTENT);
+        $fields_before=$before_append[0];$fields_after=$faq_rows[0];
+        foreach(array('post_content','post_modified','post_modified_gmt')as$field){unset($fields_before[$field],$fields_after[$field]);}
+        cancel_check('faq_prepare_preserves_page_identity_and_other_fields',$fields_before===$fields_after);
+        cancel_check('faq_prepare_creates_no_new_pages',(int)$wpdb->get_var("SELECT COUNT(*) FROM `{$wpdb->posts}`")===$post_count);
         $faq_before=$faq_rows;
         petish_cancel_prepare(random_int(100000000,999999999).'-1');
         cancel_check('faq_prepare_idempotent',petish_cancel_faq_rows()===$faq_before && $report['observations']['faq_already_owned']===true);
-        cancel_check('faq_prepare_scope_checks',($report['checks']['faq_page_only_write_scope_verified']??false) && ($report['checks']['faq_checkpoint_saved']??false));
+        cancel_check('faq_prepare_scope_checks',($report['checks']['delivery_page_only_write_scope_verified']??false) && ($report['checks']['faq_checkpoint_saved']??false));
     } finally {remove_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);}
-    if(isset($faq_id) && get_post_meta($faq_id,PETISH_CANCEL_FAQ_MARKER,true)===PETISH_CANCEL_FAQ_OWNER)wp_delete_post($faq_id,true);
+    clean_post_cache((int)$collision);
+    if (($argv[2] ?? 'full') !== 'helpers') {
     $admin=get_users(array('role'=>'administrator','number'=>1))[0]; $customer=cancel_user('owner'); $stranger=cancel_user('stranger');
     $account_page=cancel_page(); $a=cancel_product('A'); $b=cancel_product('B'); $order=cancel_order($customer,$a,$b); $id=$order->get_id();
     $lines=array_values($order->get_items('line_item')); $line_a=(int)$lines[0]->get_id(); $line_b=(int)$lines[1]->get_id();
@@ -322,6 +338,7 @@ try {
     cancel_check('expired_claim_not_blindly_retried',is_wp_error(Petish_Order_Cancellation_Emails::queue_retry($lease_case['id'],$lease_event,'customer')));
     cancel_option(Petish_Order_Cancellation_Emails::OPTION,'yes');
     cancel_check('no_real_cancellation_or_refund_gateway_called',get_option(Petish_Order_Cancellation_Emails::OPTION)==='yes' && abs((float)$baseline['refunded']-25)<0.000001);
+    }
 } catch(Throwable $error) {
     $failure=isset($checks[$error->getMessage()])?$error->getMessage():'unexpected_native_failure';
     $failure_line=$error->getLine();
