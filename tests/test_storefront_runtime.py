@@ -119,7 +119,7 @@ class StorefrontRuntimeTests(unittest.TestCase):
         code = r'''import assert from 'node:assert/strict';
 const m=await import('./tools/storefront-live-inspect.mjs');
 const allow=(path,method='GET',type='fetch',body='',permit=null)=>m.allowedRequest('https://petish.biz'+path,method,type,body,permit);
-for(const route of ['/', '/cart/', '/product/rainbow-habitat-hideout/'])assert(allow(route,'GET','document'));
+for(const route of ['/', '/cart/', '/product/rainbow-habitat-hideout/', '/product/corner-gap-cleaning-brush/'])assert(allow(route,'GET','document'));
 assert(allow('/wp-admin/admin-ajax.php','POST','fetch','action=petish_account_dropdown'));
 assert(allow('/?wc-ajax=petish_cart_count','POST','fetch',''));
 for(const [route,body] of [['/wp-admin/admin-ajax.php?extra=1','action=petish_account_dropdown'],['/wp-admin/admin-ajax.php','action=petish_account_dropdown&private=1'],['/wp-admin/admin-ajax.php','action=other_action'],['/?wc-ajax=petish_cart_count&extra=1',''],['/?wc-ajax=petish_cart_count','private=1'],['/?wc-ajax=checkout','']])assert(!allow(route,'POST','fetch',body));
@@ -142,6 +142,7 @@ for(const [url,method,body,kind] of [
 ]){assert.equal(m.providerRequestKind(url,method,body),kind);assert(!kind.includes('PRIVATE'));}
 
 assert(allow('/wp-json/wc/store/v1/cart'));assert(allow('/wp-content/plugins/woocommerce/assets/test.js'));
+assert(!allow('/product/other-product/','GET','document'));
 for(const route of ['/checkout/','/wp-json/wc/store/v1/checkout','/wp-json/wc/v3/orders','/?add-to-cart=1','/cart/?remove_item=1'])assert(!allow(route));
 for(const verb of ['POST','DELETE','PUT','PATCH'])assert(!allow('/wp-json/wc/store/v1/cart/items',verb));
 const body=JSON.stringify({id:123,quantity:2});const permit={method:'POST',path:'/wp-json/wc/store/v1/cart/add-item',body,used:false};
@@ -253,6 +254,34 @@ console.log('Compact badge native-wrapper geometry verified at all four widths.'
         result = subprocess.run(['node', '--input-type=module', '-e', code], cwd=ROOT, text=True, capture_output=True, timeout=45)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('four widths', result.stdout)
+
+    def test_related_cards_and_review_filters_report_real_geometry_without_content(self):
+        code = r'''import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
+import {createRequire} from 'node:module';const require=createRequire(new URL('./tools/staging-rehearsal/package.json',import.meta.url));
+const {chromium}=require('playwright');const m=await import('./tools/storefront-live-inspect.mjs');
+const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});const dir=fs.mkdtempSync(path.join(os.tmpdir(),'petish-related-fixture-'));fs.chmodSync(dir,0o700);
+try{
+ const page=await browser.newPage({viewport:{width:1280,height:1000}});await page.route('**/*',r=>r.abort());
+ const image='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="green"/></svg>');
+ const cards=['Short','A much longer catalog title','Compact'].map((title,i)=>`<li><a class="product-thumbnail" href="#PRIVATE_CATALOG_URL"><img src="${image}" width="80" height="80"><span class="petish-hot-badge">Hot</span></a><div class="product-content"><a class="product-title">${title}</a><span class="price" style="width:${80+i*20}px">PRIVATE_PRICE</span><div class="woo-buttons"><a class="${i===0?'product_type_variable':'product_type_simple add_to_cart_button'}">PRIVATE_ACTION_LABEL</a></div></div></li>`).join('');
+ const html=`<style>body{margin:0}header{height:60px}.related{width:744px;margin:140px auto 0}.related-product{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,240px);gap:12px;align-items:start}.related li{position:relative}.product-thumbnail{float:left;width:80px;display:block}.product-content{margin-left:100px;width:140px}.product-title{display:block;font-size:16px;line-height:20px}.price{display:block;height:44px;box-sizing:border-box;background:purple}.petish-hot-badge{position:absolute;right:8px;top:8px;font-size:12px;width:30px;height:20px}.woo-buttons a{display:block;height:44px;background:rgb(15,76,92)}.woo-buttons .product_type_variable{background:rgb(181,128,245)}.pcr{margin:60px 0 0}.pcr-filters{display:flex;align-items:flex-end;gap:12px}.pcr-filters label{display:flex;flex-direction:column}.pcr-filters select{height:44px;margin-bottom:10px}.pcr-filters .pcr-check{display:flex;flex-direction:row;align-items:center;height:44px}.pcr-filters button{height:44px}</style><header id="masthead">PRIVATE_ACCOUNT_HEADER</header><section class="related products"><h2>Related products</h2><ul class="related-product cart-btn-below-img">${cards}</ul></section><section id="petish-customer-reviews" class="pcr"><form class="pcr-filters" method="get" action="/product/rainbow-habitat-hideout/#petish-customer-reviews"><label>Rating<select name="pcr_rating"><option value="PRIVATE_OPTION">All ratings</option></select></label><label>Media<select name="pcr_media"><option>All</option></select></label><label>Sort<select name="pcr_sort"><option>Newest</option></select></label><label class="pcr-check"><input type="checkbox" name="pcr_verified" value="PRIVATE_CHECKBOX">Verified</label><button type="submit">Apply filters</button></form><article>PRIVATE_REVIEW_TEXT</article></section>`;
+ await page.route('https://petish.biz/product/rainbow-habitat-hideout/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://petish.biz/product/rainbow-habitat-hideout/');
+ const before=await page.evaluate(m.relatedProductsFacts);assert.equal(before.metrics.related_card_count,3);assert.equal(before.observations.related_native_template_present,true);assert.equal(before.observations.related_hot_badges_in_image_anchor,true);
+ assert.equal(before.observations.related_hot_badges_positioned_by_image_anchor,false);assert.equal(before.observations.related_hot_badges_within_image,false);assert(before.metrics.related_price_width_spread_px>=39);assert(before.metrics.related_price_row_top_spread_px>=19);
+ assert.equal(before.observations.related_title_one_line_seen,true);assert.equal(before.observations.related_title_multiple_lines_seen,true);assert.equal(before.observations.related_variable_simple_same_background,false);
+ assert.deepEqual([before.metrics.related_variable_button_red,before.metrics.related_variable_button_green,before.metrics.related_variable_button_blue],[181,128,245]);assert(!JSON.stringify(before).includes('PRIVATE'));
+ await page.evaluate(()=>{const style=document.createElement('style');style.textContent='.product-thumbnail{position:relative}.product-title{min-height:40px}.price{width:100%!important}.woo-buttons .product_type_variable{background:rgb(237,231,255)}';document.head.appendChild(style);});
+ const after=await page.evaluate(m.relatedProductsFacts);assert.equal(after.observations.related_hot_badges_positioned_by_image_anchor,true);assert.equal(after.observations.related_hot_badges_within_image,true);assert.equal(after.observations.related_price_widths_equal,true);assert.equal(after.observations.related_prices_aligned_per_row,true);assert.equal(after.observations.related_prices_fill_content,true);
+ const crop=await m.capturePublicPanel(page,dir,'related');assert.equal(crop.saved,true);const file=path.join(dir,'related-products.private.png');assert.equal(fs.statSync(file).mode&0o7777,0o600);fs.unlinkSync(file);
+ await page.evaluate(()=>document.querySelector('.product-content').appendChild(document.createElement('input')));assert.equal((await m.capturePublicPanel(page,dir,'related')).saved,false);assert.equal(fs.existsSync(file),false);
+ const formBefore=await page.evaluate(m.reviewFilterFacts);assert.equal(formBefore.observations.review_filter_three_selects,true);assert.equal(formBefore.observations.review_filter_native_get_preserved,true);assert.equal(formBefore.metrics.review_filter_select_margin_bottom_max_px,10);assert.equal(formBefore.metrics.review_filter_control_bottom_delta_px,10);assert.equal(formBefore.observations.review_filter_apply_aligned,false);assert(!JSON.stringify(formBefore).includes('PRIVATE'));
+ await page.evaluate(()=>{const style=document.createElement('style');style.textContent='.pcr-filters select{margin-bottom:0}';document.head.appendChild(style);for(const el of document.querySelectorAll('.pcr-filters select'))Object.defineProperty(el,'value',{get(){throw new Error('Private values must not be read');}});});
+ const fixed=await page.evaluate(m.reviewFilterFacts);assert.equal(fixed.observations.review_filter_apply_aligned,true);assert.equal(fixed.metrics.review_filter_control_bottom_delta_px,0);assert.equal(fixed.metrics.review_filter_select_margin_bottom_max_px,0);assert.equal(fixed.observations.review_filter_native_get_preserved,true);
+}finally{await browser.close();fs.rmSync(dir,{recursive:true,force:true});}
+console.log('Public related-card and native GET filter geometry verified.');'''
+        result = subprocess.run(['node', '--input-type=module', '-e', code], cwd=ROOT, text=True, capture_output=True, timeout=45)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('geometry verified', result.stdout)
 
     def test_native_report_requires_real_guard_truth_without_exposing_observations(self):
         checks = dict.fromkeys(RUNTIME.native_schema(), True)
