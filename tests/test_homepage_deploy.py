@@ -20,7 +20,7 @@ spec = importlib.util.spec_from_file_location('homepage_evidence', ROOT / 'scrip
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
-BASELINE = 'ceaa9691f7a8066faa6041dd5514e06c07d0cb31'
+BASELINE = 'b83783ebe284303baa2f6dcc34a4f3c69c3a6e2b'
 HISTORICAL_BASELINE = '19b08bbe998839a98dc845c9afac4ecd651c4e26'
 HISTORICAL_NEW_FILES = {'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
              'includes/hero-images.php','assets/js/hero-images-admin.js',

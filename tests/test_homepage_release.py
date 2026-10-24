@@ -361,7 +361,7 @@ assert(!JSON.stringify(facts).includes(input.login));
     def test_previous_thirty_file_receipt_cannot_authorize_changed_payment_stylesheet(self):
         path,_,stage,_=self.fixture_evidence()
         previous={name:hashlib.sha256(subprocess.check_output(['git','show',
-            'ceaa9691f7a8066faa6041dd5514e06c07d0cb31:'+evidence.PREFIX+name],cwd=ROOT)).hexdigest()
+            'b83783ebe284303baa2f6dcc34a4f3c69c3a6e2b:'+evidence.PREFIX+name],cwd=ROOT)).hexdigest()
             for name in evidence.FILES}
         self.assertEqual(len(previous),30)
         self.assertNotEqual(previous,stage['source_hashes'])
