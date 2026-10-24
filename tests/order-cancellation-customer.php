@@ -213,6 +213,11 @@ try { $class::submit(); } catch (CustomerRedirect $expected) {}
 check('submit_uses_303_prg_to_native_order',$f['redirect']===array('https://petish.example/my-account/view-order/81/#cancel-request',303));
 check('submit_sets_nocache_and_safe_ack',$f['nocache']===true && end($f['notices'])===array('success','Your cancellation request has been recorded. You can follow its progress on this page.'));
 check('admin_post_initializes_only_native_notice_session',WC()->session instanceof stdClass && WC()->session_initializations===1);
+$f['create_result']=array('id'=>901,'order_id'=>81,'state'=>'requested','reused'=>true);
+$_POST=request_post();$_POST['selected']=array('302');
+try { $class::submit(); } catch (CustomerRedirect $expected) {}
+check('reused_case_notice_never_claims_new_selection_saved',end($f['notices'])===array('notice','An open cancellation request already exists for this order. Its details are unchanged. Contact orders@petish.biz with your order number if you need to change it.'));
+unset($f['create_result']);
 $_POST=request_post();$_POST['_wpnonce']='invalid';
 try { $class::submit(); } catch (CustomerRedirect $expected) {}
 check('bad_post_errors_are_generic',end($f['notices'])[0]==='error' && !str_contains(end($f['notices'])[1],'PRIVATE-'));

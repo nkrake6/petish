@@ -101,6 +101,7 @@ final class Petish_Order_Cancellation_Customer {
     }
 
     private static function notice($result) {
+        if (is_array($result) && ($result['reused'] ?? false) === true) return array('notice', __('An open cancellation request already exists for this order. Its details are unchanged. Contact orders@petish.biz with your order number if you need to change it.', 'petish-fulfilment'));
         if (!is_wp_error($result)) return array('success', __('Your cancellation request has been recorded. You can follow its progress on this page.', 'petish-fulfilment'));
         $code = $result->get_error_code();
         if (str_ends_with($code, '_items')) return array('error', __('Choose at least one order item and a valid remaining quantity, then try again.', 'petish-fulfilment'));
