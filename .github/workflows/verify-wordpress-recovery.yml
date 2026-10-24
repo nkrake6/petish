@@ -13,13 +13,14 @@ on:
     types: [completed]
     branches: [main, configure-mail]
   push:
-    branches: [main]
+    branches: [main, verify-release-recovery]
     paths:
       - .github/workflows/verify-wordpress-recovery.yml
       - scripts/prepare-recovery-backup.py
       - scripts/verify-wordpress-recovery.py
       - scripts/verify-wordpress-recovery.sh
       - scripts/test-restored-wordpress.py
+      - operations/recovery-backup.json
 
 permissions:
   contents: write
@@ -56,6 +57,17 @@ jobs:
               exit 1
             fi
             BACKUP_BRANCH="full-site-backup/$UPSTREAM_BACKUP_RUN-$UPSTREAM_BACKUP_ATTEMPT"
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_NAME" == verify-release-recovery ]]; then
+            BACKUP_BRANCH=$(python3 - <<'PY'
+          import json,re
+          from pathlib import Path
+          value=json.loads(Path('operations/recovery-backup.json').read_text())
+          if not isinstance(value,dict) or set(value)!={'backup_branch'} or not isinstance(value['backup_branch'],str) or not re.fullmatch(r'full-site-backup/[1-9][0-9]*-[1-9][0-9]*',value['backup_branch']):
+              raise ValueError('Select an existing fixed encrypted backup branch')
+          print(value['backup_branch'])
+          PY
+            )
           fi
           if ! [[ "$BACKUP_BRANCH" =~ ^full-site-backup/[0-9]+-[0-9]+$ ]]; then
             printf '%s\n' 'Select an existing full-site-backup/<run-id>-<attempt> branch.' >&2
