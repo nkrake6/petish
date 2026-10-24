@@ -129,6 +129,30 @@ try {
     petish_cancel_contracts(rtrim(ABSPATH,'/')); cancel_check('hosted_verifier_native_contracts',!in_array(false,$report['checks'],true));
     petish_cancel_controls(); cancel_check('hosted_verifier_native_controls',!in_array(false,$report['checks'],true));
     petish_cancel_policy(); cancel_check('hosted_verifier_native_policy',!in_array(false,$report['checks'],true));
+    // Old staging clones can lack the already-existing live delivery page. Only
+    // that exact counterpart may be created; never create a separate FAQ page.
+    $missing_count=(int)$wpdb->get_var("SELECT COUNT(*) FROM `{$wpdb->posts}`");
+    $missing_run=random_int(100000000,999999999).'-1';
+    petish_cancel_checkpoint($missing_run,array('owned_native_fixture'=>true));$missing_rejected=false;
+    add_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);
+    try{try{petish_cancel_prepare($missing_run);}catch(Throwable $ignored){$missing_rejected=true;}}
+    finally{remove_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);}
+    cancel_check('missing_delivery_creation_failure_rolls_back',$missing_rejected&&petish_cancel_faq_rows()===array()
+        &&(int)$wpdb->get_var("SELECT COUNT(*) FROM `{$wpdb->posts}`")===$missing_count);
+    add_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);
+    try{
+        petish_cancel_prepare(random_int(100000000,999999999).'-1');$created_rows=petish_cancel_faq_rows();
+        cancel_check('missing_delivery_counterpart_created_only',count($created_rows)===1&&petish_cancel_faq_valid($created_rows[0])
+            &&petish_cancel_faq_marker((int)$created_rows[0]['ID'])&&($report['observations']['delivery_counterpart_created']??false)
+            &&(int)$wpdb->get_var("SELECT COUNT(*) FROM `{$wpdb->posts}`")===$missing_count+1);
+        petish_cancel_prepare(random_int(100000000,999999999).'-1');
+        cancel_check('created_delivery_counterpart_idempotent',petish_cancel_faq_rows()===$created_rows
+            &&($report['observations']['faq_already_owned']??false)&&!$report['observations']['delivery_counterpart_created']);
+        cancel_check('delivery_prepare_uses_index_and_verified_isolation',($report['checks']['faq_page_slug_indexed']??false)
+            &&($report['checks']['faq_transaction_isolation_verified']??false));
+    }finally{remove_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);}
+    $created_id=(int)$created_rows[0]['ID'];update_post_meta($created_id,'_petish_native_owner',$owner);
+    $pages[]=$created_id;wp_delete_post($created_id,true);array_pop($pages);
     $collision=wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_name'=>'delivery-shipping','post_title'=>'Delivery & shipping',
         'post_content'=>'Keep this unrelated page','meta_input'=>array('_petish_native_owner'=>$owner)),true);
     cancel_ok($collision,'owned_existing_delivery_page_created');
@@ -148,9 +172,24 @@ try {
     try {try{petish_cancel_prepare($rollback_run);}catch(Throwable $ignored){$rollback_rejected=true;}}
     finally{remove_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);}
     cancel_check('faq_append_failure_rolls_back_content_and_marker',$rollback_rejected && petish_cancel_faq_rows()===$before_append && petish_cancel_faq_markers((int)$collision)===array());
+    $row_locked=false;$lock_probe=static function($sql)use($collision,&$row_locked,$wpdb){
+        if(str_starts_with($sql,'UPDATE `'.$wpdb->posts.'` SET `post_content`')){
+            $connection=mysqli_init();
+            if(!mysqli_real_connect($connection,'localhost',DB_USER,DB_PASSWORD,DB_NAME,null,'/run/mysqld/mysqld.sock'))throw new RuntimeException('delivery_lock_probe_connection');
+            try{
+                mysqli_query($connection,'SET innodb_lock_wait_timeout=1');
+                try{$changed=mysqli_query($connection,'UPDATE `'.$wpdb->posts.'` SET post_title=post_title WHERE ID='.(int)$collision);$code=mysqli_errno($connection);}
+                catch(mysqli_sql_exception $error){$changed=false;$code=$error->getCode();}
+                $row_locked=$changed===false&&(int)$code===1205;
+            }finally{mysqli_close($connection);}
+        }
+        return$sql;
+    };
+    add_filter('query',$lock_probe,PHP_INT_MAX-1);
     add_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);
     try {
         petish_cancel_prepare(random_int(100000000,999999999).'-1');
+        cancel_check('delivery_row_locked_before_its_update',$row_locked);
         $faq_rows=petish_cancel_faq_rows(); $faq_id=(int)$faq_rows[0]['ID'];
         cancel_check('faq_prepare_appends_to_existing_delivery_page',count($faq_rows)===1 && $faq_id===(int)$collision && petish_cancel_faq_valid($faq_rows[0]) && petish_cancel_faq_marker($faq_id) && $report['observations']['faq_appended']===true);
         cancel_check('faq_prepare_keeps_prior_delivery_text',str_starts_with($faq_rows[0]['post_content'],$before_append[0]['post_content']) && $faq_rows[0]['post_content']===$before_append[0]['post_content'].PETISH_CANCEL_FAQ_CONTENT);
@@ -162,7 +201,7 @@ try {
         petish_cancel_prepare(random_int(100000000,999999999).'-1');
         cancel_check('faq_prepare_idempotent',petish_cancel_faq_rows()===$faq_before && $report['observations']['faq_already_owned']===true);
         cancel_check('faq_prepare_scope_checks',($report['checks']['delivery_page_only_write_scope_verified']??false) && ($report['checks']['faq_checkpoint_saved']??false));
-    } finally {remove_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);}
+    } finally {remove_filter('query','petish_cancel_prepare_guard',PHP_INT_MAX);remove_filter('query',$lock_probe,PHP_INT_MAX-1);}
     clean_post_cache((int)$collision);
     if (($argv[2] ?? 'full') !== 'helpers') {
     $admin=get_users(array('role'=>'administrator','number'=>1))[0]; $customer=cancel_user('owner'); $stranger=cancel_user('stranger');
