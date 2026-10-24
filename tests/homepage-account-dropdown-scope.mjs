@@ -2,9 +2,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import { EventEmitter } from 'node:events';
 import { allowedHomepageRequest, accountDropdownFragmentFacts, inspectAccountDropdownKeyboard,
-  accountDropdownTransportFacts, waitForAccountDropdownResponse, ACCOUNT_TRANSPORT_FACT_KEYS,
+  accountDropdownTransportFacts, probeAccountDropdown, ACCOUNT_TRANSPORT_FACT_KEYS,
   publicReport, DIAGNOSTIC_KEYS, CHECK_KEYS } from '../tools/homepage/browser.mjs';
 
 const origin = 'https://staging.petish.biz', endpoint = origin + '/wp-admin/admin-ajax.php';
@@ -114,42 +113,41 @@ check(!transport(200, endpoint, null).body_bounded);
 check(!transport(200, 'https://foreign.invalid/wp-admin/admin-ajax.php').final_same_origin);
 check(!JSON.stringify(transport(500, endpoint, 'Fatal error: private-server-path ' + input.password)).includes(input.password));
 
-const stubResponse = ({ aborted = false, value = JSON.stringify(payload), status = 200, customBody = body } = {}) => ({
-  url: () => endpoint,
-  request: () => ({ method: () => 'POST', postData: () => customBody, redirectedFrom: () => null,
-    failure: () => aborted ? { errorText: 'net::ERR_ABORTED' } : null }),
-  allHeaders: async () => ({ ...headers, 'content-type': status === 200 ? 'application/json' : 'text/html' }),
-  status: () => status, finished: async () => aborted ? new Error('net::ERR_ABORTED') : null,
-  body: async () => { if (aborted) throw new Error('Aborted response body'); return Buffer.from(value); },
-});
-const emitter = new EventEmitter(), observed = {};
-const complete = waitForAccountDropdownResponse(emitter, observed, 1000);
-emitter.emit('response', stubResponse({ customBody: body + '&user_id=1' }));
-check(observed.account_dropdown_response_received !== true);
-emitter.emit('response', stubResponse({ aborted: true }));
-await new Promise(resolve => setImmediate(resolve));
-check(observed.account_dropdown_request_aborted === true);
-emitter.emit('response', stubResponse());
-const result = await complete;
-check(result.payload.success === true && observed.account_dropdown_json_parsed === true);
-check(observed.account_dropdown_request_aborted === true && observed.account_dropdown_body_read_failed === true);
-check(emitter.listenerCount('response') === 0);
-check(!JSON.stringify(observed).includes('synthetic-only') && Object.values(observed).every(value => typeof value === 'boolean'));
-const deniedEmitter = new EventEmitter(), deniedFacts = {};
-const denied = waitForAccountDropdownResponse(deniedEmitter, deniedFacts, 1000);
-deniedEmitter.emit('response', stubResponse({ status: 403, value: '<html>Access denied by security check</html>' }));
-const deniedResult = await denied;
-check(deniedResult.payload === undefined && deniedFacts.account_dropdown_http_403 === true && deniedFacts.account_dropdown_body_waf_marker === true);
-check(deniedFacts.account_dropdown_json_parsed !== true && deniedEmitter.listenerCount('response') === 0);
-const failedEmitter = new EventEmitter(), failedFacts = {};
-const failed = waitForAccountDropdownResponse(failedEmitter, failedFacts, 1000);
-failedEmitter.emit('response', { ...stubResponse(), finished: async () => new Error('Server transport failed'),
-  body: async () => { throw new Error('Unavailable response body'); } });
-check((await failed).payload === undefined && failedFacts.account_dropdown_request_aborted === false
-  && failedFacts.account_dropdown_response_finished_error === true && failedFacts.account_dropdown_body_read_failed === true);
-check(failedEmitter.listenerCount('response') === 0);
-const expiredEmitter = new EventEmitter();
-check(await waitForAccountDropdownResponse(expiredEmitter, {}, 5) === null && expiredEmitter.listenerCount('response') === 0);
+async function mockedProbe({ value = JSON.stringify(payload), status = 200, readFails = false, fetchFails = false } = {}) {
+  const previousFetch = globalThis.fetch;
+  const responseHeaders = new Headers({ ...headers, 'content-type': status === 200 ? 'application/json' : 'text/html',
+    'x-private-value': input.password });
+  try {
+    globalThis.fetch = async (url, options) => {
+      check(url === endpoint && options.method === 'POST' && options.body === body);
+      check(options.credentials === 'same-origin' && options.cache === 'no-store');
+      check(options.headers['Content-Type'] === 'application/x-www-form-urlencoded;charset=UTF-8');
+      check(options.signal instanceof AbortSignal);
+      if (fetchFails) throw new TypeError('Fetch unavailable');
+      return { headers: responseHeaders, ok: status >= 200 && status < 300, status, url: endpoint, redirected: false,
+        text: async () => { if (readFails) throw new Error('private-server-path'); return value; } };
+    };
+    return await probeAccountDropdown({ evaluate: async (callback, args) => {
+      check(JSON.stringify(args) === JSON.stringify({ endpoint, body }));
+      return callback(args);
+    } }, 'https://foreign.invalid/', 'action=other&user_id=1');
+  } finally { globalThis.fetch = previousFetch; }
+}
+const probe = await mockedProbe();
+check(probe.ok && probe.json_parsed && probe.body_bounded && !probe.body_read_failed && probe.payload.success === true);
+check(Object.keys(probe.headers).sort().join(',') === ['cache-control', 'content-type', 'vary', 'x-content-type-options', 'x-litespeed-cache'].sort().join(','));
+check(!('body' in probe) && !('text' in probe) && !JSON.stringify(probe.headers).includes(input.password));
+check(Object.values(accountDropdownFragmentFacts(probe.headers, probe.ok, probe.payload, account, input)).every(value => value === true));
+const deniedProbe = await mockedProbe({ status: 403, value: '<html>Access denied by security check</html>' });
+check(!deniedProbe.ok && deniedProbe.body_waf_marker && !deniedProbe.json_parsed && deniedProbe.payload === null);
+const largeProbe = await mockedProbe({ value: '😺'.repeat(32769) });
+check(!largeProbe.body_bounded && !largeProbe.json_parsed && largeProbe.payload === null);
+const unreadableProbe = await mockedProbe({ readFails: true });
+check(unreadableProbe.body_read_failed && !unreadableProbe.json_parsed && !unreadableProbe.body_bounded);
+let fetchRejected = false;
+try { await mockedProbe({ fetchFails: true }); } catch (error) { fetchRejected = error instanceof TypeError; }
+check(fetchRejected);
+
 
 if (process.argv.includes('--browser')) {
   const require = createRequire(new URL('../tools/staging-rehearsal/package.json', import.meta.url));
@@ -176,8 +174,11 @@ if (process.argv.includes('--browser')) {
         <script>window.petishAccountDropdown=${JSON.stringify({ endpoint, action: 'petish_account_dropdown', accountUrl: account, openLabel: 'Open account navigation', closeLabel: 'Close account navigation' })};</script><script>${script}</script></body></html>` });
     });
     await page.goto(origin + '/');
-    check(await inspectAccountDropdownKeyboard(page, payload.data.items));
-    check(privateReads >= 1);
+    const browserProbe = await probeAccountDropdown(page);
+    check(browserProbe.ok && browserProbe.json_parsed && browserProbe.body_bounded && !browserProbe.body_read_failed);
+    check(Object.values(accountDropdownFragmentFacts(browserProbe.headers, browserProbe.ok, browserProbe.payload, account, input)).every(value => value === true));
+    check(await inspectAccountDropdownKeyboard(page, browserProbe.payload.data.items));
+    check(privateReads >= 2);
     check(await page.locator('.existing-cart-count').textContent() === '2');
   } finally { await browser.close(); }
 }
