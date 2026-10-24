@@ -1,4 +1,4 @@
-"""Verify bounded payment crops are re-encoded without metadata or arbitrary files."""
+"""Verify fixed public guest crops are re-encoded without metadata or arbitrary files."""
 import importlib.util
 import io
 import os
@@ -20,7 +20,7 @@ class PaymentCropTests(unittest.TestCase):
         self.directory = Path(self.temporary.name)
         (self.directory / 'public').mkdir(mode=0o700)
         self.browser = {'checks': dict.fromkeys(('fresh_guest_context', 'initial_cart_empty', 'network_barrier_enforced', 'created_guest_cart_cleared'), True)}
-        self.browser['observations'] = dict.fromkeys(('product_payment_crop_saved', 'cart_payment_crop_saved'), True)
+        self.browser['observations'] = dict.fromkeys(('product_payment_crop_saved', 'cart_payment_crop_saved', 'related_products_crop_saved'), True)
 
     def png(self, name='product-afterpay.private.png', size=(440, 120), mode=0o600):
         source = self.directory / name
@@ -31,12 +31,12 @@ class PaymentCropTests(unittest.TestCase):
         source.chmod(mode)
         return source
 
-    def test_only_two_fixed_payment_crops_are_published_without_any_source_metadata(self):
-        for name in ('product-afterpay.private.png', 'cart-payments.private.png', 'customer-private.png'):
+    def test_only_three_fixed_public_crops_are_published_without_any_source_metadata(self):
+        for name in ('product-afterpay.private.png', 'cart-payments.private.png', 'related-products.private.png', 'customer-private.png'):
             self.png(name)
         facts, valid = screen.publish_payment_crops(self.directory, self.browser)
         self.assertTrue(valid)
-        self.assertEqual(set(path.name for path in (self.directory / 'public').iterdir()), {'product-afterpay.png', 'cart-payments.png'})
+        self.assertEqual(set(path.name for path in (self.directory / 'public').iterdir()), {'product-afterpay.png', 'cart-payments.png', 'related-products.png'})
         for name, fact in facts.items():
             self.assertTrue(fact['published'])
             self.assertEqual((fact['width'], fact['height']), (440, 120))
@@ -63,6 +63,20 @@ class PaymentCropTests(unittest.TestCase):
         facts, valid = screen.publish_payment_crops(self.directory, self.browser)
         self.assertTrue(valid)
         self.assertFalse(facts['product_afterpay']['published'])
+        self.assertEqual(list((self.directory / 'public').iterdir()), [])
+
+    def test_related_catalog_requires_its_own_capture_attestation_and_private_single_file(self):
+        source = self.png('related-products.private.png', size=(1150, 680))
+        self.browser['observations']['related_products_crop_saved'] = False
+        facts, valid = screen.publish_payment_crops(self.directory, self.browser)
+        self.assertTrue(valid)
+        self.assertFalse(facts['related_products']['published'])
+        self.assertEqual(list((self.directory / 'public').iterdir()), [])
+        self.browser['observations']['related_products_crop_saved'] = True
+        source.chmod(0o644)
+        facts, valid = screen.publish_payment_crops(self.directory, self.browser)
+        self.assertFalse(valid)
+        self.assertFalse(facts['related_products']['published'])
         self.assertEqual(list((self.directory / 'public').iterdir()), [])
 
     def test_symlinks_hardlinks_metadata_only_and_out_of_bounds_images_are_rejected(self):

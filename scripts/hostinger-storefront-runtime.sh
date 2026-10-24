@@ -75,7 +75,7 @@ PY
     git read-tree --empty
     blob=$(git hash-object -w "$work/public/status.json")
     git update-index --add --cacheinfo "100644,$blob,status.json"
-    for name in product-afterpay.png cart-payments.png; do
+    for name in product-afterpay.png cart-payments.png related-products.png; do
         if [[ -f "$work/public/$name" && ! -L "$work/public/$name" ]]; then
             blob=$(git hash-object -w "$work/public/$name")
             git update-index --add --cacheinfo "100644,$blob,$name"
@@ -91,7 +91,7 @@ PY
     printf 'Screened installed runtime: https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-%s\n' "$run"
     if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
         printf '[Screened installed runtime](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-%s)\n' "$run" >> "$GITHUB_STEP_SUMMARY"
-        for name in product-afterpay.png cart-payments.png; do
+        for name in product-afterpay.png cart-payments.png related-products.png; do
             if [[ -f "$work/public/$name" ]]; then
                 printf '\n[View %s](https://github.com/nkrake6/petish/blob/automation-status/storefront-runtime-%s/%s)\n' "$name" "$run" "$name" >> "$GITHUB_STEP_SUMMARY"
             fi

@@ -288,12 +288,14 @@ def screen_browser(value):
 PAYMENT_CROPS = {
     'product_afterpay': ('product-afterpay.private.png', 'product-afterpay.png'),
     'cart_payments': ('cart-payments.private.png', 'cart-payments.png'),
+    'related_products': ('related-products.private.png', 'related-products.png'),
 }
-CROP_FLAGS = {'product_afterpay': 'product_payment_crop_saved', 'cart_payments': 'cart_payment_crop_saved'}
+CROP_FLAGS = {'product_afterpay': 'product_payment_crop_saved', 'cart_payments': 'cart_payment_crop_saved',
+              'related_products': 'related_products_crop_saved'}
 
 
 def publish_payment_crops(directory, browser):
-    """Re-encode only fixed guest-payment crops; discard all original PNG metadata."""
+    """Re-encode fixed guest-storefront crops; discard all original PNG metadata."""
     observations = {name: {'published': False, 'width': 0, 'height': 0} for name in PAYMENT_CROPS}
     guards = {'fresh_guest_context', 'initial_cart_empty', 'network_barrier_enforced', 'created_guest_cart_cleared'}
     if browser is None or any(browser.get('checks', {}).get(name) is not True for name in guards):
