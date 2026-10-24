@@ -11,7 +11,10 @@ import sys
 
 PREFIX = 'wordpress/wp-content/plugins/petish-fulfilment/'
 THEME_PREFIX = 'wordpress/wp-content/themes/dt-the7-child/'
-REQUIRED_THEME = {'includes/header-navigation.php','includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js'}
+REQUIRED_THEME = {
+ 'includes/header-navigation.php','includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
+ 'includes/hero-images.php','assets/js/hero-images-admin.js','functions.php','front-page.php','assets/css/home.css',
+}
 SOURCE_PATH = re.compile(r'(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_.-]+\.(?:php|js|css|md|json|svg|png|jpg|jpeg|webp|txt)\Z')
 SHA = re.compile(r'[a-f0-9]{64}\Z')
 REQUIRED_SOURCE = {
@@ -31,17 +34,26 @@ COMMON = {
  'orders_unchanged','users_and_authentication_unchanged','product_prices_and_stock_unchanged','settings_unchanged',
  'existing_passports_unchanged','private_photo_files_unchanged',
  'theme_source_verified','theme_source_unchanged','header_dropdown_hooks_verified','header_guest_payload_private','header_reviews_url_verified',
+ 'hero_settings_hooks_verified','hero_default_resolver_verified','hero_guest_settings_denied','hero_option_unchanged',
+ 'staff_settings_hook_verified',
 }
 VERIFY = {
  'customer_inactive_output_absent','customer_style_not_enqueued','customer_guest_denied','customer_nonce_verified',
  'staff_access_denied','staff_nonce_verified','staff_preview_permission_verified','email_preview_permission_verified',
  'disabled_mutations_rejected','manager_access_verified','staff_queue_rendered','sql_write_attempts_absent',
+ 'staff_settings_nonce_verified',
 }
 PREPARE = {
  'faq_section_prepared','faq_transactional_tables','faq_no_table_triggers','faq_checkpoint_saved','delivery_page_only_write_scope_verified','faq_existing_content_safe','faq_no_cache_dropins',
+ 'faq_page_slug_indexed','faq_transaction_isolation_verified',
 }
 OBSERVATIONS = {'hosted_case_mutations_not_exercised','external_supplier_cancellation_not_exercised',
- 'gateway_refunds_not_exercised','customer_email_body_not_exercised','header_authenticated_payload_not_exercised','faq_appended','faq_already_owned','delivery_copy_aligned'}
+ 'gateway_refunds_not_exercised','customer_email_body_not_exercised','header_authenticated_payload_not_exercised','hero_attachment_selection_not_exercised',
+ 'faq_appended','faq_already_owned','delivery_copy_aligned','delivery_counterpart_created',
+ 'delivery_page_present','delivery_page_unique','delivery_page_structure_known','delivery_copy_current','delivery_copy_legacy'}
+DELIVERY_CLASSES={'unchecked','absent','duplicate','structure_unknown','current','legacy','owned','manual_content','marker_unknown'}
+DELIVERY_OBSERVATIONS={'faq_appended','faq_already_owned','delivery_copy_aligned','delivery_counterpart_created',
+ 'delivery_page_present','delivery_page_unique','delivery_page_structure_known','delivery_copy_current','delivery_copy_legacy'}
 CATEGORIES = {'input','paths','source','bootstrap','runtime','snapshot','contracts','controls','prepare','faq','complete','invalid_report'}
 
 
@@ -138,7 +150,7 @@ def build_theme_manifest(revision):
 def screen(path, mode):
     try:
         raw = json.loads(regular(path), object_pairs_hook=no_duplicate_keys)
-        if mode not in {'prepare', 'verify'} or not isinstance(raw, dict) or set(raw) != {'schema_version','target','mode','status','category','checks','observations','source_hashes','theme_source_hashes'} \
+        if mode not in {'prepare', 'verify'} or not isinstance(raw, dict) or set(raw) != {'schema_version','target','mode','status','category','checks','observations','source_hashes','theme_source_hashes','delivery_page'} \
                 or type(raw['schema_version']) is not int or raw['schema_version'] != 1 or raw['target'] != 'staging' \
                 or raw['mode'] != mode or raw['status'] not in {'success','failure'} or raw['category'] not in CATEGORIES:
             raise ValueError('Invalid report')
@@ -153,19 +165,36 @@ def screen(path, mode):
             raw['theme_source_hashes']=theme_manifest(raw['theme_source_hashes'])
         elif raw['theme_source_hashes']!={}:
             raise ValueError('Invalid header manifest')
+        page=raw['delivery_page']
+        if not isinstance(page,dict) or set(page)!={'classification','content_sha256'} or page['classification'] not in DELIVERY_CLASSES \
+                or (page['content_sha256'] is not None and (not isinstance(page['content_sha256'],str) or not SHA.fullmatch(page['content_sha256']))):
+            raise ValueError('Invalid delivery-page classification')
+        if page['classification'] in {'unchecked','absent','duplicate'} and page['content_sha256'] is not None:
+            raise ValueError('Invalid missing-page digest')
+        if page['classification'] not in {'unchecked','absent','duplicate','structure_unknown'} and page['content_sha256'] is None:
+            raise ValueError('Missing content digest')
         required = COMMON | (PREPARE if mode == 'prepare' else VERIFY)
         obs = raw['observations']
+        finite=DELIVERY_OBSERVATIONS
+        kind=page['classification']
+        inspection={'delivery_page_present':kind not in {'unchecked','absent'},
+                    'delivery_page_unique':kind not in {'unchecked','absent','duplicate'},
+                    'delivery_page_structure_known':kind in {'current','legacy','owned','manual_content','marker_unknown'},
+                    'delivery_copy_current':kind=='current','delivery_copy_legacy':kind=='legacy'}
+        outcome={'faq_appended':mode=='prepare' and kind!='owned','faq_already_owned':kind=='owned',
+                 'delivery_copy_aligned':mode=='prepare' and kind=='legacy','delivery_counterpart_created':mode=='prepare' and kind=='absent'}
         passed = raw['status']=='success' and raw['category']=='complete' and bool(raw['source_hashes']) and bool(raw['theme_source_hashes']) \
             and all(raw['checks'].get(key) is True for key in required) and set(obs)==OBSERVATIONS \
-            and all(obs.get(key) is True for key in OBSERVATIONS-{'faq_appended','faq_already_owned','delivery_copy_aligned'}) \
-            and (obs['faq_appended'] != obs['faq_already_owned']) \
-            and (mode=='prepare' or (obs['faq_appended'] is False and obs['faq_already_owned'] is True and obs['delivery_copy_aligned'] is False))
+            and all(obs.get(key) is True for key in OBSERVATIONS-finite) \
+            and all(obs.get(key) is value for key,value in (inspection|outcome).items()) \
+            and (kind in {'absent','current','legacy','owned'} if mode=='prepare' else kind=='owned')
         if not passed:
             raw['status']='failure'
         return raw,passed
     except Exception:
         return {'schema_version':1,'target':'staging','mode':mode if mode in {'prepare','verify'} else 'verify',
-                'status':'failure','category':'invalid_report','checks':{},'observations':{},'source_hashes':{},'theme_source_hashes':{}},False
+                'status':'failure','category':'invalid_report','checks':{},'observations':{},'source_hashes':{},'theme_source_hashes':{},
+                'delivery_page':{'classification':'unchecked','content_sha256':None}},False
 
 
 if __name__ == '__main__':

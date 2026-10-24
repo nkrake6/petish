@@ -24,13 +24,19 @@ def manifest():
     return {name: 'a' * 64 for name in SCREEN.REQUIRED_SOURCE}
 
 
-def proof(mode='verify'):
+def proof(mode='verify',kind=None):
+    kind=kind or ('current' if mode=='prepare' else 'owned')
+    observations=dict.fromkeys(SCREEN.OBSERVATIONS-SCREEN.DELIVERY_OBSERVATIONS,True)
+    observations.update({'faq_appended':mode=='prepare' and kind!='owned','faq_already_owned':kind=='owned',
+      'delivery_copy_aligned':mode=='prepare' and kind=='legacy','delivery_counterpart_created':mode=='prepare' and kind=='absent',
+      'delivery_page_present':kind not in {'unchecked','absent'},'delivery_page_unique':kind not in {'unchecked','absent','duplicate'},
+      'delivery_page_structure_known':kind in {'current','legacy','owned','manual_content','marker_unknown'},
+      'delivery_copy_current':kind=='current','delivery_copy_legacy':kind=='legacy'})
     return {'schema_version':1,'target':'staging','mode':mode,'status':'success','category':'complete',
             'checks':dict.fromkeys(SCREEN.COMMON | (SCREEN.PREPARE if mode=='prepare' else SCREEN.VERIFY),True),
-            'observations':{'hosted_case_mutations_not_exercised':True,'external_supplier_cancellation_not_exercised':True,
-                            'gateway_refunds_not_exercised':True,'customer_email_body_not_exercised':True,'header_authenticated_payload_not_exercised':True,
-                            'faq_appended':mode=='prepare','faq_already_owned':mode=='verify','delivery_copy_aligned':False},
-            'source_hashes':manifest(),'theme_source_hashes':dict.fromkeys(SCREEN.REQUIRED_THEME,'b'*64)}
+            'observations':observations,
+            'source_hashes':manifest(),'theme_source_hashes':dict.fromkeys(SCREEN.REQUIRED_THEME,'b'*64),
+            'delivery_page':{'classification':kind,'content_sha256':None if kind in {'unchecked','absent','duplicate'} else 'c'*64}}
 
 
 class ReportBoundary(unittest.TestCase):
@@ -44,7 +50,7 @@ class ReportBoundary(unittest.TestCase):
         self.assertTrue(self.screen(proof('prepare'),'prepare')[1])
         self.assertFalse(self.screen(proof('prepare'))[1])
         self.assertFalse(self.screen(proof(),'prepare')[1])
-        value=proof('prepare');value['observations']['faq_appended']=False;value['observations']['faq_already_owned']=True
+        value=proof('prepare','owned')
         self.assertTrue(self.screen(value,'prepare')[1])
 
     def test_never_accept_private_fields_strings_counts_or_unknown_checks(self):
@@ -60,13 +66,32 @@ class ReportBoundary(unittest.TestCase):
                 self.assertFalse(passed);self.assertEqual(screened['category'],'invalid_report')
                 self.assertNotIn('PRIVATE',json.dumps(screened))
 
+    def test_missing_current_legacy_and_owned_delivery_states_are_explicit(self):
+        for kind in ['absent','current','legacy','owned']:
+            with self.subTest(kind=kind):
+                value=proof('prepare',kind)
+                self.assertTrue(self.screen(value,'prepare')[1])
+        for kind in ['unchecked','duplicate','structure_unknown','manual_content','marker_unknown']:
+            value=proof('prepare',kind)
+            safe,passed=self.screen(value,'prepare')
+            self.assertFalse(passed)
+            self.assertEqual(safe['delivery_page']['classification'],kind)
+        value=proof('prepare','absent');value['observations']['delivery_counterpart_created']=False
+        self.assertFalse(self.screen(value,'prepare')[1])
+        for mutate in [lambda v:v['delivery_page'].update(content_sha256='PRIVATE'),
+                       lambda v:v['delivery_page'].update(raw_content='PRIVATE'),
+                       lambda v:v['delivery_page'].update(classification='PRIVATE')]:
+            value=proof();mutate(value);safe,passed=self.screen(value)
+            self.assertFalse(passed);self.assertEqual(safe['category'],'invalid_report')
+            self.assertNotIn('PRIVATE',json.dumps(safe))
+
     def test_all_mode_guards_and_explicit_external_limitations_are_mandatory(self):
         for mode,names in [('verify',SCREEN.COMMON|SCREEN.VERIFY),('prepare',SCREEN.COMMON|SCREEN.PREPARE)]:
             for name in names:
                 value=proof(mode);del value['checks'][name]
                 self.assertFalse(self.screen(value,mode)[1],name)
                 value['checks'][name]=False;self.assertFalse(self.screen(value,mode)[1],name)
-        for name in SCREEN.OBSERVATIONS-{'faq_appended','faq_already_owned','delivery_copy_aligned'}:
+        for name in SCREEN.OBSERVATIONS-SCREEN.DELIVERY_OBSERVATIONS:
             value=proof();value['observations'][name]=False;self.assertFalse(self.screen(value)[1])
         for name in SCREEN.REQUIRED_SOURCE:
             value=proof();del value['source_hashes'][name];self.assertFalse(self.screen(value)[1])
@@ -105,6 +130,10 @@ $row=['ID'=>'123','post_type'=>'page','post_status'=>'publish','post_name'=>'del
 $checks['fixed_owned_content']=petish_cancel_faq_valid($row);
 $row['post_content']='Existing unrelated FAQ copy';$checks['unmanaged_content_refused']=!petish_cancel_faq_valid($row);
 $row['post_content']=petish_cancel_faq_base().PETISH_CANCEL_FAQ_CONTENT;$row['post_type']='shop_order';$checks['other_record_type_refused']=!petish_cancel_faq_valid($row);
+define('ARRAY_A','ARRAY_A');
+$wpdb=new class {public $posts='wp_posts';public $last_error='';public $sql='';function get_results($sql,$mode){$this->sql=$sql;return [];} };
+petish_cancel_faq_rows(true);
+$checks['locked_delivery_read']=str_contains($wpdb->sql,'FORCE INDEX (`post_name`)')&&str_ends_with($wpdb->sql,' FOR UPDATE');
 echo json_encode($checks);
 '''
         with tempfile.TemporaryDirectory() as directory:
@@ -116,7 +145,7 @@ echo json_encode($checks);
             result=command([php,str(fixture),str(helper)],ROOT)
             self.assertEqual(result.stderr,b'')
             checks=json.loads(result.stdout)
-            self.assertEqual(len(checks),8)
+            self.assertEqual(len(checks),9)
             self.assertTrue(all(checks.values()))
 
 

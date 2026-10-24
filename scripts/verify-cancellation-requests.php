@@ -19,6 +19,9 @@ const PETISH_CANCEL_CHECKS = [
  'cancellation_records_unchanged','settings_options_unchanged','native_memory_cache_verified','sql_write_attempts_absent',
  'faq_section_prepared','faq_transactional_tables','faq_no_table_triggers','faq_checkpoint_saved','delivery_page_only_write_scope_verified','faq_existing_content_safe','faq_no_cache_dropins',
  'theme_source_verified','theme_source_unchanged','header_dropdown_hooks_verified','header_guest_payload_private','header_reviews_url_verified',
+ 'hero_settings_hooks_verified','hero_default_resolver_verified','hero_guest_settings_denied','hero_option_unchanged',
+ 'staff_settings_hook_verified','staff_settings_nonce_verified',
+ 'faq_page_slug_indexed','faq_transaction_isolation_verified',
 ];
 function petish_cancel_mark($key,$valid) {
  global $report;
@@ -54,8 +57,9 @@ function petish_cancel_principal($role,$caps) {
  $user=new WP_User(0);$user->roles=$role===null?[]:[$role];$user->caps=$caps;$user->allcaps=$caps;$GLOBALS['current_user']=$user;
 }
 function petish_cancel_theme_source($root,$manifest) {
- $names=['includes/header-navigation.php','includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js'];
- if (!is_array($manifest)||count($manifest)!==4||array_diff($names,array_keys($manifest))) petish_club_verify_fail();
+ $names=['includes/header-navigation.php','includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
+  'includes/hero-images.php','assets/js/hero-images-admin.js','functions.php','front-page.php','assets/css/home.css'];
+ if (!is_array($manifest)||count($manifest)!==count($names)||array_diff($names,array_keys($manifest))) petish_club_verify_fail();
  $theme=$root.'/wp-content/themes/dt-the7-child';
  foreach ($names as $name) {
   $digest=$manifest[$name];$path=$theme.'/'.$name;
@@ -80,6 +84,26 @@ function petish_cancel_header($root) {
   $url=wc_get_account_endpoint_url('my-reviews');$query=[];parse_str(wp_parse_url($url,PHP_URL_QUERY)??'',$query);
   petish_cancel_mark('header_reviews_url_verified',is_string($url)&&wp_parse_url($url,PHP_URL_HOST)==='staging.petish.biz'&&($query['my-reviews']??null)==='1');
  } finally {$GLOBALS['current_user']=$old;}
+}
+function petish_cancel_hero($root) {
+ petish_cancel_mark('hero_settings_hooks_verified',class_exists('Petish_Hero_Images',false)
+  &&(new ReflectionClass('Petish_Hero_Images'))->getFileName()===$root.'/wp-content/themes/dt-the7-child/includes/hero-images.php'
+  &&Petish_Hero_Images::OPTION==='petish_home_hero_images_v1'
+  &&has_action('admin_menu',['Petish_Hero_Images','menu'])!==false
+  &&has_action('admin_init',['Petish_Hero_Images','register'])!==false
+  &&has_action('admin_enqueue_scripts',['Petish_Hero_Images','admin_assets'])!==false);
+ $before=get_option(Petish_Hero_Images::OPTION,[]);$old=$GLOBALS['current_user']??null;
+ $empty=static fn()=>[];
+ add_filter('pre_option_'.Petish_Hero_Images::OPTION,$empty,PHP_INT_MAX);
+ try {
+  $defaults=[['slug'=>'rabbit','image'=>'rabbit-v6.webp','width'=>2400,'height'=>1597,'name'=>'Rabbits',
+   'alt'=>'Process-only default photo','author'=>'Original author','source'=>'https://example.com/default-photo',
+   'license_name'=>'Original photo license','license_url'=>'https://example.com/license']];
+  petish_cancel_mark('hero_default_resolver_verified',Petish_Hero_Images::resolve($defaults)===$defaults);
+  petish_cancel_principal(null,[]);
+  petish_cancel_mark('hero_guest_settings_denied',petish_cancel_denied(static fn()=>Petish_Hero_Images::render()));
+ } finally {remove_filter('pre_option_'.Petish_Hero_Images::OPTION,$empty,PHP_INT_MAX);$GLOBALS['current_user']=$old;}
+ petish_cancel_mark('hero_option_unchanged',$before===get_option(Petish_Hero_Images::OPTION,[]));
 }
 function petish_cancel_denied($callback) {
  $handler=static fn()=>static function(){throw new RuntimeException('petish_cancel_proof_denied');};
@@ -109,6 +133,7 @@ function petish_cancel_contracts($root) {
   && has_action('admin_post_'.Petish_Order_Cancellation_Admin::ACTION,['Petish_Order_Cancellation_Admin','submit'])!==false
   && has_action('admin_post_'.Petish_Order_Cancellation_Admin::PREVIEW_ACTION,['Petish_Order_Cancellation_Admin','preview_email'])!==false
   && has_action('woocommerce_admin_order_data_after_order_details',['Petish_Order_Cancellation_Admin','order_notice'])!==false);
+ petish_cancel_mark('staff_settings_hook_verified',has_action('admin_post_'.Petish_Order_Cancellation_Admin::SETTINGS_ACTION,['Petish_Order_Cancellation_Admin','save_settings'])!==false);
  petish_cancel_mark('email_hook_registered',has_action('petish_cancellation_request_event',['Petish_Order_Cancellation_Emails','dispatch_pending'])!==false);
  petish_cancel_mark('faq_shortcode_registered',shortcode_exists('petish_faqs'));
  petish_cancel_mark('feature_flags_disabled',get_option('petish_cancellation_requests_enabled','no')==='no'
@@ -129,6 +154,7 @@ function petish_cancel_controls() {
   petish_cancel_mark('staff_access_denied',!Petish_Order_Cancellation_Admin::authorized()
    && petish_cancel_denied(static fn()=>Petish_Order_Cancellation_Admin::render()));
   petish_cancel_mark('staff_preview_permission_verified',petish_cancel_error(Petish_Order_Cancellation_Admin::preview_request([]),'petish_cancellation_admin_permission'));
+  $settings_guest=Petish_Order_Cancellation_Admin::settings_request(['_wpnonce'=>'invalid-process-only-nonce']);
   petish_cancel_mark('email_preview_permission_verified',petish_cancel_error(Petish_Order_Cancellation_Emails::preview(0,str_repeat('a',64),'customer'),'petish_cancellation_email_permission'));
   petish_cancel_mark('disabled_mutations_rejected',petish_cancel_error(Petish_Order_Cancellation_Requests::create(0,[],'Process-only proof'),'petish_cancel_disabled')
    && petish_cancel_error(Petish_Order_Cancellation_Emails::dispatch_pending(0),'petish_cancellation_email_disabled'));
@@ -150,6 +176,12 @@ function petish_cancel_controls() {
   petish_cancel_mark('staff_nonce_verified',petish_cancel_error(Petish_Order_Cancellation_Admin::action_request(['case_id'=>'1','revision'=>'1','operation'=>'reviewing','_wpnonce'=>'invalid-process-only-nonce']),'petish_cancellation_admin_request')
    && petish_cancel_error(Petish_Order_Cancellation_Admin::preview_request(['case_id'=>'1','revision'=>'1','event_id'=>str_repeat('a',64),'audience'=>'customer','_wpnonce'=>'invalid-process-only-nonce']),'petish_cancellation_admin_request')
    && $wpdb->num_queries===$queries);
+  $queries=$wpdb->num_queries;
+  $_SERVER['REQUEST_METHOD']='POST';
+  $invalid_settings=Petish_Order_Cancellation_Admin::settings_request(['_wpnonce'=>'invalid-process-only-nonce','accept_requests'=>'yes','send_emails'=>'yes']);
+  $_SERVER['REQUEST_METHOD']='GET';
+  petish_cancel_mark('staff_settings_nonce_verified',petish_cancel_error($settings_guest,'petish_cancellation_admin_permission')
+   &&petish_cancel_error($invalid_settings,'petish_cancellation_admin_settings')&&$queries===$wpdb->num_queries);
   require_once ABSPATH.'wp-admin/includes/template.php';
   $queue=petish_club_verify_capture(static fn()=>Petish_Order_Cancellation_Admin::render());
   petish_cancel_mark('staff_queue_rendered',is_string($queue)&&strlen($queue)<1048576&&str_contains($queue,'Cancellation requests'));
@@ -178,9 +210,10 @@ function petish_cancel_faq_base() {
  if (!petish_club_verify_path($path)||filesize($path)>32768||!hash_equals(PETISH_CANCEL_DELIVERY_SHA,hash_file('sha256',$path))) petish_club_verify_fail();
  $value=file_get_contents($path);if (!is_string($value)||$value==='') petish_club_verify_fail();return $value;
 }
-function petish_cancel_faq_rows() {
+function petish_cancel_faq_rows($for_update=false) {
  global $wpdb;
- $rows=$wpdb->get_results("SELECT * FROM `{$wpdb->posts}` WHERE post_name='delivery-shipping' AND post_type='page' ORDER BY ID",ARRAY_A);
+ $rows=$wpdb->get_results("SELECT * FROM `{$wpdb->posts}`".($for_update?' FORCE INDEX (`post_name`)':'')
+  ." WHERE post_name='delivery-shipping' AND post_type='page' ORDER BY ID".($for_update?' FOR UPDATE':''),ARRAY_A);
  if (!is_array($rows)||$wpdb->last_error!=='') petish_club_verify_fail();return $rows;
 }
 function petish_cancel_delivery_valid($row) {
@@ -190,13 +223,32 @@ function petish_cancel_delivery_valid($row) {
 function petish_cancel_faq_valid($row) {
  return petish_cancel_delivery_valid($row)&&$row['post_content']===petish_cancel_faq_base().PETISH_CANCEL_FAQ_CONTENT;
 }
-function petish_cancel_faq_markers($id) {
+function petish_cancel_faq_markers($id,$for_update=false) {
  global $wpdb;
- $values=$wpdb->get_col($wpdb->prepare("SELECT meta_value FROM `{$wpdb->postmeta}` WHERE post_id=%d AND meta_key=%s ORDER BY meta_id",$id,PETISH_CANCEL_FAQ_MARKER));
+ $values=$wpdb->get_col($wpdb->prepare("SELECT meta_value FROM `{$wpdb->postmeta}` WHERE post_id=%d AND meta_key=%s ORDER BY meta_id".($for_update?' FOR UPDATE':''),$id,PETISH_CANCEL_FAQ_MARKER));
  if (!is_array($values)||$wpdb->last_error!=='') petish_club_verify_fail();return $values;
 }
 function petish_cancel_faq_marker($id) {
  return petish_cancel_faq_markers($id)===[PETISH_CANCEL_FAQ_OWNER.'|'.PETISH_CANCEL_DELIVERY_SHA];
+}
+function petish_cancel_inspect_delivery($rows,$for_update=false) {
+ global $report;
+ $class='unchecked';$hash=null;$present=count($rows)>0;$unique=count($rows)===1;$structure=false;
+ if (!$rows) $class='absent';
+ elseif (!$unique) $class='duplicate';
+ else {
+  $row=$rows[0];$structure=petish_cancel_delivery_valid($row);
+  if (is_string($row['post_content']??null)) $hash=hash('sha256',$row['post_content']);
+  if (!$structure) $class='structure_unknown';
+  elseif (petish_cancel_faq_markers((int)$row['ID'],$for_update)) $class=petish_cancel_faq_valid($row)&&petish_cancel_faq_marker((int)$row['ID'])?'owned':'marker_unknown';
+  elseif ($hash===PETISH_CANCEL_DELIVERY_SHA) $class='current';
+  elseif ($hash===PETISH_CANCEL_LEGACY_DELIVERY_SHA) $class='legacy';
+  else $class='manual_content';
+ }
+ $report['delivery_page']=['classification'=>$class,'content_sha256'=>$hash];
+ foreach (['delivery_page_present'=>$present,'delivery_page_unique'=>$unique,'delivery_page_structure_known'=>$structure,
+  'delivery_copy_current'=>$class==='current','delivery_copy_legacy'=>$class==='legacy'] as $name=>$value) $report['observations'][$name]=$value;
+ return $class;
 }
 function petish_cancel_faq_verify() {
  $rows=petish_cancel_faq_rows();petish_cancel_mark('faq_page_verified',count($rows)===1&&petish_cancel_faq_valid($rows[0]));
@@ -255,34 +307,51 @@ function petish_cancel_prepare($run) {
   $triggers=$wpdb->get_results($wpdb->prepare('SHOW TRIGGERS WHERE `Table`=%s',$table),ARRAY_A);
   petish_cancel_mark('faq_no_table_triggers',$wpdb->last_error===''&&$triggers===[]);
  }
+ $indexes=$wpdb->get_results("SHOW INDEX FROM `{$wpdb->posts}` WHERE Key_name='post_name'",ARRAY_A);
+ petish_cancel_mark('faq_page_slug_indexed',is_array($indexes)&&count($indexes)>0&&$wpdb->last_error==='');
  $lock='petish-faq-'.substr(hash('sha256',DB_NAME.'|delivery-shipping'),0,45);
  if ((string)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,5)',$lock))!=='1') petish_club_verify_fail();
- $transaction=false;$appended=false;$aligned=false;
+ $transaction=false;$appended=false;$aligned=false;$created=false;
  try {
-  $GLOBALS['petish_cancel_strict']=true;petish_cancel_once('START TRANSACTION');$transaction=true;
-  $rows=petish_cancel_faq_rows();
-  petish_cancel_mark('faq_existing_content_safe',count($rows)===1&&petish_cancel_delivery_valid($rows[0]));
-  $before_row=$rows[0];$page=(int)$before_row['ID'];$before=petish_cancel_other_posts($page);$markers=petish_cancel_faq_markers($page);
-  $base=petish_cancel_faq_base();$after_row=$before_row;
-  if ($markers) {
-   petish_cancel_mark('faq_existing_content_safe',petish_cancel_faq_valid($before_row)&&petish_cancel_faq_marker($page));
-  } else {
-   $before_hash=hash('sha256',$before_row['post_content']);
-   petish_cancel_mark('faq_existing_content_safe',in_array($before_hash,[PETISH_CANCEL_DELIVERY_SHA,PETISH_CANCEL_LEGACY_DELIVERY_SHA],true));
-   $aligned=$before_hash===PETISH_CANCEL_LEGACY_DELIVERY_SHA;
-   $data=['post_content'=>$base.PETISH_CANCEL_FAQ_CONTENT,'post_modified'=>current_time('mysql'),'post_modified_gmt'=>current_time('mysql',true)];
-   $sql=$wpdb->prepare('UPDATE `'.$wpdb->posts.'` SET `post_content` = %s, `post_modified` = %s, `post_modified_gmt` = %s WHERE `ID` = %d',[$data['post_content'],$data['post_modified'],$data['post_modified_gmt'],$page]);
+  $GLOBALS['petish_cancel_strict']=true;
+  petish_cancel_once('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+  petish_cancel_once('START TRANSACTION');$transaction=true;
+  petish_cancel_mark('faq_transaction_isolation_verified',true);
+  $rows=petish_cancel_faq_rows(true);$classification=petish_cancel_inspect_delivery($rows,true);
+  petish_cancel_mark('faq_existing_content_safe',in_array($classification,['absent','current','legacy','owned'],true));
+  $base=petish_cancel_faq_base();$before_row=null;$after_row=null;$markers=[];$page=0;
+  if ($classification==='absent') {
+   // A counterpart of the existing live delivery page; never a separate /faqs/ page.
+   $before=petish_cancel_other_posts();$date=current_time('mysql');$gmt=current_time('mysql',true);
+   $data=['post_author'=>0,'post_date'=>$date,'post_date_gmt'=>$gmt,'post_content'=>$base.PETISH_CANCEL_FAQ_CONTENT,'post_title'=>'Delivery & shipping','post_excerpt'=>'',
+    'post_status'=>'publish','comment_status'=>'closed','ping_status'=>'closed','post_password'=>'','post_name'=>'delivery-shipping','to_ping'=>'','pinged'=>'',
+    'post_modified'=>$date,'post_modified_gmt'=>$gmt,'post_content_filtered'=>'','post_parent'=>0,'guid'=>'','menu_order'=>0,'post_type'=>'page','post_mime_type'=>'','comment_count'=>0];
+   $formats=array_map(static fn($value)=>is_int($value)?'%d':'%s',$data);
+   $page=petish_cancel_native_insert($wpdb->posts,$data,$formats);
+   if ($page<1) petish_club_verify_fail();
+   $guid=home_url('/?page_id='.$page);$sql=$wpdb->prepare('UPDATE `'.$wpdb->posts.'` SET `guid` = %s WHERE `ID` = %d',$guid,$page);
    $GLOBALS['petish_cancel_next_sql']=$sql;
-   if ($wpdb->update($wpdb->posts,$data,['ID'=>$page],['%s','%s','%s'],['%d'])!==1||$wpdb->last_error!==''||($GLOBALS['petish_cancel_next_sql']??null)!==null) petish_club_verify_fail();
-   petish_cancel_native_insert($wpdb->postmeta,['post_id'=>$page,'meta_key'=>PETISH_CANCEL_FAQ_MARKER,'meta_value'=>PETISH_CANCEL_FAQ_OWNER.'|'.PETISH_CANCEL_DELIVERY_SHA],['%d','%s','%s']);
-   $after_row=array_replace($before_row,$data);$appended=true;
+   if ($wpdb->update($wpdb->posts,['guid'=>$guid],['ID'=>$page],['%s'],['%d'])!==1||$wpdb->last_error!==''||($GLOBALS['petish_cancel_next_sql']??null)!==null) petish_club_verify_fail();
+   $created=true;$appended=true;
+  } else {
+   $before_row=$rows[0];$page=(int)$before_row['ID'];$before=petish_cancel_other_posts($page);$markers=petish_cancel_faq_markers($page);
+   if ($classification!=='owned') {
+    $aligned=$classification==='legacy';
+    $data=['post_content'=>$base.PETISH_CANCEL_FAQ_CONTENT,'post_modified'=>current_time('mysql'),'post_modified_gmt'=>current_time('mysql',true)];
+    $sql=$wpdb->prepare('UPDATE `'.$wpdb->posts.'` SET `post_content` = %s, `post_modified` = %s, `post_modified_gmt` = %s WHERE `ID` = %d',[$data['post_content'],$data['post_modified'],$data['post_modified_gmt'],$page]);
+    $GLOBALS['petish_cancel_next_sql']=$sql;
+    if ($wpdb->update($wpdb->posts,$data,['ID'=>$page],['%s','%s','%s'],['%d'])!==1||$wpdb->last_error!==''||($GLOBALS['petish_cancel_next_sql']??null)!==null) petish_club_verify_fail();
+    $appended=true;
+   }
   }
-  petish_cancel_faq_verify();
+  if ($appended) petish_cancel_native_insert($wpdb->postmeta,['post_id'=>$page,'meta_key'=>PETISH_CANCEL_FAQ_MARKER,'meta_value'=>PETISH_CANCEL_FAQ_OWNER.'|'.PETISH_CANCEL_DELIVERY_SHA],['%d','%s','%s']);
+  petish_cancel_faq_verify();$after_rows=petish_cancel_faq_rows();$after_row=$after_rows[0];
   petish_cancel_mark('delivery_page_only_write_scope_verified',$before===petish_cancel_other_posts($page));
-  petish_cancel_checkpoint($run,['schema_version'=>1,'target'=>'staging','page_id'=>$page,'appended'=>$appended,'delivery_copy_aligned'=>$aligned,
+  petish_cancel_checkpoint($run,['schema_version'=>1,'target'=>'staging','page_id'=>$page,'appended'=>$appended,'delivery_counterpart_created'=>$created,'delivery_copy_aligned'=>$aligned,
    'before'=>$before_row,'after'=>$after_row,'before_markers'=>$markers,'after_marker'=>PETISH_CANCEL_FAQ_OWNER.'|'.PETISH_CANCEL_DELIVERY_SHA]);
   petish_cancel_once('COMMIT');$transaction=false;
-  $report['observations']['faq_appended']=$appended;$report['observations']['faq_already_owned']=!$appended;$report['observations']['delivery_copy_aligned']=$aligned;
+  $report['observations']['faq_appended']=$appended;$report['observations']['faq_already_owned']=!$appended;
+  $report['observations']['delivery_copy_aligned']=$aligned;$report['observations']['delivery_counterpart_created']=$created;
   petish_cancel_mark('faq_section_prepared',true);petish_cancel_faq_verify();
  } finally {
   $GLOBALS['petish_cancel_next_sql']=null;
@@ -294,9 +363,10 @@ function petish_cancel_prepare($run) {
 
 if (defined('PETISH_CANCELLATION_VERIFY_LIBRARY')) return;
 petish_club_verify_report_start();
-$report+=['schema_version'=>1,'target'=>'staging','mode'=>$argv[2]??'invalid','source_hashes'=>[],'theme_source_hashes'=>[],
+$report+=['schema_version'=>1,'target'=>'staging','mode'=>$argv[2]??'invalid','source_hashes'=>[],'theme_source_hashes'=>[],'delivery_page'=>['classification'=>'unchecked','content_sha256'=>null],
  'observations'=>['hosted_case_mutations_not_exercised'=>true,'external_supplier_cancellation_not_exercised'=>true,
-  'gateway_refunds_not_exercised'=>true,'customer_email_body_not_exercised'=>true,'header_authenticated_payload_not_exercised'=>true,'faq_appended'=>false,'faq_already_owned'=>false,'delivery_copy_aligned'=>false]];
+  'gateway_refunds_not_exercised'=>true,'customer_email_body_not_exercised'=>true,'header_authenticated_payload_not_exercised'=>true,'faq_appended'=>false,'faq_already_owned'=>false,'delivery_copy_aligned'=>false,'delivery_counterpart_created'=>false,'hero_attachment_selection_not_exercised'=>true,
+  'delivery_page_present'=>false,'delivery_page_unique'=>false,'delivery_page_structure_known'=>false,'delivery_copy_current'=>false,'delivery_copy_legacy'=>false]];
 $body_passed=false;$before=null;$root=null;$manifest=null;$source_before=null;$cases_before=null;$options_before=null;$baseline=null;$mode=$argv[2]??'';$theme_manifest=null;$theme_before=null;
 $finalize=static function()use(&$body_passed,&$before,&$root,&$manifest,&$source_before,&$cases_before,&$options_before,&$baseline,&$mode,&$report,&$theme_manifest,&$theme_before){
  $body_category=$report['category'];
@@ -322,9 +392,9 @@ try {
  $baseline=$GLOBALS['petish_club_blocked_write_count']??null;
  $report['category']='snapshot';$before=petish_club_verify_state($root);$cases_before=petish_cancel_case_state();$options_before=petish_cancel_options();
  register_shutdown_function($finalize);
- petish_cancel_contracts($root);petish_cancel_policy();petish_cancel_header($root);
+ petish_cancel_contracts($root);petish_cancel_policy();petish_cancel_header($root);petish_cancel_hero($root);
  if ($mode==='prepare') {$report['category']='prepare';petish_cancel_prepare($argv[1]);}
- else {petish_cancel_controls();$report['category']='faq';petish_cancel_faq_verify();$report['observations']['faq_already_owned']=true;}
+ else {petish_cancel_controls();$report['category']='faq';petish_cancel_inspect_delivery(petish_cancel_faq_rows());petish_cancel_faq_verify();$report['observations']['faq_already_owned']=true;}
  $body_passed=true;
 } catch (Throwable $ignored) {$report['status']='failure';}
 exit($body_passed?0:1);
