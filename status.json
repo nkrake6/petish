@@ -1,0 +1,13 @@
+{
+  "category": "collection",
+  "encrypted_result_present": false,
+  "failure_code": "metadata",
+  "format": "petish-order-refund-status-v1",
+  "phase": "inspect",
+  "prepared": null,
+  "request_key_retained": false,
+  "run_id": "40140428759-1",
+  "source_commit": "3ca42c402687ef73879703bb5d5e4b2e67d27052",
+  "status": "failure",
+  "temporary_files_removed": true
+}
