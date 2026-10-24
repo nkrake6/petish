@@ -102,9 +102,12 @@ def staging_report(value, mode, hashes):
             or any(item is not True for item in proof['checks'].values()):
         raise ValueError('Missing staging checks')
     plugin = {name: hashes['plugins/petish-fulfilment/' + name] for name in FULFILMENT_FILES}
+    candidate_revision = evidence.git('rev-parse', 'HEAD').decode('ascii').strip()
+    if not re.fullmatch(r'[a-f0-9]{40}', candidate_revision):
+        raise ValueError('Invalid candidate revision')
     if proof['source_hashes'] != plugin or value['source_hashes'] != plugin \
             or proof['theme_source_hashes'] != value['theme_source_hashes'] \
-            or proof['theme_source_hashes'] != screen.build_theme_manifest('HEAD'):
+            or proof['theme_source_hashes'] != screen.build_theme_manifest(candidate_revision):
         raise ValueError('Staging source fingerprint mismatch')
 
 

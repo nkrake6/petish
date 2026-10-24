@@ -67,9 +67,11 @@ class EvidenceGate(unittest.TestCase):
             path.write_text(json.dumps(request() if value is None else value))
             with patch.object(GATE, 'candidate_hashes', return_value=hashes), \
                     patch.object(GATE.evidence, 'report', side_effect=lambda branch, label: reports[branch]), \
-                    patch.object(GATE.screen, 'build_theme_manifest', return_value=theme), \
+                    patch.object(GATE.screen, 'build_theme_manifest', return_value=theme) as theme_manifest, \
                     patch.object(GATE.review_evidence, 'recoverable_backup') as recover:
                 result = GATE.validate(path)
+                for invocation in theme_manifest.call_args_list:
+                    self.assertRegex(invocation.args[0], r'\A[a-f0-9]{40}\Z')
                 recover.assert_called_once()
                 self.assertEqual(recover.call_args.args[0], request() if value is None else value)
                 return result
