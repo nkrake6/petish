@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "success",
+  "category": "complete",
   "mode": "inspect",
   "run_id": "40074692970-1",
   "source_commit": "2062658d42e50e2ea3babece424026efcc76965e",
-  "generated_utc": "2026-10-24T07:34:59.717677+00:00",
+  "generated_utc": "2026-10-24T07:35:05.990994+00:00",
   "source_hashes": {
     "assets/css/account-dropdown.css": "48eab0eac5c416096658b0c5cb6f7404d2d14256b654e72a6fc9ea5454a1686b",
     "assets/css/cart-badge.css": "e1e39ccad9b779d909946a8755363b435e2647176aa2277a7c2d58c61f7498c7",
@@ -54,6 +54,36 @@
         "maintenance_guard_removed": false
       },
       "changed_file_count": 9
+    },
+    "cache_preflight": {
+      "status": "success",
+      "category": "complete",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "jetpack_sync_isolated": true,
+        "purge_version_constant_defined": true,
+        "purge_version_pinned": true,
+        "purge_cli_mode_verified": true,
+        "purge_single_site_verified": true,
+        "purge_class_available": true,
+        "purge_tag_class_available": true,
+        "purge_queue_name_verified": true,
+        "purge_queue2_name_verified": true,
+        "purge_class_source_verified": true,
+        "purge_object_cache_absent": true,
+        "purge_advanced_cache_absent": true,
+        "purge_emptycache_disabled": true,
+        "purge_runtime_verified": true,
+        "purge_transactional_options": true,
+        "purge_queue_idle": true,
+        "purge_queue2_idle": true
+      }
     }
   },
   "preparation_stage": "complete"
