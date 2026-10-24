@@ -560,6 +560,27 @@ body#the7-body.petish-site .related.products .product-thumbnail {
   position: relative;
   align-self: flex-start;
 }
+body#the7-body.petish-site .related.products .petish-hot-badge {
+  box-sizing: border-box;
+  inline-size: 32px;
+  block-size: 32px;
+  justify-content: center;
+  gap: 0;
+  padding: 4px;
+  border-radius: 50%;
+}
+body#the7-body.petish-site .related.products .petish-hot-badge__label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 body#the7-body.petish-site .related.products .product-content {
   flex: 1 1 0;
   min-inline-size: 0;
