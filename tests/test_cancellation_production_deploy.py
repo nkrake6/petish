@@ -13,6 +13,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/deploy-cancellation-production.php"
 PHP = shutil.which("php") or "/workspace/.petish-dev/bin/php"
 BASELINE = "baa3e0e90c141fbe312178fd3b8f73820bff4676"
+# The prior cost-sheet-only release retained this known historical README.
+README_BASELINE = "0f292591a537bfc522d0a3b8b35afcd2c13e5dac"
+
+
+def live_baseline_ref(name):
+    return README_BASELINE if name == "plugins/petish-fulfilment/README.md" else BASELINE
 spec = importlib.util.spec_from_file_location("cancellation_deploy_evidence", ROOT / "scripts/validate-cancellation-production.py")
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
@@ -45,7 +51,7 @@ class CancellationProductionDeploymentTests(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             source = "wordpress/wp-content/" + name
             if source in names:
-                target.write_bytes(subprocess.check_output(["git", "show", BASELINE + ":" + source], cwd=ROOT))
+                target.write_bytes(subprocess.check_output(["git", "show", live_baseline_ref(name) + ":" + source], cwd=ROOT))
                 target.chmod(0o644)
             else:
                 self.new_files.append(name)
@@ -120,7 +126,7 @@ class CancellationProductionDeploymentTests(unittest.TestCase):
             source = "wordpress/wp-content/" + name
             if source in old_names:
                 existing.append(name)
-                content = subprocess.check_output(["git", "show", BASELINE + ":" + source], cwd=ROOT)
+                content = subprocess.check_output(["git", "show", live_baseline_ref(name) + ":" + source], cwd=ROOT)
                 self.assertEqual(baseline.get(name), hashlib.sha256(content).hexdigest())
             else:
                 absent.append(name)
