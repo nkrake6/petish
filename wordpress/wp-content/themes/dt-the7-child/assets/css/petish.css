@@ -249,6 +249,7 @@ body#the7-body.petish-site {
   padding: 10px 12px;
 }
 .petish-site :is(input,textarea)::placeholder { color: var(--color-text-muted); opacity: 1; }
+.petish-site .pcr .pcr-filters select { margin-bottom: 0; }
 .petish-site :is(input[type="checkbox"],input[type="radio"]) { accent-color: var(--color-primary); width: 20px; height: 20px; }
 .petish-site :is(input[aria-invalid="true"],textarea[aria-invalid="true"]) { border: 2px solid var(--color-error); }
 .petish-site :is(button[type="submit"],button.petish-button,button.petish-button-secondary,.wp-block-search__button,input[type="submit"],.dt-btn,.wp-element-button,.wp-block-button__link,.button-primary,.petish-button) {
@@ -549,6 +550,60 @@ body#the7-body.petish-site .related.products .price del,
 body#the7-body.petish-site .related.products .price del :is(span,bdi) {
   color: var(--color-text-muted) !important;
   opacity: 1;
+}
+
+/* The7's horizontal related cards retain their native responsive columns. */
+body#the7-body.petish-site .related.products .related-product > li {
+  min-inline-size: 0;
+}
+body#the7-body.petish-site .related.products .product-thumbnail {
+  position: relative;
+  align-self: flex-start;
+}
+body#the7-body.petish-site .related.products .product-content {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  flex-flow: column nowrap;
+  align-items: stretch;
+}
+body#the7-body.petish-site .related.products .product-content > .product-title {
+  min-block-size: 2.8em;
+  line-height: 1.4;
+}
+body#the7-body.petish-site .related.products .product-content > .price {
+  align-self: stretch;
+  flex-shrink: 0;
+}
+body#the7-body.petish-site .related.products .price .amount {
+  white-space: nowrap;
+}
+body#the7-body.petish-site .related.products .woo-buttons > a:is(.product_type_variable,.product_type_simple.add_to_cart_button) {
+  box-sizing: border-box;
+  max-inline-size: 100%;
+  white-space: normal;
+  text-align: center;
+}
+body#the7-body.petish-site .related.products .woo-buttons > a.product_type_variable {
+  background: #EDE7FF;
+  background-image: none;
+  color: #6532A1;
+  border-color: #9B5DE5;
+}
+body#the7-body.petish-site .related.products .woo-buttons > a.product_type_variable:is(:hover,:focus-visible) {
+  background: #E1D6FA;
+  color: #512581;
+  border-color: #6532A1;
+}
+body#the7-body.petish-site .related.products .woo-buttons > a.product_type_simple.add_to_cart_button {
+  background: #0F4C5C;
+  background-image: none;
+  color: #FFFFFF;
+  border-color: #0F4C5C;
+}
+body#the7-body.petish-site .related.products .woo-buttons > a.product_type_simple.add_to_cart_button:is(:hover,:focus-visible) {
+  background: #123F4B;
+  color: #FFFFFF;
+  border-color: #123F4B;
 }
 
 /* Full-width retail price badges; prices retain their native text semantics. */
