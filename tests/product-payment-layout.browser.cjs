@@ -31,7 +31,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         await page.route('**/*',route => route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><title>Native provider fixture</title>'}));
         await page.goto('http://fixture.test/');
         await page.evaluate(() => localStorage.setItem('wcpay_appearance_bnpl_product_page','stale'));
-        for (const width of [1440,800,390]) {
+        for (const width of [1440,800,390,320]) {
             await page.setViewportSize({width,height:1100});
             await page.setContent('<!doctype html><html data-theme="light"><head><style>body{margin:20px;font:16px Arial}.summary{width:min(780px,100%)}iframe{display:block;width:100%;height:44px;border:0}.ppcp-messages iframe{height:34px}.cart{margin-bottom:20px}.product_meta a{font-size:10px}:root{--petish-afterpay-badge-image:url("http://fixture.test/official-provider-badge.svg")}</style><style>' + css + '</style></head><body id="the7-body" class="single-product petish-product-wallet-layout petish-product-payment-groups"><div class="product"><div class="summary">' + product.html + '<div class="product_meta"><span class="posted_in">Categories: <a href="#">Pet supplies</a></span><span class="tagged_as">Tags: <a href="#">Enrichment</a></span></div></div></div></body></html>');
             // Match actual WP_Scripts::localize scalar output: PHP true -> '1'.
@@ -44,7 +44,9 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
                 const unrelated={variables:{fontSizeBase:'19px'}};
                 document.dispatchEvent(new CustomEvent('wcpay_elements_appearance',{detail:{elementsLocation:'blocks_checkout',appearance:unrelated}}));
                 window.fixtureReferences=Array.from(document.querySelectorAll('iframe'));
-                return {boxes,target,unrelated,cache:localStorage.getItem('wcpay_appearance_bnpl_product_page'),badge:document.querySelector('#payment-method-message').classList.contains('petish-afterpay-brand-heading'),badgeWidth:getComputedStyle(document.querySelector('#payment-method-message'),'::before').width,font:getComputedStyle(document.querySelector('.posted_in')).fontSize,linkFont:getComputedStyle(document.querySelector('.posted_in a')).fontSize,overflow:document.documentElement.scrollWidth>innerWidth};
+                const message=document.querySelector('#payment-method-message'), nativeFrame=message.querySelector('iframe');
+                const messageBox=message.getBoundingClientRect(), frameBox=nativeFrame.getBoundingClientRect(), style=getComputedStyle(message);
+                return {boxes,target,unrelated,cache:localStorage.getItem('wcpay_appearance_bnpl_product_page'),badge:message.classList.contains('petish-afterpay-brand-heading'),badgeWidth:getComputedStyle(message,'::before').width,messageRightOfBadge:frameBox.left>=messageBox.left+parseFloat(style.borderLeftWidth)+12+64+12-1,nativeFits:frameBox.right<=messageBox.right-parseFloat(style.paddingRight)+1,font:getComputedStyle(document.querySelector('.posted_in')).fontSize,linkFont:getComputedStyle(document.querySelector('.posted_in a')).fontSize,overflow:document.documentElement.scrollWidth>innerWidth};
             });
             assert(Math.abs(initial.boxes[0].width - initial.boxes[1].width) < 1,JSON.stringify(initial.boxes));
             assert(initial.boxes[0].width <= 400);
@@ -57,6 +59,8 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
             assert.equal(initial.target.rules['.Text'].fontSize,'18px');
             assert.equal(initial.badge,true);
             assert.equal(initial.badgeWidth,'64px');
+            assert.equal(initial.messageRightOfBadge,true);
+            assert.equal(initial.nativeFits,true);
             assert.equal(initial.target.rules['.Text'].color,'#14213d');
             assert.equal(initial.unrelated.variables.fontSizeBase,'19px');
             assert.equal(initial.cache,null);
@@ -75,6 +79,16 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
                 return {sameWrapper:document.querySelector('#ppc-button-ppcp-gateway')===original,sameWallet:document.querySelector('#wcpay-express-checkout-element iframe')===wallet,sameFocus:document.activeElement===focused,groups:document.querySelectorAll('.petish-product-paypal').length,messageAfter:document.querySelector('.ppcp-messages').getBoundingClientRect().y >= original.getBoundingClientRect().bottom};
             });
             assert.deepEqual(lifecycle,{sameWrapper:true,sameWallet:true,sameFocus:true,groups:1,messageAfter:true});
+            // WooPayments uses slideUp/slideDown and may restore display:block.
+            // Its hiding must win, and showing it must retain the side layout.
+            await page.locator('#payment-method-message').evaluate(el=>el.style.display='none');
+            await page.waitForFunction(()=>!document.querySelector('#payment-method-message').classList.contains('petish-afterpay-brand-heading'));
+            await page.locator('#payment-method-message').evaluate(el=>el.style.display='block');
+            await page.waitForFunction(()=>document.querySelector('#payment-method-message').classList.contains('petish-afterpay-brand-heading'));
+            assert(await page.locator('#payment-method-message').evaluate(el=>{
+                const box=el.getBoundingClientRect(), frame=el.querySelector('iframe').getBoundingClientRect();
+                return el.style.display==='block' && frame.left>=box.left+88 && frame.right<=box.right;
+            }));
             console.log(JSON.stringify({width,paymentWidth:initial.boxes[0].width,ordering:true,appearance:true,lifecycle:true}));
         }
         await page.evaluate(()=>localStorage.setItem('wcpay_appearance_bnpl_product_page','fresh-native-18px'));
@@ -160,8 +174,10 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
             const unrelated={variables:{fontSizeBase:'19px'}};
             document.dispatchEvent(new CustomEvent('wcpay_elements_appearance',{detail:{elementsLocation:'bnpl_cart_block',appearance}}));
             document.dispatchEvent(new CustomEvent('wcpay_elements_appearance',{detail:{elementsLocation:'blocks_checkout',appearance:unrelated}}));
-            const style=getComputedStyle(document.querySelector('.wc-block-components-bnpl-wrapper'));
+            const wrapper=document.querySelector('.wc-block-components-bnpl-wrapper'), style=getComputedStyle(wrapper);
+            const box=wrapper.getBoundingClientRect(), frame=wrapper.querySelector('iframe').getBoundingClientRect();
             return {appearance,unrelated,light:style.backgroundColor,padding:style.paddingTop,badge:document.querySelector('.wc-block-components-bnpl-wrapper').classList.contains('petish-afterpay-brand-heading'),badgeWidth:getComputedStyle(document.querySelector('.wc-block-components-bnpl-wrapper'),'::before').width,
+                messageRightOfBadge:frame.left>=box.left+parseFloat(style.borderLeftWidth)+12+64+12-1,nativeFits:frame.right<=box.right-parseFloat(style.paddingRight)+1,
                 cartBlock:localStorage.getItem('wcpay_appearance_bnpl_cart_block'),classicCart:localStorage.getItem('wcpay_appearance_bnpl_classic_cart'),
                 product:localStorage.getItem('wcpay_appearance_bnpl_product_page'),checkout:localStorage.getItem('wcpay_appearance_blocks_checkout')};
         });
@@ -170,6 +186,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         assert.equal(cartAppearance.unrelated.variables.fontSizeBase,'19px');
         assert.equal(cartAppearance.light,'rgb(239, 250, 245)'); assert.equal(cartAppearance.padding,'12px');
         assert.equal(cartAppearance.badge,true); assert.equal(cartAppearance.badgeWidth,'64px');
+        assert.equal(cartAppearance.messageRightOfBadge,true); assert.equal(cartAppearance.nativeFits,true);
         assert.equal(cartAppearance.cartBlock,null); assert.equal(cartAppearance.classicCart,null);
         assert.equal(cartAppearance.product,'keep-product'); assert.equal(cartAppearance.checkout,'keep-checkout');
         await page.evaluate(()=>document.documentElement.dataset.theme='dark');
