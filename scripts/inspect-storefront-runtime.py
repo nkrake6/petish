@@ -2,6 +2,7 @@
 """Inspect three fixed public HTML shells; publish only known DOM structure."""
 from html.parser import HTMLParser
 import importlib.util
+import hashlib
 import json
 import math
 import os
@@ -282,6 +283,69 @@ def screen_browser(value):
     if not passed:
         value['status'] = 'failure'
     return value, passed
+
+
+PAYMENT_CROPS = {
+    'product_afterpay': ('product-afterpay.private.png', 'product-afterpay.png'),
+    'cart_payments': ('cart-payments.private.png', 'cart-payments.png'),
+}
+CROP_FLAGS = {'product_afterpay': 'product_payment_crop_saved', 'cart_payments': 'cart_payment_crop_saved'}
+
+
+def publish_payment_crops(directory, browser):
+    """Re-encode only fixed guest-payment crops; discard all original PNG metadata."""
+    observations = {name: {'published': False, 'width': 0, 'height': 0} for name in PAYMENT_CROPS}
+    guards = {'fresh_guest_context', 'initial_cart_empty', 'network_barrier_enforced', 'created_guest_cart_cleared'}
+    if browser is None or any(browser.get('checks', {}).get(name) is not True for name in guards):
+        return observations, True
+    valid = True
+    for name, (private_name, public_name) in PAYMENT_CROPS.items():
+        if browser.get('observations', {}).get(CROP_FLAGS[name]) is not True:
+            continue
+        source = directory / private_name
+        created = False
+        destination = None
+        try:
+            info = source.lstat()
+        except FileNotFoundError:
+            continue
+        try:
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600 \
+                    or not 33 <= info.st_size <= 4194304:
+                raise ValueError('Invalid payment crop')
+            descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(descriptor, 'rb') as stream:
+                opened = os.fstat(stream.fileno())
+                if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                    raise ValueError('Payment crop changed')
+                from PIL import Image
+                with Image.open(stream) as image:
+                    if image.format != 'PNG' or getattr(image, 'n_frames', 1) != 1 \
+                            or not 16 <= image.width <= 1600 or not 16 <= image.height <= 1600:
+                        raise ValueError('Invalid payment crop dimensions')
+                    image.load()
+                    # A fresh image object prevents ICC/EXIF/text/source metadata from
+                    # surviving conversion. No original container bytes are published.
+                    normalized = Image.new('RGB', image.size, 'white')
+                    if image.mode == 'RGBA':
+                        normalized.paste(image, mask=image.getchannel('A'))
+                    else:
+                        normalized.paste(image.convert('RGB'))
+                    destination = directory / 'public' / public_name
+                    output = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                    created = True
+                    with os.fdopen(output, 'wb') as exported:
+                        normalized.save(exported, format='PNG')
+                    if destination.stat().st_size > 4194304:
+                        destination.unlink()
+                        raise ValueError('Payment crop output exceeds bounds')
+                    observations[name] = {'published': True, 'width': normalized.width, 'height': normalized.height,
+                                          'sha256': hashlib.sha256(destination.read_bytes()).hexdigest()}
+        except Exception:
+            if created and destination is not None:
+                destination.unlink(missing_ok=True)
+            valid = False
+    return observations, valid
 
 
 def write(path, value):

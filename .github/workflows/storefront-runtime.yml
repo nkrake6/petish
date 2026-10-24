@@ -48,6 +48,7 @@ jobs:
           fi
           if [[ "$GITHUB_REF_NAME" == inspect-storefront-runtime ]]; then
             preparation_stage=browser_tools
+            python3 -m pip install --disable-pip-version-check --no-input Pillow==12.0.0
             PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 timeout --kill-after=5s 120s npm ci --prefix tools/staging-rehearsal --no-audit --no-fund
             timeout --kill-after=5s 240s tools/staging-rehearsal/node_modules/.bin/playwright install --with-deps chromium
           fi

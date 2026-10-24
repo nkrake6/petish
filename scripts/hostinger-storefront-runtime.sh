@@ -44,7 +44,7 @@ spec=importlib.util.spec_from_file_location('storefront_runtime','scripts/inspec
 screen=importlib.util.module_from_spec(spec);spec.loader.exec_module(screen)
 root=Path(os.environ['PETISH_RUNTIME_WORK'])
 status=os.environ['PETISH_RUNTIME_STATUS'];category=os.environ['PETISH_RUNTIME_CATEGORY']
-if status not in {'success','failure'} or category not in {'prerequisites','source','transport','public_html','native','browser','cleanup','complete'}:raise ValueError()
+if status not in {'success','failure'} or category not in {'prerequisites','source','transport','public_html','native','browser','visuals','cleanup','complete'}:raise ValueError()
 value={'format':'petish-storefront-runtime-v1','target':'production','run_id':os.environ['PETISH_RUNTIME_RUN'],
  'source_commit':os.environ['PETISH_RUNTIME_SHA'],'generated_utc':datetime.now(timezone.utc).isoformat(),
  'status':status,'category':category,'remote_tools_removed':os.environ['PETISH_RUNTIME_CLEANED']=='1','phases':{}}
@@ -59,13 +59,28 @@ for phase,validator in [('public',screen.screen_public),('native',screen.screen_
   report=json.loads(screen.regular(path),object_pairs_hook=screen.unique)
   report,passed=validator(report)
   value['phases'][phase]=report
+value['visuals'],visuals_valid=screen.publish_payment_crops(root,value['phases'].get('browser'))
+value['visual_publication_verified']=visuals_valid
+if not visuals_valid:value.update(status='failure',category='visuals')
 screen.write(root/'public/status.json',value)
 PY
-    local blob tree commit
+    if ! python3 - "$work/public/status.json" <<'PY'
+import json,sys
+from pathlib import Path
+raise SystemExit(0 if json.loads(Path(sys.argv[1]).read_text()).get('visual_publication_verified') is True else 1)
+PY
+    then result_status=failure; fi
+    local blob tree commit name
     export GIT_INDEX_FILE="$work/publication.index"
     git read-tree --empty
     blob=$(git hash-object -w "$work/public/status.json")
     git update-index --add --cacheinfo "100644,$blob,status.json"
+    for name in product-afterpay.png cart-payments.png; do
+        if [[ -f "$work/public/$name" && ! -L "$work/public/$name" ]]; then
+            blob=$(git hash-object -w "$work/public/$name")
+            git update-index --add --cacheinfo "100644,$blob,$name"
+        fi
+    done
     tree=$(git write-tree)
     export GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]'
     export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
@@ -76,6 +91,11 @@ PY
     printf 'Screened installed runtime: https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-%s\n' "$run"
     if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
         printf '[Screened installed runtime](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-%s)\n' "$run" >> "$GITHUB_STEP_SUMMARY"
+        for name in product-afterpay.png cart-payments.png; do
+            if [[ -f "$work/public/$name" ]]; then
+                printf '\n[View %s](https://github.com/nkrake6/petish/blob/automation-status/storefront-runtime-%s/%s)\n' "$name" "$run" "$name" >> "$GITHUB_STEP_SUMMARY"
+            fi
+        done
     fi
 }
 
