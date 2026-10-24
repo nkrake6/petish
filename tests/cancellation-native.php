@@ -129,6 +129,38 @@ try {
     petish_cancel_contracts(rtrim(ABSPATH,'/')); cancel_check('hosted_verifier_native_contracts',!in_array(false,$report['checks'],true));
     petish_cancel_controls(); cancel_check('hosted_verifier_native_controls',!in_array(false,$report['checks'],true));
     petish_cancel_policy(); cancel_check('hosted_verifier_native_policy',!in_array(false,$report['checks'],true));
+    // A controlled observed-copy hash exercises byte preservation without
+    // reading/exporting the actual staging page. Production uses its fixed pin.
+    $synthetic_prefix=<<<'HTML'
+<section><h2>Delivery & shipping — Petish 🐇</h2>
+<p>Customer's "quoted" instructions: C:\pets\rabbits\ and literal \n.</p>
+<p>Déjà vu, 澳洲配送 and &amp; are preserved exactly.</p></section>
+HTML;
+    $synthetic_hash=hash('sha256',$synthetic_prefix);$reviewed_copy=petish_cancel_faq_base();
+    $append_plan=petish_cancel_faq_plan($synthetic_prefix,$reviewed_copy,$synthetic_hash);
+    cancel_check('synthetic_observed_plan_preserves_prefix',is_array($append_plan)&&$append_plan['content']===$synthetic_prefix.PETISH_CANCEL_FAQ_CONTENT
+        &&$append_plan['prefix_sha256']===$synthetic_hash&&$append_plan['aligned']===false);
+    cancel_check('production_pin_rejects_unrecognised_synthetic_copy',petish_cancel_faq_plan($synthetic_prefix,$reviewed_copy)===false
+        &&petish_cancel_faq_prefix($append_plan['content'])===false&&petish_cancel_faq_owner($append_plan['content'])===false);
+    $fixture_admin=get_users(array('role'=>'administrator','number'=>1))[0];wp_set_current_user($fixture_admin->ID);
+    $prefix_id=wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_name'=>'owned-prefix-'.$owner,
+        'post_title'=>'Owned observed-prefix fixture','post_content'=>wp_slash($synthetic_prefix),'meta_input'=>array('_petish_native_owner'=>$owner)),true);
+    cancel_ok($prefix_id,'owned_observed_prefix_page_created');$pages[]=(int)$prefix_id;
+    $prefix_before=$wpdb->get_row($wpdb->prepare("SELECT * FROM `{$wpdb->posts}` WHERE ID=%d",$prefix_id),ARRAY_A);
+    cancel_check('native_observed_initial_bytes_preserved',$prefix_before['post_content']===$synthetic_prefix);
+    $prefix_marker=petish_cancel_faq_owner($append_plan['content'],$synthetic_hash);
+    $updated=$wpdb->update($wpdb->posts,array('post_content'=>$append_plan['content']),array('ID'=>(int)$prefix_id),array('%s'),array('%d'));
+    update_post_meta($prefix_id,PETISH_CANCEL_FAQ_MARKER,$prefix_marker);clean_post_cache($prefix_id);
+    $prefix_after=$wpdb->get_row($wpdb->prepare("SELECT * FROM `{$wpdb->posts}` WHERE ID=%d",$prefix_id),ARRAY_A);
+    cancel_check('native_observed_append_and_marker_roundtrip',$updated===1&&$prefix_after['post_content']===$synthetic_prefix.PETISH_CANCEL_FAQ_CONTENT
+        &&get_post_meta($prefix_id,PETISH_CANCEL_FAQ_MARKER,true)===PETISH_CANCEL_FAQ_OWNER.'|'.$synthetic_hash);
+    $prefix_parsed=petish_cancel_faq_prefix($prefix_after['post_content'],$synthetic_hash);
+    cancel_check('native_observed_suffix_validates_exactly_once',$prefix_parsed===array('content'=>$synthetic_prefix,'sha256'=>$synthetic_hash)
+        &&substr_count($prefix_after['post_content'],'[petish_faqs]')===1
+        &&petish_cancel_faq_plan($prefix_after['post_content'],$reviewed_copy,$synthetic_hash)===false
+        &&petish_cancel_faq_prefix($prefix_after['post_content'].PETISH_CANCEL_FAQ_CONTENT,$synthetic_hash)===false);
+    unset($prefix_before['post_content'],$prefix_after['post_content']);
+    cancel_check('native_observed_page_other_fields_unchanged',$prefix_before===$prefix_after);
     // Old staging clones can lack the already-existing live delivery page. Only
     // that exact counterpart may be created; never create a separate FAQ page.
     $missing_count=(int)$wpdb->get_var("SELECT COUNT(*) FROM `{$wpdb->posts}`");
