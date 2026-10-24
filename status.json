@@ -1,0 +1,27 @@
+{
+  "AUTOMATION_KIND": "backup",
+  "AUTOMATION_RESULT": "success",
+  "GITHUB_RUN_ID": "40122768140",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_SHA": "b612db50eb33c11b9435f8e25970d4146afeb8b9",
+  "generated_utc": "2026-10-24T18:56:59.904712+00:00",
+  "task": {
+    "phase": "backup-export",
+    "categories": [],
+    "exit_code": 0
+  },
+  "restore_check": {
+    "restore_smoke_test_passed": true,
+    "private_passport_root_restored": true,
+    "wordpress_application_bootstrap_tested": false,
+    "private_sandbox_removed": true,
+    "regular_files_restored": 39988,
+    "private_files_restored": 4,
+    "private_smtp_files_restored": 1,
+    "private_smtp_config_verified": true,
+    "archive_links_skipped": 1,
+    "sql_create_table_statements": 103,
+    "restored_database_tables": 103,
+    "database_import_verified": true
+  }
+}
