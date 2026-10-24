@@ -1,0 +1,32 @@
+.petish-faqs {
+  max-width: 900px;
+  margin: 0 auto 40px;
+  color: var(--color-text, #14213d);
+  font-family: var(--font-body, system-ui, sans-serif);
+  overflow-wrap: anywhere;
+}
+.petish-faqs * { box-sizing: border-box; }
+.petish-faqs__intro { margin: 0 0 24px; color: var(--color-text-muted, #526077); }
+.petish-faqs__item {
+  margin: 0 0 14px;
+  border: 1px solid var(--color-border, #e3e7ef);
+  border-radius: 16px;
+  background: var(--color-surface, #fff);
+  scroll-margin-top: 100px;
+}
+.petish-faqs__item summary {
+  padding: 20px 24px;
+  color: var(--color-text, #14213d);
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.petish-faqs__item[open] summary { color: var(--color-primary, #0f4c5c); }
+.petish-faqs__item summary:focus-visible { outline: 3px solid var(--color-primary, #0f4c5c); outline-offset: 3px; border-radius: 12px; }
+.petish-faqs__answer { padding: 0 24px 8px; }
+.petish-faqs__answer p { margin: 0 0 16px; }
+.petish-faqs a { color: var(--color-primary, #0f4c5c); text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 480px) {
+  .petish-faqs__item summary { padding: 16px 18px; }
+  .petish-faqs__answer { padding: 0 18px 4px; }
+}

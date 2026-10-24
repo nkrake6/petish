@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Petish Fulfilment
- * Description: Reviewed delivery rates, private shipment operations and customer tracking views.
- * Version: 0.7.0
+ * Description: Delivery operations, customer cancellation requests and shared order FAQs.
+ * Version: 0.8.0
  * Requires PHP: 8.1
  * Requires Plugins: woocommerce
  * Text Domain: petish-fulfilment
@@ -22,6 +22,16 @@ require_once __DIR__ . '/includes/class-petish-delivery-operations-admin.php';
 Petish_Delivery_Operations_Admin::init();
 require_once __DIR__ . '/includes/class-petish-shipment-customer-view.php';
 Petish_Shipment_Customer_View::init();
+require_once __DIR__ . '/includes/class-petish-cancellation-policy.php';
+Petish_Cancellation_Policy::init();
+require_once __DIR__ . '/includes/class-petish-order-cancellation-requests.php';
+Petish_Order_Cancellation_Requests::init();
+require_once __DIR__ . '/includes/class-petish-order-cancellation-emails.php';
+Petish_Order_Cancellation_Emails::init();
+require_once __DIR__ . '/includes/class-petish-order-cancellation-customer.php';
+Petish_Order_Cancellation_Customer::init();
+require_once __DIR__ . '/includes/class-petish-order-cancellation-admin.php';
+Petish_Order_Cancellation_Admin::init();
 
 // WooCommerce's method base class is autoloadable after its plugins_loaded setup.
 add_action('plugins_loaded', static function () {
