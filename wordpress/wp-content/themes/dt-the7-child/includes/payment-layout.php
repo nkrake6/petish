@@ -67,8 +67,14 @@ final class Petish_Product_Payment_Layout {
         $uri = get_stylesheet_directory_uri();
         $dependencies = $cart ? array( 'petish-design' ) : array( 'petish-product-purchase' );
         wp_enqueue_style( 'petish-product-payment-groups', $uri . '/assets/css/payment-layout.css', $dependencies, substr( hash_file( 'sha256', $dir . '/assets/css/payment-layout.css' ), 0, 16 ) );
-        // The listener must exist before WooPayments initializes its messaging
-        // from jQuery ready. The script never handles provider payment events.
+        if ( defined( 'WCPAY_PLUGIN_FILE' ) && is_readable( dirname( WCPAY_PLUGIN_FILE ) . '/assets/images/payment-methods/afterpay-badge.svg' ) ) {
+            // Use the unchanged badge shipped by the active provider. A missing
+            // asset adds no heading; no copied artwork or remote SDK is needed.
+            $badge_url = plugins_url( 'assets/images/payment-methods/afterpay-badge.svg', WCPAY_PLUGIN_FILE );
+            wp_add_inline_style( 'petish-product-payment-groups', ':root{--petish-afterpay-badge-image:url(' . wp_json_encode( esc_url_raw( $badge_url ) ) . ')}' );
+        }
+        // Restore native appearance before WooPayments initializes its message.
+        // The script never handles provider payment/disclosure actions.
         wp_enqueue_script( 'petish-product-payment-groups', $uri . '/assets/js/payment-layout.js', array(), substr( hash_file( 'sha256', $dir . '/assets/js/payment-layout.js' ), 0, 16 ), false );
         // Cart React reads cached appearance in its initial useState. Supply
         // only the page scope so this head script can expire it before mount.

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,6 +57,26 @@ class PaymentLayoutTests(unittest.TestCase):
                     self.assertIs(result['assets'][1][1][4],False)
                     self.assertEqual(result['inline'], [['petish-product-payment-groups','window.petishPaymentMessagePage = "cart";','before']])
         self.assertNotIn('class="petish-product-paypal"', self.product('provider-unavailable')['html'])
+
+    def test_brand_heading_uses_existing_provider_asset_and_missing_asset_stays_empty(self):
+        self.assertEqual(self.product('product')['style_inline'], [])
+        with tempfile.TemporaryDirectory(prefix='petish-provider-asset-') as work:
+            plugin = Path(work)/'woocommerce-payments.php'
+            badge = Path(work)/'assets/images/payment-methods/afterpay-badge.svg'
+            plugin.write_text('<?php // Provider path fixture')
+            badge.parent.mkdir(parents=True)
+            badge.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
+            result = subprocess.run([PHP, str(ROOT/'tests/product-payment-layout.php'), 'product'],
+                env={**os.environ, 'PETISH_TEST_WCPAY_PLUGIN_FILE': str(plugin)},
+                capture_output=True, text=True, check=True, timeout=15)
+            self.assertEqual(result.stderr, '')
+            native = json.loads(result.stdout)
+            self.assertEqual(native['provider_assets'], [['assets/images/payment-methods/afterpay-badge.svg', str(plugin)]])
+            self.assertEqual(len(native['style_inline']), 1)
+            self.assertEqual(native['style_inline'][0][0], 'petish-product-payment-groups')
+            self.assertIn('--petish-afterpay-badge-image:url(', native['style_inline'][0][1])
+            self.assertIn('afterpay-badge.svg', native['style_inline'][0][1])
+            self.assertNotIn('data:image', native['style_inline'][0][1])
 
     def test_cart_block_assets_do_not_run_on_classic_cart_or_other_pages(self):
         result = subprocess.run([PHP, str(ROOT/'tests/cart-payment-layout.php')],

@@ -11,10 +11,17 @@ function get_stylesheet_directory(){return __DIR__.'/../wordpress/wp-content/the
 function get_stylesheet_directory_uri(){return 'https://offline.invalid/theme';}
 $GLOBALS['payment_assets']=[];
 $GLOBALS['payment_inline']=[];
+$GLOBALS['payment_style_inline']=[];
+$GLOBALS['payment_provider_assets']=[];
 function wp_enqueue_style(...$args){$GLOBALS['payment_assets'][]=['style',$args];}
 function wp_enqueue_script(...$args){$GLOBALS['payment_assets'][]=['script',$args];}
 function wp_add_inline_script(...$args){$GLOBALS['payment_inline'][]=$args;}
+function wp_add_inline_style(...$args){$GLOBALS['payment_style_inline'][]=$args;}
+function plugins_url($path,$file){$GLOBALS['payment_provider_assets'][]=[$path,$file];return 'https://offline.invalid/provider/'.$path;}
+function esc_url_raw($value){return $value;}
 function wp_json_encode($value){return json_encode($value);}
+$provider_file=getenv('PETISH_TEST_WCPAY_PLUGIN_FILE');
+if($provider_file!==false&&$provider_file!=='')define('WCPAY_PLUGIN_FILE',$provider_file);
 $context = $argv[1] ?? 'product';
 function is_product() { return $GLOBALS['context'] !== 'cart'; }
 function is_cart() { return $GLOBALS['context'] === 'cart'; }
@@ -55,4 +62,4 @@ ob_start();
 do_action( 'woocommerce_single_product_summary' );
 $html = ob_get_clean();
 Petish_Product_Payment_Layout::assets();
-echo json_encode( array( 'assets'=>$GLOBALS['payment_assets'], 'inline'=>$GLOBALS['payment_inline'], 'html' => $html, 'hook' => $buttons_hook, 'message_hook' => $messages_hook, 'message_priority' => $message_priority, 'classes' => apply_filters( 'body_class', array() ) ), JSON_THROW_ON_ERROR );
+echo json_encode( array( 'assets'=>$GLOBALS['payment_assets'], 'inline'=>$GLOBALS['payment_inline'], 'style_inline'=>$GLOBALS['payment_style_inline'], 'provider_assets'=>$GLOBALS['payment_provider_assets'], 'html' => $html, 'hook' => $buttons_hook, 'message_hook' => $messages_hook, 'message_priority' => $message_priority, 'classes' => apply_filters( 'body_class', array() ) ), JSON_THROW_ON_ERROR );

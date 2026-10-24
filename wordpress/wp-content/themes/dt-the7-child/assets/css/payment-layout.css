@@ -82,3 +82,14 @@ html[data-theme="dark"] body#the7-body.petish-site.woocommerce-cart .cart_totals
     border-color: #47977d;
     background: #132f2b;
 }
+
+/* Decorative brand heading: the exact WooPayments SVG, with its aspect ratio
+   and original colours. Stripe retains its own text, inline mark and modal. */
+.petish-afterpay-brand-heading::before {
+    content: "";
+    display: block;
+    width: min(150px, 100%);
+    aspect-ratio: 8 / 5;
+    margin: 0 0 10px;
+    background: var(--petish-afterpay-badge-image) left center / contain no-repeat;
+}

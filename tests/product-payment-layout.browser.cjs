@@ -33,17 +33,17 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         await page.evaluate(() => localStorage.setItem('wcpay_appearance_bnpl_product_page','stale'));
         for (const width of [1440,800,390]) {
             await page.setViewportSize({width,height:1100});
-            await page.setContent('<!doctype html><html data-theme="light"><head><style>body{margin:20px;font:16px Arial}.summary{width:min(780px,100%)}iframe{display:block;width:100%;height:44px;border:0}.ppcp-messages iframe{height:34px}.cart{margin-bottom:20px}.product_meta a{font-size:10px}</style><style>' + css + '</style></head><body id="the7-body" class="single-product petish-product-wallet-layout petish-product-payment-groups"><div class="product"><div class="summary">' + product.html + '<div class="product_meta"><span class="posted_in">Categories: <a href="#">Pet supplies</a></span><span class="tagged_as">Tags: <a href="#">Enrichment</a></span></div></div></div></body></html>');
-            await page.evaluate(() => {window.PayPalCommerceGateway={messages:{style:{text:{size:16}}}};});
+            await page.setContent('<!doctype html><html data-theme="light"><head><style>body{margin:20px;font:16px Arial}.summary{width:min(780px,100%)}iframe{display:block;width:100%;height:44px;border:0}.ppcp-messages iframe{height:34px}.cart{margin-bottom:20px}.product_meta a{font-size:10px}:root{--petish-afterpay-badge-image:url("http://fixture.test/official-provider-badge.svg")}</style><style>' + css + '</style></head><body id="the7-body" class="single-product petish-product-wallet-layout petish-product-payment-groups"><div class="product"><div class="summary">' + product.html + '<div class="product_meta"><span class="posted_in">Categories: <a href="#">Pet supplies</a></span><span class="tagged_as">Tags: <a href="#">Enrichment</a></span></div></div></div></body></html>');
+            await page.evaluate(() => {window.PayPalCommerceGateway={messages:{style:{text:{size:12}}}};window.wcpayStripeSiteMessaging={shouldInitializePMME:true,country:'AU',currencyCode:'AUD',paymentMethods:['afterpay_clearpay']};});
             await page.addScriptTag({content:js});
             const initial = await page.evaluate(() => {
                 const boxes = ['#wcpay-express-checkout-element','#ppc-button-ppcp-gateway','.petish-product-paypal','.ppcp-messages','.product_meta'].map(sel => {const el=document.querySelector(sel); const r=el.getBoundingClientRect(); return {sel,x:r.x,y:r.y,width:r.width,height:r.height};});
-                const target={variables:{colorText:'#14213d'},rules:{'.Text':{color:'#14213d'}}};
+                const target={variables:{colorText:'#14213d',fontSizeBase:'18px'},rules:{'.Text':{color:'#14213d',fontSize:'18px'}}};
                 document.dispatchEvent(new CustomEvent('wcpay_elements_appearance',{detail:{elementsLocation:'bnpl_product_page',appearance:target}}));
                 const unrelated={variables:{fontSizeBase:'19px'}};
                 document.dispatchEvent(new CustomEvent('wcpay_elements_appearance',{detail:{elementsLocation:'blocks_checkout',appearance:unrelated}}));
                 window.fixtureReferences=Array.from(document.querySelectorAll('iframe'));
-                return {boxes,target,unrelated,cache:localStorage.getItem('wcpay_appearance_bnpl_product_page'),font:getComputedStyle(document.querySelector('.posted_in')).fontSize,linkFont:getComputedStyle(document.querySelector('.posted_in a')).fontSize,overflow:document.documentElement.scrollWidth>innerWidth};
+                return {boxes,target,unrelated,cache:localStorage.getItem('wcpay_appearance_bnpl_product_page'),badge:document.querySelector('#payment-method-message').classList.contains('petish-afterpay-brand-heading'),badgeWidth:getComputedStyle(document.querySelector('#payment-method-message'),'::before').width,font:getComputedStyle(document.querySelector('.posted_in')).fontSize,linkFont:getComputedStyle(document.querySelector('.posted_in a')).fontSize,overflow:document.documentElement.scrollWidth>innerWidth};
             });
             assert(Math.abs(initial.boxes[0].width - initial.boxes[1].width) < 1,JSON.stringify(initial.boxes));
             assert(initial.boxes[0].width <= 400);
@@ -52,7 +52,10 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
             assert.equal(initial.font,'16px');
             assert.equal(initial.linkFont,'16px');
             assert.equal(initial.overflow,false);
-            assert.equal(initial.target.variables.fontSizeBase,'16px');
+            assert.equal(initial.target.variables.fontSizeBase,'18px');
+            assert.equal(initial.target.rules['.Text'].fontSize,'18px');
+            assert.equal(initial.badge,true);
+            assert.equal(initial.badgeWidth,'150px');
             assert.equal(initial.target.rules['.Text'].color,'#14213d');
             assert.equal(initial.unrelated.variables.fontSizeBase,'19px');
             assert.equal(initial.cache,null);
@@ -73,6 +76,31 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
             assert.deepEqual(lifecycle,{sameWrapper:true,sameWallet:true,sameFocus:true,groups:1,messageAfter:true});
             console.log(JSON.stringify({width,paymentWidth:initial.boxes[0].width,ordering:true,appearance:true,lifecycle:true}));
         }
+        await page.evaluate(()=>localStorage.setItem('wcpay_appearance_bnpl_product_page','fresh-native-18px'));
+        await page.addScriptTag({content:js});
+        assert.equal(await page.evaluate(()=>localStorage.getItem('wcpay_appearance_bnpl_product_page')),'fresh-native-18px');
+        // No brand heading may mislabel another/mixed BNPL message, or
+        // remain when the native provider hides/empties its message.
+        for (const scenario of ['klarna','mixed','currency','country','hidden','zero-height','loading','missing-asset']) {
+            await page.evaluate(scenario => {
+                const native=window.wcpayStripeSiteMessaging;
+                native.paymentMethods=scenario==='klarna'?['klarna']:scenario==='mixed'?['afterpay_clearpay','klarna']:['afterpay_clearpay'];
+                native.country=scenario==='country'?'NZ':'AU';native.currencyCode=scenario==='currency'?'NZD':'AUD';
+                const message=document.querySelector('#payment-method-message');
+                message.style.display=scenario==='hidden'?'none':'';
+                message.querySelector('iframe').style.height=scenario==='zero-height'?'0px':'44px';
+                message.querySelector('.pmme-loading')?.remove();
+                if(scenario==='loading')message.appendChild(Object.assign(document.createElement('div'),{className:'pmme-loading'}));
+                message.style.setProperty('--petish-afterpay-badge-image',scenario==='missing-asset'?'initial':'url("http://fixture.test/official-provider-badge.svg")');
+                message.style.setProperty('--fixture-refresh',scenario);
+            },scenario);
+            await page.waitForFunction(()=>!document.querySelector('#payment-method-message').classList.contains('petish-afterpay-brand-heading'));
+        }
+        await page.evaluate(()=>{
+            const message=document.querySelector('#payment-method-message');
+            message.style.setProperty('--petish-afterpay-badge-image','url("http://fixture.test/official-provider-badge.svg")');
+        });
+        await page.waitForFunction(()=>document.querySelector('#payment-method-message').classList.contains('petish-afterpay-brand-heading'));
         await page.addScriptTag({content:fs.readFileSync(path.resolve(__dirname,'../tools/homepage/payment-layout-public-proof.js'),'utf8')});
         const safeProof = await page.evaluate(() => {
             window.wcpayStripeSiteMessaging={privateConfiguration:'private-proof-sentinel'};
@@ -104,12 +132,12 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         assert.equal(bg,'rgb(19, 47, 43)');
         const v6 = await page.evaluate(() => {
             window.wc_ppcp_sdk_v6={messages:{style:{fontSize:'14px'}}};
-            const appearance={variables:{},rules:{'.Text--redirect':{color:'#0f4c5c'}}};
+            const appearance={variables:{fontSizeBase:'18px'},rules:{'.Text--redirect':{color:'#0f4c5c',fontSize:'18px'}}};
             document.dispatchEvent(new CustomEvent('wcpay_elements_appearance',{detail:{elementsLocation:'bnpl_product_page',appearance}}));
             return appearance;
         });
-        assert.equal(v6.variables.fontSizeBase,'14px');
-        assert.equal(v6.rules['.Text--redirect'].fontSize,'14px');
+        assert.equal(v6.variables.fontSizeBase,'18px');
+        assert.equal(v6.rules['.Text--redirect'].fontSize,'18px');
         assert.equal(v6.rules['.Text--redirect'].color,'#0f4c5c');
         await page.evaluate(() => {
             window.petishPaymentMessagePage='cart'; window.wc_ppcp_sdk_v6.messages.style.fontSize='20px';
@@ -133,7 +161,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
                 cartBlock:localStorage.getItem('wcpay_appearance_bnpl_cart_block'),classicCart:localStorage.getItem('wcpay_appearance_bnpl_classic_cart'),
                 product:localStorage.getItem('wcpay_appearance_bnpl_product_page'),checkout:localStorage.getItem('wcpay_appearance_blocks_checkout')};
         });
-        assert.equal(cartAppearance.appearance.variables.fontSizeBase,'16px');
+        assert.equal(cartAppearance.appearance.variables.fontSizeBase,undefined);
         assert.equal(cartAppearance.appearance.rules['.Text'].color,'#14213d');
         assert.equal(cartAppearance.unrelated.variables.fontSizeBase,'19px');
         assert.equal(cartAppearance.light,'rgb(239, 250, 245)'); assert.equal(cartAppearance.padding,'12px');
