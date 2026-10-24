@@ -88,9 +88,10 @@ jobs:
           trap 'printf "stage=%s\n" "$preparation_stage" >> "$GITHUB_OUTPUT"' EXIT
           umask 077
           for attempt in 1 2 3 4 5 6; do
-            # Discover only the configured server's ED25519 identity. The shared
-            # SSH helper verifies its exact fingerprint before authentication.
-            if ssh-keyscan -T 15 -p "$SSH_PORT" -t ed25519 "$SSH_HOST" > "$RUNNER_TEMP/petish-candidate-host-keys" 2>/dev/null \
+            # Use the same discovery as the successful backup/release jobs.
+            # The shared helper retains only the exact independently pinned key
+            # before authentication; other presented keys are never trusted.
+            if ssh-keyscan -T 15 -p "$SSH_PORT" -t ed25519,ecdsa,rsa "$SSH_HOST" > "$RUNNER_TEMP/petish-candidate-host-keys" 2>/dev/null \
                 && [[ -s "$RUNNER_TEMP/petish-candidate-host-keys" ]]; then break; fi
             if [ "$attempt" = 6 ]; then exit 1; fi
             sleep 5
