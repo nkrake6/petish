@@ -41,7 +41,7 @@ class WC_Product {
     function is_in_stock() { return true; }
     function supports( $feature ) { return $this->get_type() === 'simple'; }
     function is_on_sale() { return false; }
-    function get_meta( $name, ...$unused ) { return $name === '_petish_supplier_order_count' ? '900' : gmdate( 'Y-m-d' ); }
+    function get_meta( $name, ...$unused ) { return $name === '_petish_supplier_order_count' ? ( $this->id === 6 ? '0' : '900' ) : gmdate( 'Y-m-d' ); }
     function get_image() { return '<img class="attachment-woocommerce_thumbnail" src="/neutral-product.svg" width="100" height="100" alt="Neutral fixture image">' . petish_supplier_hot_badge( $this ); }
     function get_price_html() {
         if ( $this->id === 3 ) { return '<span class="woocommerce-Price-amount amount"><bdi>A$99,999.00</bdi></span> – <span class="woocommerce-Price-amount amount"><bdi>A$199,999.00</bdi></span>'; }
