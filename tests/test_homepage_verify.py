@@ -1,6 +1,7 @@
 """Private homepage verification boundaries without loading WordPress."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -120,6 +121,56 @@ echo json_encode($out);
                                     env=env, capture_output=True, timeout=20)
             self.assertEqual(json.loads(result.stdout), {'status':'failure','category':'input','checks':{}})
             self.assertNotIn(mode.encode() if mode else b'PRIVATE', result.stdout)
+
+    def test_hero_media_choices_are_read_only_protected_settings(self):
+        result=self.execute(r'''
+define('ARRAY_A','ARRAY_A');$GLOBALS['hero_mode']='before';$GLOBALS['hero_reads']=[];
+class HeroDatabase{
+ public $prefix='wp_';public $postmeta='wp_postmeta';
+ function get_results($sql,$format){if(!str_starts_with($sql,'SELECT '))throw new RuntimeException();return [];}
+}
+$wpdb=new HeroDatabase();
+function get_option($name,$default){
+ $GLOBALS['hero_reads'][]=$name;
+ return $name==='petish_home_hero_images_v1'?['rabbit'=>$GLOBALS['hero_mode']==='before'?41:42]:$default;
+}
+function update_option(...$args){throw new RuntimeException('No setting writes permitted.');}
+function petish_email_preview_order_counts(){return [];}
+function petish_email_preview_account_state(){return [];}
+$before=petish_homepage_verify_state();$GLOBALS['hero_mode']='after';$after=petish_homepage_verify_state();
+echo json_encode([in_array('petish_home_hero_images_v1',$GLOBALS['hero_reads'],true),
+ $before['settings']!==$after['settings'],
+ !str_contains(json_encode($before),'rabbit')]);
+''')
+        self.assertEqual(result,[True,True,True])
+
+    def test_home_stylesheet_version_survives_zero_archive_timestamps(self):
+        theme=self.directory/'theme'
+        for name in ('assets/fonts/fonts.css','assets/css/petish.css','assets/css/home.css',
+                     'assets/js/for-your-pet.js','assets/js/home.js','assets/js/theme.js'):
+            target=theme/name;target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes(('Reviewed '+name).encode())
+            os.utime(target,(0,0))
+        functions=(ROOT/'wordpress/wp-content/themes/dt-the7-child/functions.php').read_text()
+        enqueue=re.search(r"add_action\(\s*'wp_enqueue_scripts',\s*(function\s*\(\)\s*\{.*?\n\}),\s*40\s*\);",functions,re.S)
+        self.assertIsNotNone(enqueue)
+        body=r'''
+$GLOBALS['styles']=[];
+function get_stylesheet_directory(){return THEME_DIRECTORY;}
+function get_stylesheet_directory_uri(){return 'https://petish.example/theme';}
+function is_front_page(){return true;}
+function is_product(){return false;}
+function wp_enqueue_style($handle,$url,$dependencies,$version){$GLOBALS['styles'][$handle]=[$url,$version];}
+function wp_enqueue_script(...$args){}
+function wp_dequeue_style(...$args){}
+'''.replace('THEME_DIRECTORY',repr(str(theme)))
+        body+='\n('+enqueue.group(1)+')();\necho json_encode($GLOBALS[\'styles\'][\'petish-home\']);'
+        url,version=self.execute(body)
+        self.assertEqual(url,'https://petish.example/theme/assets/css/home.css')
+        digest=hashlib.sha256((theme/'assets/css/home.css').read_bytes()).hexdigest()
+        self.assertIsInstance(version,str)
+        self.assertGreaterEqual(len(version),12)
+        self.assertTrue(digest.startswith(version))
 
     def test_full_read_only_barrier_covers_bootstrap_render_and_final_snapshot(self):
         source = self.source

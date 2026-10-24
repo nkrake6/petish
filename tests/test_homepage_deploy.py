@@ -1,4 +1,4 @@
-"""Exercise the eighteen-file homepage/header transaction against disposable filesystem fixtures."""
+"""Exercise the reviewed homepage/header transaction against disposable filesystems."""
 import base64
 import hashlib
 import json
@@ -20,8 +20,9 @@ spec = importlib.util.spec_from_file_location('homepage_evidence', ROOT / 'scrip
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
-BASELINE = 'f8be162'
-NEW_FILES = {'includes/cart-badge.php','assets/css/cart-badge.css','assets/js/cart-badge.js'}
+BASELINE = '19b08bbe998839a98dc845c9afac4ecd651c4e26'
+NEW_FILES = {'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
+             'includes/hero-images.php','assets/js/hero-images-admin.js'}
 EXISTING = [name for name in FILES if name not in NEW_FILES]
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+bfr0AAAAASUVORK5CYII=')
 
@@ -140,6 +141,17 @@ class HomepageDeploymentTests(unittest.TestCase):
         for name in set(FILES) - set(EXISTING):
             self.assertFalse((self.theme / name).exists())
         self.assertTrue(self.execute('rollback')['checks']['rollback_completed'])
+        self.assertEqual(self.snapshot(), before)
+
+    def test_new_account_and_hero_files_are_absent_again_after_rollback(self):
+        self.assertEqual(len(FILES), 23)
+        self.assertEqual(set(FILES) - set(self.originals), NEW_FILES)
+        before = self.snapshot()
+        self.assertTrue(all(not (self.theme / name).exists() for name in NEW_FILES))
+        self.assertEqual(self.execute('apply')['status'], 'success')
+        self.assertTrue(all((self.theme / name).is_file() for name in NEW_FILES))
+        self.assertEqual(self.execute('rollback')['status'], 'success')
+        self.assertTrue(all(not (self.theme / name).exists() for name in NEW_FILES))
         self.assertEqual(self.snapshot(), before)
 
     def test_concurrent_live_changes_are_never_overwritten(self):
@@ -371,16 +383,40 @@ class HomepageDeploymentTests(unittest.TestCase):
             manifest[name] = hashlib.sha256(content).hexdigest()
         (self.payload / 'manifest.json').write_text(json.dumps(manifest))
         before = self.snapshot()
+        expected_changed = {name for name in FILES
+                            if self.originals.get(name) != (self.payload / name).read_bytes()}
         inspection=self.execute('inspect', script=SCRIPT)
         self.assertEqual(inspection['status'], 'success')
-        self.assertEqual(inspection['changed_file_count'],4)
+        self.assertEqual(inspection['changed_file_count'],len(expected_changed))
+        self.assertTrue(NEW_FILES <= expected_changed)
         self.assertEqual(self.execute('apply', script=SCRIPT)['status'], 'success')
         after=self.snapshot()
         self.assertEqual({name for name in set(before)|set(after) if before.get(name)!=after.get(name)},
-                         {PREFIX.removeprefix('wordpress/')+name for name in
-                          ('includes/header-navigation.php','includes/cart-badge.php','assets/css/cart-badge.css','assets/js/cart-badge.js') })
+                         {PREFIX.removeprefix('wordpress/')+name for name in expected_changed})
         self.assertEqual(self.execute('rollback', script=SCRIPT)['status'], 'success')
         self.assertEqual(self.snapshot(), before)
+
+
+    def test_previous_eighteen_file_payload_cannot_enter_the_expanded_release(self):
+        historical_manifest = {}
+        for name in FILES:
+            target = self.payload / name
+            if name in NEW_FILES:
+                target.unlink()
+                continue
+            content = subprocess.check_output(['git', 'show', BASELINE + ':' + PREFIX + name], cwd=ROOT)
+            target.write_bytes(content)
+            historical_manifest[name] = hashlib.sha256(content).hexdigest()
+        self.assertEqual(len(historical_manifest),18)
+        (self.payload / 'manifest.json').write_text(json.dumps(historical_manifest))
+        before = self.snapshot()
+        for operation in ('inspect','apply'):
+            report = self.execute(operation,script=SCRIPT)
+            self.assertEqual(report['status'],'failure')
+            self.assertEqual(report['category'],'payload')
+            self.assertFalse(report['checks']['candidate_manifest_verified'])
+            self.assertEqual(self.snapshot(),before)
+            self.assertFalse((self.home / '.petish-homepage-releases').exists())
 
 
 if __name__ == '__main__':

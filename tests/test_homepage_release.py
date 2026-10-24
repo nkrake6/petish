@@ -190,6 +190,11 @@ assert(!JSON.stringify(facts).includes(input.login));
         self.assertEqual(completed.returncode,0,completed.stderr.decode())
         self.assertEqual(completed.stdout,b'Homepage guest GET retry checks passed.\n')
 
+    def test_account_fragment_scope_and_private_observations_are_bounded(self):
+        completed=subprocess.run(['node','tests/homepage-account-dropdown-scope.mjs'],cwd=ROOT,capture_output=True,timeout=15)
+        self.assertEqual(completed.returncode,0,completed.stderr.decode())
+        self.assertIn(b'Account dropdown request scope and fragment checks passed',completed.stdout)
+
     def test_cart_diagnostics_cannot_replace_required_cart_or_webkit_checks(self):
         for check in ('market_flag_cart_verified','market_flag_webkit_verified'):
             value=self.raw('browser');value['diagnostics']=dict.fromkeys(safe.BROWSER_DIAGNOSTICS,True)
@@ -312,6 +317,16 @@ assert(!JSON.stringify(facts).includes(input.login));
             stage['phases'][phase]['checks'][next(iter(safe.REQUIRED[phase]))]=False
             with self.subTest(phase=phase),self.assertRaises(ValueError):evidence.validate(path)
 
+    def test_previous_eighteen_file_receipt_cannot_authorize_new_header_and_hero_files(self):
+        path,_,stage,_=self.fixture_evidence()
+        new_files={'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
+                   'includes/hero-images.php','assets/js/hero-images-admin.js'}
+        self.assertEqual(len(evidence.FILES),23)
+        for name in new_files:
+            del stage['source_hashes'][name]
+        self.assertEqual(len(stage['source_hashes']),18)
+        with self.assertRaises(ValueError):evidence.validate(path)
+
     def test_public_contracts_match_native_browser_and_asset_helpers(self):
         native=(ROOT/'scripts/verify-homepage.php').read_text()
         self.assertEqual(safe.VERIFY,set(re.findall(r"petish_homepage_verify_mark\('([a-z_]+)'",native)))
@@ -430,6 +445,7 @@ class HomepagePublicAssetsTests(unittest.TestCase):
                 url=request.full_url
                 if url=='https://petish.biz/':
                     body=b'<h1 id="petish-home-title">Petish</h1><script>window.petishCartBadge={"endpoint":"/?wc-ajax=petish_cart_count","cartUrl":"https://petish.biz/cart/"};</script>'
+                    body+=b'<ul class="main-nav"><li class="petish-account-menu"><a href="https://petish.biz/my-account/">My account</a></li></ul><script>window.petishAccountDropdown={"endpoint":"https://petish.biz/wp-admin/admin-ajax.php","action":"petish_account_dropdown","accountUrl":"https://petish.biz/my-account/"};</script>'
                     if not old_header:body+=HomepagePublicAssetsTests.HEADER.encode()
                     if subtitle:body+=b'<p>Selected by supplier-reported orders.</p>'
                 elif url=='https://petish.biz/cart/':
@@ -447,6 +463,7 @@ class HomepagePublicAssetsTests(unittest.TestCase):
 
     def test_wrong_bytes_redirects_or_old_subtitle_refuse(self):
         for arguments in ({'changed':'assets/js/cart-badge.js'},{'changed':'assets/css/cart-badge.css'},{'changed':'assets/js/theme.js'},{'changed':'assets/css/petish.css'},
+                          {'changed':'assets/js/account-dropdown.js'},{'changed':'assets/css/account-dropdown.css'},{'changed':'assets/js/hero-images-admin.js'},
                           {'changed':'assets/js/market-selector.js'},{'changed':'assets/css/market-selector.css'},
                           {'changed':'assets/images/ui/country-flags.svg'},{'changed':'assets/images/ui/country-flags.LICENSE.txt'},
                           {'changed':'assets/js/for-your-pet.js'},{'changed':'assets/css/home.css'},{'changed':'assets/images/ui/free-delivery-van.png'},

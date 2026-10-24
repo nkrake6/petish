@@ -19,6 +19,10 @@ const FLAG_PATH = '/wp-content/themes/dt-the7-child/assets/images/ui/country-fla
 const THEME_SWITCH = '[data-petish-theme-toggle]';
 const PERSONAL_SCRIPT_PATH = '/wp-content/themes/dt-the7-child/assets/js/for-your-pet.js';
 const PERSONAL_ENDPOINT = `${ORIGIN}/wp-admin/admin-ajax.php?action=petish_for_your_pet`;
+const ACCOUNT_ENDPOINT = `${ORIGIN}/wp-admin/admin-ajax.php`;
+const ACCOUNT_BODY = 'action=petish_account_dropdown';
+const ACCOUNT_ASSETS = ['/wp-content/themes/dt-the7-child/assets/css/account-dropdown.css',
+  '/wp-content/themes/dt-the7-child/assets/js/account-dropdown.js'];
 const PERSONAL = '[data-petish-for-your-pet]';
 const SECTION = '#petish-free-delivery';
 export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
@@ -35,7 +39,7 @@ export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', '
   ...['header', 'branding', 'widgets', 'menu'].flatMap(node => ['left', 'right', 'width', 'height', 'client_width', 'scroll_width',
     'padding_left', 'padding_right', 'margin_left', 'margin_right', 'flex_basis', 'flex_grow', 'flex_shrink', 'min_width', 'max_width', 'gap'].map(metric => `${node}_${metric}`)),
   ...['search', 'switch', 'market', 'other'].flatMap(node => ['width', 'margin_left', 'margin_right', 'count'].map(metric => `${node}_${metric}`))])]);
-const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout']);
+const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout', 'account_dropdown']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
   ...['member', 'guest'].flatMap(kind => ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff'].map(fact => `personalisation_${kind}_${fact}`)),
   ...['status_ok', 'json_success', 'html_string', 'signin_prompt', 'no_product', 'no_identity',
@@ -66,7 +70,8 @@ export const CHECK_KEYS = Object.freeze(['browser_started', 'customer_login_veri
   'theme_assets_http_verified', 'theme_switch_order_verified', 'theme_switch_geometry_verified',
   'theme_switch_pointer_verified', 'theme_switch_keyboard_verified', 'theme_switch_persistence_verified',
   'theme_switch_select_sync_verified', 'theme_switch_system_verified', 'theme_switch_clones_verified',
-  'market_flag_assets_verified', 'market_flag_header_verified', 'market_flag_cart_verified', 'market_flag_webkit_verified']);
+  'market_flag_assets_verified', 'market_flag_header_verified', 'market_flag_cart_verified', 'market_flag_webkit_verified',
+  'account_dropdown_assets_http_verified', 'account_dropdown_private_fragment_verified', 'account_dropdown_keyboard_verified']);
 
 export function publicReport(value) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, value?.checks?.[key] === true]));
@@ -144,6 +149,10 @@ export function allowedHomepageRequest(raw, ...options) {
   if (raw === `${ORIGIN}/cart/` && (options[0] ?? 'GET') === 'GET'
       && (options[3] ?? 'document') === 'document') return true;
   if (raw === PERSONAL_ENDPOINT && (options[0] ?? 'GET') === 'GET') return true;
+  // This fixed, own-session fragment is read only. No arbitrary admin POST,
+  // query action, identity override or additional form field is permitted.
+  if (raw === ACCOUNT_ENDPOINT && options[0] === 'POST' && options[2] === ACCOUNT_BODY
+      && ['fetch', 'xhr'].includes(options[3])) return true;
   if (!allowedRequest(raw, ...options)) return false;
   try {
     const url = new URL(raw);
@@ -168,7 +177,7 @@ async function readOnlyContext(browser, storageState) {
       if (request.method() === 'GET' && url.origin === ORIGIN && url.pathname === '/wp-json/wc/store/v1/cart') login.cartStoreReadBlocked = true;
       return route.abort('blockedbyclient');
     }
-    if (request.method() === 'POST') login.used = true;
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/wp-login.php') login.used = true;
     return route.continue();
   });
   if (typeof context.routeWebSocket === 'function') await context.routeWebSocket('**/*', socket => socket.close());
@@ -320,6 +329,83 @@ export function personalisationHeaderFacts(headers) {
     vary_cookie: /(?:^|,)\s*Cookie\s*(?:,|$)/i.test(headers.vary ?? ''),
     nosniff: (headers['x-content-type-options'] ?? '').toLowerCase() === 'nosniff',
   };
+}
+
+/** Return finite observations only; account links and logout nonces remain private. */
+export function accountDropdownFragmentFacts(headers, ok, payload, accountUrl, input = {}) {
+  const exactKeys = (value, keys) => value !== null && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).sort().join(',') === [...keys].sort().join(',');
+  const local = value => {
+    if (typeof value !== 'string' || value.length > 4096 || /[\x00-\x20\x7f]/.test(value)) return null;
+    let decoded = value;
+    for (let index = 0; index < 4; index++) {
+      try { decoded = decodeURIComponent(decoded); } catch { return null; }
+      if (/[\x00-\x1f\x7f]/.test(decoded)) return null;
+    }
+    try { const url = new URL(value); return url.origin === ORIGIN && !url.username && !url.password && !url.hash ? url : null; }
+    catch { return null; }
+  };
+  const account = local(accountUrl), data = payload?.data;
+  const base = account?.pathname.replace(/\/$/, '') + '/';
+  const items = Array.isArray(data?.items) ? data.items : [];
+  const seen = new Set();
+  const links = items.length >= 1 && items.length <= 50 && items.every(item => {
+    const url = local(item?.url);
+    if (!exactKeys(item, ['key', 'label', 'url']) || typeof item.key !== 'string'
+        || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(item.key) || seen.has(item.key)
+        || typeof item.label !== 'string' || !item.label.trim() || item.label.length > 512
+        || /[<>\x00-\x1f\x7f]/.test(item.label) || !url || !account
+        || !(url.pathname === account.pathname || url.pathname.startsWith(base))) return false;
+    seen.add(item.key); return true;
+  });
+  const reviews = items.find(item => item?.key === 'my-reviews');
+  const reviewsUrl = local(reviews?.url);
+  const logout = local(items.find(item => item?.key === 'customer-logout')?.url);
+  const encoded = JSON.stringify(payload ?? null);
+  return { ...personalisationHeaderFacts(headers), status_ok: ok === true,
+    exact_shape: exactKeys(payload, ['success', 'data']) && payload.success === true
+      && exactKeys(data, ['signed_in', 'avatar', 'initial', 'items']),
+    signed_in: data?.signed_in === true,
+    account_url: account?.pathname === '/my-account/' && !account.search,
+    identity_bounded: typeof data?.initial === 'string' && data.initial.length >= 1 && data.initial.length <= 8
+      && !/[<>\x00-\x1f\x7f]/.test(data.initial)
+      && (data.avatar === '' || local(data.avatar)?.protocol === 'https:')
+      && [input.login, input.password, input.customer_email].filter(value => typeof value === 'string' && value)
+        .every(value => !encoded.includes(value)),
+    native_links: links && seen.has('dashboard') && seen.has('orders') && !!logout
+      && !!logout.searchParams.get('_wpnonce'),
+    native_reviews_query: !!reviewsUrl && reviewsUrl.pathname === account?.pathname
+      && reviewsUrl.searchParams.size === 1 && reviewsUrl.searchParams.get('my-reviews') === '1' };
+}
+
+/** Exercise the existing header without following any account/logout link. */
+export async function inspectAccountDropdownKeyboard(page, expectedItems) {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.evaluate(() => scrollTo(0, 0));
+  const toggles = page.locator('.main-nav > .petish-account-menu > [data-petish-account-toggle]');
+  await page.waitForFunction(() => [...document.querySelectorAll('.main-nav > .petish-account-menu > [data-petish-account-toggle]')]
+    .some(button => !button.hidden && button.getBoundingClientRect().width > 0));
+  let toggle;
+  for (const button of await toggles.all()) if (await button.isVisible()) { toggle = button; break; }
+  if (!toggle) return false;
+  const menu = toggle.locator('..');
+  const panel = menu.locator(':scope > [data-petish-account-panel]');
+  const native = await menu.evaluate(item => {
+    const anchor = item.querySelector(':scope > a'), label = anchor?.querySelector('.menu-text') || anchor;
+    return { url: anchor?.href, last: item.parentElement.lastElementChild === item,
+      font: label ? parseFloat(getComputedStyle(label).fontSize) : 0,
+      avatar: !!anchor?.querySelector('.petish-account-avatar') };
+  });
+  if (native.url !== ORIGIN + '/my-account/' || !native.last || native.font < 15.9 || native.font > 16.1 || !native.avatar) return false;
+  if (await panel.locator('a').count() !== expectedItems.length) return false;
+  const actual = await panel.locator('a').evaluateAll(links => links.map(link => ({ label: link.textContent, url: link.href })));
+  if (!actual.every((entry, index) => entry.url === expectedItems[index].url && entry.label === expectedItems[index].label)) return false;
+  await toggle.focus(); await toggle.press('ArrowDown');
+  const opened = await toggle.getAttribute('aria-expanded') === 'true' && await panel.isVisible()
+    && await panel.locator('a').first().evaluate(link => document.activeElement === link);
+  await page.keyboard.press('Escape');
+  return opened && await toggle.getAttribute('aria-expanded') === 'false' && await panel.isHidden()
+    && await toggle.evaluate(button => document.activeElement === button);
 }
 export function personalisationGuestFacts(headers, ok, payload, input) {
   const html = payload?.data?.html, string = typeof html === 'string';
@@ -901,6 +987,8 @@ export async function run(input, chromium, options = {}) {
     const expectedMarketAssets = new Map([MARKET_SCRIPT_PATH, MARKET_CSS_PATH, FLAG_PATH].map(asset =>
       [asset, hash(fs.readFileSync(new URL(asset.split('/dt-the7-child/')[1], THEME)))]));
     const expectedPersonalScript = hash(fs.readFileSync(new URL('assets/js/for-your-pet.js', THEME)));
+    const expectedAccountAssets = new Map(ACCOUNT_ASSETS.map(asset =>
+      [asset, hash(fs.readFileSync(new URL(asset.split('/dt-the7-child/')[1], THEME)))]));
     const expectedBadgeBytes = fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME));
     const expectedBadge = hash(expectedBadgeBytes);
     const expectedDimensions = pngDimensions(expectedBadgeBytes);
@@ -918,6 +1006,11 @@ export async function run(input, chromium, options = {}) {
       && allowedHomepageRequest(PERSONAL_ENDPOINT, 'GET')
       && !allowedHomepageRequest(PERSONAL_ENDPOINT + '&user_id=1', 'GET')
       && !allowedHomepageRequest(PERSONAL_ENDPOINT, 'POST')
+      && allowedHomepageRequest(ACCOUNT_ENDPOINT, 'POST', false, ACCOUNT_BODY, 'fetch')
+      && !allowedHomepageRequest(ACCOUNT_ENDPOINT, 'GET')
+      && !allowedHomepageRequest(ACCOUNT_ENDPOINT, 'POST', false, ACCOUNT_BODY + '&user_id=1', 'fetch')
+      && !allowedHomepageRequest(ACCOUNT_ENDPOINT + '?action=petish_account_dropdown', 'POST', false, ACCOUNT_BODY, 'fetch')
+      && !allowedHomepageRequest(ACCOUNT_ENDPOINT, 'POST', false, ACCOUNT_BODY, 'document')
       && allowedHomepageRequest(`${ORIGIN}/cart/`, 'GET')
       && !allowedHomepageRequest(`${ORIGIN}/cart/`, 'GET', false, '', 'fetch')
       && !allowedHomepageRequest(`${ORIGIN}/cart/?remove_item=1`, 'GET')
@@ -944,12 +1037,14 @@ export async function run(input, chromium, options = {}) {
     const assetRecords = new Map(), assetTasks = [];
     page.on('response', response => {
       const url = new URL(response.url());
-      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH, THEME_SCRIPT_PATH, DESIGN_CSS_PATH, MARKET_SCRIPT_PATH, MARKET_CSS_PATH, FLAG_PATH].includes(url.pathname)) return;
+      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH, THEME_SCRIPT_PATH, DESIGN_CSS_PATH, MARKET_SCRIPT_PATH, MARKET_CSS_PATH, FLAG_PATH, ...ACCOUNT_ASSETS].includes(url.pathname)) return;
       const task = response.body().then(body => assetRecords.set(url.pathname, { ok: response.ok(), hash: hash(body) }))
         .catch(() => assetRecords.set(url.pathname, { ok: false, hash: null }));
       assetTasks.push(task);
     });
     const personalResponse = page.waitForResponse(response => response.url() === PERSONAL_ENDPOINT).catch(() => null);
+    const accountResponse = page.waitForResponse(response => response.url() === ACCOUNT_ENDPOINT
+      && response.request().method() === 'POST' && response.request().postData() === ACCOUNT_BODY).catch(() => null);
     const homeResponse = await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded' });
     checks.homepage_http_ok = !!homeResponse?.ok() && new URL(page.url()).origin === ORIGIN
       && new URL(page.url()).pathname === '/' && await page.locator('.petish-home').count() === 1;
@@ -976,6 +1071,20 @@ export async function run(input, chromium, options = {}) {
     checks.market_flag_assets_verified = [...expectedMarketAssets].every(([asset, expected]) =>
       assetRecords.get(asset)?.ok === true && assetRecords.get(asset)?.hash === expected);
     requireCheck(checks.market_flag_assets_verified, 'market_flag_assets');
+    category = 'account_dropdown';
+    checks.account_dropdown_assets_http_verified = [...expectedAccountAssets].every(([asset, expected]) =>
+      assetRecords.get(asset)?.ok === true && assetRecords.get(asset)?.hash === expected);
+    requireCheck(checks.account_dropdown_assets_http_verified, 'account_dropdown');
+    const accountFragment = await accountResponse;
+    requireCheck(!!accountFragment, 'account_dropdown');
+    const accountPayload = await accountFragment.json();
+    const accountUrl = await page.evaluate(() => window.petishAccountDropdown?.accountUrl);
+    checks.account_dropdown_private_fragment_verified = Object.values(accountDropdownFragmentFacts(
+      await accountFragment.allHeaders(), accountFragment.ok(), accountPayload, accountUrl, input)).every(value => value === true);
+    requireCheck(checks.account_dropdown_private_fragment_verified, 'account_dropdown');
+    checks.account_dropdown_keyboard_verified = await inspectAccountDropdownKeyboard(page, accountPayload.data.items);
+    requireCheck(checks.account_dropdown_keyboard_verified, 'account_dropdown');
+    category = 'assets';
     // Request the reviewed PNG even when no supplier products qualify, so an
     // intentionally absent section cannot hide an unreadable deployment asset.
     const fetchBadge = pathname => page.evaluate(async target => {
