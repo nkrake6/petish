@@ -1,5 +1,5 @@
 name: Back up the full Petish site to Git
-# Refresh the recovered backup before a verified production release.
+# Refresh the recovered backup before the next verified product layout release.
 
 on:
   workflow_dispatch:
