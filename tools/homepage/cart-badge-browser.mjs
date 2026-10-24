@@ -55,12 +55,14 @@ export function cartPaymentLayoutFacts(proof,controls){
 /** Reuse the already-populated owned Cart; inspect native controls without clicking. */
 export async function inspectPopulatedCartPaymentLayout(page){
  const original=page.viewportSize(),observed={layout_verified:true,typography_verified:true,diagnostics:{}};
- await page.addScriptTag({content:fs.readFileSync(new URL('./payment-layout-public-proof.js',import.meta.url),'utf8')});
+ const helper=new Function(fs.readFileSync(new URL('./payment-layout-public-proof.js',import.meta.url),'utf8')
+  +'; return petishPaymentLayoutPublicProof;')();
  try{
   for(const width of [320,390,768,1280]){
    await page.setViewportSize({width,height:900});
    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-   const snapshot=await page.evaluate(()=>{
+   const proof=await page.evaluate(helper);
+   const controls=await page.evaluate(()=>{
     const cart=document.querySelector('.wc-block-cart'),visible=node=>{
      const box=node.getBoundingClientRect(),style=getComputedStyle(node);
      return !node.hidden&&style.display!=='none'&&style.visibility==='visible'&&box.width>0&&box.height>0;
@@ -71,13 +73,13 @@ export async function inspectPopulatedCartPaymentLayout(page){
     const products=cart?[...cart.querySelectorAll('.wc-block-cart-item__product,.wc-block-cart-item__total')].filter(visible):[];
     let container=cart?.querySelector('.wc-block-components-product-name')?.parentElement;
     while(container&&getComputedStyle(container).containerType==='normal')container=container.parentElement;
-    return {proof:petishPaymentLayoutPublicProof(),controls:{
+    return {
      layout_fits:!!cart&&cart.scrollWidth<=cart.clientWidth+1&&fits(cart)&&products.length>=2&&products.every(fits)&&quantities.every(fits)&&buttons.every(fits),
      quantity_control_44px:quantities.length>=1&&buttons.length>=2&&quantities.every(node=>Math.abs(node.getBoundingClientRect().height-44)<=1)
       &&buttons.every(node=>{const box=node.getBoundingClientRect();return Math.abs(box.height-44)<=1&&Math.abs(box.width-44)<=1;}),
-     typography_width:container?.clientWidth||innerWidth}};
+     typography_width:container?.clientWidth||innerWidth};
    });
-   const facts=cartPaymentLayoutFacts(snapshot.proof,snapshot.controls);
+   const facts=cartPaymentLayoutFacts(proof,controls);
    observed.layout_verified=observed.layout_verified&&facts.layout_verified;
    observed.typography_verified=observed.typography_verified&&facts.typography_verified;
    for(const[key,value]of Object.entries(facts.diagnostics)){

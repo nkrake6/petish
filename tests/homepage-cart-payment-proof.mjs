@@ -66,7 +66,7 @@ if(process.argv.includes('--browser')){
   const url=base+file+'?ver='+createHash('sha256').update(bytes).digest('hex').slice(0,16);
   return file.endsWith('.css')?`<link rel="stylesheet" href="${url}">`:`<script defer src="${url}"></script>`;
  }).join('');
- const html=`<!doctype html><html data-theme="light"><head><style>${native}\n${design}\nbody{margin:0;padding:16px;box-sizing:border-box}main{max-width:1140px;margin:auto}svg{max-width:100%}</style>${tags}</head>
+ const html=`<!doctype html><html data-theme="light"><head><meta http-equiv="Content-Security-Policy" content="script-src 'self'"><style>${native}\n${design}\nbody{margin:0;padding:16px;box-sizing:border-box}main{max-width:1140px;margin:auto}svg{max-width:100%}</style>${tags}</head>
  <body id="the7-body" class="petish-site petish-cart-payment-layout"><main><div class="wp-block-woocommerce-cart"><div class="wc-block-cart">
  <table class="wc-block-cart-items"><tbody><tr class="wc-block-cart-items__row"><td class="wc-block-cart-item__image"><svg width="80" height="80"><rect width="80" height="80" fill="green"/></svg></td>
  <td class="wc-block-cart-item__product"><div class="wc-block-cart-item__wrap"><a class="wc-block-components-product-name" href="#">Private fixture product name private-sentinel</a>
@@ -88,10 +88,13 @@ if(process.argv.includes('--browser')){
    return route.fulfill({status:200,contentType:file.endsWith('.css')?'text/css':'application/javascript',body:assets.get(file)});
   });
   await page.goto('https://staging.petish.biz/cart/');
+  const scriptsBefore=await page.locator('script').count();
   const actual=await inspectPopulatedCartPaymentLayout(page);
   check(actual.layout_verified&&actual.typography_verified);
   check(!JSON.stringify(actual).includes('private-sentinel'));
   check(page.viewportSize().width===1280&&page.viewportSize().height===900);
+  check(await page.locator('script').count()===scriptsBefore);
+  check(await page.evaluate(()=>typeof window.petishPaymentLayoutPublicProof==='undefined'));
   check(requests===6);
  }finally{await browser.close();}
 }
