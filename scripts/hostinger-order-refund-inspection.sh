@@ -53,7 +53,7 @@ value={'format':'petish-order-refund-status-v1','phase':phase,'run_id':os.enviro
  'status':'success' if ok else 'failure','category':category,'temporary_files_removed':os.environ['ORI_CLEANED']=='1',
  'request_key_retained':ok and phase=='prepare','prepared':None,'encrypted_result_present':ok and phase=='inspect','failure_code':None}
 if not ok and category=='collection':
- errors={'input','paths','database_driver','database_configuration','database_connection','query','bounds','storage_layout','amount','date','metadata','storage_configuration','storage_drift','report','output','inspection_failed','origin_mismatch'}
+ errors={'input','paths','database_driver','database_configuration','database_connection','query','bounds','storage_layout','amount','date','metadata','metadata_missing_order_total','metadata_missing_order_currency','metadata_missing_refund_amount','metadata_duplicate_conflict','metadata_value','storage_configuration','storage_drift','report','output','inspection_failed','origin_mismatch'}
  path=root/'report.private.stderr'
  if path.exists() and 0<path.stat().st_size<=16384:
   lines=m.read_regular(path,16384,True).decode('utf-8','replace').splitlines()

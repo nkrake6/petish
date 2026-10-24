@@ -197,9 +197,27 @@ class OrderRefundInspectionTests(unittest.TestCase):
 
     def test_duplicate_critical_metadata_and_refund_currency_drift_fail_closed(self):
         f = fixture(); f['hpos_meta']['7001'] += [f['hpos_meta']['7001'][0]]
-        self.assertEqual(self.collect(f)['error'], 'metadata')
+        report = self.collect(f)['report']
+        self.assertEqual(report['transaction_fee_cached'], '3.48')
+        f['hpos_meta']['7001'][-1] = {'meta_key': '_wcpay_transaction_fee', 'meta_value': '4.48'}
+        self.assertEqual(self.collect(f)['error'], 'metadata_duplicate_conflict')
         f = fixture(); f['hpos']['3000']['currency'] = 'USD'
         self.assertEqual(self.collect(f)['error'], 'storage_drift')
+
+    def test_identical_item_metadata_is_counted_once_and_conflicts_are_denied(self):
+        f = fixture(); f['allocations']['7001'] += [dict(f['allocations']['7001'][-2])]
+        report = self.collect(f)['report']
+        self.assertEqual(report['original_shipping_items_total'], '20.00')
+        self.assertTrue(report['remaining_matches_unrefunded_shipping'])
+        f['allocations']['7001'][-1]['meta_value'] = '21'
+        self.assertEqual(self.collect(f)['error'], 'metadata_duplicate_conflict')
+
+    def test_missing_required_values_have_fixed_nonfinancial_error_codes(self):
+        for key, expected in (('_order_total', 'metadata_missing_order_total'), ('_order_currency', 'metadata_missing_order_currency')):
+            f = fixture(False); f['legacy_meta']['7001'] = [v for v in f['legacy_meta']['7001'] if v['meta_key'] != key]
+            self.assertEqual(self.collect(f)['error'], expected)
+        f = fixture(); f['hpos_meta']['3000'] = [v for v in f['hpos_meta']['3000'] if v['meta_key'] != '_refund_amount']
+        self.assertEqual(self.collect(f)['error'], 'metadata_missing_refund_amount')
 
     def test_real_dual_store_drift_is_rejected_not_used_as_fallback(self):
         f = fixture(); legacy = fixture(False)

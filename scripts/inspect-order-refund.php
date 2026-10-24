@@ -116,7 +116,11 @@ final class Petish_Order_Refund_Collector {
     private function map($rows, $key, $value) {
         $out = [];
         foreach ($rows as $row) {
-            if (!is_string($row[$key] ?? null) || array_key_exists($row[$key], $out) || !is_string($row[$value] ?? null) || strlen($row[$value]) > 32768) petish_order_refund_fail('metadata');
+            if (!is_string($row[$key] ?? null) || !is_string($row[$value] ?? null) || strlen($row[$value]) > 32768) petish_order_refund_fail('metadata_value');
+            if (array_key_exists($row[$key], $out)) {
+                if ($out[$row[$key]] !== $row[$value]) petish_order_refund_fail('metadata_duplicate_conflict');
+                continue; // Identical legacy duplicates contain one value, never an additional charge/refund.
+            }
             $out[$row[$key]] = $row[$value];
         }
         return $out;
@@ -142,7 +146,8 @@ final class Petish_Order_Refund_Collector {
             if (isset($meta['_order_currency']) && petish_order_refund_currency($meta['_order_currency']) !== $record['currency']) petish_order_refund_fail('storage_drift');
         } else {
             $row = $this->one($this->rows('SELECT ID,post_type,post_status,post_parent,post_date_gmt,post_modified_gmt FROM ' . $this->table('posts') . ' WHERE ID=? LIMIT 2', [$id]));
-            if (!array_key_exists('_order_total', $meta) || !array_key_exists('_order_currency', $meta)) petish_order_refund_fail('metadata');
+            if (!array_key_exists('_order_total', $meta)) petish_order_refund_fail('metadata_missing_order_total');
+            if (!array_key_exists('_order_currency', $meta)) petish_order_refund_fail('metadata_missing_order_currency');
             $record = ['id'=>(int)$row['ID'],'type'=>$row['post_type'],'parent'=>(int)$row['post_parent'],'status'=>petish_order_refund_status($row['post_status']),
                 'currency'=>petish_order_refund_currency($meta['_order_currency']),'total'=>$this->money($meta,'_order_total'),
                 'tax'=>$this->money($meta,'_order_tax'),'shipping'=>$this->money($meta,'_order_shipping'),'shipping_tax'=>$this->money($meta,'_order_shipping_tax'),
@@ -151,7 +156,7 @@ final class Petish_Order_Refund_Collector {
         }
         if ($record['id'] !== $id || $record['type'] !== ($refund ? 'shop_order_refund' : 'shop_order') || $record['currency'] === 'unknown') petish_order_refund_fail('storage_layout');
         if ($refund) {
-            if (!isset($meta['_refund_amount'])) petish_order_refund_fail('metadata');
+            if (!isset($meta['_refund_amount'])) petish_order_refund_fail('metadata_missing_refund_amount');
             $record['amount'] = $this->money($meta,'_refund_amount');
             if ($record['amount'] < 0 || $record['total'] !== -$record['amount']) petish_order_refund_fail('storage_drift');
         } elseif ($record['total'] < 0) petish_order_refund_fail('amount');
@@ -170,8 +175,11 @@ final class Petish_Order_Refund_Collector {
         $items = []; $total = 0; $shipping = 0; $shipping_tax = 0; $fees = 0;
         foreach ($rows as $row) {
             $key = $row['order_item_id'] . ':' . ($row['meta_key'] ?? 'missing');
-            if (isset($items[$key])) petish_order_refund_fail('metadata');
-            $items[$key] = true;
+            if (array_key_exists($key,$items)) {
+                if ($items[$key] !== $row['meta_value']) petish_order_refund_fail('metadata_duplicate_conflict');
+                continue; // The same stored allocation must not be counted twice.
+            }
+            $items[$key] = $row['meta_value'];
             if ($row['meta_key'] === null) continue;
             $amount = petish_order_refund_units($row['meta_value']);
             if ($row['order_item_type'] === 'shipping' && $row['meta_key'] === 'cost') { $shipping += $amount; $total += $amount; }
