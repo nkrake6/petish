@@ -2,6 +2,8 @@ name: Preview Petish staging order email branding
 
 on:
   workflow_dispatch:
+  push:
+    branches: [verify-staging-email-preview]
   workflow_run:
     workflows: [Check or deploy Petish staging custom code]
     branches: [staging]
@@ -17,10 +19,13 @@ concurrency:
 jobs:
   preview:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'staging' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
+      github.repository == 'nkrake6/petish' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/verify-staging-email-preview') ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'staging' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -31,16 +36,17 @@ jobs:
       - name: Check out reviewed staging preview tools
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: main
+          ref: ${{ github.event_name == 'push' && github.sha || 'main' }}
           persist-credentials: true
       - name: Prepare pinned SSH connection
         id: prepare
         continue-on-error: true
         run: |
-          for attempt in 1 2 3; do
-            if bash scripts/hostinger-connection-check.sh; then break; fi
-            if [ "$attempt" = 3 ]; then exit 1; fi
-            sleep 2
+          umask 077
+          for attempt in 1 2 3 4 5 6; do
+            if ssh-keyscan -T 15 -p "$SSH_PORT" -t ed25519 "$SSH_HOST" > "$RUNNER_TEMP/petish-candidate-host-keys" 2>/dev/null && test -s "$RUNNER_TEMP/petish-candidate-host-keys"; then break; fi
+            if [ "$attempt" = 6 ]; then exit 1; fi
+            sleep 5
           done
           if ! command -v sshpass >/dev/null 2>&1; then
             sudo apt-get -o Acquire::Retries=3 update -qq
