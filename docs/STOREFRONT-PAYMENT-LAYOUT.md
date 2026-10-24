@@ -1,7 +1,12 @@
 # Storefront payment groups and Cart readability
 
-Live application source: `3691306`, 24 October 2026
-(Australia/Melbourne). Production release source: `cff4586`.
+Deployed baseline: application source `3691306`, production release source
+`cff4586`, 24 October 2026 (Australia/Melbourne).
+
+Corrective implementation: Afterpay commit `ad24e72` and Cart commit `bcec660`.
+Their new hosted release and production verification are pending. The baseline
+receipts below establish what was deployed; they do not establish that the
+reported live payment presentation issues were resolved.
 
 On product pages, the existing native WooPayments express button and Afterpay
 message form one group. PayPal and Pay in 4 form a separate group, with the
@@ -9,33 +14,64 @@ native PayPal instalment message beneath the buttons. Both groups use the same
 400px maximum width and shrink to fit mobile screens. Categories and tags use
 16px text with space above them.
 
-Afterpay's native message has a green highlight in light and dark appearances.
-The official `wcpay_elements_appearance` event matches its typography to the
-native PayPal message configuration, including a Cart block's text-size
-override. Its original logo, amounts, eligibility and See plans link stay with
-the provider. The native SDK controls the contents of its cross-origin iframe;
-the storefront does not replace that content or inject CSS into it. Checkout
-appearance and caches are excluded.
+## Pending Afterpay correction
+
+The prior implementation derived financing font sizes from PayPal's message
+configuration. That customization has been removed. Commit `ad24e72` restores
+WooPayments' native financing text and disclosure sizes, including the natural
+See plans link below the branding. It invalidates only the existing customized
+product or Cart appearance cache once per browser/scope, before native message
+initialization. Checkout appearance and caches are excluded.
+
+The green message highlight remains in light and dark appearances. A separate,
+decorative heading above the native Afterpay message uses the exact unchanged
+SVG shipped by WooPayments: 150px wide, limited to its container width, with its
+original aspect ratio and colours. The provider's own inline mark, amounts,
+financing text and See plans link remain inside its message. There is no iframe
+content replacement, internal CSS injection, scaling or cloned payment SDK.
+
+The heading is limited to an initialized AU/AUD message whose only native
+payment method is Afterpay/Clearpay, with a visible native iframe, no loading
+placeholder and the provider asset available. Native amount, variation and
+quantity eligibility remains authoritative. Mixed Klarna/Affirm messages,
+other markets and unavailable messages are not labelled as Afterpay. Both
+product and native Cart BNPL wrappers are covered.
 
 ## One Google Pay provider on Cart
 
-The Cart request selects WooPayments for Google Pay when its native merchant
-configuration enables Cart wallets, its Google Pay gateway is available for
-express checkout and its Blocks integration is active. The public WooCommerce
-payment-method registry removes only PayPal's `ppcp-googlepay` Cart display
-integration before client configuration is captured. PayPal's supported native
-Cart styling filter covers its SDK v6 display gate as well.
+The original policy incorrectly required the split Google Pay gateway's
+regular-checkout availability and a regular-card Blocks registry entry. The
+installed runtime proved both assumptions wrong: native main-gateway and Cart
+wallet enablement were true, while split availability was false and the
+`woocommerce_payments` registry lookup was absent. WooPayments' own source also
+explicitly warns against that split-gateway availability check for Google Pay.
+
+Commit `bcec660` selects WooPayments using the native main gateway's
+`is_payment_request_enabled()` and the native helper's Cart `payment_request`
+enablement. It requires neither split-gateway availability nor the regular-card
+registry entry. The public WooCommerce payment-method registry removes only
+PayPal's `ppcp-googlepay` Cart display integration before client configuration
+is captured. PayPal's supported native Cart styling filter removes that method
+from a cloned Cart display DTO for SDK v6.
 
 This is a request-local display choice. Stored settings, actual gateways,
 Store API payment handlers and SDK components are unchanged. Product, checkout,
 mini-cart, AJAX, REST, admin and CLI requests retain their native behavior.
-If WooPayments is unconfigured or unavailable, PayPal Google Pay is retained.
+If the native WooPayments Cart wallet setting is disabled or its required APIs
+are unavailable, PayPal Google Pay is retained. Already-enqueued Cart payment
+scripts or captured configuration also preserve native configuration.
 WooPayments still decides browser eligibility; a browser unable to use it may
-have no Google Pay button on Cart, while PayPal, Pay in 4 and ordinary checkout
-remain available.
+have no Google Pay button on Cart. PayPal, Pay in 4 and ordinary checkout retain
+their own native eligibility and processing.
 
 Cart styles place Google Pay above PayPal. They group the existing native
-PayPal, Pay in 4 and instalment message without moving mounted SDK nodes.
+PayPal, Pay in 4 and instalment message without moving mounted SDK nodes. The
+message detector now supports both a v5 iframe and the native v6
+`paypal-message` host. It does not search inside the host's shadow root. A
+ResizeObserver watches the bounded native message/container hosts so a shadow
+content height change can update the group without a light-DOM mutation.
+The existing direct-Sidebar selector is retained: the filled guest Cart receipt
+confirmed that structure, so no wrapper workaround was introduced.
 Keyboard order remains the native provider DOM order. No client-side guesses
 about iframe readiness hide a payment button.
 
@@ -55,27 +91,31 @@ before PayPal SDK v6's priority-10 display checks. Merely registered scripts do
 not prevent selection; already-enqueued scripts or captured configuration
 cause it to preserve native behavior.
 
-Tests cover actual native registry/DTO behavior, unsupported contexts,
-provider-unavailable fallbacks, native hook order, variation/remount behavior,
-appearance/cache scope and responsive layout at 320, 390, 768 and 1280px.
-Provider fixtures keep their original nodes and handlers. These checks do not
-exercise a real wallet, financing decision, payment or supplier order.
+Tests cover native registry/DTO behavior, unsupported contexts, disabled-native
+wallet fallbacks, hook order, variation/remount behavior, appearance/cache scope
+and responsive layout at 320, 390, 768 and 1280px. The corrective Cart fixture
+covers main express enablement with split availability false and the card
+registry absent. Its closed-shadow message fixture changes height from zero to
+54px, back to zero and then 96px without a light-DOM mutation, while preserving
+native host identity and handlers. These are isolated regression fixtures;
+they do not prove that a live SDK rendered, authorize a wallet, make a financing
+decision or create a payment or supplier order.
 
 Private staging install `40075829709-1` passed all eight deployment steps on
 application source `3691306`. Read-only email preview `40075861008-1` rendered
-all seven branded native order/account message types. The full storefront
-browser proof additionally checks actual product metadata/group styles and
-populated Cart typography, publishing finite measurements and booleans rather
-than account, gateway or iframe configuration values.
+all seven branded native order/account message types. That baseline's browser
+proof checked product metadata/group styles and populated Cart typography,
+publishing finite measurements and booleans rather than account, gateway or
+iframe configuration values.
 
-## Hosted release evidence
+## Baseline hosted release evidence
 
 | Step | Receipt | Result |
 |---|---|---|
 | Staging application install | [40075829709-1](https://github.com/nkrake6/petish/tree/automation-status/staging-40075829709-1) | All eight steps passed |
 | Native email regression preview | [40075861008-1](https://github.com/nkrake6/petish/tree/email-preview/40075861008-1) | Seven branded message types rendered |
-| Full 30-file native/browser staging proof | [40076124849-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40076124849-1) | All eight phases passed, including product/Cart checks and cleanup |
-| Production apply and verification | [40076690180-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40076690180-1) | 16 files changed; native, cache, public health, all asset checks and commit passed |
+| Full 30-file native/browser staging proof | [40076124849-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40076124849-1) | Eight phases passed; provider execution was isolated; cleanup passed |
+| Production apply and verification | [40076690180-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40076690180-1) | 16 files changed; deployment, native, cache, public health and asset checks passed |
 
 The release matched all 30 fixed application hashes, preserved the original
 account/email assets and store data, and removed maintenance. No rollback was
@@ -88,6 +128,33 @@ presence was reported as an observation. Native registry/DTO and responsive
 provider fixtures test the display policy and controls. This is not a claim of
 live wallet authorisation, financing eligibility or a real payment test.
 
-The same release installs the live [hero-image editor](https://petish.biz/wp-admin/admin.php?page=petish-hero-images)
-and right-aligned account dropdown. Photo choices are preserved; administrators
-can select/upload images and save changes through the Media Library.
+## Live diagnostics and remaining verification
+
+| Inspection | Receipt | Established facts |
+|---|---|---|
+| Installed native policy and public markup | [40078717098-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40078717098-1) | Main express and Cart wallet settings enabled; split Google Pay unavailable and absent from enabled checkout methods; regular-card registry lookup absent; prior selection flag false |
+| Isolated filled guest Cart | [40079103626-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40079103626-1) | One native message placeholder, inside and directly under the Sidebar; temporary guest Cart cleanup verified |
+
+The filled guest run blocked 52 provider-bootstrap POSTs. Its wallets and v6
+message host therefore did not render. That result is inconclusive for live
+provider rendering; it is neither absence proof nor evidence that the
+corrective policy or message group works on the hosted site. The direct
+Sidebar/message structure and the native guard failures were nevertheless
+observed from installed code and actual Cart markup.
+
+The earlier assumption that placeholder presence, isolated provider fixtures
+or staging typography checks proved live wallet/message presentation was not
+valid. The next browser proof must permit reviewed passive SDK bootstrap
+requests while continuing to block order, checkout, authorization and payment
+actions, and must distinguish an unavailable provider from blocked execution.
+
+| Corrective release step | State |
+|---|---|
+| Final application source, including incoming header correction | Pending |
+| Staging install and native/browser verification receipt | Pending |
+| Hosted native wallet/message render and typography proof | Pending |
+| Production application and verification receipt | Pending |
+
+The baseline also installed the live [hero-image editor](https://petish.biz/wp-admin/admin.php?page=petish-hero-images)
+and account dropdown. Photo choices remain preserved. The incoming header
+correction and its hosted results will be recorded with the corrective release.
