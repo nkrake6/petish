@@ -1,5 +1,30 @@
 # Petish delivery costs and supplier shipping
 
+## 0.8.0 cancellation-request candidate
+
+Customers can request review of selected order items and quantities from My
+account. A private case is saved before its customer acknowledgement and
+`orders@petish.biz` alert are attempted. Staff use **WooCommerce → Cancellation
+requests** to check suppliers, record full/partial decisions, disclose any
+permitted fee/refund proposal and close the case after independent checks.
+Native order status, stock, prices, payment refunds and supplier orders are not
+changed by this workflow.
+
+Request acceptance and email sending have separate staff switches on that
+queue page; both default off. Enabling them does not send existing pending
+messages automatically. Staff can preview and recover pending messages, with
+provider evidence required before retrying uncertain attempts.
+
+The shared policy FAQ is appended to the existing **Delivery & Shipping** page
+and appears in full at the bottom of customer cancellation emails. The owner
+chose 14 days after delivery for voluntary returns, unused/complete items in
+original packaging and customer-paid return postage. Staff review any actual
+non-recoverable processing costs and disclose deductions before refunding,
+only where permitted; statutory remedies remain separate. No flat fee or
+automatic deduction is configured.
+
+See [cancellation workflow and release evidence](../../../../docs/CANCELLATION-REQUESTS.md).
+
 ## 0.7.0 development candidate
 
 The native order-details page can show current shipment cards to the signed-in

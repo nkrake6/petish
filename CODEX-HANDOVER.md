@@ -249,8 +249,11 @@ The same candidate adds a larger header font and a right-aligned avatar/account
 dropdown using native account links, with private cache-safe hydration. It also
 moves Your reviews directly under the product chooser. See
 [cancellation workflow, policy and evidence](docs/CANCELLATION-REQUESTS.md).
-Hero images remain in the custom `front-page.php` template; no dashboard hero
-image picker has been added.
+The owner also requested an editable hero panel. The candidate adds
+**Homepage → Hero images** with native Media Library selection, previews,
+reset-to-default and Save changes for all four animal slots. Admin URL:
+`/wp-admin/admin.php?page=petish-hero-images`. No image selections or request/mail
+switches have been activated by deployment.
 
 Fulfilment **0.7.0 is deployed and verified on private staging**. It adds owner-only
 shipment cards on native order details and a private staff email-preview

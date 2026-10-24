@@ -97,7 +97,10 @@ messages after saving; staff can recover pending messages from the queue.
 
 Both `petish_cancellation_requests_enabled` and
 `petish_cancellation_emails_enabled` default off. Including or deploying source
-does not enable them. Native refunds, stock, prices, order statuses and supplier
+does not enable them. Staff can change the two switches on the cancellation
+queue page through a dedicated capability/nonce-protected form. Saving the
+switches sends no existing pending messages; those have explicit queue
+controls. Native refunds, stock, prices, order statuses and supplier
 integrations are not changed by this feature.
 
 ## Header account menu
@@ -112,6 +115,24 @@ response supplies the current user's account items and avatar. User photos and
 logout nonces are not embedded in shared page-cache HTML. The menu supports
 keyboard, touch, outside-click and Escape handling, uses the existing light and
 dark palette, and preserves the Cart quantity badge.
+
+## Editable homepage photographs and review spacing
+
+**Homepage → Hero images** in WordPress now provides native Media Library
+pickers for the four existing animal photographs, a preview, reset-to-default
+controls and Save changes. The direct admin route is
+`/wp-admin/admin.php?page=petish-hero-images`. The option stores public image
+attachment IDs; missing, deleted or private choices fall back to the original
+photographs. Uploaded replacements do not inherit the original photographer's
+credit, the rabbit's mirroring or the hamster's stock-only backdrop treatment.
+Admin access requires `edit_theme_options`; no default option is written just
+by loading the theme.
+
+Your reviews now shares the product chooser's main column and follows it with
+a 22px gap. The tall reviewer sidebar no longer pushes it below the grid. The
+mobile order is composer, reviews, then sidebar. Stylesheet versions use content
+hashes for these edited assets so their browser cache URLs follow the actual
+file contents.
 
 ## Release and verification boundary
 
@@ -129,3 +150,32 @@ The separate hosted verification checks exact installed application source,
 private staging isolation, default-off controls, policy content and access
 boundaries. It does not create customer cases, send messages or issue refunds.
 Production activation and the real DSers cancellation test remain separate.
+
+## Local verification
+
+The full cancellation workflow passed **122 native checks in classic order
+storage and 122 in HPOS**, using fresh disconnected WordPress 7.1.3 /
+WooCommerce 11.2.1 data. This includes owner/stranger access, selected quantities
+after prior refunds, duplicate acknowledgement suppression, real Petish email
+branding, complete FAQ at the bottom of customer messages, partial staff
+decisions, uncertain sending and unchanged order/stock/totals/refund records.
+
+The revised delivery-page preparation passed **32 additional native helper
+checks in each order store**: preserve existing content, reject collisions,
+rollback after an update if the checkpoint fails, idempotent suffix handling,
+safe creation of a missing staging counterpart and a real competing database
+writer blocked by the page lock. A missing staging counterpart uses only the
+reviewed live delivery copy; unknown manual content is not overwritten.
+
+The hero controls and staff activation switches passed **56 native WordPress
+checks**, including real PNG metadata, Settings API registration/save/reset,
+public/private attachment boundaries and zero mail calls when switches change.
+Hero boundary tests passed 71 assertions and its media-control browser fixture
+passed 15 checks. The account dropdown passed 39 PHP assertions and 36 browser
+checks. Review layout geometry passed at 1440, 800 and 390px.
+
+Customer forms, statuses, policy FAQs and actual branded email shells were also
+checked in local Chromium at desktop/mobile widths and light/dark themes, with
+all requests intercepted locally. These are component/fixture checks, not a
+claim of full The7 hosted browser coverage. All owned native test containers,
+databases, volumes and scratch files were removed.
