@@ -363,53 +363,32 @@ export function accountDropdownTransportFacts(headers, status, rawUrl, redirecte
     response_finished_error: false, body_read_failed: false, request_aborted: false };
 }
 
-/** Consume each fixed own-session response immediately, before unrelated assets finish. */
-export function waitForAccountDropdownResponse(page, diagnostics, timeout = 30000) {
-  return new Promise(resolve => {
-    let settled = false;
-    const finish = value => {
-      if (settled) return;
-      settled = true; clearTimeout(timer); page.off('response', observe); resolve(value);
-    };
-    const observe = async response => {
-      const request = response.request();
-      if (response.url() !== ACCOUNT_ENDPOINT || request.method() !== 'POST' || request.postData() !== ACCOUNT_BODY) return;
-      diagnostics.account_dropdown_response_received = true;
-      let headers = {}, body = null, finishedError = null, bodyError = null;
-      try { headers = await response.allHeaders(); } catch {}
-      const record = facts => {
-        for (const [key, value] of Object.entries(facts)) {
-          const name = `account_dropdown_${key}`;
-          diagnostics[name] = value === true || (['response_finished_error', 'body_read_failed', 'request_aborted'].includes(key)
-            && diagnostics[name] === true);
-        }
-      };
-      record(accountDropdownTransportFacts(headers, response.status(), response.url(), !!request.redirectedFrom(), null));
-      try { finishedError = await response.finished(); } catch (error) { finishedError = error; }
-      try {
-        const bytes = await response.body();
-        if (bytes.length <= 131072) body = bytes.toString('utf8');
-      } catch (error) { bodyError = error; }
-      if (settled) return;
-      const aborted = /(?:net::ERR_ABORTED|NS_BINDING_ABORTED)/i.test(
-        String(request.failure()?.errorText ?? '') + ' ' + String(finishedError?.message ?? ''));
-      const facts = accountDropdownTransportFacts(headers, response.status(), response.url(), !!request.redirectedFrom(), body);
-      facts.response_finished_error = !!finishedError; facts.body_read_failed = !!bodyError; facts.request_aborted = aborted;
-      // Retain an aborted earlier attempt when a later own-session refresh succeeds.
-      for (const key of ['response_finished_error', 'body_read_failed', 'request_aborted']) {
-        facts[key] = facts[key] || diagnostics[`account_dropdown_${key}`] === true;
-      }
-      record(facts);
-      if (aborted) return;
-      let payload;
-      if (body !== null) {
-        try { payload = JSON.parse(body); diagnostics.account_dropdown_json_parsed = true; } catch {}
-      }
-      finish({ response, headers, payload });
-    };
-    const timer = setTimeout(() => finish(null), timeout);
-    page.on('response', observe);
-  });
+/** Use browser transport after the homepage is ready; DevTools body handles may expire. */
+export function probeAccountDropdown(page) {
+  return page.evaluate(async ({ endpoint, body }) => {
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch(endpoint, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body, signal: controller.signal });
+      const headers = Object.fromEntries(['cache-control', 'x-litespeed-cache', 'vary', 'x-content-type-options', 'content-type']
+        .map(name => [name, response.headers.get(name) ?? '']));
+      const result = { headers, ok: response.ok, status: response.status, url: response.url,
+        redirected: response.redirected, payload: null, json_parsed: false, body_read_failed: false,
+        body_bounded: false, body_empty: false, body_login_marker: false, body_php_error_marker: false,
+        body_waf_marker: false, body_wp_zero: false, body_wp_minus_one: false };
+      let text;
+      try { text = await response.text(); } catch { result.body_read_failed = true; return result; }
+      result.body_bounded = new TextEncoder().encode(text).byteLength <= 131072;
+      if (!result.body_bounded) return result;
+      result.body_empty = text.trim() === '';
+      result.body_login_marker = /(?:id=["']loginform["']|name=["']log["']|wp-login\.php)/i.test(text);
+      result.body_php_error_marker = /(?:fatal error|parse error|uncaught\s+[a-z0-9_\\]*(?:error|exception)|there has been a critical error)/i.test(text);
+      result.body_waf_marker = /(?:modsecurity|wordfence|cloudflare|access denied|request blocked|security check|captcha|\bforbidden\b)/i.test(text);
+      result.body_wp_zero = text.trim() === '0'; result.body_wp_minus_one = text.trim() === '-1';
+      try { result.payload = JSON.parse(text); result.json_parsed = true; } catch {}
+      return result;
+    } finally { clearTimeout(timer); }
+  }, { endpoint: ACCOUNT_ENDPOINT, body: ACCOUNT_BODY });
 }
 
 /** Return finite observations only; account links and logout nonces remain private. */
@@ -1124,7 +1103,6 @@ export async function run(input, chromium, options = {}) {
       assetTasks.push(task);
     });
     const personalResponse = page.waitForResponse(response => response.url() === PERSONAL_ENDPOINT).catch(() => null);
-    const accountResponse = waitForAccountDropdownResponse(page, diagnostics);
     const homeResponse = await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded' });
     checks.homepage_http_ok = !!homeResponse?.ok() && new URL(page.url()).origin === ORIGIN
       && new URL(page.url()).pathname === '/' && await page.locator('.petish-home').count() === 1;
@@ -1155,12 +1133,22 @@ export async function run(input, chromium, options = {}) {
     checks.account_dropdown_assets_http_verified = [...expectedAccountAssets].every(([asset, expected]) =>
       assetRecords.get(asset)?.ok === true && assetRecords.get(asset)?.hash === expected);
     requireCheck(checks.account_dropdown_assets_http_verified, 'account_dropdown');
-    const accountFragment = await accountResponse;
-    requireCheck(!!accountFragment && diagnostics.account_dropdown_json_parsed, 'account_dropdown');
+    const accountFragment = await probeAccountDropdown(page);
+    diagnostics.account_dropdown_response_received = true;
+    const accountTransport = accountDropdownTransportFacts(accountFragment.headers, accountFragment.status,
+      accountFragment.url, accountFragment.redirected, null);
+    for (const key of ACCOUNT_TRANSPORT_FACT_KEYS) diagnostics[`account_dropdown_${key}`] =
+      (Object.hasOwn(accountFragment, key) ? accountFragment[key] : accountTransport[key]) === true;
+    for (const key of ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff']) {
+      diagnostics[`account_dropdown_${key}`] = accountTransport[key] === true;
+    }
+    diagnostics.account_dropdown_json_parsed = accountFragment.json_parsed === true;
+    requireCheck(accountFragment.json_parsed === true && accountFragment.body_bounded === true
+      && accountFragment.body_read_failed === false, 'account_dropdown');
     const accountPayload = accountFragment.payload;
     const accountUrl = await page.evaluate(() => window.petishAccountDropdown?.accountUrl);
     const accountFacts = accountDropdownFragmentFacts(
-      accountFragment.headers, accountFragment.response.ok(), accountPayload, accountUrl, input);
+      accountFragment.headers, accountFragment.ok, accountPayload, accountUrl, input);
     for (const key of ACCOUNT_FRAGMENT_FACT_KEYS) diagnostics[`account_dropdown_${key}`] = accountFacts[key] === true;
     checks.account_dropdown_private_fragment_verified = ACCOUNT_FRAGMENT_FACT_KEYS.every(key => accountFacts[key] === true);
     requireCheck(checks.account_dropdown_private_fragment_verified, 'account_dropdown');
