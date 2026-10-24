@@ -1,6 +1,6 @@
 # Petish — current Codex handover
 
-Updated 23 October 2026 (UTC). Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
+Updated 24 October 2026 (Australia/Melbourne). Use [WORDPRESS-DEVELOPMENT.md](WORDPRESS-DEVELOPMENT.md)
 for the current cloud workflow. The Mac setup below is archived history.
 
 ## Current site and code
@@ -235,7 +235,7 @@ The source is saved on `development/delivery-operations`; `main` remains the
 production baseline. See [Delivery operations](docs/DELIVERY-OPERATIONS.md)
 for scope, staff-tool links and evidence.
 
-Fulfilment **0.8.0 is the next private staging candidate**, adding customer
+Fulfilment **0.8.0 is deployed and verified on private staging**, adding customer
 cancellation requests, a persistent staff queue, branded acknowledgements and
 updates, and shared change-of-mind FAQs appended to the existing Delivery &
 Shipping page. The owner chose 14 days after delivery, unused/complete items
@@ -245,15 +245,25 @@ remedies remain separate. The full policy FAQ appears at the bottom of customer
 cancellation emails. No refund, fee deduction, native order-status change or
 supplier cancellation is automated; request and mail flags default off.
 
-The same candidate adds a larger header font and a right-aligned avatar/account
+The same staged release adds a larger header font and a right-aligned avatar/account
 dropdown using native account links, with private cache-safe hydration. It also
 moves Your reviews directly under the product chooser. See
 [cancellation workflow, policy and evidence](docs/CANCELLATION-REQUESTS.md).
-The owner also requested an editable hero panel. The candidate adds
+The owner also requested an editable hero panel. Staging now provides
 **Homepage → Hero images** with native Media Library selection, previews,
 reset-to-default and Save changes for all four animal slots. Admin URL:
 `/wp-admin/admin.php?page=petish-hero-images`. No image selections or request/mail
 switches have been activated by deployment.
+
+Application source `f992218` passed staging apply `40056331426-1`. Tooling-only
+source `4afaa63` then passed all **55 preparation checks** in `40057865883-1`
+and **57 read-only hosted checks** in `40057924326-1`, matching all 24 plugin
+and nine relevant theme file hashes. The existing staging delivery copy was
+preserved byte for byte and the FAQ appended; no new page was created.
+Read-only branded email preview `40057482298-1` passed all seven native email
+types. Production and `main` remain unchanged. The source and evidence are on
+`development/cancellation-requests`; see the linked workflow notes and
+[illustrative screenshots](docs/cancellation-previews/README.md).
 
 Fulfilment **0.7.0 is deployed and verified on private staging**. It adds owner-only
 shipment cards on native order details and a private staff email-preview

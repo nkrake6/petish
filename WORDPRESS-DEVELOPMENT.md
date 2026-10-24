@@ -84,11 +84,16 @@ The cancellation-request candidate has its own staging workflow in
 Push that source to `prepare-cancellation-requests` to append the managed FAQ
 shortcode to the existing Delivery & Shipping page, then wait for its success
 receipt before pushing the same source to `verify-cancellation-requests`.
-Preparation checks the exact installed plugin/header files, permits only the
-reviewed existing delivery page, saves its previous content privately and
+Preparation checks the exact installed plugin/header/hero files, permits only
+the known delivery-page content hashes, saves its previous content privately and
 commits the bounded update transactionally. It creates no new FAQ page and
 enables no request or mail flags. The verification is read-only and publishes
 finite check results. See [cancellation requests](docs/CANCELLATION-REQUESTS.md).
+The observed staging delivery-copy hash has an append-only path: its original
+bytes remain the prefix, bound by the managed marker. A subsequent manual edit
+is refused rather than silently overwritten. On 24 October, source `4afaa63`
+passed preparation `40057865883-1` and verification `40057924326-1`, with app
+bytes identical to installed `f992218`.
 
 Pet Club has a separate, narrowly scoped release workflow in
 `.github/workflows/pet-club.yml`. `verify-pet-club` exercises the exact application

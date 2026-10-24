@@ -1,6 +1,6 @@
 # Customer cancellation requests and account navigation
 
-Development candidate: Petish Fulfilment 0.8.0, 24 October 2026
+Verified private staging release: Petish Fulfilment 0.8.0, 24 October 2026
 (Australia/Melbourne). This is a request-and-review workflow. It does not cancel
 a supplier purchase, change native order status, transfer money or calculate a
 processing-fee deduction.
@@ -141,8 +141,10 @@ customer/staff transitions, email captures and both classic/HPOS order storage.
 No real payment or supplier action is tested here.
 
 The staging preparation adds only the managed FAQ suffix to the existing
-published Delivery & Shipping page, preserving its reviewed delivery copy and
-saving the prior page privately before committing. Unknown manual content or
+published Delivery & Shipping page, preserving the exact observed staging copy
+and saving the prior page privately before committing. That existing copy's
+SHA-256 is pinned in the tool; its ownership marker also binds the retained
+prefix. Other unknown manual content or
 an unexpected existing marker is refused. It creates no FAQ page and enables
 no feature or mail flags.
 
@@ -150,6 +152,36 @@ The separate hosted verification checks exact installed application source,
 private staging isolation, default-off controls, policy content and access
 boundaries. It does not create customer cases, send messages or issue refunds.
 Production activation and the real DSers cancellation test remain separate.
+
+## Hosted staging evidence
+
+| Step | Receipt | Result |
+|---|---|---|
+| Application install, source `f992218` | [40056331426-1](https://github.com/nkrake6/petish/tree/automation-status/staging-40056331426-1) | All eight deployment steps passed |
+| Delivery-page FAQ append, tooling `4afaa63` | [40057865883-1](https://github.com/nkrake6/petish/tree/automation-status/cancellation-requests-40057865883-1) | All 55 checks passed |
+| Read-only final verification, tooling `4afaa63` | [40057924326-1](https://github.com/nkrake6/petish/tree/automation-status/cancellation-requests-40057924326-1) | All 57 checks passed |
+| Read-only native email preview, tooling `6bd6724` | [40057482298-1](https://github.com/nkrake6/petish/tree/email-preview/40057482298-1) | All seven order/account email types rendered with Petish branding |
+
+The later tooling commits do not change the installed application files. Both
+cancellation receipts match all **24 Fulfilment files and nine relevant theme
+files**. Preparation preserved the existing delivery body byte for byte and
+appended the managed FAQ suffix; it created no page. Its full private page
+checkpoint was saved before the transaction committed. Final verification made
+no SQL writes. Protected orders, users, stock, prices, Passport data, media and
+settings were preserved, and temporary remote tools were removed.
+
+Request and cancellation-email switches remain off. The hosted checks do not
+create customer cases, choose replacement hero attachments, exercise an
+authenticated header in a browser, contact suppliers or send messages. Native
+local tests cover the forms, save/reset controls and case transitions; this is
+not a claim of complete hosted browser or real supplier/payment coverage.
+Production and `main` remain unchanged.
+
+Open the staged [hero editor](https://staging.petish.biz/wp-admin/admin.php?page=petish-hero-images),
+[delivery FAQs](https://staging.petish.biz/delivery-shipping/#change-of-mind),
+[staff cancellation queue](https://staging.petish.biz/wp-admin/admin.php?page=petish-cancellation-requests)
+or [My reviews](https://staging.petish.biz/my-account/?my-reviews=1) after signing
+in. See [illustrative component screenshots](cancellation-previews/README.md).
 
 ## Local verification
 
@@ -160,12 +192,15 @@ after prior refunds, duplicate acknowledgement suppression, real Petish email
 branding, complete FAQ at the bottom of customer messages, partial staff
 decisions, uncertain sending and unchanged order/stock/totals/refund records.
 
-The revised delivery-page preparation passed **32 additional native helper
+The revised delivery-page preparation passed **39 additional native helper
 checks in each order store**: preserve existing content, reject collisions,
 rollback after an update if the checkpoint fails, idempotent suffix handling,
 safe creation of a missing staging counterpart and a real competing database
-writer blocked by the page lock. A missing staging counterpart uses only the
-reviewed live delivery copy; unknown manual content is not overwritten.
+writer blocked by the page lock. Native SQL and metadata round-trips also
+preserved Unicode, quotes and backslashes byte for byte in the observed-prefix
+path, and bound the marker to the actual retained prefix hash. A missing staging
+counterpart uses only the reviewed live delivery copy; unknown manual content
+is not overwritten.
 
 The hero controls and staff activation switches passed **56 native WordPress
 checks**, including real PNG metadata, Settings API registration/save/reset,
