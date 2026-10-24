@@ -34,7 +34,8 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         for (const width of [1440,800,390]) {
             await page.setViewportSize({width,height:1100});
             await page.setContent('<!doctype html><html data-theme="light"><head><style>body{margin:20px;font:16px Arial}.summary{width:min(780px,100%)}iframe{display:block;width:100%;height:44px;border:0}.ppcp-messages iframe{height:34px}.cart{margin-bottom:20px}.product_meta a{font-size:10px}:root{--petish-afterpay-badge-image:url("http://fixture.test/official-provider-badge.svg")}</style><style>' + css + '</style></head><body id="the7-body" class="single-product petish-product-wallet-layout petish-product-payment-groups"><div class="product"><div class="summary">' + product.html + '<div class="product_meta"><span class="posted_in">Categories: <a href="#">Pet supplies</a></span><span class="tagged_as">Tags: <a href="#">Enrichment</a></span></div></div></div></body></html>');
-            await page.evaluate(() => {window.PayPalCommerceGateway={messages:{style:{text:{size:12}}}};window.wcpayStripeSiteMessaging={shouldInitializePMME:true,country:'AU',currencyCode:'AUD',paymentMethods:['afterpay_clearpay']};});
+            // Match actual WP_Scripts::localize scalar output: PHP true -> '1'.
+            await page.evaluate(() => {window.PayPalCommerceGateway={messages:{style:{text:{size:12}}}};window.wcpayStripeSiteMessaging={shouldInitializePMME:'1',country:'AU',currencyCode:'AUD',paymentMethods:['afterpay_clearpay']};});
             await page.addScriptTag({content:js});
             const initial = await page.evaluate(() => {
                 const boxes = ['#wcpay-express-checkout-element','#ppc-button-ppcp-gateway','.petish-product-paypal','.ppcp-messages','.product_meta'].map(sel => {const el=document.querySelector(sel); const r=el.getBoundingClientRect(); return {sel,x:r.x,y:r.y,width:r.width,height:r.height};});
@@ -81,9 +82,10 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
         assert.equal(await page.evaluate(()=>localStorage.getItem('wcpay_appearance_bnpl_product_page')),'fresh-native-18px');
         // No brand heading may mislabel another/mixed BNPL message, or
         // remain when the native provider hides/empties its message.
-        for (const scenario of ['klarna','mixed','currency','country','hidden','zero-height','loading','missing-asset']) {
+        for (const scenario of ['klarna','mixed','currency','country','hidden','zero-height','loading','missing-asset','flag-false','flag-zero','flag-empty','flag-missing','flag-number','flag-string-true']) {
             await page.evaluate(scenario => {
                 const native=window.wcpayStripeSiteMessaging;
+                native.shouldInitializePMME=scenario==='flag-false'?false:scenario==='flag-zero'?'0':scenario==='flag-empty'?'':scenario==='flag-missing'?undefined:scenario==='flag-number'?1:scenario==='flag-string-true'?'true':'1';
                 native.paymentMethods=scenario==='klarna'?['klarna']:scenario==='mixed'?['afterpay_clearpay','klarna']:['afterpay_clearpay'];
                 native.country=scenario==='country'?'NZ':'AU';native.currencyCode=scenario==='currency'?'NZD':'AUD';
                 const message=document.querySelector('#payment-method-message');
@@ -97,6 +99,7 @@ const fixture = context => JSON.parse(cp.execFileSync(php,[path.join(__dirname, 
             await page.waitForFunction(()=>!document.querySelector('#payment-method-message').classList.contains('petish-afterpay-brand-heading'));
         }
         await page.evaluate(()=>{
+            window.wcpayStripeSiteMessaging.shouldInitializePMME=true;
             const message=document.querySelector('#payment-method-message');
             message.style.setProperty('--petish-afterpay-badge-image','url("http://fixture.test/official-provider-badge.svg")');
         });

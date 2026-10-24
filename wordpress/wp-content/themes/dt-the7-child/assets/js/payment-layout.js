@@ -25,9 +25,11 @@
 
     function afterpayOnly() {
         var native = window.wcpayStripeSiteMessaging;
+        // wp_localize_script serializes top-level PHP true as the string '1'.
+        var initialized = native && (native.shouldInitializePMME === true || native.shouldInitializePMME === '1');
         // Native visibility remains the amount/variation/quantity eligibility
         // authority. Do not label a mixed Klarna/Affirm message as Afterpay.
-        return !!(native && native.shouldInitializePMME === true &&
+        return !!(native && initialized &&
             native.country === 'AU' && native.currencyCode === 'AUD' &&
             Array.isArray(native.paymentMethods) && native.paymentMethods.length === 1 &&
             native.paymentMethods[0] === 'afterpay_clearpay');
