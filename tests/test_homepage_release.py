@@ -361,7 +361,7 @@ assert(!JSON.stringify(facts).includes(input.login));
     def test_previous_thirty_file_receipt_cannot_authorize_changed_storefront_styles(self):
         path,_,stage,_=self.fixture_evidence()
         previous={name:hashlib.sha256(subprocess.check_output(['git','show',
-            'ad8a0102754038e56289ea54daecff2de41ed01e:'+evidence.PREFIX+name],cwd=ROOT)).hexdigest()
+            '481ea28d27d84c34976e86c9f691b527e45619b1:'+evidence.PREFIX+name],cwd=ROOT)).hexdigest()
             for name in evidence.FILES}
         self.assertEqual(len(previous),30)
         self.assertNotEqual(previous,stage['source_hashes'])
