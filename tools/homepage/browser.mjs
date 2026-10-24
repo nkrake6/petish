@@ -42,8 +42,13 @@ export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', '
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout', 'account_dropdown']);
 export const ACCOUNT_FRAGMENT_FACT_KEYS = Object.freeze(['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff',
   'status_ok', 'exact_shape', 'signed_in', 'account_url', 'identity_bounded', 'native_links', 'native_reviews_query']);
+export const ACCOUNT_TRANSPORT_FACT_KEYS = Object.freeze(['http_2xx', 'http_3xx', 'http_4xx', 'http_5xx',
+  'http_400', 'http_401', 'http_403', 'http_404', 'http_429', 'http_500', 'content_type_json', 'content_type_html',
+  'redirected', 'final_same_origin', 'final_admin_ajax_path', 'final_login_path', 'body_bounded', 'body_empty',
+  'body_login_marker', 'body_php_error_marker', 'body_waf_marker', 'body_wp_zero', 'body_wp_minus_one',
+  'response_finished_error', 'body_read_failed', 'request_aborted']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
-  ...['response_received', 'json_parsed', ...ACCOUNT_FRAGMENT_FACT_KEYS].map(fact => `account_dropdown_${fact}`),
+  ...['response_received', 'json_parsed', ...ACCOUNT_FRAGMENT_FACT_KEYS, ...ACCOUNT_TRANSPORT_FACT_KEYS].map(fact => `account_dropdown_${fact}`),
   ...['member', 'guest'].flatMap(kind => ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff'].map(fact => `personalisation_${kind}_${fact}`)),
   ...['status_ok', 'json_success', 'html_string', 'signin_prompt', 'no_product', 'no_identity',
     'http_403', 'http_404', 'http_408', 'http_429', 'http_5xx', 'http_redirect', 'retry_observed', 'fetch_exception',
@@ -332,6 +337,79 @@ export function personalisationHeaderFacts(headers) {
     vary_cookie: /(?:^|,)\s*Cookie\s*(?:,|$)/i.test(headers.vary ?? ''),
     nosniff: (headers['x-content-type-options'] ?? '').toLowerCase() === 'nosniff',
   };
+}
+
+/** Classify only fixed transport/body facts; never return response text or headers. */
+export function accountDropdownTransportFacts(headers, status, rawUrl, redirected, body) {
+  let url;
+  try { url = new URL(rawUrl); } catch {}
+  const bounded = typeof body === 'string' && Buffer.byteLength(body, 'utf8') <= 131072;
+  const text = bounded ? body : '';
+  return { ...personalisationHeaderFacts(headers),
+    http_2xx: status >= 200 && status < 300, http_3xx: status >= 300 && status < 400,
+    http_4xx: status >= 400 && status < 500, http_5xx: status >= 500 && status < 600,
+    ...Object.fromEntries([400, 401, 403, 404, 429, 500].map(code => [`http_${code}`, status === code])),
+    content_type_json: /^(?:application\/(?:[a-z0-9.+-]*\+)?json)(?:\s*;|$)/i.test(headers['content-type'] ?? ''),
+    content_type_html: /^(?:text\/html|application\/xhtml\+xml)(?:\s*;|$)/i.test(headers['content-type'] ?? ''),
+    redirected: redirected === true || (status >= 300 && status < 400),
+    final_same_origin: url?.origin === ORIGIN,
+    final_admin_ajax_path: url?.origin === ORIGIN && url.pathname === '/wp-admin/admin-ajax.php' && !url.search,
+    final_login_path: url?.origin === ORIGIN && url.pathname === '/wp-login.php',
+    body_bounded: bounded, body_empty: bounded && text.trim() === '',
+    body_login_marker: bounded && /(?:id=["']loginform["']|name=["']log["']|wp-login\.php)/i.test(text),
+    body_php_error_marker: bounded && /(?:fatal error|parse error|uncaught\s+[a-z0-9_\\]*(?:error|exception)|there has been a critical error)/i.test(text),
+    body_waf_marker: bounded && /(?:modsecurity|wordfence|cloudflare|access denied|request blocked|security check|captcha|\bforbidden\b)/i.test(text),
+    body_wp_zero: bounded && text.trim() === '0', body_wp_minus_one: bounded && text.trim() === '-1',
+    response_finished_error: false, body_read_failed: false, request_aborted: false };
+}
+
+/** Consume each fixed own-session response immediately, before unrelated assets finish. */
+export function waitForAccountDropdownResponse(page, diagnostics, timeout = 30000) {
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true; clearTimeout(timer); page.off('response', observe); resolve(value);
+    };
+    const observe = async response => {
+      const request = response.request();
+      if (response.url() !== ACCOUNT_ENDPOINT || request.method() !== 'POST' || request.postData() !== ACCOUNT_BODY) return;
+      diagnostics.account_dropdown_response_received = true;
+      let headers = {}, body = null, finishedError = null, bodyError = null;
+      try { headers = await response.allHeaders(); } catch {}
+      const record = facts => {
+        for (const [key, value] of Object.entries(facts)) {
+          const name = `account_dropdown_${key}`;
+          diagnostics[name] = value === true || (['response_finished_error', 'body_read_failed', 'request_aborted'].includes(key)
+            && diagnostics[name] === true);
+        }
+      };
+      record(accountDropdownTransportFacts(headers, response.status(), response.url(), !!request.redirectedFrom(), null));
+      try { finishedError = await response.finished(); } catch (error) { finishedError = error; }
+      try {
+        const bytes = await response.body();
+        if (bytes.length <= 131072) body = bytes.toString('utf8');
+      } catch (error) { bodyError = error; }
+      if (settled) return;
+      const aborted = /(?:net::ERR_ABORTED|NS_BINDING_ABORTED)/i.test(
+        String(request.failure()?.errorText ?? '') + ' ' + String(finishedError?.message ?? ''));
+      const facts = accountDropdownTransportFacts(headers, response.status(), response.url(), !!request.redirectedFrom(), body);
+      facts.response_finished_error = !!finishedError; facts.body_read_failed = !!bodyError; facts.request_aborted = aborted;
+      // Retain an aborted earlier attempt when a later own-session refresh succeeds.
+      for (const key of ['response_finished_error', 'body_read_failed', 'request_aborted']) {
+        facts[key] = facts[key] || diagnostics[`account_dropdown_${key}`] === true;
+      }
+      record(facts);
+      if (aborted) return;
+      let payload;
+      if (body !== null) {
+        try { payload = JSON.parse(body); diagnostics.account_dropdown_json_parsed = true; } catch {}
+      }
+      finish({ response, headers, payload });
+    };
+    const timer = setTimeout(() => finish(null), timeout);
+    page.on('response', observe);
+  });
 }
 
 /** Return finite observations only; account links and logout nonces remain private. */
@@ -1046,8 +1124,7 @@ export async function run(input, chromium, options = {}) {
       assetTasks.push(task);
     });
     const personalResponse = page.waitForResponse(response => response.url() === PERSONAL_ENDPOINT).catch(() => null);
-    const accountResponse = page.waitForResponse(response => response.url() === ACCOUNT_ENDPOINT
-      && response.request().method() === 'POST' && response.request().postData() === ACCOUNT_BODY).catch(() => null);
+    const accountResponse = waitForAccountDropdownResponse(page, diagnostics);
     const homeResponse = await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded' });
     checks.homepage_http_ok = !!homeResponse?.ok() && new URL(page.url()).origin === ORIGIN
       && new URL(page.url()).pathname === '/' && await page.locator('.petish-home').count() === 1;
@@ -1079,13 +1156,11 @@ export async function run(input, chromium, options = {}) {
       assetRecords.get(asset)?.ok === true && assetRecords.get(asset)?.hash === expected);
     requireCheck(checks.account_dropdown_assets_http_verified, 'account_dropdown');
     const accountFragment = await accountResponse;
-    diagnostics.account_dropdown_response_received = !!accountFragment;
-    requireCheck(!!accountFragment, 'account_dropdown');
-    const accountPayload = await accountFragment.json();
-    diagnostics.account_dropdown_json_parsed = true;
+    requireCheck(!!accountFragment && diagnostics.account_dropdown_json_parsed, 'account_dropdown');
+    const accountPayload = accountFragment.payload;
     const accountUrl = await page.evaluate(() => window.petishAccountDropdown?.accountUrl);
     const accountFacts = accountDropdownFragmentFacts(
-      await accountFragment.allHeaders(), accountFragment.ok(), accountPayload, accountUrl, input);
+      accountFragment.headers, accountFragment.response.ok(), accountPayload, accountUrl, input);
     for (const key of ACCOUNT_FRAGMENT_FACT_KEYS) diagnostics[`account_dropdown_${key}`] = accountFacts[key] === true;
     checks.account_dropdown_private_fragment_verified = ACCOUNT_FRAGMENT_FACT_KEYS.every(key => accountFacts[key] === true);
     requireCheck(checks.account_dropdown_private_fragment_verified, 'account_dropdown');

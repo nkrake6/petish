@@ -37,7 +37,11 @@ BROWSER_DIAGNOSTICS={f'personalisation_{kind}_{fact}' for kind in ('member','gue
     for fact in ('no_store','no_litespeed_hit','vary_cookie','nosniff')} | {
     f'account_dropdown_{fact}' for fact in ('response_received','json_parsed','no_store','no_litespeed_hit',
         'vary_cookie','nosniff','status_ok','exact_shape','signed_in','account_url','identity_bounded',
-        'native_links','native_reviews_query')} | {
+        'native_links','native_reviews_query','http_2xx','http_3xx','http_4xx','http_5xx','http_400','http_401',
+        'http_403','http_404','http_429','http_500','content_type_json','content_type_html','redirected',
+        'final_same_origin','final_admin_ajax_path','final_login_path','body_bounded','body_empty',
+        'body_login_marker','body_php_error_marker','body_waf_marker','body_wp_zero','body_wp_minus_one',
+        'response_finished_error','body_read_failed','request_aborted')} | {
     f'personalisation_guest_{fact}' for fact in ('status_ok','json_success','html_string','signin_prompt','no_product','no_identity',
         'http_403','http_404','http_408','http_429','http_5xx','http_redirect','retry_observed','fetch_exception',
         'homepage_http_ok','anonymous_context_verified')} | {'badge_response_content_type_png','badge_response_content_type_webp',
