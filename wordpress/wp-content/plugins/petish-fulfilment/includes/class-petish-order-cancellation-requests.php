@@ -202,12 +202,14 @@ final class Petish_Order_Cancellation_Requests {
     }
     private static function save($record) {
         if (!self::valid($record)) return self::error('state');
-        // WordPress unslashes metadata input; preserve literal customer/staff text.
-        update_post_meta($record['id'], self::META, wp_slash($record));
-        // State is a staff queue index, never the authority used for idempotency or customer data.
-        update_post_meta($record['id'], self::STATE_META, $record['state']);
-        if (get_post_meta($record['id'], self::STATE_META, true) !== $record['state']) return self::error('save');
-        $saved = self::get($record['id']);
+        try {
+            // WordPress unslashes metadata input; preserve literal customer/staff text.
+            update_post_meta($record['id'], self::META, wp_slash($record));
+            // State is a staff queue index, never the authority used for idempotency or customer data.
+            update_post_meta($record['id'], self::STATE_META, $record['state']);
+            if (get_post_meta($record['id'], self::STATE_META, true) !== $record['state']) return self::error('save');
+            $saved = self::get($record['id']);
+        } catch (Throwable $ignored) { return self::error('save'); }
         return is_wp_error($saved) || $saved !== $record ? self::error('save') : $saved;
     }
     /** Shared serialization for request state and delivery slots. No native order fields are saved. */

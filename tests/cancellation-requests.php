@@ -23,7 +23,7 @@ function do_action($hook,$id){
 }
 function get_post($id){return $GLOBALS['posts'][$id]??null;}
 function get_post_meta($id,$key,$single=false){$v=$GLOBALS['meta'][$id][$key]??array();return $single?($v[0]??''):$v;}
-function update_post_meta($id,$key,$value){if(($GLOBALS['fail_meta']??false)||(($GLOBALS['fail_index']??false)&&$key==='_petish_cancel_state'))return false;$GLOBALS['meta'][$id][$key]=array(wp_unslash($value));return true;}
+function update_post_meta($id,$key,$value){if($GLOBALS['throw_meta']??false)throw new RuntimeException('Private database failure');if(($GLOBALS['fail_meta']??false)||(($GLOBALS['fail_index']??false)&&$key==='_petish_cancel_state'))return false;$GLOBALS['meta'][$id][$key]=array(wp_unslash($value));return true;}
 function wp_insert_post($row,$error=false){
  $id=++$GLOBALS['next_post'];$GLOBALS['posts'][$id]=(object)array('ID'=>$id,'post_type'=>$row['post_type'],'post_status'=>$row['post_status'],'post_author'=>$row['post_author']);
  foreach($row['meta_input']??array() as $key=>$value)$GLOBALS['meta'][$id][$key]=array($value);
@@ -175,5 +175,8 @@ $GLOBALS['orders'][13]=new WC_Order(13);
 check('five_new_cases_per_customer_per_day',code(Petish_Order_Cancellation_Requests::create(13,array(31=>1)),'limit'));
 $order->owner=12;check('native_owner_change_hides_original_customer_history',code(Petish_Order_Cancellation_Requests::customer_requests(7),'permission'));
 $order->owner=11;
+$GLOBALS['actor']=13;$GLOBALS['orders'][14]=new WC_Order(14);$GLOBALS['orders'][14]->owner=13;
+$GLOBALS['throw_meta']=true;$posts_before=count($GLOBALS['posts']);$thrown=Petish_Order_Cancellation_Requests::create(14,array(31=>1));$GLOBALS['throw_meta']=false;
+check('metadata_exception_cleans_only_new_unsent_case',code($thrown,'save')&&count($GLOBALS['posts'])===$posts_before);
 check('all_locks_released',!$wpdb->held);
 echo json_encode(array('status'=>'success','checks'=>$checks),JSON_PRETTY_PRINT)."\n";
