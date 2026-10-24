@@ -195,6 +195,42 @@ console.log('Native financing metrics remain scoped and private.');'''
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('private', result.stdout)
 
+    def test_compact_badge_geometry_reads_native_wrappers_without_replacing_them(self):
+        code = r'''import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(new URL('./tools/staging-rehearsal/package.json',import.meta.url));
+const {chromium}=require('playwright');const m=await import('./tools/storefront-live-inspect.mjs');
+const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+try{
+ const page=await browser.newPage();await page.route('**/*',route=>route.abort());
+ for(const width of [218,320,390,1280])for(const which of ['product','cart']){
+  await page.setViewportSize({width,height:700});
+  const host=`<div id="payment-method-message" class="petish-afterpay-brand-heading ${which==='cart'?'wc-block-components-bnpl-wrapper':''}" style="display:block"><div class="__PrivateStripeElement" style="display:block!important"><iframe class="controller" style="display:none;width:0;height:0"></iframe><iframe class="native-message" style="display:block;border:0;width:100%;height:92px" srcdoc="<style>body{margin:0}.finance{font-size:17px}.see{display:block;font-size:14px}</style><span class='finance'>Four interest-free payments PRIVATE_SENTINEL</span><a class='see'>See plans</a>"></iframe></div></div>`;
+  const root=which==='product'?`<main class="product"><div class="summary">${host}</div></main>`:`<main class="wc-block-cart">${host}</main>`;
+  await page.setContent(`<style>body{margin:0;padding:16px}.petish-afterpay-brand-heading{position:relative;width:100%;max-width:400px;box-sizing:border-box;border:1px solid green;min-height:64px;padding:12px 12px 12px 88px}.petish-afterpay-brand-heading::before{content:"";position:absolute;left:12px;top:50%;transform:translateY(-50%);display:block;width:64px;aspect-ratio:8/5;background:linear-gradient(green,green)}.petish-afterpay-brand-heading>.__PrivateStripeElement{min-width:0}</style>${root}`);
+  await page.evaluate(()=>{window.nativeWrapper=document.querySelector('.__PrivateStripeElement');window.nativeFrame=document.querySelector('.native-message');window.nativeEvents=0;window.nativeWrapper.addEventListener('native-fixture-event',()=>window.nativeEvents++);});
+  const facts=await page.evaluate(m.brandGeometryFacts,which);
+  assert.equal(facts.present,true);assert.equal(facts.compact,true);assert.equal(facts.right,true);assert.equal(facts.below,false);
+  assert.equal(facts.width,64);assert.equal(facts.height,40);assert(facts.messageLeft>=facts.brandRight);assert(facts.messageWidth>50);assert.equal(facts.messageHeight,92);
+  assert(!JSON.stringify(facts).includes('PRIVATE'));
+  assert(await page.evaluate(()=>{window.nativeWrapper.dispatchEvent(new Event('native-fixture-event'));return window.nativeEvents===1&&window.nativeFrame===document.querySelector('.native-message')&&window.nativeWrapper===window.nativeFrame.parentElement&&window.nativeFrame.style.height==='92px';}));
+  const native=page.frames().find(frame=>frame!==page.mainFrame()&&frame.url()==='about:srcdoc');
+  assert(native);assert.deepEqual(await native.evaluate(()=>[getComputedStyle(document.querySelector('.finance')).fontSize,getComputedStyle(document.querySelector('.see')).fontSize]),['17px','14px']);
+  await page.evaluate(()=>window.nativeFrame.style.height='164px');
+  const grown=await page.evaluate(m.brandGeometryFacts,which);assert.equal(grown.right,true);assert.equal(grown.messageHeight,164);
+  await page.evaluate(()=>document.querySelector('.petish-afterpay-brand-heading').style.display='none');
+  assert.equal((await page.evaluate(m.brandGeometryFacts,which)).present,false);
+  await page.evaluate(()=>document.querySelector('.petish-afterpay-brand-heading').style.display='block');
+  assert.equal((await page.evaluate(m.brandGeometryFacts,which)).right,true);
+  await page.evaluate(()=>{const style=document.createElement('style');style.textContent='.petish-afterpay-brand-heading{padding:12px}.petish-afterpay-brand-heading::before{position:static;transform:none;margin-bottom:10px}';document.head.appendChild(style);});
+  const below=await page.evaluate(m.brandGeometryFacts,which);assert.equal(below.right,false);assert.equal(below.below,true);
+ }
+}finally{await browser.close();}
+console.log('Compact badge native-wrapper geometry verified at all four widths.');'''
+        result = subprocess.run(['node', '--input-type=module', '-e', code], cwd=ROOT, text=True, capture_output=True, timeout=45)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('four widths', result.stdout)
+
     def test_native_report_requires_real_guard_truth_without_exposing_observations(self):
         checks = dict.fromkeys(RUNTIME.native_schema(), True)
         checks['native_probe_error_observed'] = False
