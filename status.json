@@ -1,10 +1,10 @@
 {
-  "status": "in_progress",
-  "category": "inspect",
+  "status": "failure",
+  "category": "cache_preflight",
   "mode": "apply",
   "run_id": "40073424767-1",
   "source_commit": "2b68a4dd2f585f452053b951a9936e89a2040bb7",
-  "generated_utc": "2026-10-24T07:15:50.510180+00:00",
+  "generated_utc": "2026-10-24T07:15:54.765455+00:00",
   "source_hashes": {
     "assets/css/account-dropdown.css": "48eab0eac5c416096658b0c5cb6f7404d2d14256b654e72a6fc9ea5454a1686b",
     "assets/css/cart-badge.css": "e1e39ccad9b779d909946a8755363b435e2647176aa2277a7c2d58c61f7498c7",
@@ -54,6 +54,21 @@
         "maintenance_guard_removed": false
       },
       "changed_file_count": 9
+    },
+    "cache_preflight": {
+      "status": "failure",
+      "category": "cache_runtime",
+      "checks": {
+        "target_paths_verified": true,
+        "target_environment_verified": true,
+        "woocommerce_runtime_verified": true,
+        "all_outbound_http_blocked": true,
+        "mail_calls_blocked": true,
+        "remote_file_access_disabled": true,
+        "cron_and_async_runner_disabled": true,
+        "jetpack_sync_isolated": true,
+        "purge_runtime_verified": false
+      }
     }
   },
   "preparation_stage": "complete",
