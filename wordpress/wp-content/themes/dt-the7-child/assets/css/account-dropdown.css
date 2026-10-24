@@ -1,0 +1,121 @@
+/* Keep the existing header height; account details arrive through a private fragment. */
+body#the7-body.petish-site :is(.main-nav, .mobile-main-nav) > li > a .menu-text,
+body#the7-body.petish-site #phantom .main-nav > li > a .menu-text {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+body#the7-body.petish-site :is(.main-nav, .mobile-main-nav) > .petish-account-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+body#the7-body.petish-site .main-nav > .petish-account-menu {
+  order: 100;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  margin-inline-start: auto;
+}
+body#the7-body.petish-site :is(.main-nav, .mobile-main-nav) > .petish-account-menu > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  white-space: nowrap;
+}
+body#the7-body.petish-site .petish-account-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  border: 1px solid var(--color-border, #e3e7ef);
+  border-radius: 50%;
+  background: var(--color-lavender, #ede7ff);
+  color: var(--color-secondary-text, #6532a1);
+  font: 600 14px/1 var(--font-label, "DM Sans", sans-serif);
+}
+body#the7-body.petish-site .petish-account-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+body#the7-body.petish-site .petish-account-avatar svg { width: 19px; height: 19px; }
+body#the7-body.petish-site .petish-account-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text, #14213d);
+  cursor: pointer;
+}
+body#the7-body.petish-site .petish-account-toggle svg { width: 16px; height: 16px; transition: transform .15s ease; }
+body#the7-body.petish-site .petish-account-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+body#the7-body.petish-site .petish-account-dropdown__panel {
+  position: absolute;
+  z-index: 1100;
+  inset-inline-end: 0;
+  top: 100%;
+  width: 250px;
+  max-width: min(320px, calc(100vw - 32px));
+  margin: 4px 0 0;
+  padding: 8px;
+  list-style: none;
+  border: 1px solid var(--color-border, #e3e7ef);
+  border-radius: 16px;
+  box-shadow: var(--shadow-panel, 0 10px 36px rgba(20, 33, 61, .1));
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #14213d);
+  text-align: start;
+}
+body#the7-body.petish-site .petish-account-dropdown__panel > li { display: block; margin: 0; padding: 0; }
+body#the7-body.petish-site .petish-account-dropdown__panel > li > a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: var(--color-text, #14213d);
+  font: 500 .9375rem/1.4 var(--font-label, "DM Sans", sans-serif);
+  text-decoration: none;
+  white-space: normal;
+}
+body#the7-body.petish-site .petish-account-dropdown__panel > li > a:is(:hover, [aria-current="page"]) {
+  background: var(--color-lavender, #ede7ff);
+  color: var(--color-secondary-text, #6532a1);
+}
+body#the7-body.petish-site .petish-account-menu :is(a, button):focus-visible {
+  outline: 3px solid var(--color-primary, #0f4c5c);
+  outline-offset: 3px;
+}
+body#the7-body.petish-site .petish-account-menu > :is(.sub-nav, .next-level-button),
+body#the7-body.petish-site .petish-account-toggle[hidden],
+body#the7-body.petish-site .petish-account-dropdown__panel[hidden] { display: none !important; }
+body#the7-body.petish-site .mobile-main-nav > .petish-account-menu > a { flex: 1 1 auto; }
+body#the7-body.petish-site .mobile-main-nav .petish-account-dropdown__panel {
+  position: static;
+  flex: 1 0 100%;
+  width: 100%;
+  max-width: 100%;
+  box-shadow: none;
+  margin: 0 0 8px;
+}
+@media (min-width: 1120px) and (max-width: 1280px) {
+  body#the7-body.petish-site .main-nav > li > a { padding-inline: 9px; }
+  body#the7-body.petish-site .main-nav > .petish-account-menu > a { gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body#the7-body.petish-site .petish-account-toggle svg { transition: none; }
+}

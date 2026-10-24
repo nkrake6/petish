@@ -3,6 +3,8 @@
 defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/cart-badge.php';
+require_once __DIR__ . '/account-dropdown.php';
+Petish_Account_Dropdown::boot();
 
 // The7 fires this after search; the market selector follows at priority 10.
 add_action( 'presscore_render_header_element-search', function () {
