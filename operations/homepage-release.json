@@ -1,7 +1,7 @@
 {
   "format": "petish-homepage-v1",
-  "staging_source_commit": "15355c2fc1ad792bc4157f1993390eeb1551c83e",
-  "staging_status_branch": "automation-status/homepage-40123521325-1",
+  "staging_source_commit": "523db17754bbe643cbcffdeb64c2bee39cc31cda",
+  "staging_status_branch": "automation-status/homepage-40126382686-1",
   "backup_branch": "full-site-backup/40122768140-1",
   "backup_result_branch": "automation-status/backup-40122768140-1",
   "recovery_result_branch": "automation-status/recovery-40123260114-1"
