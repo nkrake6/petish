@@ -158,6 +158,24 @@ The application flag defaults off on other installations; discount/delivery rewa
 or enabled. See [the implementation and rollout scope](docs/CUSTOMER-REVIEWS.md).
 Do not infer production acceptance from the static design previews.
 
+## Pet Chat staging candidate
+
+Pet Chat is an optional Passport module. The owner confirmed public reading,
+member posting, channels and threaded Q&A, with each member's first contribution
+moderated before later contributions can publish immediately. Production remains
+off by default. See [Pet Chat](docs/PET-CHAT.md) for current verification status.
+
+After installing the exact candidate through `staging` and waiting for its
+deployment and automatic email-preview receipts, push that same source to
+`verify-pet-chat`. The staging-only workflow verifies the complete installed
+Passport manifest and isolated environment, then transactionally enables only
+`petish_chat_enabled_v1=yes`. It creates no hosted accounts, topics, replies,
+orders or sessions and sends no messages. Other options, protected records and
+private media must remain unchanged; failure rolls back the flag write. Native
+mutation/security checks run separately in a disposable disconnected database,
+and browser tests exercise the actual presentation and update script. This
+workflow provides no production deployment or activation path.
+
 ## Backups and recovery checks
 
 See [FULL-SITE-BACKUP.md](FULL-SITE-BACKUP.md). The encrypted archive includes the

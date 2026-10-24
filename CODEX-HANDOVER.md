@@ -47,6 +47,15 @@ for the current cloud workflow. The Mac setup below is archived history.
 
 ## Latest delivered features
 
+- **Pet Chat, in development:** the owner confirmed public reading, signed-in
+  posting, topic channels and threaded Q&A. Review each member's first
+  contribution; approved members can then post immediately. The optional
+  Passport module uses a separate private post/comment storage boundary and
+  public projections; it does not expose private pets or customer contact data.
+  See [Pet Chat](docs/PET-CHAT.md) for the current candidate and verification
+  status. The owner also queued a three-column desktop product page (gallery,
+  details/options, payments), recorded in [the development queue](docs/DEVELOPMENT-QUEUE.md).
+
 - **Passport 0.4.1, live:** existing hearts also act as favourites, with a private
   **My favourites** directory view and species, breed/variety and pet-name
   filters. Searches use published snapshots, not unpublished pet edits.
@@ -135,6 +144,14 @@ for the current cloud workflow. The Mac setup below is archived history.
   passed. The optional catalog screenshot failed capture; no catalog image is
   claimed. Live finite geometry/color evidence is recorded in
   [the implementation note](docs/RELATED-PRODUCTS-AND-REVIEW-FILTERS.md).
+  The subsequent Related-only flame-circle update (`b6def08`) passed full
+  staging `40134953986-1` (226 checks), then production `40135426336-1`
+  (`9b1f87c`, 178 checks/30 hashes; only `petish.css`). Live inspection
+  `40135602930-1` (`d4cab04`) measured two white/red Related badges at 32×32px
+  with loaded 20px flames and accessible hidden Hot labels. Five homepage Hot
+  pills stayed 67×34px; prices, action colors and review-filter alignment
+  remained correct. Guest Cart and private-tool cleanup passed. The optional
+  related screenshot still failed capture; only finite live geometry is claimed.
 
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
 passed on source `3012a27`; the production release above matches its exact 18

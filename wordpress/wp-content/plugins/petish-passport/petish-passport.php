@@ -50,6 +50,32 @@ add_action( 'plugins_loaded', function () {
     require_once PETISH_PASSPORT_DIR . 'includes/class-petish-supplier-intake.php';
     Petish_Supplier_Intake::boot();
 
+    // Storage guards protect existing Chat records even when the feature is off
+    // or a UI asset transfer is incomplete. Public controls require every file.
+    $chat_core = PETISH_PASSPORT_DIR . 'includes/class-petish-chat.php';
+    if ( is_readable( $chat_core ) ) {
+        require_once $chat_core;
+        Petish_Chat::boot();
+    }
+    $chat_files = array(
+        'includes/class-petish-chat.php',
+        'includes/class-petish-chat-ui.php',
+        'templates/pet-chat.php',
+        'assets/pet-chat.css',
+        'assets/pet-chat.js',
+    );
+    $chat_ready = true;
+    foreach ( $chat_files as $chat_file ) {
+        if ( ! is_readable( PETISH_PASSPORT_DIR . $chat_file ) ) {
+            $chat_ready = false;
+            break;
+        }
+    }
+    if ( $chat_ready ) {
+        require_once PETISH_PASSPORT_DIR . 'includes/class-petish-chat-ui.php';
+        Petish_Chat_UI::boot();
+    }
+
     // Customer reviews are an opt-in module. Existing Passport features remain
     // available if a partial code transfer has not yet supplied the new files.
     $review_modules = array(
