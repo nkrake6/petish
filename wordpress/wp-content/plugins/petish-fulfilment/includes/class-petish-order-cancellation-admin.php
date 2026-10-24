@@ -229,16 +229,17 @@ final class Petish_Order_Cancellation_Admin {
         if (in_array($record['state'], array('requested','reviewing','awaiting_supplier'), true)) {
             echo '<h3>Review progress</h3>';
             foreach (array('reviewing'=>'Mark under review','awaiting_supplier'=>'Mark waiting for supplier') as $state=>$label) {
+                if ($state === $record['state']) continue;
                 self::form_start($state, $record);
                 echo '<p><label>Customer-visible progress message<br><textarea name="public_message" rows="2" maxlength="1000" class="large-text"></textarea></label></p><p><label>Private staff note<br><textarea name="private_note" rows="2" maxlength="1000" class="large-text"></textarea></label></p>';
                 submit_button($label, 'secondary', 'submit', false); echo '</form>';
             }
         }
         if ($record['state'] !== 'closed') {
-            echo '<h3>Record supplier-reviewed decision</h3><p>Enter the quantity the supplier confirmed can be cancelled. Zero for every line records an unable-to-cancel decision. An updated decision retains the earlier event history. This neither marks an order cancelled nor issues money.</p>';
+            echo '<h3>Record fulfilment or return decision</h3><p>Enter the quantity confirmed for cancellation or authorised-return resolution. For returns, verify receipt and condition before approving the refund. Zero for every line records an unable-to-cancel decision. An updated decision retains the earlier event history. This neither marks an order cancelled nor issues money.</p>';
             self::form_start('record_decision', $record);
             foreach ($record['items'] as $line=>$item) echo '<p><label>' . esc_html($item['name']) . ' — approved cancellation quantity <input type="number" name="accepted_qty[' . (int)$line . ']" min="0" max="' . (int)$item['quantity'] . '" value="' . (int)($record['decision']['accepted_items'][$line] ?? 0) . '" required> / ' . (int)$item['quantity'] . '</label></p>';
-            echo '<p><label>Customer-visible decision and any fee/refund proposal<br><textarea name="public_message" rows="4" maxlength="1000" class="large-text">' . esc_html($record['decision']['public_message'] ?? '') . '</textarea></label></p><p><label>Private supplier confirmation/reference<br><textarea name="private_reference" rows="3" maxlength="1000" class="large-text" required>' . esc_html($record['decision']['private_reference'] ?? '') . '</textarea></label></p><p><label><input type="checkbox" name="supplier_checked" value="yes" required> I checked the actual supplier/fulfilment position for every selected line and confirmed the quantities above.</label></p>';
+            echo '<p><label>Customer-visible decision and any fee/refund proposal<br><textarea name="public_message" rows="4" maxlength="1000" class="large-text">' . esc_html($record['decision']['public_message'] ?? '') . '</textarea></label></p><p><label>Private supplier confirmation or authorised-return reference<br><textarea name="private_reference" rows="3" maxlength="1000" class="large-text" required>' . esc_html($record['decision']['private_reference'] ?? '') . '</textarea></label></p><p><label><input type="checkbox" name="supplier_checked" value="yes" required> I checked the actual supplier/fulfilment or received-return position for every selected line and confirmed the quantities above.</label></p>';
             submit_button('Record cancellation decision', 'primary', 'submit', false); echo '</form>';
         }
         if (in_array($record['state'], array('approved','partially_approved','declined'), true)) {
