@@ -1,8 +1,8 @@
 {
   "format": "petish-homepage-v1",
-  "staging_source_commit": "aab802ad84921f0f9c00aef1ee274a2e9ba97194",
-  "staging_status_branch": "automation-status/homepage-39869020616-1",
-  "backup_branch": "full-site-backup/39854296524-1",
-  "backup_result_branch": "automation-status/backup-39854296524-1",
-  "recovery_result_branch": "automation-status/recovery-39854818553-1"
+  "staging_source_commit": "d936e2b545bd0b80579053486365891b064646f7",
+  "staging_status_branch": "automation-status/homepage-40072502174-1",
+  "backup_branch": "full-site-backup/40070351575-1",
+  "backup_result_branch": "automation-status/backup-40070351575-1",
+  "recovery_result_branch": "automation-status/recovery-40070594356-1"
 }
