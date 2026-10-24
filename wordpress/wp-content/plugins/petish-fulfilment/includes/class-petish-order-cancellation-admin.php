@@ -6,6 +6,7 @@ final class Petish_Order_Cancellation_Admin {
     const SLUG = 'petish-cancellation-requests';
     const ACTION = 'petish_cancellation_staff_action';
     const PREVIEW_ACTION = 'petish_cancellation_email_preview';
+    const SETTINGS_ACTION = 'petish_cancellation_staff_settings';
     const NONCE = 'petish_cancellation_staff';
     const OPERATIONS = array('reviewing','awaiting_supplier','record_decision','close','send_pending','reconcile','queue_retry','confirmed_submitted','confirmed_not_sent');
     const LABELS = array('requested'=>'Request received','reviewing'=>'Under review','awaiting_supplier'=>'Waiting for supplier','approved'=>'Approved — refund review required','partially_approved'=>'Partly approved — refund review required','declined'=>'Unable to cancel','closed'=>'Closed');
@@ -14,6 +15,7 @@ final class Petish_Order_Cancellation_Admin {
         add_action('admin_menu', array(__CLASS__, 'menu'));
         add_action('admin_post_' . self::ACTION, array(__CLASS__, 'submit'));
         add_action('admin_post_' . self::PREVIEW_ACTION, array(__CLASS__, 'preview_email'));
+        add_action('admin_post_' . self::SETTINGS_ACTION, array(__CLASS__, 'save_settings'));
         add_action('woocommerce_admin_order_data_after_order_details', array(__CLASS__, 'order_notice'));
     }
 
@@ -115,6 +117,30 @@ final class Petish_Order_Cancellation_Admin {
         return $preview + array('kind'=>$record['events'][$event]['kind'],'created_at'=>$record['events'][$event]['created_at'],'audience'=>$audience);
     }
 
+    /** Only the two feature flags can be changed; saving never dispatches an event. */
+    public static function settings_request($post) {
+        if (!is_array($post) || !self::authorized()) return self::error('permission');
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !self::authorized($post['_wpnonce'] ?? '', self::NONCE . ':settings')) return self::error('settings');
+        $values = array();
+        foreach (array('accept_requests','send_emails') as $key) {
+            // A present null/array/bool must not be treated as an unchecked field.
+            if (array_key_exists($key, $post) && $post[$key] !== 'yes') return self::error('settings');
+            $values[$key] = array_key_exists($key, $post) ? 'yes' : 'no';
+        }
+        update_option(Petish_Order_Cancellation_Requests::OPTION, $values['accept_requests'], false);
+        update_option(Petish_Order_Cancellation_Emails::OPTION, $values['send_emails'], false);
+        if (get_option(Petish_Order_Cancellation_Requests::OPTION, 'no') !== $values['accept_requests']
+            || get_option(Petish_Order_Cancellation_Emails::OPTION, 'no') !== $values['send_emails']) return self::error('settings');
+        return $values;
+    }
+
+    public static function save_settings() {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !self::authorized()) { self::deny(); return; }
+        $result = self::settings_request(wp_unslash($_POST));
+        wp_safe_redirect(add_query_arg('settings_notice', is_wp_error($result) ? 'not_saved' : 'saved', self::page_url()), 303);
+        exit;
+    }
+
     private static function deny() {
         wp_die(esc_html__('You cannot access cancellation requests.', 'petish-fulfilment'), '', array('response'=>403));
     }
@@ -169,14 +195,25 @@ final class Petish_Order_Cancellation_Admin {
         nocache_headers();
         echo '<div class="wrap"><h1>Cancellation requests</h1><p>Review customer requests, confirm what can be stopped and record the outcome. This queue does not cancel supplier orders, change WooCommerce order status, calculate fee deductions or transfer refunds.</p>';
         if (!Petish_Order_Cancellation_Requests::enabled()) echo '<div class="notice notice-info inline"><p>New customer cancellation requests are disabled. Existing cases and private previews remain available to authorised staff.</p></div>';
+        if (isset($_GET['settings_notice'])) echo '<div class="notice ' . ($_GET['settings_notice'] === 'saved' ? 'notice-success' : 'notice-error') . ' inline"><p>' . ($_GET['settings_notice'] === 'saved' ? 'Cancellation settings saved. Existing pending emails were not sent.' : 'Cancellation settings could not be saved. Check the switches and refresh before trying again.') . '</p></div>';
         if (isset($_GET['case_notice'])) echo '<div class="notice ' . ($_GET['case_notice'] === 'saved' ? 'notice-success' : 'notice-error') . ' inline"><p>' . ($_GET['case_notice'] === 'saved' ? 'The case action was recorded. Review its email delivery status below.' : 'The case action was not saved. Refresh the case, check its latest state and try again.') . '</p></div>';
         $id = self::number($_GET['case_id'] ?? null);
         if ($id !== false) {
             $record = Petish_Order_Cancellation_Requests::get($id);
             if (is_wp_error($record)) echo '<p>This cancellation case is unavailable.</p>';
             else self::case_page($record);
-        } else self::queue_page();
+        } else { self::settings_form(); self::queue_page(); }
         echo '</div>';
+    }
+
+    private static function settings_form() {
+        $accept = get_option(Petish_Order_Cancellation_Requests::OPTION, 'no') === 'yes';
+        $send = get_option(Petish_Order_Cancellation_Emails::OPTION, 'no') === 'yes';
+        echo '<h2>Cancellation request settings</h2><form method="post" action="' . esc_url(admin_url('admin-post.php')) . '"><input type="hidden" name="action" value="' . esc_attr(self::SETTINGS_ACTION) . '">';
+        wp_nonce_field(self::NONCE . ':settings');
+        echo '<p><label><input type="checkbox" name="accept_requests" value="yes"' . ($accept ? ' checked' : '') . '> Accept customer cancellation requests</label></p><p><label><input type="checkbox" name="send_emails" value="yes"' . ($send ? ' checked' : '') . '> Send customer acknowledgements and staff alerts</label></p><p>Both switches default off. Sending requires both switches. Enabling email sends future case events and allows staff to send pending case emails explicitly; saving these settings does not send an existing pending message.</p><p>Requests still need staff review. These switches do not cancel supplier orders, issue refunds or verify email delivery.</p>';
+        if (defined('PETISH_STAGING_GUARD_ACTIVE') && PETISH_STAGING_GUARD_ACTIVE) echo '<p><strong>Messages remain subject to the staging mail capture.</strong></p>';
+        submit_button('Save cancellation settings', 'secondary', 'submit', false); echo '</form>';
     }
 
     private static function queue_page() {

@@ -1,7 +1,9 @@
 <?php
 /** Offline boundaries for the actual cancellation staff handlers and response. */
 define('ABSPATH', __DIR__ . '/fixture/');
+define('PETISH_STAGING_GUARD_ACTIVE', true);
 $GLOBALS['manager'] = true; $GLOBALS['gets'] = 0; $GLOBALS['calls'] = array(); $GLOBALS['hooks'] = array();
+$GLOBALS['options'] = array(); $GLOBALS['option_writes'] = array();
 class WP_Error { public function __construct(private $code, private $message = '') {} public function get_error_code() { return $this->code; } }
 function is_wp_error($value) { return $value instanceof WP_Error; }
 function current_user_can($cap) { return $cap === 'manage_woocommerce' && $GLOBALS['manager']; }
@@ -20,6 +22,9 @@ function nocache_headers() { $GLOBALS['nocache'] = true; }
 function wp_nonce_field($action) { echo '<input name="_wpnonce" value="' . esc_attr('valid:' . $action) . '">'; }
 function submit_button($text, $type = '', $name = '', $wrap = true) { echo '<button>' . esc_html($text) . '</button>'; }
 function wp_unslash($value) { return $value; }
+function get_option($key, $default = false) { return $GLOBALS['options'][$key] ?? $default; }
+function update_option($key, $value, $autoload = null) { $GLOBALS['option_writes'][]=array($key,$value,$autoload); $GLOBALS['options'][$key]=$value; return true; }
+function wp_safe_redirect($url, $status) { echo json_encode(array('url'=>$url,'status'=>$status,'flags'=>$GLOBALS['options'],'messages'=>count($GLOBALS['calls']))); }
 function wp_die($value, $title = '', $args = array()) { throw new RuntimeException('Denied'); }
 function wp_mail() { throw new RuntimeException('No real mail permitted'); }
 function wc_get_order($id) { return $id === 7 ? new WC_Order(7) : false; }
@@ -32,6 +37,7 @@ $GLOBALS['record'] = array('id'=>9,'order_id'=>7,'order_number'=>'P-7<&>','custo
  'events'=>array($event=>array('kind'=>'received','created_at'=>100,'deliveries'=>array(
   'customer'=>array('status'=>'pending','attempts'=>0),'staff'=>array('status'=>'uncertain','attempts'=>1)))));
 class Petish_Order_Cancellation_Requests {
+ const OPTION = 'petish_cancellation_requests_enabled';
  static function enabled() { return false; }
  static function pending_count() { return 1; }
  static function get($id) { $GLOBALS['gets']++; return $id === 9 ? $GLOBALS['record'] : new WP_Error('missing'); }
@@ -41,6 +47,7 @@ class Petish_Order_Cancellation_Requests {
  static function close(...$args) { $GLOBALS['calls'][]=array_merge(array('close'),$args); return array('saved'=>true); }
 }
 class Petish_Order_Cancellation_Emails {
+ const OPTION = 'petish_cancellation_emails_enabled';
  static function enabled() { return false; }
  static function policy_text() { return 'Fees are reviewed and disclosed where permitted. ACL rights remain.'; }
  static function dispatch_pending(...$args) { $GLOBALS['calls'][]=array_merge(array('send_pending'),$args); return array(); }
@@ -58,13 +65,17 @@ if (($argv[1] ?? '') === 'preview') {
  $_SERVER['REQUEST_METHOD']='POST'; $_POST=post('preview',array('event_id'=>$event,'audience'=>'customer'));
  Petish_Order_Cancellation_Admin::preview_email(); exit;
 }
+if (($argv[1] ?? '') === 'settings_redirect') {
+ $_SERVER['REQUEST_METHOD']='POST'; $_POST=array('_wpnonce'=>'valid:' . Petish_Order_Cancellation_Admin::NONCE . ':settings','accept_requests'=>'yes','_wp_http_referer'=>'https://evil.example.test/');
+ Petish_Order_Cancellation_Admin::save_settings(); exit;
+}
 $checks=array();
 function check($name,$value) { global $checks; $checks[$name]=$value===true; if (!$value) throw new RuntimeException('Failed: ' . $name); }
 function error($value,$suffix) { return is_wp_error($value) && $value->get_error_code()==='petish_cancellation_admin_' . $suffix; }
 function capture($callback) { ob_start(); try { $callback(); return ob_get_contents(); } finally { ob_end_clean(); } }
 check('include_registers_no_hooks', $GLOBALS['hooks']===array());
 Petish_Order_Cancellation_Admin::init();
-check('private_hooks', isset($GLOBALS['hooks']['admin_menu'],$GLOBALS['hooks']['admin_post_petish_cancellation_staff_action'],$GLOBALS['hooks']['admin_post_petish_cancellation_email_preview'],$GLOBALS['hooks']['woocommerce_admin_order_data_after_order_details']));
+check('private_hooks', isset($GLOBALS['hooks']['admin_menu'],$GLOBALS['hooks']['admin_post_petish_cancellation_staff_action'],$GLOBALS['hooks']['admin_post_petish_cancellation_email_preview'],$GLOBALS['hooks']['admin_post_petish_cancellation_staff_settings'],$GLOBALS['hooks']['woocommerce_admin_order_data_after_order_details']));
 check('no_anonymous_post_handler', !isset($GLOBALS['hooks']['admin_post_nopriv_petish_cancellation_staff_action']));
 Petish_Order_Cancellation_Admin::menu();
 check('manager_menu', $GLOBALS['menu'][3]==='manage_woocommerce');
@@ -127,6 +138,8 @@ $bad=$preview;$bad['event_id']=strtoupper($event);check('uppercase_event_rejecte
 $_GET=array();$before=count($GLOBALS['calls']);$queue=capture(static fn()=>Petish_Order_Cancellation_Admin::render());
 check('queue_escaped',str_contains($queue,'P-7&lt;&amp;&gt;') && str_contains($queue,'Willow &lt;b&gt;bridge&lt;/b&gt;') && !str_contains($queue,'<b>bridge</b>'));
 check('queue_readonly',count($GLOBALS['calls'])===$before && $GLOBALS['filters']===array('state'=>'open','page'=>1,'per_page'=>20));
+check('default_off_settings_visible',str_contains($queue,'Accept customer cancellation requests') && str_contains($queue,'Send customer acknowledgements and staff alerts') && !str_contains($queue,'value="yes" checked'));
+check('staging_capture_disclosure',str_contains($queue,'Messages remain subject to the staging mail capture.') && str_contains($queue,'does not send an existing pending message'));
 $_GET=array('state'=>array('invalid'),'paged'=>'9999999999','order_id'=>'7');$queue=capture(static fn()=>Petish_Order_Cancellation_Admin::render());
 check('query_filters_bounded',$GLOBALS['filters']===array('state'=>'open','page'=>10000,'per_page'=>20,'order_id'=>7));
 $_GET=array('case_id'=>'9');$body=capture(static fn()=>Petish_Order_Cancellation_Admin::render());
@@ -141,4 +154,24 @@ check('no_order_or_money_automatic_action',!str_contains($body,'action="refund"'
 $notice=capture(static fn()=>Petish_Order_Cancellation_Admin::order_notice(new WC_Order(7)));
 check('private_order_hold_warning',str_contains($notice,'does not automatically stop DSers') && str_contains($notice,'case_id=9'));
 $GLOBALS['manager']=false;check('customer_never_sees_order_warning',capture(static fn()=>Petish_Order_Cancellation_Admin::order_notice(new WC_Order(7)))==='');
+$_SERVER['REQUEST_METHOD']='POST';$settings=array('_wpnonce'=>'valid:' . Petish_Order_Cancellation_Admin::NONCE . ':settings','accept_requests'=>'yes','send_emails'=>'yes');
+check('settings_customer_denied',error(Petish_Order_Cancellation_Admin::settings_request($settings),'permission') && !$GLOBALS['option_writes']);
+$GLOBALS['manager']=true;$_SERVER['REQUEST_METHOD']='GET';
+check('settings_get_denied',error(Petish_Order_Cancellation_Admin::settings_request($settings),'settings') && !$GLOBALS['option_writes']);
+$_SERVER['REQUEST_METHOD']='POST';$bad=$settings;$bad['_wpnonce']='invalid';
+check('settings_invalid_nonce_denied',error(Petish_Order_Cancellation_Admin::settings_request($bad),'settings') && !$GLOBALS['option_writes']);
+$bad=$settings;unset($bad['_wpnonce']);
+check('settings_missing_nonce_denied',error(Petish_Order_Cancellation_Admin::settings_request($bad),'settings') && !$GLOBALS['option_writes']);
+foreach (array('on','no',true,1,array('yes'),null) as $index=>$invalid) {
+ $bad=$settings;$bad['send_emails']=$invalid;
+ check('settings_strict_flag_' . $index,error(Petish_Order_Cancellation_Admin::settings_request($bad),'settings') && !$GLOBALS['option_writes']);
+}
+$before=count($GLOBALS['calls']);$settings['petish_shipping_mode']='unsafe';
+$saved=Petish_Order_Cancellation_Admin::settings_request($settings);
+check('settings_two_allowlisted_flags',!is_wp_error($saved) && $GLOBALS['option_writes']===array(array('petish_cancellation_requests_enabled','yes',false),array('petish_cancellation_emails_enabled','yes',false)));
+check('settings_never_dispatch_or_change_case',count($GLOBALS['calls'])===$before && $GLOBALS['record']['revision']===3);
+$GLOBALS['option_writes']=array();
+$saved=Petish_Order_Cancellation_Admin::settings_request(array('_wpnonce'=>$settings['_wpnonce']));
+check('unchecked_flags_disable_only_the_two_options',$saved===array('accept_requests'=>'no','send_emails'=>'no') && $GLOBALS['options']===array('petish_cancellation_requests_enabled'=>'no','petish_cancellation_emails_enabled'=>'no'));
+check('settings_no_unrelated_option_writes',array_column($GLOBALS['option_writes'],0)===array('petish_cancellation_requests_enabled','petish_cancellation_emails_enabled'));
 echo json_encode(array('status'=>'success','checks'=>$checks),JSON_PRETTY_PRINT) . "\n";

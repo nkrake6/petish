@@ -32,6 +32,17 @@ class CancellationAdminTests(unittest.TestCase):
         self.assertIn("Request &lt;preview&gt;", result.stdout)
         self.assertNotIn("<p>Customer preview", result.stdout)
 
+    def test_settings_redirect_is_fixed_and_does_not_send(self):
+        result = subprocess.run([PHP, str(ROOT / "tests/cancellation-admin.php"), "settings_redirect"],
+                                cwd=ROOT, text=True, capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertEqual(result.stderr, "")
+        report = json.loads(result.stdout)
+        self.assertEqual(report["url"], "https://admin.example.test/admin.php?page=petish-cancellation-requests&settings_notice=saved")
+        self.assertEqual(report["status"], 303)
+        self.assertEqual(report["messages"], 0)
+        self.assertEqual(report["flags"], {"petish_cancellation_requests_enabled": "yes", "petish_cancellation_emails_enabled": "no"})
+
 
 if __name__ == "__main__":
     unittest.main()
