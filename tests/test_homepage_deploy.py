@@ -20,7 +20,7 @@ spec = importlib.util.spec_from_file_location('homepage_evidence', ROOT / 'scrip
 evidence = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
-BASELINE = '2a867ecd9a941573c65615daa6961893169205f3'
+BASELINE = 'ad8a0102754038e56289ea54daecff2de41ed01e'
 HISTORICAL_BASELINE = '19b08bbe998839a98dc845c9afac4ecd651c4e26'
 HISTORICAL_NEW_FILES = {'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
              'includes/hero-images.php','assets/js/hero-images-admin.js',
@@ -393,7 +393,7 @@ class HomepageDeploymentTests(unittest.TestCase):
         inspection=self.execute('inspect', script=SCRIPT)
         self.assertEqual(inspection['status'], 'success')
         self.assertEqual(inspection['changed_file_count'],len(expected_changed))
-        self.assertEqual(expected_changed,{'assets/css/cart-payment-layout.css','assets/js/cart-payment-layout.js'})
+        self.assertEqual(expected_changed,{'assets/css/petish.css'})
         self.assertEqual(self.execute('apply', script=SCRIPT)['status'], 'success')
         after=self.snapshot()
         self.assertEqual({name for name in set(before)|set(after) if before.get(name)!=after.get(name)},
