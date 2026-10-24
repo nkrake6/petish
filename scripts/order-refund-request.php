@@ -65,8 +65,8 @@ try {
    if(array_keys($input)!==['prepare_run_id','report_recipient_sha256','schema','selector']||$input['schema']!==1||$input['prepare_run_id']!==$prep)ori_fail();
    $recipient=ori_fingerprint(ori_read($tools.'/report-public.pem',8192));
    if(($request['prepare_run_id']??null)!==$prep||($request['report_recipient_sha256']??null)!==$recipient||$input['report_recipient_sha256']!==$recipient||($request['request_key_sha256']??null)!==ori_fingerprint(ori_read($key.'/request-public.pem',8192)))ori_fail();
-   $selector=$input['selector'];if(!is_array($selector)||!in_array(array_keys($selector),[['order_id','schema'],['expected_billing_first_name','order_id','schema']],true)||($selector['schema']??null)!==1||!is_int($selector['order_id']??null)||$selector['order_id']<1||$selector['order_id']>9007199254740991)ori_fail();
-   if(isset($selector['expected_billing_first_name'])&&(!is_string($selector['expected_billing_first_name'])||trim($selector['expected_billing_first_name'])===''||strlen($selector['expected_billing_first_name'])>320||preg_match('/[\x00-\x1f\x7f]/',$selector['expected_billing_first_name'])))ori_fail();
+   $selector=$input['selector'];if(!is_array($selector)||!in_array(array_keys($selector),[['order_id','schema'],['expected_billing_first_name','order_id','schema']],true)||($selector['schema']??null)!==1||!is_int($selector['order_id']??null)||$selector['order_id']<1||$selector['order_id']>2147483647)ori_fail();
+   if(isset($selector['expected_billing_first_name'])&&(!is_string($selector['expected_billing_first_name'])||trim($selector['expected_billing_first_name'])===''||strlen($selector['expected_billing_first_name'])>320||!preg_match('/\A[^\x00-\x1f\x7f]{1,80}\z/uD',$selector['expected_billing_first_name'])))ori_fail();
    ori_write($tools.'/request.json',json_encode($selector,JSON_THROW_ON_ERROR));
   }
  } else ori_fail();

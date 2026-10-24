@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bounded encrypted requests/results; never print customer data."""
 import base64
+import ast
 import hashlib
 import json
 import os
@@ -33,6 +34,8 @@ def unique(pairs):
 
 def read_regular(path, maximum=65536, private=False):
     path = Path(path)
+    if path.parent.resolve(strict=True) != path.parent.absolute():
+        raise ValueError()
     info = path.lstat()
     if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= maximum \
             or (private and stat.S_IMODE(info.st_mode) != 0o600):
@@ -75,7 +78,7 @@ def b64(value, size):
 
 def selector(value):
     if not isinstance(value, dict) or set(value) not in ({'schema', 'order_id'}, {'schema', 'order_id', 'expected_billing_first_name'}) or type(value['schema']) is not int \
-            or value['schema'] != 1 or type(value['order_id']) is not int or not 1 <= value['order_id'] <= 9007199254740991:
+            or value['schema'] != 1 or type(value['order_id']) is not int or not 1 <= value['order_id'] <= 2147483647:
         raise ValueError()
     if 'expected_billing_first_name' in value:
         name = value['expected_billing_first_name']
@@ -128,12 +131,103 @@ def request_payload(value, report_public_path):
 def aad(value):
     return json.dumps({key: value[key] for key in METADATA}, sort_keys=True, separators=(',', ':')).encode()
 
+def report_schema():
+    source = Path(__file__).with_name('inspect-order-refund.php').read_text()
+    match = re.search(r'const PETISH_ORDER_REFUND_SCHEMA = (\[.*?\]);', source, re.S)
+    if not match or len(match.group(1)) > 8192:
+        raise ValueError()
+    schema = ast.literal_eval('{'+match.group(1)[1:-1].replace('=>', ':')+'}')
+    kinds = {'strings', 'integers', 'amounts', 'nullable_amounts', 'booleans', 'nullable_booleans',
+             'refund_strings', 'refund_integers', 'refund_amounts', 'refund_booleans', 'refund_nullable_booleans'}
+    if not isinstance(schema, dict) or set(schema) != kinds:
+        raise ValueError()
+    for names in schema.values():
+        if not isinstance(names, list) or not 1 <= len(names) <= 32 or len(names) != len(set(names)) \
+                or any(not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,79}', name) for name in names):
+            raise ValueError()
+    return schema
+
+def money(value):
+    if not isinstance(value, str) or not re.fullmatch(r'-?(?:0|[1-9][0-9]{0,8})\.[0-9]{2,8}', value):
+        raise ValueError()
+    whole, fraction = value.split('.')
+    canonical = whole+'.'+fraction.rstrip('0').ljust(2, '0')
+    if whole == '-0' and not fraction.strip('0'):
+        canonical = canonical[1:]
+    if value != canonical:
+        raise ValueError()
+
+def validate_report(value):
+    if not isinstance(value, dict) or value.get('format') != 'petish-order-refund-inspection-v1' \
+            or type(value.get('order_id')) is not int or not 1 <= value['order_id'] <= 2147483647:
+        raise ValueError()
+    if value.get('status') in {'not_found', 'identity_mismatch'}:
+        if set(value) != {'format', 'status', 'order_id'}:
+            raise ValueError()
+        return value
+    schema = report_schema()
+    top_kinds = ('strings', 'integers', 'amounts', 'nullable_amounts', 'booleans', 'nullable_booleans')
+    expected = {'refunds'} | {name for kind in top_kinds for name in schema[kind]}
+    if set(value) != expected or value.get('status') != 'success':
+        raise ValueError()
+    def fields(record, prefix=''):
+        for name in schema[prefix+'strings']:
+            if not isinstance(record[name], str) or not re.fullmatch(r'[A-Za-z0-9_:. +\-]{1,80}', record[name]):
+                raise ValueError()
+        for name in schema[prefix+'integers']:
+            if type(record[name]) is not int or not 0 <= record[name] <= 2147483647:
+                raise ValueError()
+        for name in schema[prefix+'amounts']:
+            money(record[name])
+        for name in schema.get(prefix+'nullable_amounts', []):
+            if record[name] is not None:
+                money(record[name])
+        for name in schema[prefix+'booleans']:
+            if type(record[name]) is not bool:
+                raise ValueError()
+        for name in schema[prefix+'nullable_booleans']:
+            if record[name] is not None and type(record[name]) is not bool:
+                raise ValueError()
+    fields(value)
+    enums = {
+        'storage': {'hpos', 'legacy'},
+        'order_status': {'pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed', 'checkout-draft', 'other'},
+        'payment_gateway': {'woocommerce_payments', 'woocommerce_payments_afterpay_clearpay', 'woocommerce_payments_klarna', 'stripe', 'ppcp-gateway', 'ppcp-credit-card-gateway', 'bacs', 'cod', 'cheque', 'other'},
+        'payment_method_type': {'card', 'afterpay_clearpay', 'klarna', 'link', 'paypal', 'affirm', 'amazon_pay', 'au_becs_debit', 'sepa_debit', 'unknown'},
+        'payment_mode': {'prod', 'production', 'test', 'unknown'},
+        'capture_status_cached': {'succeeded', 'canceled', 'requires_capture', 'processing', 'requires_payment_method', 'requires_confirmation', 'requires_action', 'unknown'},
+        'refund_status_cached': {'pending', 'successful', 'succeeded', 'failed', 'canceled', 'unknown'},
+    }
+    if any(value[name] not in allowed for name, allowed in enums.items()):
+        raise ValueError()
+    for name in ('order_currency', 'store_currency', 'intent_currency', 'multi_currency_default_currency'):
+        if value[name] != 'unknown' and not re.fullmatch(r'[A-Z]{3}', value[name]):
+            raise ValueError()
+    if not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z', value['generated_utc']):
+        raise ValueError()
+    for name in ('created_gmt', 'modified_gmt'):
+        if not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}', value[name]):
+            raise ValueError()
+    refunds = value['refunds']
+    if value['settlement_verified'] is not False or value['original_capture_amount_verified'] is not False \
+            or not isinstance(refunds, list) or len(refunds) > 20 or value['refund_count'] != len(refunds):
+        raise ValueError()
+    expected_refund = {name for kind in schema if kind.startswith('refund_') for name in schema[kind]}
+    seen = set()
+    for row in refunds:
+        if not isinstance(row, dict) or set(row) != expected_refund:
+            raise ValueError()
+        fields(row, 'refund_')
+        if not row['id'] or row['id'] in seen or not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}', row['created_gmt']) \
+                or not re.fullmatch(r'[A-Z]{3}', row['currency']):
+            raise ValueError()
+        seen.add(row['id'])
+    return value
+
 def encrypt_report(path, public_path, run, source):
     identifiers(run, source)
     raw = read_regular(path, 65536, True)
-    value = json.loads(raw, object_pairs_hook=unique)
-    if not isinstance(value, dict) or not value or len(value) > 32:
-        raise ValueError()
+    validate_report(json.loads(raw, object_pairs_hook=unique))
     key, fingerprint = recipient(public_path)
     envelope = {'format': FORMAT, 'algorithm': ALGORITHM, 'run_id': run, 'source_commit': source, 'recipient_sha256': fingerprint}
     symmetric = AESGCM.generate_key(bit_length=256)

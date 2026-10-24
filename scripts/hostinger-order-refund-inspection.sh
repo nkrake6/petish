@@ -51,7 +51,14 @@ if category not in {'prerequisites','source','transport','request','collection',
 ok=os.environ['ORI_VERIFIED']=='1' and category=='complete' and (phase=='prepare' or os.environ['ORI_CLEANED']=='1')
 value={'format':'petish-order-refund-status-v1','phase':phase,'run_id':os.environ['ORI_RUN'],'source_commit':os.environ['ORI_SOURCE'],
  'status':'success' if ok else 'failure','category':category,'temporary_files_removed':os.environ['ORI_CLEANED']=='1',
- 'request_key_retained':ok and phase=='prepare','prepared':None,'encrypted_result_present':ok and phase=='inspect'}
+ 'request_key_retained':ok and phase=='prepare','prepared':None,'encrypted_result_present':ok and phase=='inspect','failure_code':None}
+if not ok and category=='collection':
+ errors={'input','paths','database_driver','database_configuration','database_connection','query','bounds','storage_layout','amount','date','metadata','storage_configuration','storage_drift','report','output','inspection_failed','origin_mismatch'}
+ path=root/'report.private.stderr'
+ if path.exists() and 0<path.stat().st_size<=16384:
+  lines=m.read_regular(path,16384,True).decode('utf-8','replace').splitlines()
+  known=[line for line in lines if line in errors]
+  if known:value['failure_code']=known[-1]
 if ok and phase=='prepare':
  value['prepared']=m.validate_prepared(m.load(root/'prepared.private.json',16384,True),value['run_id'],value['source_commit'])
 elif ok:
