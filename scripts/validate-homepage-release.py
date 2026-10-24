@@ -16,7 +16,7 @@ spec.loader.exec_module(evidence)
 spec2 = importlib.util.spec_from_file_location('homepage_checks', Path(__file__).with_name('sanitize-homepage-result.py'))
 checks = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(checks)
-FILES = ('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/cart-badge.php', 'assets/css/cart-badge.css', 'assets/js/cart-badge.js', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css', 'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt')
+FILES = ('assets/images/ui/free-delivery-van.png', 'assets/css/home.css', 'assets/js/for-your-pet.js', 'includes/supplier-popularity.php', 'includes/for-your-pet.php', 'front-page.php', 'functions.php', 'includes/cart-badge.php', 'assets/css/cart-badge.css', 'assets/js/cart-badge.js', 'includes/header-navigation.php', 'assets/js/theme.js', 'assets/css/petish.css', 'includes/market-selector.php', 'assets/js/market-selector.js', 'assets/css/market-selector.css', 'assets/images/ui/country-flags.svg', 'assets/images/ui/country-flags.LICENSE.txt', 'includes/account-dropdown.php', 'assets/css/account-dropdown.css', 'assets/js/account-dropdown.js', 'includes/hero-images.php', 'assets/js/hero-images-admin.js')
 PREFIX = 'wordpress/wp-content/themes/dt-the7-child/'
 
 

@@ -19,6 +19,7 @@ html_purge=module('sanitize-litespeed-html-purge')
 CACHE_PHASES={'cache_preflight':'inspect','cache_queue':'queue','cache_consume':'consume','cache_verify':'verify',
     'rollback_cache_queue':'queue','rollback_cache_consume':'consume','rollback_cache_verify':'verify'}
 BROWSER={
+    'account_dropdown_assets_http_verified','account_dropdown_private_fragment_verified','account_dropdown_keyboard_verified',
     'market_flag_assets_verified', 'market_flag_header_verified', 'market_flag_cart_verified', 'market_flag_webkit_verified',
     'theme_assets_http_verified', 'theme_switch_order_verified', 'theme_switch_geometry_verified',
     'theme_switch_pointer_verified', 'theme_switch_keyboard_verified', 'theme_switch_persistence_verified',
@@ -74,6 +75,8 @@ THEME_GEOMETRY_FIELDS={'header_height','baseline_height','header_width','viewpor
     for metric in ('width','margin_left','margin_right','count')
 }
 VERIFY={
+    'hero_images_editor_registered','hero_image_defaults_verified','account_dropdown_handler_verified',
+    'account_dropdown_cacheable_shell_verified','account_dropdown_assets_enqueued',
     'cart_badge_cacheable_shell_verified','cart_badge_assets_and_handler_registered',
     'market_flag_markup_verified',
     'theme_switch_markup_verified', 'theme_switch_assets_enqueued',
@@ -187,10 +190,10 @@ CART_BROWSER={
     'request_scope_enforced',
 }
 OBSERVATIONS={'free_delivery_products_available'}
-ASSETS={'cart_badge_script_http_verified','cart_badge_stylesheet_http_verified','cart_badge_public_config_verified','market_script_http_verified','market_stylesheet_http_verified','country_flag_sprite_http_verified','country_flag_license_http_verified',
+ASSETS={'account_dropdown_script_http_verified','account_dropdown_stylesheet_http_verified','hero_editor_script_http_verified','account_dropdown_public_config_verified','cart_badge_script_http_verified','cart_badge_stylesheet_http_verified','cart_badge_public_config_verified','market_script_http_verified','market_stylesheet_http_verified','country_flag_sprite_http_verified','country_flag_license_http_verified',
     'homepage_country_flags_verified','cart_http_verified','cart_country_flags_verified','theme_switch_public_markup_verified','theme_script_http_verified','theme_stylesheet_http_verified','for_your_pet_script_http_verified','homepage_http_verified','hot_subtitle_absent','home_stylesheet_http_verified','free_delivery_badge_http_verified'}
 PREFLIGHT=navigation.PREFLIGHT
-FILE_COUNT=18
+FILE_COUNT=23
 DEPLOY=navigation.DEPLOY|{'candidate_badge_png_verified','maintenance_guard_created','maintenance_guard_removed'}
 REQUIRED={**{phase:navigation.REQUIRED[phase]|({'candidate_badge_png_verified'} if phase in {'inspect','apply'} else set())
     for phase in ('inspect','apply','rollback','commit')},
@@ -243,7 +246,7 @@ REVIEW_DIAGNOSTICS={
 }
 CATEGORIES={'runtime','fixture','initial','add','update','remove','privacy','geometry','scope'}|navigation.CATEGORIES|CACHE_FAILURES|FIXTURE_FAILURES|{'maintenance','native','transaction','fixtures','matching','purchases','cleanup',
     'personalisation','personalisation_error','personalisation_history','bootstrap','isolation','state',
-    'market_flag_assets','market_flag_layout','theme_assets','theme_layout','theme_interaction','theme_persistence','theme_system'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
+    'market_flag_assets','market_flag_layout','theme_assets','theme_layout','theme_interaction','theme_persistence','theme_system','account_dropdown'}|{'query','products','homepage','subtitle','layout','snapshot_shipping'}
 
 
 def screen(phase,path):

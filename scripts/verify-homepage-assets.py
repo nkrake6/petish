@@ -20,7 +20,10 @@ ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('asset_http',ROOT/'scripts/verify-account-navigation-assets.py')
 http=importlib.util.module_from_spec(spec);spec.loader.exec_module(http)
 http.MAX_BYTES=8388608
-ASSETS={'cart_badge_script_http_verified':'assets/js/cart-badge.js',
+ASSETS={'account_dropdown_script_http_verified':'assets/js/account-dropdown.js',
+    'account_dropdown_stylesheet_http_verified':'assets/css/account-dropdown.css',
+    'hero_editor_script_http_verified':'assets/js/hero-images-admin.js',
+    'cart_badge_script_http_verified':'assets/js/cart-badge.js',
     'cart_badge_stylesheet_http_verified':'assets/css/cart-badge.css','theme_script_http_verified':'assets/js/theme.js',
     'theme_stylesheet_http_verified':'assets/css/petish.css',
     'market_script_http_verified':'assets/js/market-selector.js',
@@ -30,7 +33,7 @@ ASSETS={'cart_badge_script_http_verified':'assets/js/cart-badge.js',
     'home_stylesheet_http_verified':'assets/css/home.css',
     'for_your_pet_script_http_verified':'assets/js/for-your-pet.js',
     'free_delivery_badge_http_verified':'assets/images/ui/free-delivery-van.png'}
-CHECKS={'cart_badge_public_config_verified','homepage_http_verified','hot_subtitle_absent','theme_switch_public_markup_verified',
+CHECKS={'account_dropdown_public_config_verified','cart_badge_public_config_verified','homepage_http_verified','hot_subtitle_absent','theme_switch_public_markup_verified',
     'homepage_country_flags_verified','cart_http_verified','cart_country_flags_verified',*ASSETS}
 
 
@@ -160,6 +163,9 @@ def verify(opener,expected):
         report['checks']['theme_switch_public_markup_verified']=theme_switch_markup(body)
         report['checks']['homepage_country_flags_verified']=country_flag_markup(body,known_symbols)
         report['checks']['cart_badge_public_config_verified']='window.petishCartBadge' in body and 'petish_cart_count' in body and re.search(r'class=[\"\'][^\"\']*\bpetish-cart-badge\b',body) is None
+        report['checks']['account_dropdown_public_config_verified']='window.petishAccountDropdown' in body and 'petish_account_dropdown' in body \
+            and re.search(r'class=[\"\'][^\"\']*\bpetish-account-menu\b',body) is not None \
+            and re.search(r'class=[\"\'][^\"\']*\bpetish-account-avatar\b',body) is None
     except (HTTPError,URLError,TimeoutError,OSError):failures.append('http')
     except (ValueError,UnicodeError,zlib.error):failures.append('assets')
     # A fresh anonymous GET checks Cart's rendered header. No cookie jar is

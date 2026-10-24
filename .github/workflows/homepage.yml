@@ -50,6 +50,11 @@ on:
       - wordpress/wp-content/themes/dt-the7-child/assets/css/market-selector.css
       - wordpress/wp-content/themes/dt-the7-child/assets/images/ui/country-flags.svg
       - wordpress/wp-content/themes/dt-the7-child/assets/images/ui/country-flags.LICENSE.txt
+      - wordpress/wp-content/themes/dt-the7-child/includes/account-dropdown.php
+      - wordpress/wp-content/themes/dt-the7-child/assets/css/account-dropdown.css
+      - wordpress/wp-content/themes/dt-the7-child/assets/js/account-dropdown.js
+      - wordpress/wp-content/themes/dt-the7-child/includes/hero-images.php
+      - wordpress/wp-content/themes/dt-the7-child/assets/js/hero-images-admin.js
 
 permissions:
   contents: write
