@@ -167,7 +167,7 @@ class HomepageReleaseTests(unittest.TestCase):
         self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
-        self.assertEqual(len(exports['diagnostics']),154)
+        self.assertEqual(len(exports['diagnostics']),165)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))
         self.assertEqual(set(exports['diagnostics']),safe.BROWSER_DIAGNOSTICS)
         self.assertEqual(len(exports['cart_keys']),13)
@@ -339,11 +339,23 @@ assert(!JSON.stringify(facts).includes(input.login));
     def test_previous_eighteen_file_receipt_cannot_authorize_new_header_and_hero_files(self):
         path,_,stage,_=self.fixture_evidence()
         new_files={'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
-                   'includes/hero-images.php','assets/js/hero-images-admin.js'}
-        self.assertEqual(len(evidence.FILES),23)
+                   'includes/hero-images.php','assets/js/hero-images-admin.js',
+                   'includes/payment-layout.php','assets/css/payment-layout.css','assets/js/payment-layout.js',
+                   'includes/cart-payment-layout.php','assets/css/cart-payment-layout.css',
+                   'assets/css/cart-typography.css','assets/js/cart-payment-layout.js'}
+        self.assertEqual(len(evidence.FILES),30)
         for name in new_files:
             del stage['source_hashes'][name]
         self.assertEqual(len(stage['source_hashes']),18)
+        with self.assertRaises(ValueError):evidence.validate(path)
+
+    def test_header_and_hero_receipt_cannot_authorize_new_payment_files(self):
+        path,_,stage,_=self.fixture_evidence()
+        for name in ('includes/payment-layout.php','assets/css/payment-layout.css','assets/js/payment-layout.js',
+                     'includes/cart-payment-layout.php','assets/css/cart-payment-layout.css',
+                     'assets/css/cart-typography.css','assets/js/cart-payment-layout.js'):
+            del stage['source_hashes'][name]
+        self.assertEqual(len(stage['source_hashes']),23)
         with self.assertRaises(ValueError):evidence.validate(path)
 
     def test_public_contracts_match_native_browser_and_asset_helpers(self):
@@ -482,6 +494,8 @@ class HomepagePublicAssetsTests(unittest.TestCase):
 
     def test_wrong_bytes_redirects_or_old_subtitle_refuse(self):
         for arguments in ({'changed':'assets/js/cart-badge.js'},{'changed':'assets/css/cart-badge.css'},{'changed':'assets/js/theme.js'},{'changed':'assets/css/petish.css'},
+                          {'changed':'assets/js/payment-layout.js'},{'changed':'assets/css/payment-layout.css'},
+                          {'changed':'assets/js/cart-payment-layout.js'},{'changed':'assets/css/cart-payment-layout.css'},{'changed':'assets/css/cart-typography.css'},
                           {'changed':'assets/js/account-dropdown.js'},{'changed':'assets/css/account-dropdown.css'},{'changed':'assets/js/hero-images-admin.js'},
                           {'changed':'assets/js/market-selector.js'},{'changed':'assets/css/market-selector.css'},
                           {'changed':'assets/images/ui/country-flags.svg'},{'changed':'assets/images/ui/country-flags.LICENSE.txt'},

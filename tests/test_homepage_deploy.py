@@ -22,7 +22,10 @@ spec.loader.exec_module(evidence)
 FILES = list(evidence.FILES)
 BASELINE = '19b08bbe998839a98dc845c9afac4ecd651c4e26'
 NEW_FILES = {'includes/account-dropdown.php','assets/css/account-dropdown.css','assets/js/account-dropdown.js',
-             'includes/hero-images.php','assets/js/hero-images-admin.js'}
+             'includes/hero-images.php','assets/js/hero-images-admin.js',
+             'includes/payment-layout.php','assets/css/payment-layout.css','assets/js/payment-layout.js',
+             'includes/cart-payment-layout.php','assets/css/cart-payment-layout.css',
+             'assets/css/cart-typography.css','assets/js/cart-payment-layout.js'}
 EXISTING = [name for name in FILES if name not in NEW_FILES]
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+bfr0AAAAASUVORK5CYII=')
 
@@ -143,8 +146,8 @@ class HomepageDeploymentTests(unittest.TestCase):
         self.assertTrue(self.execute('rollback')['checks']['rollback_completed'])
         self.assertEqual(self.snapshot(), before)
 
-    def test_new_account_and_hero_files_are_absent_again_after_rollback(self):
-        self.assertEqual(len(FILES), 23)
+    def test_new_presentation_files_are_absent_again_after_rollback(self):
+        self.assertEqual(len(FILES), 30)
         self.assertEqual(set(FILES) - set(self.originals), NEW_FILES)
         before = self.snapshot()
         self.assertTrue(all(not (self.theme / name).exists() for name in NEW_FILES))

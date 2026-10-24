@@ -25,6 +25,12 @@ const ACCOUNT_ASSETS = ['/wp-content/themes/dt-the7-child/assets/css/account-dro
   '/wp-content/themes/dt-the7-child/assets/js/account-dropdown.js'];
 const PERSONAL = '[data-petish-for-your-pet]';
 const SECTION = '#petish-free-delivery';
+const PAYMENT_PRODUCT = `${ORIGIN}/product/rainbow-habitat-hideout/`;
+const PRODUCT_PAYMENT_ASSETS = ['/wp-content/themes/dt-the7-child/assets/css/payment-layout.css',
+  '/wp-content/themes/dt-the7-child/assets/js/payment-layout.js'];
+export const PRODUCT_PAYMENT_DIAGNOSTICS = Object.freeze(['scoped_body_class', 'woo_group_present', 'wallet_present',
+  'installment_message_present', 'paypal_group_present', 'paypal_buttons_present', 'paypal_message_present',
+  'all_assets_present', 'all_asset_content_versions', 'layout_fits', 'group_order_verified']);
 export const IMAGE_DIMENSION_KEYS = Object.freeze(['expected_width', 'expected_height', 'response_width', 'response_height']);
 export const CART_METRIC_ENGINES = Object.freeze(['chromium', 'webkit']);
 export const CART_METRIC_KEYS = Object.freeze(['http_status_class', 'empty_marker_count', 'visible_cart_row_count', 'min_flag_in_view_count', 'max_flag_offscreen_count',
@@ -48,6 +54,7 @@ export const ACCOUNT_TRANSPORT_FACT_KEYS = Object.freeze(['http_2xx', 'http_3xx'
   'body_login_marker', 'body_php_error_marker', 'body_waf_marker', 'body_wp_zero', 'body_wp_minus_one',
   'response_finished_error', 'body_read_failed', 'request_aborted']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
+  ...PRODUCT_PAYMENT_DIAGNOSTICS.map(fact => `product_payment_${fact}`),
   ...['response_received', 'json_parsed', ...ACCOUNT_FRAGMENT_FACT_KEYS, ...ACCOUNT_TRANSPORT_FACT_KEYS].map(fact => `account_dropdown_${fact}`),
   ...['member', 'guest'].flatMap(kind => ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff'].map(fact => `personalisation_${kind}_${fact}`)),
   ...['status_ok', 'json_success', 'html_string', 'signin_prompt', 'no_product', 'no_identity',
@@ -79,7 +86,8 @@ export const CHECK_KEYS = Object.freeze(['browser_started', 'customer_login_veri
   'theme_switch_pointer_verified', 'theme_switch_keyboard_verified', 'theme_switch_persistence_verified',
   'theme_switch_select_sync_verified', 'theme_switch_system_verified', 'theme_switch_clones_verified',
   'market_flag_assets_verified', 'market_flag_header_verified', 'market_flag_cart_verified', 'market_flag_webkit_verified',
-  'account_dropdown_assets_http_verified', 'account_dropdown_private_fragment_verified', 'account_dropdown_keyboard_verified']);
+  'account_dropdown_assets_http_verified', 'account_dropdown_private_fragment_verified', 'account_dropdown_keyboard_verified',
+  'product_payment_layout_verified', 'product_metadata_typography_verified']);
 
 export function publicReport(value) {
   const checks = Object.fromEntries(CHECK_KEYS.map(key => [key, value?.checks?.[key] === true]));
@@ -151,6 +159,10 @@ function launchOptions(chromium) {
 }
 
 export function allowedHomepageRequest(raw, ...options) {
+  try {
+    if (new URL(raw).pathname.startsWith('/product/')) return raw === PAYMENT_PRODUCT
+      && (options[0] ?? 'GET') === 'GET' && (options[3] ?? 'document') === 'document';
+  } catch { return false; }
   // One read-only, same-origin fragment endpoint is needed. No other admin,
   // supplier, identity override or mutation request is admitted by this exception.
   // Fixed empty Cart document only. All cart query actions and methods stay blocked.
@@ -190,6 +202,55 @@ async function readOnlyContext(browser, storageState) {
   });
   if (typeof context.routeWebSocket === 'function') await context.routeWebSocket('**/*', socket => socket.close());
   return { context, login };
+}
+
+/** Measure native hosts only; provider eligibility and iframe contents remain native. */
+export async function inspectProductPaymentLayout(page) {
+  const helper = new Function(fs.readFileSync(new URL('payment-layout-public-proof.js', import.meta.url), 'utf8')
+    + ';return petishPaymentLayoutPublicProof;')();
+  const diagnostics = Object.fromEntries(PRODUCT_PAYMENT_DIAGNOSTICS.map(key => [`product_payment_${key}`, false]));
+  let layout = true, typography = true;
+  for (const width of [320, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const proof = await page.evaluate(helper);
+    const geometry = await page.evaluate(() => {
+      const summary = document.querySelector('.single-product .summary');
+      const nodes = selector => summary ? [...summary.querySelectorAll(selector)] : [];
+      const shown = node => { const box = node.getBoundingClientRect(), style = getComputedStyle(node);
+        return !node.hidden && style.display !== 'none' && style.visibility === 'visible' && box.width > 0 && box.height > 0; };
+      const groups = nodes('.petish-product-payments,.petish-product-paypal').filter(shown);
+      const fit = groups.every(node => { const box = node.getBoundingClientRect();
+        return box.width <= 401 && box.left >= -1 && box.right <= innerWidth + 1
+          && parseFloat(getComputedStyle(node).maxWidth) <= 400.1; });
+      const woo = nodes('.petish-product-payments').find(shown), paypal = nodes('.petish-product-paypal').find(shown);
+      const buttons = nodes('.petish-product-paypal #ppc-button-ppcp-gateway,.petish-product-paypal #ppc-button-ppcp-gateway-v6').find(shown);
+      const message = nodes('.petish-product-paypal > .ppcp-messages').find(shown);
+      const meta = nodes('.product_meta')[0];
+      const after = (a, b, gap = 0) => !a || !b || b.getBoundingClientRect().top >= a.getBoundingClientRect().bottom + gap - 1;
+      const order = after(woo, paypal) && after(buttons, message)
+        && groups.every(group => after(group, meta, 24));
+      const categories = nodes('.product_meta .posted_in a'), labels = nodes('.product_meta .posted_in,.product_meta .tagged_as,.product_meta .posted_in a,.product_meta .tagged_as a');
+      return { fit, order, typography: categories.length > 0 && labels.length > 0
+        && labels.every(node => Math.abs(parseFloat(getComputedStyle(node).fontSize) - 16) <= .1) };
+    });
+    const facts = { scoped_body_class: proof.page === 'product' && proof.product.scoped_body_class,
+      woo_group_present: proof.product.woo_group.visible_count > 0, wallet_present: proof.product.wallet.visible_count > 0,
+      installment_message_present: proof.product.installment_message.visible_count > 0,
+      paypal_group_present: proof.product.paypal_group.visible_count > 0,
+      paypal_buttons_present: proof.product.paypal_buttons.visible_count > 0,
+      paypal_message_present: proof.product.paypal_message.visible_count > 0,
+      all_assets_present: proof.assets.product_css && proof.assets.product_js,
+      all_asset_content_versions: proof.assets.product_css_content_version && proof.assets.product_js_content_version,
+      layout_fits: geometry.fit, group_order_verified: geometry.order };
+    for (const key of PRODUCT_PAYMENT_DIAGNOSTICS) diagnostics[`product_payment_${key}`] =
+      width === 320 ? facts[key] === true : key.endsWith('_present') && key !== 'all_assets_present'
+        ? diagnostics[`product_payment_${key}`] || facts[key] === true
+        : diagnostics[`product_payment_${key}`] && facts[key] === true;
+    layout = layout && facts.scoped_body_class && facts.all_assets_present && facts.all_asset_content_versions
+      && geometry.fit && geometry.order;
+    typography = typography && geometry.typography;
+  }
+  return { layout, typography, diagnostics };
 }
 
 /** Only section/card/badge geometry is checked; unrelated page overflow is outside scope. */
@@ -1049,6 +1110,8 @@ export async function run(input, chromium, options = {}) {
     const expectedPersonalScript = hash(fs.readFileSync(new URL('assets/js/for-your-pet.js', THEME)));
     const expectedAccountAssets = new Map(ACCOUNT_ASSETS.map(asset =>
       [asset, hash(fs.readFileSync(new URL(asset.split('/dt-the7-child/')[1], THEME)))]));
+    const expectedProductAssets = new Map(PRODUCT_PAYMENT_ASSETS.map(asset =>
+      [asset, hash(fs.readFileSync(new URL(asset.split('/dt-the7-child/')[1], THEME)))]));
     const expectedBadgeBytes = fs.readFileSync(new URL('assets/images/ui/free-delivery-van.png', THEME));
     const expectedBadge = hash(expectedBadgeBytes);
     const expectedDimensions = pngDimensions(expectedBadgeBytes);
@@ -1075,6 +1138,10 @@ export async function run(input, chromium, options = {}) {
       && !allowedHomepageRequest(`${ORIGIN}/cart/`, 'GET', false, '', 'fetch')
       && !allowedHomepageRequest(`${ORIGIN}/cart/?remove_item=1`, 'GET')
       && !allowedHomepageRequest(`${ORIGIN}/cart/`, 'POST')
+      && allowedHomepageRequest(PAYMENT_PRODUCT, 'GET', false, '', 'document')
+      && !allowedHomepageRequest(PAYMENT_PRODUCT + '?add-to-cart=1', 'GET', false, '', 'document')
+      && !allowedHomepageRequest(PAYMENT_PRODUCT, 'POST', false, '', 'document')
+      && !allowedHomepageRequest(`${ORIGIN}/product/other-product/`, 'GET', false, '', 'document')
       && !allowedHomepageRequest(`${ORIGIN}/?wc-ajax=petish_market_state`, 'GET');
     const page = await context.newPage();
     page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(45000);
@@ -1097,7 +1164,7 @@ export async function run(input, chromium, options = {}) {
     const assetRecords = new Map(), assetTasks = [];
     page.on('response', response => {
       const url = new URL(response.url());
-      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH, THEME_SCRIPT_PATH, DESIGN_CSS_PATH, MARKET_SCRIPT_PATH, MARKET_CSS_PATH, FLAG_PATH, ...ACCOUNT_ASSETS].includes(url.pathname)) return;
+      if (url.origin !== ORIGIN || ![CSS_PATH, BADGE_PATH, PERSONAL_SCRIPT_PATH, THEME_SCRIPT_PATH, DESIGN_CSS_PATH, MARKET_SCRIPT_PATH, MARKET_CSS_PATH, FLAG_PATH, ...ACCOUNT_ASSETS, ...PRODUCT_PAYMENT_ASSETS].includes(url.pathname)) return;
       const task = response.body().then(body => assetRecords.set(url.pathname, { ok: response.ok(), hash: hash(body) }))
         .catch(() => assetRecords.set(url.pathname, { ok: false, hash: null }));
       assetTasks.push(task);
@@ -1226,6 +1293,16 @@ export async function run(input, chromium, options = {}) {
     diagnostics.market_cart_store_api_get_blocked = login.cartStoreReadBlocked;
     checks.market_flag_webkit_verified = await checkWebKitFlags(options.webkit, await context.storageState(), diagnostics, cartMetrics.webkit);
     requireCheck(checks.market_flag_header_verified && checks.market_flag_cart_verified && checks.market_flag_webkit_verified, 'market_flag_layout');
+    category = 'layout';
+    const productResponse = await page.goto(PAYMENT_PRODUCT, { waitUntil: 'domcontentloaded' });
+    requireCheck(productResponse?.ok() && page.url() === PAYMENT_PRODUCT, 'layout');
+    await page.waitForLoadState('load'); await Promise.allSettled(assetTasks);
+    const paymentProof = await inspectProductPaymentLayout(page);
+    Object.assign(diagnostics, paymentProof.diagnostics);
+    checks.product_payment_layout_verified = paymentProof.layout && [...expectedProductAssets].every(([asset, expected]) =>
+      assetRecords.get(asset)?.ok === true && assetRecords.get(asset)?.hash === expected);
+    checks.product_metadata_typography_verified = paymentProof.typography;
+    requireCheck(checks.product_payment_layout_verified && checks.product_metadata_typography_verified, 'layout');
     requireCheck(Object.values(checks).every(Boolean), 'layout');
     return report('success', 'complete');
   } catch (error) {

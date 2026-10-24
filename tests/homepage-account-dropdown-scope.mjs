@@ -27,6 +27,12 @@ check(allowedHomepageRequest(origin + '/cart/', 'GET', false, '', 'document'));
 check(!allowedHomepageRequest(origin + '/cart/', 'GET', false, '', 'fetch'));
 check(!allowedHomepageRequest(origin + '/cart/?remove_item=1', 'GET'));
 check(!allowedHomepageRequest(origin + '/wp-json/wc/store/v1/cart', 'GET'));
+const paymentProduct = origin + '/product/rainbow-habitat-hideout/';
+check(allowedHomepageRequest(paymentProduct,'GET',false,'','document'));
+for (const value of [paymentProduct+'?attribute_color=Blue',paymentProduct+'?add-to-cart=1',origin+'/product/other-product/'])
+  check(!allowedHomepageRequest(value,'GET',false,'','document'));
+check(!allowedHomepageRequest(paymentProduct,'POST',false,'','document'));
+check(!allowedHomepageRequest(paymentProduct,'GET',false,'','fetch'));
 
 const headers = { 'cache-control': 'private, no-store, max-age=0, must-revalidate', vary: 'Accept-Encoding, Cookie',
   'x-content-type-options': 'nosniff' };
