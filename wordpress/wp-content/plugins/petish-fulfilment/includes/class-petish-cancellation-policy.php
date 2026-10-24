@@ -111,7 +111,7 @@ final class Petish_Cancellation_Policy {
     /** Native shortcode page. No queries, state changes or email calls. */
     public static function render($attributes = array(), $content = null, $tag = '') {
         $account_url = function_exists('wc_get_page_permalink') ? wc_get_page_permalink('myaccount') : home_url('/my-account/');
-        $html = '<section class="petish-faqs" aria-label="' . esc_attr__('Frequently asked questions', 'petish-fulfilment') . '">';
+        $html = '<section class="petish-faqs" aria-labelledby="petish-order-faqs"><h2 id="petish-order-faqs">' . esc_html__('Cancellations, returns and order FAQs', 'petish-fulfilment') . '</h2>';
         $html .= '<p class="petish-faqs__intro">' . esc_html__('Help with orders, cancellations, returns and delivery.', 'petish-fulfilment') . '</p>';
         foreach (self::faqs() as $id => $faq) {
             $html .= '<details class="petish-faqs__item" id="' . esc_attr($id) . '"' . ($id === 'change-of-mind' ? ' open' : '') . '><summary>' . esc_html($faq['question']) . '</summary><div class="petish-faqs__answer">';
@@ -130,7 +130,7 @@ final class Petish_Cancellation_Policy {
         $html .= '<h2 style="margin:0 0 12px;color:#14213D;font:700 18px/1.4 Arial,Helvetica,sans-serif;">' . esc_html__('Change-of-mind cancellation FAQ', 'petish-fulfilment') . '</h2>';
         $html .= '<p style="margin:0 0 12px;color:#14213D;font-size:14px;font-weight:700;">' . esc_html__('What happens if I change my mind?', 'petish-fulfilment') . '</p>';
         foreach (self::change_of_mind_paragraphs() as $paragraph) $html .= '<p style="margin:0 0 12px;color:#526077;font-size:13px;line-height:1.65;">' . esc_html($paragraph) . '</p>';
-        $html .= '<p style="margin:0;font-size:13px;"><a href="' . esc_url(home_url('/faqs/#change-of-mind')) . '" style="color:#6532A1;text-decoration:underline;">' . esc_html__('Read all Petish FAQs', 'petish-fulfilment') . '</a></p>';
+        $html .= '<p style="margin:0;font-size:13px;"><a href="' . esc_url(home_url('/delivery-shipping/#change-of-mind')) . '" style="color:#6532A1;text-decoration:underline;">' . esc_html__('Delivery, cancellations and returns FAQ', 'petish-fulfilment') . '</a></p>';
         return $html . '</section>';
     }
 }

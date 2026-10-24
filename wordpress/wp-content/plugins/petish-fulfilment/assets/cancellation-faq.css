@@ -6,6 +6,7 @@
   overflow-wrap: anywhere;
 }
 .petish-faqs * { box-sizing: border-box; }
+.petish-faqs > h2 { margin: 0 0 16px; color: var(--color-text, #14213d); font-family: var(--font-heading, system-ui, sans-serif); line-height: 1.35; }
 .petish-faqs__intro { margin: 0 0 24px; color: var(--color-text-muted, #526077); }
 .petish-faqs__item {
   margin: 0 0 14px;
