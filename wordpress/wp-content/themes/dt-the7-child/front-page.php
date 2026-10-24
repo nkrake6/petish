@@ -29,6 +29,7 @@ $petish_home_photos   = array(
     array( 'slug' => 'hamster', 'image' => 'hamster-v6.webp', 'width' => 2400, 'height' => 1600, 'name' => 'Hamsters', 'alt' => 'Golden and white hamster holding a small snack on a rock', 'author' => 'Sharon Snider', 'source' => 'https://www.pexels.com/photo/close-up-photo-of-cute-hamster-4520484/', 'license_name' => 'Pexels License', 'license_url' => 'https://www.pexels.com/license/', 'changes' => 'Resized and converted to WebP; the desktop backdrop uses a blurred copy of the same photo.' ),
     array( 'slug' => 'chinchilla', 'image' => 'chinchilla-v6.webp', 'width' => 2400, 'height' => 1600, 'name' => 'Chinchillas', 'alt' => 'Grey chinchilla holding a small snack against a peach background', 'author' => 'Nikolett Emmert', 'source' => 'https://unsplash.com/photos/a-chinchilla-eating-food-on-a-pink-background-WP8KvAMjCxs', 'license_name' => 'Unsplash License', 'license_url' => 'https://unsplash.com/license' ),
 );
+if ( class_exists( 'Petish_Hero_Images' ) ) $petish_home_photos = Petish_Hero_Images::resolve( $petish_home_photos );
 
 if ( $petish_home_commerce ) {
     // Explicit public status and generic context keep draft imports and pet data out.
@@ -121,7 +122,8 @@ $petish_home_render_product = static function ( $product ) use ( $petish_home_ic
 // Keep photo attribution in the actual footer, scoped to this homepage request.
 add_action( 'dynamic_sidebar_after', static function ( $sidebar_id ) use ( $petish_home_photos ) {
     static $rendered = false;
-    if ( $rendered || ! is_front_page() || ! function_exists( 'presscore_validate_footer_sidebar' ) || ! function_exists( 'presscore_config' ) ) {
+    if ( $rendered || ! is_front_page() || ! function_exists( 'presscore_validate_footer_sidebar' ) || ! function_exists( 'presscore_config' )
+        || ! array_filter( $petish_home_photos, static function ( $photo ) { return ! empty( $photo['source'] ) && ! empty( $photo['author'] ); } ) ) {
         return;
     }
     $footer_sidebar = presscore_validate_footer_sidebar( presscore_config()->get( 'footer_widgetarea_id' ) );
@@ -132,6 +134,7 @@ add_action( 'dynamic_sidebar_after', static function ( $sidebar_id ) use ( $peti
     ?>
     <details class="ph-photo-credits"><summary><?php esc_html_e( 'Photo credits', 'petish' ); ?></summary><ul>
         <?php foreach ( $petish_home_photos as $petish_home_photo ) : ?>
+            <?php if ( empty( $petish_home_photo['source'] ) || empty( $petish_home_photo['author'] ) ) continue; ?>
             <li><a href="<?php echo esc_url( $petish_home_photo['source'] ); ?>" rel="noopener noreferrer" target="_blank"><?php echo esc_html( $petish_home_photo['name'] . ' — ' . $petish_home_photo['author'] ); ?></a><?php if ( isset( $petish_home_photo['license_url'], $petish_home_photo['license_name'] ) ) : ?> · <a href="<?php echo esc_url( $petish_home_photo['license_url'] ); ?>" rel="license noopener noreferrer" target="_blank"><?php echo esc_html( $petish_home_photo['license_name'] ); ?></a><?php endif; ?><?php if ( isset( $petish_home_photo['changes'] ) ) : ?>. <?php echo esc_html( $petish_home_photo['changes'] ); ?><?php endif; ?></li>
         <?php endforeach; ?>
     </ul></details>
@@ -145,8 +148,8 @@ get_header();
         <section class="ph-hero" aria-labelledby="petish-home-title" data-petish-hero>
             <div class="ph-hero-slides">
                 <?php foreach ( $petish_home_photos as $petish_home_photo_index => $petish_home_photo ) : ?>
-                    <figure id="petish-hero-<?php echo esc_attr( $petish_home_photo['slug'] ); ?>" class="ph-hero-slide ph-hero-slide-<?php echo esc_attr( $petish_home_photo['slug'] ); ?>" role="group" aria-roledescription="slide" aria-label="<?php echo esc_attr( $petish_home_photo['name'] ); ?>" data-petish-hero-slide<?php echo 0 === $petish_home_photo_index ? '' : ' hidden'; ?>>
-                        <img src="<?php echo esc_url( $petish_home_images . 'hero/' . $petish_home_photo['image'] ); ?>" alt="<?php echo esc_attr( $petish_home_photo['alt'] ); ?>" width="<?php echo esc_attr( $petish_home_photo['width'] ); ?>" height="<?php echo esc_attr( $petish_home_photo['height'] ); ?>" decoding="async" <?php echo 0 === $petish_home_photo_index ? 'fetchpriority="high"' : 'loading="lazy"'; ?>>
+                    <figure id="petish-hero-<?php echo esc_attr( $petish_home_photo['slug'] ); ?>" class="ph-hero-slide ph-hero-slide-<?php echo esc_attr( $petish_home_photo['slug'] ); ?><?php echo empty( $petish_home_photo['custom'] ) ? '' : ' ph-hero-slide-custom'; ?>" role="group" aria-roledescription="slide" aria-label="<?php echo esc_attr( $petish_home_photo['name'] ); ?>" data-petish-hero-slide<?php echo 0 === $petish_home_photo_index ? '' : ' hidden'; ?>>
+                        <img src="<?php echo esc_url( $petish_home_photo['url'] ?? $petish_home_images . 'hero/' . $petish_home_photo['image'] ); ?>" alt="<?php echo esc_attr( $petish_home_photo['alt'] ); ?>" width="<?php echo esc_attr( $petish_home_photo['width'] ); ?>" height="<?php echo esc_attr( $petish_home_photo['height'] ); ?>" decoding="async" <?php echo 0 === $petish_home_photo_index ? 'fetchpriority="high"' : 'loading="lazy"'; ?>>
                     </figure>
                 <?php endforeach; ?>
             </div>

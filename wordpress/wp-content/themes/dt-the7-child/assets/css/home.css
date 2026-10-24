@@ -39,6 +39,13 @@ body.home.petish-site .page-title { display: none; }
   .petish-home .ph-hero-slide-hamster::before { content: ""; position: absolute; inset: -36px; background: url('../images/hero/hamster-v6.webp') center / cover; filter: blur(28px); }
   .petish-home .ph-hero-slide-hamster img { left: auto; width: auto; max-width: 64%; object-fit: contain; object-position: right center; mask-image: linear-gradient(90deg, transparent, #000 20%); }
 }
+/* Replacement photos use a normal crop; stock-only mirror/backdrop treatments stay with defaults. */
+.petish-home .ph-hero-slide.ph-hero-slide-custom { --ph-photo-position: 50% 50%; }
+.petish-home .ph-hero-slide-custom img { transform: none; }
+@media (min-width: 701px) {
+  .petish-home .ph-hero-slide-custom::before { content: none; }
+  .petish-home .ph-hero-slide-custom img { left: 0; width: 100%; max-width: none; object-fit: cover; object-position: center; mask-image: none; }
+}
 .petish-home .ph-hero-slides::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 48%, transparent), color-mix(in srgb, var(--color-bg) 16%, transparent) 42%, transparent 72%); pointer-events: none; }
 .petish-home .ph-hero-inner { position: relative; width: calc(100% - 64px); max-width: 1280px; min-height: clamp(560px, 33.333vw, 720px); margin-inline: auto; display: flex; align-items: center; padding-block: 36px; }
 .petish-home .ph-hero-copy { width: 40%; max-width: 480px; padding: clamp(24px, 2.5vw, 32px); border: 1px solid var(--color-border); border-radius: 24px; background: rgba(248, 249, 252, .88); background: color-mix(in srgb, var(--color-bg) 88%, transparent); box-shadow: 0 12px 40px rgba(11, 20, 38, .08); }
