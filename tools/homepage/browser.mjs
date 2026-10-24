@@ -40,7 +40,10 @@ export const THEME_GEOMETRY_KEYS = Object.freeze([...new Set(['header_height', '
     'padding_left', 'padding_right', 'margin_left', 'margin_right', 'flex_basis', 'flex_grow', 'flex_shrink', 'min_width', 'max_width', 'gap'].map(metric => `${node}_${metric}`)),
   ...['search', 'switch', 'market', 'other'].flatMap(node => ['width', 'margin_left', 'margin_right', 'count'].map(metric => `${node}_${metric}`))])]);
 const CATEGORIES = new Set(['complete', 'input', 'browser', 'login', 'homepage', 'subtitle', 'assets', 'layout', 'network', 'personalisation', 'personalisation_error', 'personalisation_history', 'theme_assets', 'theme_layout', 'theme_interaction', 'theme_persistence', 'theme_system', 'market_flag_assets', 'market_flag_layout', 'account_dropdown']);
+export const ACCOUNT_FRAGMENT_FACT_KEYS = Object.freeze(['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff',
+  'status_ok', 'exact_shape', 'signed_in', 'account_url', 'identity_bounded', 'native_links', 'native_reviews_query']);
 export const DIAGNOSTIC_KEYS = Object.freeze(['badge_response_content_type_png',
+  ...['response_received', 'json_parsed', ...ACCOUNT_FRAGMENT_FACT_KEYS].map(fact => `account_dropdown_${fact}`),
   ...['member', 'guest'].flatMap(kind => ['no_store', 'no_litespeed_hit', 'vary_cookie', 'nosniff'].map(fact => `personalisation_${kind}_${fact}`)),
   ...['status_ok', 'json_success', 'html_string', 'signin_prompt', 'no_product', 'no_identity',
     'http_403', 'http_404', 'http_408', 'http_429', 'http_5xx', 'http_redirect', 'retry_observed', 'fetch_exception',
@@ -1076,11 +1079,15 @@ export async function run(input, chromium, options = {}) {
       assetRecords.get(asset)?.ok === true && assetRecords.get(asset)?.hash === expected);
     requireCheck(checks.account_dropdown_assets_http_verified, 'account_dropdown');
     const accountFragment = await accountResponse;
+    diagnostics.account_dropdown_response_received = !!accountFragment;
     requireCheck(!!accountFragment, 'account_dropdown');
     const accountPayload = await accountFragment.json();
+    diagnostics.account_dropdown_json_parsed = true;
     const accountUrl = await page.evaluate(() => window.petishAccountDropdown?.accountUrl);
-    checks.account_dropdown_private_fragment_verified = Object.values(accountDropdownFragmentFacts(
-      await accountFragment.allHeaders(), accountFragment.ok(), accountPayload, accountUrl, input)).every(value => value === true);
+    const accountFacts = accountDropdownFragmentFacts(
+      await accountFragment.allHeaders(), accountFragment.ok(), accountPayload, accountUrl, input);
+    for (const key of ACCOUNT_FRAGMENT_FACT_KEYS) diagnostics[`account_dropdown_${key}`] = accountFacts[key] === true;
+    checks.account_dropdown_private_fragment_verified = ACCOUNT_FRAGMENT_FACT_KEYS.every(key => accountFacts[key] === true);
     requireCheck(checks.account_dropdown_private_fragment_verified, 'account_dropdown');
     checks.account_dropdown_keyboard_verified = await inspectAccountDropdownKeyboard(page, accountPayload.data.items);
     requireCheck(checks.account_dropdown_keyboard_verified, 'account_dropdown');
@@ -1098,7 +1105,9 @@ export async function run(input, chromium, options = {}) {
     imageDimensions.response_width = responseDimensions.width;
     imageDimensions.response_height = responseDimensions.height;
     const primary = await inspectPNGImages(page, expectedBadgeBytes, responseBytes);
-    Object.assign(diagnostics, primary.diagnostics);
+    // PNG inspection initializes its own finite report. Keep the account
+    // fragment observations already captured earlier in this run.
+    for (const [key, value] of Object.entries(primary.diagnostics)) if (key.startsWith('badge_')) diagnostics[key] = value;
     diagnostics.badge_response_content_type_png = /^image\/png(?:;|$)/i.test(png.type);
     diagnostics.badge_response_content_type_webp = /^image\/webp(?:;|$)/i.test(png.type);
     diagnostics.badge_response_content_type_avif = /^image\/avif(?:;|$)/i.test(png.type);

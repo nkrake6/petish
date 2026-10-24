@@ -35,6 +35,9 @@ BROWSER={
 }
 BROWSER_DIAGNOSTICS={f'personalisation_{kind}_{fact}' for kind in ('member','guest')
     for fact in ('no_store','no_litespeed_hit','vary_cookie','nosniff')} | {
+    f'account_dropdown_{fact}' for fact in ('response_received','json_parsed','no_store','no_litespeed_hit',
+        'vary_cookie','nosniff','status_ok','exact_shape','signed_in','account_url','identity_bounded',
+        'native_links','native_reviews_query')} | {
     f'personalisation_guest_{fact}' for fact in ('status_ok','json_success','html_string','signin_prompt','no_product','no_identity',
         'http_403','http_404','http_408','http_429','http_5xx','http_redirect','retry_observed','fetch_exception',
         'homepage_http_ok','anonymous_context_verified')} | {'badge_response_content_type_png','badge_response_content_type_webp',
