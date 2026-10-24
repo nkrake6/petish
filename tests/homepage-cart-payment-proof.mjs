@@ -26,15 +26,21 @@ for(const width of [320,390,768,1280]){
  check(cartPaymentLayoutFacts(value,{...controls,typography_width:width}).typography_verified);
 }
 const populated=proof();
-Object.assign(populated.cart,{woo_google_pay:node(0,100),paypal:node(0,160),pay_later:node(0,204),
- paypal_message:node(0,248),installment_message:node(0,300)});
+Object.assign(populated.cart,{woo_google_pay:node(0,100),installment_message:node(0,160,80),
+ paypal:node(0,260),pay_later:node(0,304),paypal_message:node(0,348)});
 check(cartPaymentLayoutFacts(populated,controls).layout_verified);
 for(const mutate of [value=>{value.assets.product_js=false;},value=>{value.assets.cart_css_content_version=false;},
  value=>{value.cart.scoped_body_class=false;},value=>{value.horizontal_overflow=true;},
  value=>{value.cart.paypal.width=401;},value=>{value.cart.pay_later.top=120;},
- value=>{value.cart.installment_message.width=Infinity;}]){
+ value=>{value.cart.installment_message.width=Infinity;},
+ value=>{value.cart.installment_message.top=50;},
+ value=>{value.cart.installment_message.top=400;}]){
  const value=structuredClone(populated);mutate(value);check(!cartPaymentLayoutFacts(value,controls).layout_verified);
 }
+const noWallet=structuredClone(populated);noWallet.cart.woo_google_pay=absent();
+check(cartPaymentLayoutFacts(noWallet,controls).layout_verified);
+const noAfterpay=structuredClone(populated);noAfterpay.cart.installment_message=absent();
+check(cartPaymentLayoutFacts(noAfterpay,controls).layout_verified);
 for(const mutate of [value=>{value.cart.names.font_size=16;},value=>{value.cart.quantity.font_size=16;},
  value=>{value.cart.prices.visible_count=0;},value=>{value.cart.variations.font_size=12;}]){
  const value=proof();mutate(value);check(!cartPaymentLayoutFacts(value,controls).typography_verified);

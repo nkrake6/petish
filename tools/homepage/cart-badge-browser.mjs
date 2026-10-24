@@ -43,7 +43,8 @@ export function cartPaymentLayoutFacts(proof,controls){
  const layout_verified=proof?.page==='cart'&&diagnostics.cart_payment_block_present&&diagnostics.cart_payment_scoped_body_class
   &&diagnostics.cart_payment_all_assets_present&&diagnostics.cart_payment_all_asset_content_versions
   &&diagnostics.cart_payment_layout_fits&&groups.every(bounded)
-  &&[cart.woo_google_pay,cart.paypal_google_pay].every(wallet=>before(wallet,cart.paypal)&&before(wallet,cart.pay_later))
+  &&[cart.woo_google_pay,cart.paypal_google_pay].every(wallet=>before(wallet,cart.installment_message)&&before(wallet,cart.paypal)&&before(wallet,cart.pay_later))
+  &&before(cart.installment_message,cart.paypal)&&before(cart.installment_message,cart.pay_later)
   &&before(cart.paypal,cart.pay_later)&&before(cart.paypal,cart.paypal_message)&&before(cart.pay_later,cart.paypal_message);
  const typography_verified=diagnostics.cart_payment_block_present&&diagnostics.cart_payment_scoped_body_class
   &&Number.isFinite(width)&&width>0&&width<=4096&&font(cart.names,width<=599?18:20)
