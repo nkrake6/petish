@@ -265,7 +265,7 @@ choices and all feature switches.
 Product pages now group native GPay/Afterpay separately from PayPal, with the
 PayPal instalment message below its buttons and matching maximum widths.
 Afterpay has green emphasis, its original native text sizing restored, and a
-separate unchanged official 150px brand badge above eligible native messages.
+separate unchanged official 64×40px brand badge above eligible native messages.
 Categories/tags use 16px text. Cart uses WooPayments for Google Pay when its
 merchant configuration is available, keeps PayPal/Pay in 4 below it, and uses
 larger names, prices, variation information and totals. Actual payment
@@ -309,6 +309,19 @@ hash-verified and visually inspected; see the payment-layout document. The
 preceding HTTP-failed inspection created no Cart and changed no app files.
 Isolated staging deliberately disables provider execution;
 headless inspection does not prove wallet authorization or payment processing.
+
+The owner then requested a smaller badge matching the Google Pay mark. The
+CSS-only follow-up `86391bb` reduces its width from 150px to 64px (40px tall),
+without changing typography, See plans placement or provider behavior.
+Staging install `40084030183-1` and all 226 full-staging checks in
+`40084162569-1` (`7319362`) passed. Production `40084541619-1`, source `b83783e`,
+changed exactly one CSS file and passed all ten phases, 178 required checks and
+all 30 application hashes. Cache and maintenance cleanup passed. Final visual
+inspection `40084674282-1` (`b83783e`) confirms the badge is 64×40px and the
+native product/Cart text and See plans placement are intact. The product cache
+still matches its original 17px source; the Cart-only provider measurement is
+13.39px, unchanged from its previous run. Both actual crops were hash-verified
+and visually inspected; the temporary guest Cart and private tools were removed.
 
 These production releases used encrypted full-site backup `40070351575-1`
 and successful application recovery `40070594356-1`. Earlier 23-file homepage

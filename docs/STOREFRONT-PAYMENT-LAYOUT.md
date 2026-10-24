@@ -1,6 +1,6 @@
 # Storefront payment groups and Cart readability
 
-Current application source: `ad6b2e6`, production release source `ceaa969`,
+Current application source: `86391bb`, production release source `b83783e`,
 24 October 2026 (Australia/Melbourne). Prior baseline: `3691306` / `cff4586`.
 
 Corrective implementation: Afterpay commit `ad24e72` and Cart commit `bcec660`.
@@ -34,7 +34,7 @@ initialization. Checkout appearance and caches are excluded.
 
 The green message highlight remains in light and dark appearances. A separate,
 decorative heading above the native Afterpay message uses the exact unchanged
-SVG shipped by WooPayments: 150px wide, limited to its container width, with its
+SVG shipped by WooPayments: 64px wide and 40px tall, limited to its container width, with its
 original aspect ratio and colours. The provider's own inline mark, amounts,
 financing text and See plans link remain inside its message. There is no iframe
 content replacement, internal CSS injection, scaling or cloned payment SDK.
@@ -165,7 +165,7 @@ actions, and must distinguish an unavailable provider from blocked execution.
 | Hosted native wallet/message render and typography proof | `40081062995-1`: native text 16.74px, original product cache 17px; rightmost Account and Cart provider policy verified; badge type mismatch found; native SDK wallet rendering remains inconclusive in headless inspection |
 | Production application and verification receipt | [40080832725-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40080832725-1), source `3e6c147`; nine files changed, all 30 hashes verified; native/cache/health/assets/commit passed; maintenance removed without rollback |
 | Localized eligibility follow-up | Staging install `40081705741-1` (`ad6b2e6`), all 226 required full-staging checks in `40081839182-1` (`05c3de2`), production [40082256383-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40082256383-1) (`ceaa969`); one file changed, all 30 hashes and 178 required production checks passed; maintenance removed without rollback |
-| Actual final native product/Cart visuals | [40082669837-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40082669837-1), diagnostic source `3c1ac7b` with unchanged `ceaa969` application bytes; 150×93.75px branding visible, native product appearance matches its original 17px source, guest Cart and temporary tools removed |
+| Earlier 150px native product/Cart visuals | [40082669837-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40082669837-1), diagnostic source `3c1ac7b` with unchanged `ceaa969` application bytes; 150×93.75px branding visible, native product appearance matches its original 17px source, guest Cart and temporary tools removed |
 
 Both exact public payment crops were hash-verified and visually inspected:
 [product, 400×172px](https://github.com/nkrake6/petish/blob/4002c721ae729453a7a16ce1d43065c571c6afbd/product-afterpay.png)
@@ -178,6 +178,29 @@ wallet and PayPal message-host rendering remains inconclusive, so this does not
 claim a real wallet, financing or payment test. The preceding visual run
 `40082411731-1` stopped on public HTTP loading before creating a Cart; the retry
 changed no application files.
+
+## Compact badge follow-up
+
+The owner found the 150px badge too large and requested a size comparable to
+the Google Pay mark. Application `86391bb` changes only its CSS width to 64px;
+the SVG's natural 8:5 ratio yields 40px height and a roughly 56px-wide wordmark.
+It retains the unchanged artwork, payment text, See plans placement, provider
+eligibility and all JavaScript/PHP. The current-size browser assertions pass
+at 1440, 800 and 390px. Staging install `40084030183-1` passed all eight steps;
+full verification `40084162569-1` (`7319362`) passed all 226 required checks and
+matched all 30 application hashes. Production
+[40084541619-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40084541619-1)
+(`b83783e`) passed all ten phases, 178 required checks and all 30 hashes, changing
+exactly one CSS file. Cache and maintenance cleanup passed. Final visual
+inspection [40084674282-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40084674282-1)
+(`b83783e`) confirms the 64×40px badge, original native product/cache font of
+17px and unchanged 13.39px Cart provider measurement. Native text/link layouts,
+header ordering and Cart provider selection remain intact. The fresh guest
+Cart and private tools were removed.
+
+The current compact images were hash-verified and visually inspected:
+[product, 400×111px](https://github.com/nkrake6/petish/blob/7539efa246bb918464d421354c3f772d2363ac5f/product-afterpay.png)
+and [Cart, 310×113px](https://github.com/nkrake6/petish/blob/7539efa246bb918464d421354c3f772d2363ac5f/cart-payments.png).
 
 The baseline also installed the live [hero-image editor](https://petish.biz/wp-admin/admin.php?page=petish-hero-images)
 and account dropdown. Photo choices remain preserved. The corrective header
