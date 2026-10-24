@@ -196,6 +196,12 @@ payments or supplier orders. Choose an exact backup branch for each new drill.
 
 ## Monitoring from this cloud session
 
+For a customer-specific refund investigation, use the separate
+[private order inspection](docs/PRIVATE-ORDER-INSPECTION.md). Its one-use
+encrypted request and result keep customer selectors and financial data out of
+public Git and workflow logs. It reads stored order/refund records only; it
+cannot issue a refund or verify bank settlement.
+
 Native HTTPS Git works through the supplied authentication proxy. GitHub API
 access may be unavailable even when Git works; do not request another token
 merely because `gh api` is denied.

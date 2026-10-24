@@ -389,6 +389,8 @@ elif 'openssl pkeyutl -decrypt' in command:
  assert ' config get ' in command and 'PETISH_DB_PREFIX' in command and 'allow_url_fopen=0' in command
  if mode=='collector_failure':
   print('PRIVATE-CUSTOMER-SENTINEL',file=sys.stderr);print('bounds',file=sys.stderr);raise SystemExit(1)
+ if mode in {'metadata_missing_order_total','metadata_missing_order_currency','metadata_missing_refund_amount','metadata_duplicate_conflict','metadata_value'}:
+  print('PRIVATE-CUSTOMER-SENTINEL',file=sys.stderr);print(mode,file=sys.stderr);raise SystemExit(1)
  if mode=='unknown_failure':
   print('PRIVATE-CUSTOMER-SENTINEL',file=sys.stderr);raise SystemExit(1)
  data={'format':'petish-order-refund-inspection-v1','status':'not_found','order_id':7001}
@@ -453,7 +455,8 @@ else:raise SystemExit(1)
         self.assertEqual(files,['status.json']);self.assertIsNone(envelope);self.assertFalse(value['temporary_files_removed'])
 
     def test_collection_failures_publish_only_exact_allowlisted_error_codes(self):
-        for mode,expected in [('collector_failure','bounds'),('unknown_failure',None)]:
+        metadata = ['metadata_missing_order_total','metadata_missing_order_currency','metadata_missing_refund_amount','metadata_duplicate_conflict','metadata_value']
+        for mode,expected in [('collector_failure','bounds'),('unknown_failure',None)] + [(code,code) for code in metadata]:
             with self.subTest(mode=mode):
                 code,value,files,envelope,_=self.run_pipeline(mode=mode)
                 self.assertNotEqual(code,0);self.assertEqual(value['failure_code'],expected)
