@@ -12,7 +12,7 @@ on:
   push:
     # Install matching application bytes via the staging branch before verification.
     # Main inspects; verify-homepage proves native Cart changes; deploy-homepage applies.
-    branches: [main, verify-homepage, deploy-homepage]
+    branches: [main, verify-homepage, inspect-homepage, deploy-homepage]
     paths:
       - .github/workflows/homepage.yml
       - scripts/hostinger-homepage.sh

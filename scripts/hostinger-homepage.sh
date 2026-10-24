@@ -433,12 +433,12 @@ failure_category=inspect
 remote_phase inspect
 result_status=in_progress
 publish_result > "$work/progress.private.stdout" 2> "$work/progress.private.stderr"
+failure_category=cache_preflight
+cache_remote_phase apply inspect
 if [[ $mode == inspect ]]; then
     operation_verified=1
     exit 0
 fi
-failure_category=cache_preflight
-cache_remote_phase apply inspect
 failure_category=apply
 rollback_needed=1
 remote_phase apply
