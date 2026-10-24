@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(new URL('./staging-rehearsal/package.json', import.meta.url));
 const ORIGIN = 'https://petish.biz';
 const PRODUCT = '/product/rainbow-habitat-hideout/';
-export const PUBLIC_SCHEMA = {"checks":["browser_started","fresh_guest_context","initial_cart_empty","public_variation_selected","guest_cart_created","cart_quantity_verified","cart_page_loaded","passive_sdk_inspected","network_barrier_enforced","created_guest_cart_cleared"],"observations":["home_http_ok","product_http_ok","cart_http_ok","home_account_in_navigation","home_account_avatar_present","home_native_cart_present","home_cart_badge_present","product_afterpay_present","product_paypal_present","cart_block_present","cart_sidebar_present","cart_express_in_sidebar","cart_paypal_in_express","cart_afterpay_in_express","cart_afterpay_in_sidebar","cart_wcpay_google_in_express","cart_paypal_google_in_express","cart_paylater_in_express","cart_paypal_google_v5_present","cart_paypal_google_v6_present","cart_paypal_v6_present","cart_paypal_message_in_sidebar","cart_paypal_message_in_express","cart_paypal_message_shadow_host_present","cart_paypal_message_shadow_host_visible","cart_paypal_message_direct_sidebar","cart_paypal_message_bare_sidebar_wrapper","cart_paypal_message_block_wrapper","cart_stripe_message_in_sidebar","cart_google_visible","cart_paypal_visible","cart_afterpay_visible","afterpay_frame_present","afterpay_frame_inspected","afterpay_logo_present","afterpay_see_plans_present","afterpay_see_plans_below","checkout_requests_blocked","other_requests_blocked","provider_get_blocked","provider_post_blocked","store_api_blocked","payment_action_blocked","provider_bootstrap_blocked","stripe_session_initialization_allowed"],"metrics":["home_account_count","home_native_cart_count","home_badge_count","cart_row_count","cart_express_count","cart_paypal_count","cart_wcpay_google_count","cart_paypal_google_count","cart_paylater_count","cart_afterpay_count","cart_paypal_message_count","cart_paypal_message_shadow_host_count","cart_paypal_message_shadow_host_width_px","cart_paypal_message_shadow_host_height_px","cart_afterpay_frame_count","afterpay_logo_count","afterpay_logo_width_px","afterpay_logo_height_px","afterpay_font_px","afterpay_link_font_px","afterpay_message_width_px","afterpay_message_height_px","blocked_request_count","blocked_provider_get_count","blocked_provider_post_count","blocked_store_api_count","blocked_payment_action_count","stripe_session_initialization_count"],"categories":["input","browser","home","product","cart","providers","cleanup","complete"]};
+export const PUBLIC_SCHEMA = {"checks":["browser_started","fresh_guest_context","initial_cart_empty","public_variation_selected","guest_cart_created","cart_quantity_verified","cart_page_loaded","passive_sdk_inspected","network_barrier_enforced","created_guest_cart_cleared"],"observations":["home_http_ok","product_http_ok","cart_http_ok","home_account_in_navigation","home_account_avatar_present","home_native_cart_present","home_cart_badge_present","product_afterpay_present","product_paypal_present","cart_block_present","cart_sidebar_present","cart_express_in_sidebar","cart_paypal_in_express","cart_afterpay_in_express","cart_afterpay_in_sidebar","cart_wcpay_google_in_express","cart_paypal_google_in_express","cart_paylater_in_express","cart_paypal_google_v5_present","cart_paypal_google_v6_present","cart_paypal_v6_present","cart_paypal_message_in_sidebar","cart_paypal_message_in_express","cart_paypal_message_shadow_host_present","cart_paypal_message_shadow_host_visible","cart_paypal_message_direct_sidebar","cart_paypal_message_bare_sidebar_wrapper","cart_paypal_message_block_wrapper","cart_stripe_message_in_sidebar","cart_google_visible","cart_paypal_visible","cart_afterpay_visible","afterpay_frame_present","afterpay_frame_inspected","afterpay_logo_present","afterpay_see_plans_present","afterpay_see_plans_below","checkout_requests_blocked","other_requests_blocked","provider_get_blocked","provider_post_blocked","store_api_blocked","payment_action_blocked","provider_bootstrap_blocked","stripe_session_initialization_allowed","account_fragment_read_allowed","cart_count_fragment_read_allowed","home_account_after_currency","afterpay_brand_badge_present","afterpay_message_below_brand_badge"],"metrics":["home_account_count","home_native_cart_count","home_badge_count","cart_row_count","cart_express_count","cart_paypal_count","cart_wcpay_google_count","cart_paypal_google_count","cart_paylater_count","cart_afterpay_count","cart_paypal_message_count","cart_paypal_message_shadow_host_count","cart_paypal_message_shadow_host_width_px","cart_paypal_message_shadow_host_height_px","cart_afterpay_frame_count","afterpay_logo_count","afterpay_logo_width_px","afterpay_logo_height_px","afterpay_font_px","afterpay_link_font_px","afterpay_message_width_px","afterpay_message_height_px","blocked_request_count","blocked_provider_get_count","blocked_provider_post_count","blocked_store_api_count","blocked_payment_action_count","stripe_session_initialization_count","account_fragment_read_count","cart_count_fragment_read_count","home_account_left_px","home_market_right_px","afterpay_brand_badge_width_px","afterpay_brand_badge_height_px"],"categories":["input","browser","home","product","cart","providers","cleanup","complete"]};
 const DOCUMENTS = new Set(['/', PRODUCT, '/cart/']);
 const PAYMENT_ACTION = /\/(?:checkout|checkoutnow|orders?|payments?|payment_intents|setup_intents|confirm|capture|authorize|approve|refunds?|customers)(?:\/|$)/i;
 const PROVIDER_HOST = /(?:^|\.)(?:paypal\.com|paypalobjects\.com|stripe\.com|afterpay\.com|squarecdn\.com|cash\.app)$/i;
@@ -30,6 +30,14 @@ export function screenReport(value) {
   if (value.status === 'success' && (value.category !== 'complete' || !Object.values(value.checks).every(Boolean))) throw new Error('input');
   return value;
 }
+/** Exact audited own-session reads; no extra query or POST fields are accepted. */
+export function auditedSessionRead(raw, method, body = '') {
+  let url; try { url = new URL(raw); } catch { return null; }
+  if (url.protocol !== 'https:' || url.origin !== ORIGIN || url.username || url.password || url.port || url.hash || method !== 'POST') return null;
+  if (url.pathname === '/wp-admin/admin-ajax.php' && !url.search && body === 'action=petish_account_dropdown') return 'account';
+  if (url.pathname === '/' && url.search === '?wc-ajax=petish_cart_count' && body === '') return 'cart_count';
+  return null;
+}
 /** Native Stripe Elements display sessions are read-only widget initialization. */
 export function publicStripeSession(raw, method, body) {
   let url; try { url = new URL(raw); } catch { return false; }
@@ -43,7 +51,7 @@ export function publicStripeSession(raw, method, body) {
 export function allowedRequest(raw, method = 'GET', type = 'fetch', body = '', permit = null) {
   let url; try { url = new URL(raw); } catch { return false; }
   if (url.protocol !== 'https:' || url.username || url.password || url.port || PAYMENT_ACTION.test(url.pathname)) return false;
-  if (publicStripeSession(raw, method, body)) return true;
+  if (publicStripeSession(raw, method, body) || auditedSessionRead(raw, method, body)) return true;
   if (url.origin === ORIGIN) {
     if (permit && !permit.used && method === permit.method && url.pathname === permit.path && !url.search && body === permit.body) {
       if (method === 'DELETE') return permit.path === '/wp-json/wc/store/v1/cart/items' && body === '';
@@ -88,12 +96,17 @@ async function pageFacts(page, location) {
       afterpay: '.afterpay-paragraph, .afterpay-logo, .payment_method_afterpay_clearpay, [data-afterpay-widget]',
       paypalMessage: '#ppcp-cart-paylater-messages, .ppcp-messages',
     };
-    if (where === 'home') return {
+    if (where === 'home') {
+      const account = all('[data-petish-account], .petish-account-menu').find(visible), market = all('.petish-market-selector').find(visible);
+      const accountBox = account?.getBoundingClientRect(), marketBox = market?.getBoundingClientRect();
+      return {
       observations: { home_account_in_navigation: inside('.petish-account-menu', '.main-nav, .mobile-main-nav, nav'),
         home_account_avatar_present: count('.petish-account-avatar') > 0,
         home_native_cart_present: count('.shopping-cart, .wc-shopping-cart, .mini-woocommerce-cart, .wc-ico-cart') > 0,
-        home_cart_badge_present: count('.petish-cart-badge') > 0 },
-      metrics: { home_account_count: count('.petish-account-menu'), home_native_cart_count: count('.shopping-cart, .wc-shopping-cart, .mini-woocommerce-cart, .wc-ico-cart'), home_badge_count: count('.petish-cart-badge') } };
+        home_cart_badge_present: count('.petish-cart-badge') > 0,
+        home_account_after_currency: !!(accountBox && marketBox && accountBox.left >= marketBox.right - 1 && Math.abs(accountBox.top - marketBox.top) < 48) },
+      metrics: { home_account_count: count('.petish-account-menu'), home_native_cart_count: count('.shopping-cart, .wc-shopping-cart, .mini-woocommerce-cart, .wc-ico-cart'), home_badge_count: count('.petish-cart-badge'), home_account_left_px: accountBox?.left || 0, home_market_right_px: marketBox?.right || 0 } };
+    }
     if (where === 'product') return { observations: { product_afterpay_present: count(selectors.afterpay) > 0, product_paypal_present: count('.petish-product-paypal, #ppc-button-ppcp-gateway') > 0 }, metrics: {} };
     const express = '.wc-block-components-express-payment', sidebar = '.wc-block-cart__sidebar';
     const host = all('paypal-message').find(visible), hostBox = host?.getBoundingClientRect();
@@ -123,15 +136,25 @@ function merge(report, facts) {
   for (const [key, value] of Object.entries(facts.metrics)) if (PUBLIC_SCHEMA.metrics.includes(key)) report.metrics[key] = bounded(value);
 }
 async function inspectAfterpay(page, report) {
+  const brand = await page.evaluate(() => {
+    const el = document.querySelector('.petish-afterpay-brand-heading'), frame = el?.querySelector('iframe');
+    if (!el || !frame) return { present: false, below: false, width: 0, height: 0 };
+    const before = getComputedStyle(el, '::before'), style = getComputedStyle(el), box = el.getBoundingClientRect(), iframe = frame.getBoundingClientRect();
+    const width = parseFloat(before.width) || 0, height = parseFloat(before.height) || 0;
+    return { present: width > 0 && height > 0 && before.backgroundImage !== 'none' && style.display !== 'none' && box.width > 0 && iframe.height > 0,
+      below: iframe.top >= box.top + (parseFloat(style.paddingTop) || 0) + height - 1, width, height };
+  });
+  report.observations.afterpay_brand_badge_present = brand.present; report.observations.afterpay_message_below_brand_badge = brand.present && brand.below;
+  report.metrics.afterpay_brand_badge_width_px = bounded(brand.width); report.metrics.afterpay_brand_badge_height_px = bounded(brand.height);
   const frames = page.frames().filter(frame => { try { const url = new URL(frame.url()); return frame !== page.mainFrame() && /(?:^|\.)(?:afterpay|stripe)\.com$/i.test(url.hostname); } catch { return false; } });
   report.metrics.cart_afterpay_frame_count = 0;
   for (const frame of [page.mainFrame(), ...frames]) {
     try {
-      const facts = await frame.evaluate(() => {
+      const facts = await frame.evaluate(isProviderFrame => {
         const visible = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'; };
         const logos = [...document.querySelectorAll('.afterpay-logo, [class*="afterpay" i][class*="logo" i], img[alt*="Afterpay" i], svg[aria-label*="Afterpay" i]')].filter(visible);
         const paragraphs = [...document.querySelectorAll('.afterpay-paragraph, [class*="afterpay-paragraph" i], [class*="afterpay-message" i], [class*="AfterpayClearpayMessage"]')].filter(visible);
-        const logo = logos[0], message = paragraphs.find(el => logo && el.contains(logo)) || paragraphs[0] || logo?.parentElement;
+        const logo = logos[0], message = paragraphs.find(el => logo && el.contains(logo)) || paragraphs[0] || (isProviderFrame && logo ? document.body : logo?.parentElement);
         const links = message ? [...message.querySelectorAll('a, button')].filter(el => visible(el) && /see\s+plans/i.test(el.textContent || '')) : [];
         const link = links[0];
         const box = el => el?.getBoundingClientRect();
@@ -142,7 +165,7 @@ async function inspectAfterpay(page, report) {
             afterpay_font_px: message ? parseFloat(getComputedStyle(message).fontSize) || 0 : 0,
             afterpay_link_font_px: link ? parseFloat(getComputedStyle(link).fontSize) || 0 : 0,
             afterpay_message_width_px: m?.width || 0, afterpay_message_height_px: m?.height || 0 } };
-      });
+      }, frame !== page.mainFrame());
       if (frame !== page.mainFrame() && (facts.observations.afterpay_logo_present || /afterpay/i.test(frame.url()))) {
         report.observations.afterpay_frame_present = true; report.observations.afterpay_frame_inspected = true;
         report.metrics.cart_afterpay_frame_count = Math.min(99, report.metrics.cart_afterpay_frame_count + 1);
@@ -174,6 +197,8 @@ export async function inspectLive() {
     await context.route('**/*', async route => {
       const request = route.request();
       if (allowedRequest(request.url(), request.method(), request.resourceType(), request.postData() || '', permit)) {
+        const ownRead = auditedSessionRead(request.url(), request.method(), request.postData() || '');
+        if (ownRead) { const kind = ownRead === 'account' ? 'account_fragment_read' : 'cart_count_fragment_read'; report.observations[kind + '_allowed'] = true; report.metrics[kind + '_count'] = Math.min(METRIC_MAX, report.metrics[kind + '_count'] + 1); }
         if (publicStripeSession(request.url(), request.method(), request.postData() || '')) { report.observations.stripe_session_initialization_allowed = true; report.metrics.stripe_session_initialization_count = Math.min(METRIC_MAX, report.metrics.stripe_session_initialization_count + 1); }
         if (permit && request.method() === permit.method && new URL(request.url()).origin === ORIGIN && new URL(request.url()).pathname === permit.path) permit.used = true;
         return route.continue();

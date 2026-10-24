@@ -120,6 +120,11 @@ class StorefrontRuntimeTests(unittest.TestCase):
 const m=await import('./tools/storefront-live-inspect.mjs');
 const allow=(path,method='GET',type='fetch',body='',permit=null)=>m.allowedRequest('https://petish.biz'+path,method,type,body,permit);
 for(const route of ['/', '/cart/', '/product/rainbow-habitat-hideout/'])assert(allow(route,'GET','document'));
+assert(allow('/wp-admin/admin-ajax.php','POST','fetch','action=petish_account_dropdown'));
+assert(allow('/?wc-ajax=petish_cart_count','POST','fetch',''));
+for(const [route,body] of [['/wp-admin/admin-ajax.php?extra=1','action=petish_account_dropdown'],['/wp-admin/admin-ajax.php','action=petish_account_dropdown&private=1'],['/wp-admin/admin-ajax.php','action=other_action'],['/?wc-ajax=petish_cart_count&extra=1',''],['/?wc-ajax=petish_cart_count','private=1'],['/?wc-ajax=checkout','']])assert(!allow(route,'POST','fetch',body));
+assert(!m.auditedSessionRead('https://other.invalid/wp-admin/admin-ajax.php','POST','action=petish_account_dropdown'));
+assert(!m.auditedSessionRead('https://petish.biz/wp-admin/admin-ajax.php','GET','action=petish_account_dropdown'));
 assert(allow('/wp-json/wc/store/v1/cart'));assert(allow('/wp-content/plugins/woocommerce/assets/test.js'));
 for(const route of ['/checkout/','/wp-json/wc/store/v1/checkout','/wp-json/wc/v3/orders','/?add-to-cart=1','/cart/?remove_item=1'])assert(!allow(route));
 for(const verb of ['POST','DELETE','PUT','PATCH'])assert(!allow('/wp-json/wc/store/v1/cart/items',verb));
