@@ -235,6 +235,23 @@ The source is saved on `development/delivery-operations`; `main` remains the
 production baseline. See [Delivery operations](docs/DELIVERY-OPERATIONS.md)
 for scope, staff-tool links and evidence.
 
+Fulfilment **0.8.0 is the next private staging candidate**, adding customer
+cancellation requests, a persistent staff queue, branded acknowledgements and
+updates, and shared change-of-mind FAQs appended to the existing Delivery &
+Shipping page. The owner chose 14 days after delivery, unused/complete items
+in original packaging, customer-paid voluntary return postage and staff review
+with advance disclosure of any permitted processing-fee deduction. Statutory
+remedies remain separate. The full policy FAQ appears at the bottom of customer
+cancellation emails. No refund, fee deduction, native order-status change or
+supplier cancellation is automated; request and mail flags default off.
+
+The same candidate adds a larger header font and a right-aligned avatar/account
+dropdown using native account links, with private cache-safe hydration. It also
+moves Your reviews directly under the product chooser. See
+[cancellation workflow, policy and evidence](docs/CANCELLATION-REQUESTS.md).
+Hero images remain in the custom `front-page.php` template; no dashboard hero
+image picker has been added.
+
 Fulfilment **0.7.0 is deployed and verified on private staging**. It adds owner-only
 shipment cards on native order details and a private staff email-preview
 button. Customer tracking has its own default-off option; no sender or DSers

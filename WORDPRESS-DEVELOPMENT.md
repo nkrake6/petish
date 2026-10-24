@@ -78,6 +78,18 @@ the affected feature on staging after deployment. Production deployment is not
 implemented by this workflow. Real purchases and supplier orders require a
 separately agreed sample-order task.
 
+The cancellation-request candidate has its own staging workflow in
+`.github/workflows/cancellation-requests.yml`. Install the exact source through
+`staging` and wait for the apply and automatic email-preview jobs to finish.
+Push that source to `prepare-cancellation-requests` to append the managed FAQ
+shortcode to the existing Delivery & Shipping page, then wait for its success
+receipt before pushing the same source to `verify-cancellation-requests`.
+Preparation checks the exact installed plugin/header files, permits only the
+reviewed existing delivery page, saves its previous content privately and
+commits the bounded update transactionally. It creates no new FAQ page and
+enables no request or mail flags. The verification is read-only and publishes
+finite check results. See [cancellation requests](docs/CANCELLATION-REQUESTS.md).
+
 Pet Club has a separate, narrowly scoped release workflow in
 `.github/workflows/pet-club.yml`. `verify-pet-club` exercises the exact application
 on private staging; `deploy-pet-club` applies only its eighteen reviewed Passport
