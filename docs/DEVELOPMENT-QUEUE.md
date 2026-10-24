@@ -2,7 +2,7 @@
 
 Updated 25 October 2026 (Australia/Melbourne).
 
-## In progress: Pet Chat
+## Ready for review: Pet Chat private staging pilot
 
 Build a publicly readable community with topic channels, discussions and threaded
 Q&A. Posting uses the existing signed-in customer account. The owner confirmed
@@ -13,6 +13,11 @@ Keep private Passport records, shopping information and customer contact details
 out of public discussion. Live thread updates must preserve a member's draft.
 Start with the existing WordPress hosting and accounts; no new paid service has
 been requested.
+
+The first version is implemented and verified on
+[private staging](https://staging.petish.biz/?petish_chat=1), source `14386ae`.
+See [Pet Chat](PET-CHAT.md) for the native/browser checks and actual staging
+receipts. The live Chat feature remains off during this pilot.
 
 ## Queued next: desktop product layout
 

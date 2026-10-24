@@ -1,6 +1,11 @@
 # Pet Chat
 
-Development candidate, 25 October 2026 (Australia/Melbourne).
+Private staging pilot, 25 October 2026 (Australia/Melbourne).
+
+Open [Pet Chat on staging](https://staging.petish.biz/?petish_chat=1) using the
+existing staging login. The staging site's access guard is preserved; the
+application supports public reading when launched publicly. Production Chat is
+not enabled by this pilot.
 
 The owner confirmed public reading, signed-in posting, topic channels and
 threaded Q&A. Each member's first contribution requires moderation; after an
@@ -60,8 +65,17 @@ Synthetic screenshots were visually reviewed at 1280px light and 390px dark.
 The staging tools passed 13 focused tests, including wrong-host-key rejection
 before authentication, immutable Git sources, bounded public receipts and the
 single-flag transaction's write scope. The actual hosted contract helper passed
-under a native SQL-write barrier. Private staging installation remains in
-progress. These tests do not claim production activation.
+under a native SQL-write barrier. Candidate `14386aefef4689493740d37a6999f24bd2ac778f`
+was installed on private staging in `40136658566-1`, with all eight deployment
+steps passing. The automatic seven-type email preview `40136700097-1` also
+passed. The separate [verification/activation receipt `40136815148-1`](https://github.com/nkrake6/petish/blob/717b8c05acb00b932488835a86aa5f8a0e15d85e/status.json)
+passed all 39 safeguards, four explicit scope observations and all 43 installed
+Passport hashes against that immutable source. The Chat flag was enabled and
+committed on staging. Other options and feature flags, topics/replies, orders,
+accounts, products, private Passports and media stayed unchanged. Temporary
+remote tools were removed. No hosted test accounts or messages were created;
+the hosted proof did not exercise browser interaction or message mutations.
+Production was not bootstrapped or changed by that workflow.
 
 ## Operation
 

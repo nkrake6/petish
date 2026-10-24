@@ -47,13 +47,19 @@ for the current cloud workflow. The Mac setup below is archived history.
 
 ## Latest delivered features
 
-- **Pet Chat, in development:** the owner confirmed public reading, signed-in
+- **Pet Chat, private staging pilot ready:** the owner confirmed public reading, signed-in
   posting, topic channels and threaded Q&A. Review each member's first
   contribution; approved members can then post immediately. The optional
   Passport module uses a separate private post/comment storage boundary and
   public projections; it does not expose private pets or customer contact data.
-  See [Pet Chat](docs/PET-CHAT.md) for the current candidate and verification
-  status. The owner also queued a three-column desktop product page (gallery,
+  Source `14386ae` passed 380 disconnected native checks, 266 browser checks and
+  13 staging-tool tests. Staging install `40136658566-1` and seven-type email
+  preview `40136700097-1` passed; Chat verification `40136815148-1` matched all
+  43 plugin files and passed 39 safeguards, enabling only the staging Chat
+  flag. Production Chat remains off. Open
+  [Pet Chat on staging](https://staging.petish.biz/?petish_chat=1) and see
+  [the implementation and verification record](docs/PET-CHAT.md). The owner
+  also queued a three-column desktop product page (gallery,
   details/options, payments), recorded in [the development queue](docs/DEVELOPMENT-QUEUE.md).
 
 - **Passport 0.4.1, live:** existing hearts also act as favourites, with a private
