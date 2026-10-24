@@ -128,7 +128,8 @@ function petish_homepage_verify_html($html,$pool,$free) {
     petish_homepage_verify_mark('cart_badge_cacheable_shell_verified', $xpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," petish-cart-badge ")]')->length===0
         &&strpos($html,'window.petishCartBadge')!==false&&strpos($html,'petish_cart_count')!==false);
     petish_homepage_verify_mark('account_dropdown_cacheable_shell_verified',
-        $xpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," petish-account-menu ")]')->length>=1
+        $xpath->query('//*[@data-petish-account]')->length>=1
+        &&$xpath->query('//li[contains(concat(" ",normalize-space(@class)," ")," petish-account-menu ")]')->length===0
         &&$xpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," petish-account-avatar ")]')->length===0
         &&$xpath->query('//*[@data-petish-account-panel or @data-petish-account-toggle]')->length===0
         &&strpos($html,'window.petishAccountDropdown')!==false&&strpos($html,'petish_account_dropdown')!==false);
@@ -201,6 +202,7 @@ function petish_homepage_verify_render($root) {
     finally {remove_filter('pre_option_petish_home_hero_images_v1',$empty,PHP_INT_MAX);}
     petish_homepage_verify_mark('account_dropdown_handler_verified',class_exists('Petish_Account_Dropdown',false)
         &&(new ReflectionClass('Petish_Account_Dropdown'))->getFileName()===$root.'/wp-content/themes/dt-the7-child/includes/account-dropdown.php'
+        &&has_action('presscore_render_header_element-search',['Petish_Account_Dropdown','render'])===20
         &&has_action('wp_ajax_petish_account_dropdown',['Petish_Account_Dropdown','state'])!==false
         &&has_action('wp_ajax_nopriv_petish_account_dropdown',['Petish_Account_Dropdown','state'])!==false
         &&Petish_Account_Dropdown::payload()===['signed_in'=>false,'avatar'=>'','initial'=>'','items'=>[]]);

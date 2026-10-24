@@ -170,6 +170,8 @@ def verify(opener,expected):
         report['checks']['cart_badge_public_config_verified']='window.petishCartBadge' in body and 'petish_cart_count' in body and re.search(r'class=[\"\'][^\"\']*\bpetish-cart-badge\b',body) is None
         report['checks']['account_dropdown_public_config_verified']='window.petishAccountDropdown' in body and 'petish_account_dropdown' in body \
             and re.search(r'class=[\"\'][^\"\']*\bpetish-account-menu\b',body) is not None \
+            and re.search(r'\bdata-petish-account(?=[\s=>])',body) is not None \
+            and re.search(r'<li\b[^>]*\bclass=[\"\'][^\"\']*\bpetish-account-menu\b',body,re.I) is None \
             and re.search(r'class=[\"\'][^\"\']*\bpetish-account-avatar\b',body) is None
     except (HTTPError,URLError,TimeoutError,OSError):failures.append('http')
     except (ValueError,UnicodeError,zlib.error):failures.append('assets')
