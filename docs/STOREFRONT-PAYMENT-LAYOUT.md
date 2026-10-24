@@ -1,6 +1,6 @@
 # Storefront payment groups and Cart readability
 
-Current application source: `2ae81fd`, production release source `2a867ec`,
+Current application source: `c369c24`, production release source `ad8a010`,
 25 October 2026 (Australia/Melbourne). Prior baseline: `3691306` / `cff4586`.
 
 Corrective implementation: Afterpay commit `ad24e72` and Cart commit `bcec660`.
@@ -73,7 +73,8 @@ WooPayments still decides browser eligibility; a browser unable to use it may
 have no Google Pay button on Cart. PayPal, Pay in 4 and ordinary checkout retain
 their own native eligibility and processing.
 
-Cart styles place Google Pay above PayPal. They group the existing native
+Cart styles place Google Pay above Afterpay and then PayPal in the supported
+native Cart layout. They group the existing native
 PayPal, Pay in 4 and instalment message without moving mounted SDK nodes. The
 message detector now supports both a v5 iframe and the native v6
 `paypal-message` host. It does not search inside the host's shadow root. A
@@ -235,6 +236,53 @@ authorization or payment processing.
 Current aligned previews:
 [product, 400×68px](https://github.com/nkrake6/petish/blob/eea3c777cca28a95d80f6950c5b841dd759245e1/product-afterpay.png)
 and [Cart, 310×67px](https://github.com/nkrake6/petish/blob/eea3c777cca28a95d80f6950c5b841dd759245e1/cart-payments.png).
+
+## Cart wallet order and divider clearance
+
+The owner then reported Google Pay below Afterpay and the green border touching
+both native dividers. Live baseline `40125505336-1` confirmed the exact native
+Summary → Slot → OrderMeta → sole BNPL shape and only 0.5px divider clearance.
+Wallets did not render in that headless run, so its image was not button-order
+proof.
+
+Application `c369c24` changes only Cart CSS and presentation JavaScript. It
+recognizes the fixed native summary/express structure, including empty native
+notice wrappers. CSS exposes those existing boxes to the Sidebar flex layout,
+placing Total → Google Pay → Afterpay → PayPal/Pay in 4/message → OR → checkout.
+The entire native Slot/OrderMeta/BNPL group stays intact, retains its top divider
+and receives the summary's bottom-divider style. The BNPL panel has 16px top
+and bottom margins. Its native OrderMeta contains those margins even when no
+wallet is available, preventing margin collapse and border contact.
+
+No SDK nodes are moved or cloned; their parents, handlers, focus, badge and
+font settings remain intact. Unknown/mixed slots or populated express notices
+retain native layout with the divider-spacing correction. This is a visual
+presentation change; native DOM keyboard order remains unchanged.
+
+The native vendor-CSS fixture passes at 320, 390, 768 and 1280px, including
+actual divider gaps in active and no-wallet fallback layouts, closed-shadow
+message sizing, native notices, remounting and processing state. The previous
+deployed CSS fails its Google Pay-before-Afterpay assertion. The existing
+hosted layout predicate now also requires wallet → BNPL → PayPal when present.
+Staging `40126132827-1` (`c369c24`) passed all eight steps, and full staging
+`40126382686-1` (`523db17`) passed all 226 required checks and all 30 hashes.
+Production
+[40126747135-1](https://github.com/nkrake6/petish/tree/automation-status/homepage-40126747135-1)
+(`ad8a010`) passed all ten phases, 178 required checks and all 30 hashes,
+changing only Cart payment-layout CSS and JavaScript. Cache, health, assets and
+commit checks passed. Final live inspection
+[40127230278-1](https://github.com/nkrake6/petish/tree/automation-status/storefront-runtime-40127230278-1)
+(`e4157f0`, unchanged `ad8a010` application bytes) confirms both actual divider
+gaps are 16.5px, up from 0.5px. Native Slot inner gaps are 16px top and bottom;
+both border-touch flags are false. The expanded actual Cart crop was
+hash-verified and visually inspected:
+[current divider spacing](https://github.com/nkrake6/petish/blob/7de36ebf20c3438cd0247cee37e031d41a10dac6/cart-payments.png).
+The badge remains 64×40 with text on its right; product/Cart native frame font
+metrics remain 15.81px/13.39px. Fresh guest Cart and private-tool cleanup passed.
+Google Pay and PayPal did not render in this headless session, so that run does
+not claim visible-wallet ordering. That ordering is covered by the actual
+native vendor-layout fixtures and the now-strengthened conditional release
+predicate; browser wallet availability remains native.
 
 The baseline also installed the live [hero-image editor](https://petish.biz/wp-admin/admin.php?page=petish-hero-images)
 and account dropdown. Photo choices remain preserved. The corrective header

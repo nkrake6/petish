@@ -352,6 +352,26 @@ from the unchanged 17px quantity/cache source; Cart measured 13.39px. The actual
 inspected. Guest Cart and private tools were removed. See the payment-layout
 document for immutable image links and the wallet-verification boundary.
 
+The next Cart follow-up (`c369c24`) places native Google Pay above Afterpay and
+adds 16px divider clearance. Baseline inspection `40125505336-1` confirmed the
+native Slot structure and only 0.5px clearance before the fix. The finite native
+layout uses existing boxes and keeps all provider nodes/parents and handlers
+intact; unknown/mixed fills retain native layout with spacing preserved. Tests
+cover all four responsive widths, no-wallet fallback, empty/populated notices,
+remount/focus/processing and actual divider gaps. Staging `40126132827-1` and all
+226 full-staging checks in `40126382686-1` (`523db17`) passed, with all 30 hashes
+matching. This reuses fresh backup `40122768140-1` and matching recovery
+`40123260114-1`. Production `40126747135-1` (`ad8a010`) passed all ten phases,
+178 required checks and all 30 hashes, changing only the Cart payment-layout
+CSS and JavaScript. Cache, health, assets and commit checks passed. Final live
+inspection `40127230278-1` (`e4157f0`, unchanged `ad8a010` application bytes)
+confirms 16.5px divider clearance above and below the green panel, compared
+with 0.5px before; both touching flags are false. The actual Cart crop was
+hash-verified and visually inspected. Badge/text placement and native font
+metrics are unchanged, and the guest Cart/private tools were removed. Google
+Pay and PayPal were unavailable in the headless session; their visual ordering
+is covered by native vendor-layout fixtures, not a claimed live wallet test.
+
 Fulfilment **0.7.0 was verified on private staging** and is now included in
 live 0.8.0. It adds owner-only
 shipment cards on native order details and a private staff email-preview
