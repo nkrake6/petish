@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { EventEmitter } from 'node:events';
 import { allowedHomepageRequest, accountDropdownFragmentFacts, inspectAccountDropdownKeyboard,
+  accountDropdownTransportFacts, waitForAccountDropdownResponse, ACCOUNT_TRANSPORT_FACT_KEYS,
   publicReport, DIAGNOSTIC_KEYS, CHECK_KEYS } from '../tools/homepage/browser.mjs';
 
 const origin = 'https://staging.petish.biz', endpoint = origin + '/wp-admin/admin-ajax.php';
@@ -84,6 +86,70 @@ check(fragmentFacts.every(key => diagnosticReport.diagnostics['account_dropdown_
 check(Object.values(diagnosticReport.diagnostics).every(value => typeof value === 'boolean'));
 check(!JSON.stringify(diagnosticReport).includes('synthetic-only') && !JSON.stringify(diagnosticReport).includes(input.customer_email)
   && !JSON.stringify(diagnosticReport).includes(input.password));
+
+const transportKeys = ['http_2xx', 'http_3xx', 'http_4xx', 'http_5xx', 'http_400', 'http_401', 'http_403', 'http_404',
+  'http_429', 'http_500', 'content_type_json', 'content_type_html', 'redirected', 'final_same_origin',
+  'final_admin_ajax_path', 'final_login_path', 'body_bounded', 'body_empty', 'body_login_marker',
+  'body_php_error_marker', 'body_waf_marker', 'body_wp_zero', 'body_wp_minus_one', 'response_finished_error',
+  'body_read_failed', 'request_aborted'];
+check([...ACCOUNT_TRANSPORT_FACT_KEYS].sort().join(',') === [...transportKeys].sort().join(','));
+check(transportKeys.every(key => DIAGNOSTIC_KEYS.includes('account_dropdown_' + key)));
+const transport = (status = 200, url = endpoint, value = JSON.stringify(payload), type = 'application/json; charset=UTF-8', redirected = false) =>
+  accountDropdownTransportFacts({ ...headers, 'content-type': type }, status, url, redirected, value);
+check(Object.values(transport()).every(value => typeof value === 'boolean'));
+check(transport().http_2xx && transport().content_type_json && transport().final_same_origin && transport().final_admin_ajax_path && transport().body_bounded);
+for (const status of [400, 401, 403, 404, 429, 500]) check(transport(status)['http_' + status]);
+check(transport(302).http_3xx && transport(302).redirected);
+check(transport(403).http_4xx && transport(503).http_5xx);
+check(transport(200, endpoint, 'valid', 'application/problem+json').content_type_json);
+check(transport(200, origin + '/wp-login.php', '<form id="loginform"><input name="log"></form>', 'text/html', true).body_login_marker);
+check(transport(200, origin + '/wp-login.php').final_login_path);
+check(transport(403, endpoint, 'Request blocked: Access denied (ModSecurity).', 'text/html').body_waf_marker);
+check(transport(500, endpoint, 'Fatal error: private-server-path', 'text/html').body_php_error_marker);
+check(transport(200, endpoint, ' \n0\n').body_wp_zero && transport(403, endpoint, '-1').body_wp_minus_one);
+check(transport(200, endpoint, ' \n').body_empty);
+check(!transport(200, endpoint, 'x'.repeat(131073)).body_bounded);
+check(!transport(200, endpoint, '😺'.repeat(32769)).body_bounded);
+check(!transport(200, endpoint, null).body_bounded);
+check(!transport(200, 'https://foreign.invalid/wp-admin/admin-ajax.php').final_same_origin);
+check(!JSON.stringify(transport(500, endpoint, 'Fatal error: private-server-path ' + input.password)).includes(input.password));
+
+const stubResponse = ({ aborted = false, value = JSON.stringify(payload), status = 200, customBody = body } = {}) => ({
+  url: () => endpoint,
+  request: () => ({ method: () => 'POST', postData: () => customBody, redirectedFrom: () => null,
+    failure: () => aborted ? { errorText: 'net::ERR_ABORTED' } : null }),
+  allHeaders: async () => ({ ...headers, 'content-type': status === 200 ? 'application/json' : 'text/html' }),
+  status: () => status, finished: async () => aborted ? new Error('net::ERR_ABORTED') : null,
+  body: async () => { if (aborted) throw new Error('Aborted response body'); return Buffer.from(value); },
+});
+const emitter = new EventEmitter(), observed = {};
+const complete = waitForAccountDropdownResponse(emitter, observed, 1000);
+emitter.emit('response', stubResponse({ customBody: body + '&user_id=1' }));
+check(observed.account_dropdown_response_received !== true);
+emitter.emit('response', stubResponse({ aborted: true }));
+await new Promise(resolve => setImmediate(resolve));
+check(observed.account_dropdown_request_aborted === true);
+emitter.emit('response', stubResponse());
+const result = await complete;
+check(result.payload.success === true && observed.account_dropdown_json_parsed === true);
+check(observed.account_dropdown_request_aborted === true && observed.account_dropdown_body_read_failed === true);
+check(emitter.listenerCount('response') === 0);
+check(!JSON.stringify(observed).includes('synthetic-only') && Object.values(observed).every(value => typeof value === 'boolean'));
+const deniedEmitter = new EventEmitter(), deniedFacts = {};
+const denied = waitForAccountDropdownResponse(deniedEmitter, deniedFacts, 1000);
+deniedEmitter.emit('response', stubResponse({ status: 403, value: '<html>Access denied by security check</html>' }));
+const deniedResult = await denied;
+check(deniedResult.payload === undefined && deniedFacts.account_dropdown_http_403 === true && deniedFacts.account_dropdown_body_waf_marker === true);
+check(deniedFacts.account_dropdown_json_parsed !== true && deniedEmitter.listenerCount('response') === 0);
+const failedEmitter = new EventEmitter(), failedFacts = {};
+const failed = waitForAccountDropdownResponse(failedEmitter, failedFacts, 1000);
+failedEmitter.emit('response', { ...stubResponse(), finished: async () => new Error('Server transport failed'),
+  body: async () => { throw new Error('Unavailable response body'); } });
+check((await failed).payload === undefined && failedFacts.account_dropdown_request_aborted === false
+  && failedFacts.account_dropdown_response_finished_error === true && failedFacts.account_dropdown_body_read_failed === true);
+check(failedEmitter.listenerCount('response') === 0);
+const expiredEmitter = new EventEmitter();
+check(await waitForAccountDropdownResponse(expiredEmitter, {}, 5) === null && expiredEmitter.listenerCount('response') === 0);
 
 if (process.argv.includes('--browser')) {
   const require = createRequire(new URL('../tools/staging-rehearsal/package.json', import.meta.url));

@@ -167,7 +167,7 @@ class HomepageReleaseTests(unittest.TestCase):
         self.assertEqual(len(fields),106)
         self.assertEqual(len(fields),len(set(fields)))
         self.assertEqual(set(fields),safe.THEME_GEOMETRY_FIELDS)
-        self.assertEqual(len(exports['diagnostics']),128)
+        self.assertEqual(len(exports['diagnostics']),154)
         self.assertEqual(len(exports['diagnostics']),len(set(exports['diagnostics'])))
         self.assertEqual(set(exports['diagnostics']),safe.BROWSER_DIAGNOSTICS)
         self.assertEqual(len(exports['cart_keys']),13)
