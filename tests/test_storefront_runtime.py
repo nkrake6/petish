@@ -192,6 +192,14 @@ try{
  const png=path.join(cropDir,'product-afterpay.private.png');assert.equal(fs.statSync(png).mode&0o7777,0o600);const before=fs.readFileSync(png);
  await page.evaluate(()=>{const input=document.createElement('input');input.value='PRIVATE_CUSTOMER';document.querySelector('#payment-method-message').prepend(input);});
  const blocked=await m.capturePublicPanel(page,cropDir,'product');assert.equal(blocked.saved,false);assert(fs.readFileSync(png).equals(before));
+ await page.setViewportSize({width:400,height:600});
+ await page.setContent(`<style>body{margin:0}#masthead{height:60px}.wc-block-cart__sidebar{width:360px;margin-top:40px}.coupon{display:block;box-sizing:border-box;width:200px;height:20px}.slot-wrapper{margin-top:20px;border-top:1px solid gray;border-bottom:1px solid gray;padding:16px 0}.wc-block-components-bnpl-wrapper{height:80px;border:1px solid green;box-sizing:border-box}</style><header id="masthead">PRIVATE_HEADER_IDENTITY</header><div class="wc-block-cart"><aside class="wc-block-cart__sidebar"><section class="wp-block-woocommerce-cart-order-summary-block"><input class="coupon" value="PRIVATE_COUPON_OUTSIDE_CROP"><div class="wc-block-components-totals-wrapper slot-wrapper"><div class="wc-block-components-order-meta"><div class="wc-block-components-bnpl-wrapper"></div></div></div></section></aside></div>`);
+ const slotHeight=await page.locator('.slot-wrapper').evaluate(el=>el.getBoundingClientRect().height);
+ const cartCrop=await m.capturePublicPanel(page,cropDir,'cart');assert.equal(cartCrop.saved,true);assert(cartCrop.height>=slotHeight+4);
+ const cartPng=path.join(cropDir,'cart-payments.private.png');assert.equal(fs.statSync(cartPng).mode&0o7777,0o600);fs.unlinkSync(cartPng);
+ await page.evaluate(()=>{const input=document.createElement('input');input.value='PRIVATE_SLOT_INPUT';document.querySelector('.wc-block-components-order-meta').prepend(input);});
+ const unsafeCart=await m.capturePublicPanel(page,cropDir,'cart');assert.equal(unsafeCart.saved,false);assert.equal(fs.existsSync(cartPng),false);
+
 
 }finally{await browser.close();fs.rmSync(cropDir,{recursive:true,force:true});}
 console.log('Native financing metrics remain scoped and private.');'''

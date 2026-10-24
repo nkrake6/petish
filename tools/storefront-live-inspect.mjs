@@ -336,7 +336,7 @@ export async function capturePublicPanel(page, directory, kind) {
     if (!path.isAbsolute(directory) || fs.realpathSync(directory) !== directory || (fs.statSync(directory).mode & 0o7777) !== 0o700) return absent;
     const clip = await page.evaluate(which => {
       const selectors = which === 'product' ? ['.product .summary #payment-method-message'] :
-        ['.wc-block-cart__sidebar .wc-block-components-express-payment','.wc-block-cart__sidebar .wc-block-components-bnpl-wrapper','.wc-block-cart__sidebar .ppcp-messages','.wc-block-cart__sidebar paypal-message','.cart_totals #payment-method-message'];
+        ['.wc-block-cart__sidebar .wc-block-components-express-payment','.wc-block-cart__sidebar .wc-block-components-bnpl-wrapper','.wc-block-cart__sidebar > .wp-block-woocommerce-cart-order-summary-block > .wc-block-components-totals-wrapper.slot-wrapper:has(> .wc-block-components-order-meta > .wc-block-components-bnpl-wrapper)','.wc-block-cart__sidebar .ppcp-messages','.wc-block-cart__sidebar paypal-message','.cart_totals #payment-method-message'];
       const visible = el => {const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden';};
       const elements = [...new Set(selectors.flatMap(selector=>[...document.querySelectorAll(selector)]))].filter(visible);
       if (!elements.length || (which==='product' && !elements.some(el=>[...el.querySelectorAll('iframe')].some(visible)))) return null;
@@ -345,6 +345,9 @@ export async function capturePublicPanel(page, directory, kind) {
       const headers=[...document.querySelectorAll('#masthead,.mobile-header-bar')].filter(visible).map(el=>el.getBoundingClientRect()).filter(r=>r.top>=0&&r.height<400);
       const headerBottom=Math.max(60,...headers.map(r=>r.bottom));
       if(box.left<0||box.right>innerWidth+1||box.top<headerBottom||box.bottom<=box.top)return null;
+      // Include the exact native Slot's divider edges and spacing, without widening to Summary/coupon fields.
+      if(which==='cart'){box.left=Math.max(0,box.left-2);box.right=Math.min(innerWidth,box.right+2);box.top=Math.max(0,box.top-2);box.bottom+=2;}
+      if(box.top<headerBottom)return null;
       const sensitive=[...document.querySelectorAll('input:not([type="hidden"]),textarea,select,.woocommerce-customer-details,.wc-block-components-address-card,.woocommerce-billing-fields,.woocommerce-shipping-fields')].filter(visible);
       if(sensitive.some(el=>{const r=el.getBoundingClientRect();return r.left<box.right&&r.right>box.left&&r.top<box.bottom&&r.bottom>box.top;}))return null;
       const x=Math.floor(box.left+scrollX),y=Math.floor(box.top+scrollY),width=Math.ceil(box.right+scrollX)-x,height=Math.ceil(box.bottom+scrollY)-y;
