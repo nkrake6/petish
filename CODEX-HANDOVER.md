@@ -120,6 +120,22 @@ for the current cloud workflow. The Mac setup below is archived history.
   source `92cdfbe`. Only the review stylesheet changed; all 34 native and 14
   public checks passed. Menu dimensions and the review icon are preserved.
 
+- **Related cards and review filters:** the child-theme stylesheet now anchors
+  Hot badges to related-product images, fills consistent price-pill widths and
+  reserves two title lines to align prices. Select options is light lavender;
+  simple Add to cart is teal. A narrowly scoped review-select margin reset
+  aligns Apply filters with the 44px fields. Source `3eceb22` passed staging
+  `40128519343-1` and full proof `40128905678-1` (`cbda466`); production
+  `40129374822-1` (`481ea28`) passed all ten phases/178 required checks and all
+  30 hashes, changing one CSS file. Final live inspection `40129859735-1`
+  (`dbd0cd2`, same app bytes) confirms all five price widths 235.89px with 0px
+  width/top spread, sampled Hot inside its image, actual lavender variable and
+  teal simple buttons, and all 44px review controls aligned with 0px select
+  bottom margin. Native GET behavior, guest Cart and private-tool cleanup
+  passed. The optional catalog screenshot failed capture; no catalog image is
+  claimed. Live finite geometry/color evidence is recorded in
+  [the implementation note](docs/RELATED-PRODUCTS-AND-REVIEW-FILTERS.md).
+
 Passport staging [39537031480-1](https://github.com/nkrake6/petish/tree/automation-status/pet-club-39537031480-1)
 passed on source `3012a27`; the production release above matches its exact 18
 application files. Fourteen files changed. The migration populated only missing
