@@ -17,7 +17,7 @@ const PETISH_HOMEPAGE_FILES = [
     'assets/js/cart-badge.js'=>'3b8d1bd89142ccc846bc019383ff5f97eae0cc16270b242f0adfa5503c290bc7',
     'includes/header-navigation.php'=>'a9ede1a9a9e6c2ef82e6831ad6280f1e90d83377d47831c35218c29d7b7f884d',
     'assets/js/theme.js'=>'677d7718c3e3d7385990ba59fcb21431589a08695bd34076bbc5e6bf1b2e3852',
-    'assets/css/petish.css'=>'71025e0f3c1b2fb3e70ce9be5ee85d3934269205b019be4d29e05e12331c24dc',
+    'assets/css/petish.css'=>'32ae6feab2b2da6072d29348dd94155b471528b92dbd0f3ada0c64621b87ca6c',
     'includes/market-selector.php'=>'d7675c569e4659b27c58aa686c4f372906224f8c9f0435843673dce47cf84147',
     'assets/js/market-selector.js'=>'dd59c4d4c17aa415e4c504a71fc31eb94d4349a8e69b0a838bd13d7b58a871ca',
     'assets/css/market-selector.css'=>'0ff5c3d46eb4e400a613f721a1e1e1349d4f30b13edd46875eab75c7287fcee0',
@@ -64,9 +64,9 @@ const PETISH_HOMEPAGE_BASELINES = [
     'assets/css/payment-layout.css'=>'a5823cf00cd81a4878dc1349d4729de5dd551c91cb787f3d5db711b5686f41be',
     'assets/js/payment-layout.js'=>'9ad2396fdd93bcf055d82dd65da9c3707c056ad387332947d7479b6217efe2f3',
     'includes/cart-payment-layout.php'=>'abeb97a65fadc6afa96728658a24376ac2430e95d6c8d1f04f6cb7c8b47d5921',
-    'assets/css/cart-payment-layout.css'=>'fe140682a390ce6b5ba4ce66544fecd42119bfe9a57614bb9532487a17953c73',
+    'assets/css/cart-payment-layout.css'=>'bf7ebadf55f90e95e259102609e9bff551be2f8d373ea032f732c6d548c99f7e',
     'assets/css/cart-typography.css'=>'6bbf39cd4452c7d3864bf9cdf3af8f8c91440f88836cd20997e9996fc208fad3',
-    'assets/js/cart-payment-layout.js'=>'2348bd5a4b1f867b8a3c36fb58f053f88f9ed0726a48c676d94683c856a2b474',
+    'assets/js/cart-payment-layout.js'=>'53f57119656a4bc8861e17068df11e626644ea0c8ec04b1ec3dd3fac2568d068',
 ];
 
 function homepage_release_fail() { throw new RuntimeException(); }
