@@ -63,7 +63,7 @@ final class Petish_Customer_Reviews_UI {
         $dir = dirname( __DIR__ );
         $base = plugin_dir_url( $dir . '/petish-passport.php' );
         $deps = wp_style_is( 'petish-design', 'enqueued' ) ? array( 'petish-design' ) : array();
-        wp_enqueue_style( 'petish-customer-reviews', $base . 'assets/customer-reviews.css', $deps, filemtime( $dir . '/assets/customer-reviews.css' ) );
+        wp_enqueue_style( 'petish-customer-reviews', $base . 'assets/customer-reviews.css', $deps, substr( hash_file( 'sha256', $dir . '/assets/customer-reviews.css' ), 0, 16 ) );
         wp_enqueue_script( 'petish-customer-reviews', $base . 'assets/customer-reviews.js', array(), filemtime( $dir . '/assets/customer-reviews.js' ), true );
     }
     public static function product_tabs( $tabs ) { unset( $tabs['reviews'] ); return $tabs; }
