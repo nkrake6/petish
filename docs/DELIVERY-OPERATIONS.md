@@ -1,5 +1,11 @@
 # Private delivery operations
 
+Current status, 24 October 2026: this verified code is included in production
+Fulfilment **0.8.0**. All three shipment switches remain off; no receiver,
+sender, customer tracking or new rates were activated. See the
+[production release evidence](CANCELLATION-REQUESTS.md#production-release).
+The versioned staging milestones below are retained as historical evidence.
+
 Verified private staging candidate: Petish Fulfilment **0.7.0**, 23 October 2026.
 The 0.6.0 rate preview and outbox baseline passed the staging checks recorded
 below. This extends the live 0.5.0 cost sheet. It does not activate new delivery

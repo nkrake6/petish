@@ -1,6 +1,6 @@
 # Customer cancellation requests and account navigation
 
-Verified private staging release: Petish Fulfilment 0.8.0, 24 October 2026
+Verified production release: Petish Fulfilment 0.8.0, 24 October 2026
 (Australia/Melbourne). This is a request-and-review workflow. It does not cancel
 a supplier purchase, change native order status, transfer money or calculate a
 processing-fee deduction.
@@ -175,13 +175,42 @@ create customer cases, choose replacement hero attachments, exercise an
 authenticated header in a browser, contact suppliers or send messages. Native
 local tests cover the forms, save/reset controls and case transitions; this is
 not a claim of complete hosted browser or real supplier/payment coverage.
-Production and `main` remain unchanged.
+Those staging runs did not change production; the subsequent production
+release is recorded below.
 
 Open the staged [hero editor](https://staging.petish.biz/wp-admin/admin.php?page=petish-hero-images),
 [delivery FAQs](https://staging.petish.biz/delivery-shipping/#change-of-mind),
 [staff cancellation queue](https://staging.petish.biz/wp-admin/admin.php?page=petish-cancellation-requests)
 or [My reviews](https://staging.petish.biz/my-account/?my-reviews=1) after signing
 in. See [illustrative component screenshots](cancellation-previews/README.md).
+
+## Production release
+
+The owner authorised deployment on 24 October. Release
+[40072767259-1](https://github.com/nkrake6/petish/tree/automation-status/cancellation-production-40072767259-1)
+applied source `a92233d`: 19 files changed within the exact 27-file scope
+(24 Fulfilment files and the three Passport review-layout files). Inspection,
+application, transactional FAQ append, read-only native verification, resume,
+signed targeted HTTP cache purge, public health and commit all passed. No
+rollback was needed. Maintenance and the temporary cache probe were removed.
+
+The existing live delivery-page prefix was retained; the managed FAQ suffix
+was appended with a private checkpoint and conditional rollback. The public
+page, policy wording and updated stylesheets were checked after cache refresh.
+Orders, authentication, stock, prices, settings, private media and unrelated
+source were preserved. No customer cases, payments, refunds, supplier actions
+or cancellation emails were created by this release.
+
+Both cancellation switches remain off. Staff can review the new
+[production queue](https://petish.biz/wp-admin/admin.php?page=petish-cancellation-requests)
+and use its guarded switches when ready to accept requests and send messages.
+The source deployment does not activate them.
+
+The release used encrypted backup `full-site-backup/40070351575-1` and matching
+application recovery `automation-status/recovery-40070594356-1`. The restored
+WordPress, shop, product, Cart, account and private-media checks all passed.
+Header/hero/payment presentation is a separate child-theme release; see
+[storefront payment layout](STOREFRONT-PAYMENT-LAYOUT.md).
 
 ## Local verification
 

@@ -228,14 +228,15 @@ quantity and destination scope.
 Fulfilment **0.6.0 established the verified private staging foundation**, adding
 quantity-scoped rate previews and an order parcel/notification ledger. Both
 tracking flags default off; no rates, DSers receiver, sender or worker are
-activated. Production remains on 0.5.0. Source `db10324` passed staging apply
+activated by that staging milestone. Its code is now included in the live
+0.8.0 release below. Source `db10324` passed staging apply
 `39918552784-1` and all 51 read-only hosted checks in `39918723658-1`, after
 102 local native checks passed in each of classic and HPOS order storage.
-The source is saved on `development/delivery-operations`; `main` remains the
-production baseline. See [Delivery operations](docs/DELIVERY-OPERATIONS.md)
+The historical source is saved on `development/delivery-operations`. See
+[Delivery operations](docs/DELIVERY-OPERATIONS.md)
 for scope, staff-tool links and evidence.
 
-Fulfilment **0.8.0 is deployed and verified on private staging**, adding customer
+Fulfilment **0.8.0 is live and verified**, adding customer
 cancellation requests, a persistent staff queue, branded acknowledgements and
 updates, and shared change-of-mind FAQs appended to the existing Delivery &
 Shipping page. The owner chose 14 days after delivery, unused/complete items
@@ -245,27 +246,50 @@ remedies remain separate. The full policy FAQ appears at the bottom of customer
 cancellation emails. No refund, fee deduction, native order-status change or
 supplier cancellation is automated; request and mail flags default off.
 
-The same staged release adds a larger header font and a right-aligned avatar/account
-dropdown using native account links, with private cache-safe hydration. It also
-moves Your reviews directly under the product chooser. See
+Production release `40072767259-1`, source `a92233d`, changed 19 files within
+the fixed 27-file Fulfilment/review-layout scope and appended the live delivery
+FAQ. All native, protected-state, cache and public checks passed. Maintenance
+and the temporary purge probe were removed; no rollback was needed. Request,
+mail and shipment switches remain off. Your reviews now sits directly beneath
+the product chooser. See
 [cancellation workflow, policy and evidence](docs/CANCELLATION-REQUESTS.md).
-The owner also requested an editable hero panel. Staging now provides
+
+The separate **30-file storefront release is live**, adding a larger header
+font and right-aligned avatar/account dropdown using native links and private
+cache-safe hydration. It also provides
 **Homepage → Hero images** with native Media Library selection, previews,
 reset-to-default and Save changes for all four animal slots. Admin URL:
-`/wp-admin/admin.php?page=petish-hero-images`. No image selections or request/mail
-switches have been activated by deployment.
+`/wp-admin/admin.php?page=petish-hero-images`. Deployment preserved saved image
+choices and all feature switches.
 
-Application source `f992218` passed staging apply `40056331426-1`. Tooling-only
-source `4afaa63` then passed all **55 preparation checks** in `40057865883-1`
-and **57 read-only hosted checks** in `40057924326-1`, matching all 24 plugin
-and nine relevant theme file hashes. The existing staging delivery copy was
-preserved byte for byte and the FAQ appended; no new page was created.
-Read-only branded email preview `40057482298-1` passed all seven native email
-types. Production and `main` remain unchanged. The source and evidence are on
-`development/cancellation-requests`; see the linked workflow notes and
-[illustrative screenshots](docs/cancellation-previews/README.md).
+Product pages now group native GPay/Afterpay separately from PayPal, with the
+PayPal instalment message below its buttons and matching maximum widths.
+Afterpay has green emphasis and native message typography matching PayPal.
+Categories/tags use 16px text. Cart uses WooPayments for Google Pay when its
+merchant configuration is available, keeps PayPal/Pay in 4 below it, and uses
+larger names, prices, variation information and totals. Actual payment
+processing, native SDK contents and stored gateway settings were preserved.
 
-Fulfilment **0.7.0 is deployed and verified on private staging**. It adds owner-only
+Application source `3691306` passed staging install `40075829709-1`; the
+automatic email preview `40075861008-1` rendered all seven branded native email
+types. Full 30-file hosted staging verification `40076124849-1`, tool source
+`41a4842`, passed all eight phases, including actual product metadata and
+populated Cart layout checks. Production `40076690180-1`, source `cff4586`,
+changed 16 files, matched all 30 hashes and passed native, cache, canonical
+page/asset and commit checks. Maintenance was removed; no rollback was needed.
+See [payment layout and release evidence](docs/STOREFRONT-PAYMENT-LAYOUT.md).
+
+Both production releases used encrypted full-site backup `40070351575-1`
+and successful application recovery `40070594356-1`. Earlier 23-file homepage
+release attempts stopped before application writes; browser-proof transport
+handling and the exact reviewed LiteSpeed 7.9.2 support were corrected before
+the final release. No guard was bypassed. Historical cost-sheet/review release
+requests pin older source and must not be reused without refreshed scope/proof.
+Current verified source and handover are saved in Git; the six unrelated dirty
+static-prototype edits in this workspace were deliberately not committed.
+
+Fulfilment **0.7.0 was verified on private staging** and is now included in
+live 0.8.0. It adds owner-only
 shipment cards on native order details and a private staff email-preview
 button. Customer tracking has its own default-off option; no sender or DSers
 receiver is enabled. Email previews retain event snapshots, while the account
@@ -273,7 +297,7 @@ view shows current corrected parcels. Source `8077451` passed staging apply
 `39930019786-1` and all 59 hosted checks in `39930256586-1`, with 17 installed
 Fulfilment source hashes matched. Local native verification passed 146 checks
 in each order store, and component/email browser checks passed desktop/mobile.
-All three shipment switches remain off, and production/`main` are unchanged.
+All three shipment switches remain off.
 See [sample screenshots](docs/delivery-previews/README.md) and the same Delivery
 operations notes for validation and deployment evidence.
 
