@@ -8,6 +8,8 @@
     // payment registration, SDK mutation or client-side duplicate hiding.
     var frame = 0;
     var stopped = false;
+    var resizeTargets = [];
+    var resizeObserver = window.ResizeObserver ? new ResizeObserver(schedule) : null;
 
     function visible(element) {
         if (!element || !element.isConnected) return false;
@@ -26,6 +28,7 @@
         frame = 0;
         if (stopped) return;
         var carts = document.querySelectorAll('.wc-block-cart');
+        var nextResizeTargets = [];
         carts.forEach(function (cart) {
             var sidebar = cart.querySelector('.wc-block-cart__sidebar');
             if (!sidebar) return;
@@ -34,11 +37,23 @@
             var message = sidebar.querySelector(':scope > .ppcp-messages[data-block-name="woocommerce-paypal-payments/cart-paylater-messages"]');
             var hasPayPal = visible(paypal);
             var hasPayLater = visible(paylater);
-            var hasMessage = !!message && Array.from(message.querySelectorAll('iframe')).some(visible);
+            // SDK v5 exposes an iframe; v6 exposes a native custom-element
+            // host whose internal iframe can be inside a closed shadow root.
+            var messageHosts = message ? Array.from(message.querySelectorAll('iframe, paypal-message')).slice(0, 4) : [];
+            var hasMessage = messageHosts.some(visible);
+            nextResizeTargets.push(sidebar);
+            if (message) nextResizeTargets.push(message);
+            messageHosts.forEach(function (host) { nextResizeTargets.push(host); });
             [['petish-cart-has-paypal', hasPayPal], ['petish-cart-has-paylater', hasPayLater], ['petish-cart-has-paypal-message', hasMessage]].forEach(function (entry) {
                 if (sidebar.classList.contains(entry[0]) !== entry[1]) sidebar.classList.toggle(entry[0], entry[1]);
             });
         });
+        if (resizeObserver && (resizeTargets.length !== nextResizeTargets.length
+            || nextResizeTargets.some(function (node, index) { return node !== resizeTargets[index]; }))) {
+            resizeObserver.disconnect();
+            resizeTargets = nextResizeTargets;
+            resizeTargets.forEach(function (node) { resizeObserver.observe(node); });
+        }
     }
 
     function schedule() {
@@ -61,6 +76,7 @@
         if (event.persisted) return;
         stopped = true;
         observer.disconnect();
+        if (resizeObserver) resizeObserver.disconnect();
         if (unsubscribe) unsubscribe();
         if (frame) cancelAnimationFrame(frame);
     }, { once: true });

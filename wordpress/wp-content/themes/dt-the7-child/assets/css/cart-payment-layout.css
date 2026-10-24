@@ -93,4 +93,4 @@ body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-c
 body#the7-body.petish-site.petish-cart-payment-layout .wc-block-cart .wc-block-cart__submit {
   order: 40;
 }
-/* Both native Google Pay controls remain until mounted readiness is observable. */
+/* Google Pay's display provider is selected natively before Cart assets load. */

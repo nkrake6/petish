@@ -84,6 +84,48 @@ fixture.originals=Array.from(document.querySelectorAll('iframe,.fixture-paypal-b
       results.push(layout);
     }
 
+    // SDK v6 puts its message iframe behind a custom-element shadow boundary.
+    // Only resizing that closed shadow content may reveal the message host.
+    const v6html = html.replace(/<iframe title="Native PayPal message host fixture"[^>]*><\/iframe>/, '<paypal-message></paypal-message>');
+    for (const width of [320, 390, 768, 1280]) {
+      await page.setViewportSize({width,height:1100});
+      await page.setContent(v6html);
+      await page.evaluate(() => {
+        fixture.messageHost=document.querySelector('.ppcp-messages paypal-message');
+        const shadow=fixture.messageHost.attachShadow({mode:'closed'});
+        shadow.innerHTML='<style>:host{display:block}.native-content{height:0}</style><div class="native-content"></div>';
+        fixture.messageContent=shadow.querySelector('.native-content');
+        fixture.messageContainer=document.querySelector('.ppcp-messages');
+        fixture.messageMutations=0;
+        new MutationObserver(records=>{fixture.messageMutations+=records.length}).observe(fixture.messageContainer,{subtree:true,childList:true,attributes:true});
+      });
+      await page.addScriptTag({content:script});
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal(await page.locator('.wc-block-cart__sidebar').evaluate(node=>node.classList.contains('petish-cart-has-paypal-message')),false,'empty v6 native host gets no message group');
+      await page.evaluate(()=>{fixture.messageContent.style.height='54px'});
+      await page.waitForFunction(()=>document.querySelector('.wc-block-cart__sidebar').classList.contains('petish-cart-has-paypal-message'));
+      const nativeMessage = await page.evaluate(() => {
+        const container=document.querySelector('.ppcp-messages');
+        const paylater=document.getElementById('express-payment-method-ppcp-gateway-paylater');
+        return {containerIdentity:container===fixture.messageContainer,hostIdentity:container.firstElementChild===fixture.messageHost,closedBoundary:fixture.messageHost.shadowRoot===null,lightIframeAbsent:container.querySelector('iframe')===null,lightMutations:fixture.messageMutations,paylaterBottom:paylater.getBoundingClientRect().bottom,messageTop:container.getBoundingClientRect().y,messageWidth:container.getBoundingClientRect().width,documentWidth:document.documentElement.scrollWidth};
+      });
+      assert.equal(nativeMessage.containerIdentity,true);
+      assert.equal(nativeMessage.hostIdentity,true);
+      assert.equal(nativeMessage.closedBoundary,true);
+      assert.equal(nativeMessage.lightIframeAbsent,true);
+      assert.equal(nativeMessage.lightMutations,0,'shadow height changed without a light-DOM mutation');
+      assert.equal(nativeMessage.paylaterBottom,nativeMessage.messageTop,'v6 message joins Pay in 4 group');
+      assert.ok(nativeMessage.messageWidth<=400);
+      assert.equal(nativeMessage.documentWidth,width);
+      await page.evaluate(()=>{fixture.messageContent.style.height='0px'});
+      await page.waitForFunction(()=>!document.querySelector('.wc-block-cart__sidebar').classList.contains('petish-cart-has-paypal-message'));
+      await page.evaluate(()=>{fixture.messageContent.style.height='96px'});
+      await page.waitForFunction(()=>document.querySelector('.wc-block-cart__sidebar').classList.contains('petish-cart-has-paypal-message'));
+      assert.equal(await page.evaluate(()=>fixture.messageContainer.firstElementChild===fixture.messageHost),true,'native v6 message host remains mounted across resize changes');
+    }
+    await page.locator('[id="express-payment-method-ppcp-gateway-paypal"] button').click();
+    assert.equal(await page.evaluate(()=>fixture.clicks),1,'native PayPal handler remains attached with v6 message');
+
     await page.addScriptTag({content:fs.readFileSync(path.resolve(__dirname,'../tools/homepage/payment-layout-public-proof.js'),'utf8')});
     const safeProof = await page.evaluate(() => {
       window.wcpayStripeSiteMessaging={privateConfiguration:'private-proof-sentinel'};
@@ -120,7 +162,7 @@ fixture.originals=Array.from(document.querySelectorAll('iframe,.fixture-paypal-b
     await page.locator(`[id="${duplicate}"] button`).click();
     assert.equal(await page.evaluate(() => fixture.clicks),1,'native unconfigured-WooPayments PayPal Google Pay handler preserved');
     assert.deepEqual(errors, []);
-    const proof = { status:'passed', fixture:'offline native Woo/PayPal/WooPayments host shape, mocked native eligibility store; no live provider validation', widths:results.map(r=>r.width), checks:['one native WooPayments Google Pay provider','native server selection fixture shape','preferred above PayPal','separate wallet and joined PayPal/Payin4/message panels','400px maximum and mobile fit','native handlers and node identity','native ineligibility leaves PayPal/Payin4/checkout available','native remount preserves one provider','WooPayments unconfigured keeps native PayPal Google Pay','unrelated iframe and checkout untouched'], interceptedFixtureFrames:requests.length, outboundNetworkRequests:0, results };
+    const proof = { status:'passed', fixture:'offline native Woo/PayPal/WooPayments host shape, mocked native eligibility store; no live provider validation', widths:results.map(r=>r.width), checks:['one native WooPayments Google Pay provider','native server selection fixture shape','preferred above PayPal','separate wallet and joined PayPal/Payin4/message panels','SDK v6 native host behind closed shadow boundary','shadow resize without light-DOM mutation refreshes message group','empty native message host leaves no panel','400px maximum and mobile fit','native handlers and node identity','native ineligibility leaves PayPal/Payin4/checkout available','native remount preserves one provider','WooPayments unconfigured keeps native PayPal Google Pay','unrelated iframe and checkout untouched'], interceptedFixtureFrames:requests.length, outboundNetworkRequests:0, results };
     console.log(JSON.stringify({ status:proof.status, widths:proof.widths, checks:proof.checks, outboundNetworkRequests:0 }));
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode=1; });

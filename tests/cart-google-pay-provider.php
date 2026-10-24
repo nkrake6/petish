@@ -57,15 +57,21 @@ namespace {
                 public function get_enabled_express_checkout_methods_for_context() { global $case; return $case['methods']; }
             } : null;
         }
-        public static function get_payment_gateway_by_id( $id ) {
+        public static function get_gateway() {
             global $case;
-            check( 'google_pay' === $id, 'Checks the actual Google Pay gateway, not Apple Pay-only availability.' );
-            return $case['google'] ? new class {
-                public function is_available_for_express_checkout() { global $case; return $case['available']; }
+            return $case['gateway'] ? new class {
+                public function is_payment_request_enabled() { global $case; return $case['main_payment_request']; }
             } : false;
         }
+        public static function get_payment_gateway_by_id( $id ) {
+            global $split_lookups;
+            $split_lookups++;
+            return new class {
+                public function is_available_for_express_checkout() { return false; }
+            };
+        }
     }
-    $defaults = array( 'cart' => true, 'block' => true, 'admin' => false, 'ajax' => false, 'scripts' => array(), 'method' => 'GET', 'helper' => true, 'methods' => array( 'payment_request' ), 'google' => true, 'available' => true, 'wcpay_active' => true, 'late_data' => false, 'paypal_registered' => true );
+    $defaults = array( 'cart' => true, 'block' => true, 'admin' => false, 'ajax' => false, 'scripts' => array(), 'method' => 'GET', 'helper' => true, 'methods' => array( 'payment_request' ), 'gateway' => true, 'main_payment_request' => true, 'wcpay_active' => true, 'wcpay_registered' => true, 'late_data' => false, 'paypal_registered' => true );
     $cases = array(
         'cart-configured' => array( array(), true ),
         'head' => array( array( 'method' => 'HEAD' ), true ),
@@ -75,10 +81,12 @@ namespace {
         'ajax' => array( array( 'ajax' => true ), false ),
         'post' => array( array( 'method' => 'POST' ), false ),
         'payment-request-not-enabled-on-cart' => array( array( 'methods' => array( 'amazon_pay' ) ), false ),
-        'google-pay-disabled-apple-pay-only' => array( array( 'google' => false ), false ),
-        'currency-account-or-https-unavailable' => array( array( 'available' => false ), false ),
+        'main-native-wallet-enabled-split-lookup-unavailable' => array( array(), true ),
+        'main-native-wallet-disabled' => array( array( 'main_payment_request' => false ), false ),
+        'main-gateway-unavailable' => array( array( 'gateway' => false ), false ),
         'helper-unavailable' => array( array( 'helper' => false ), false ),
-        'wcpay-block-inactive' => array( array( 'wcpay_active' => false ), false ),
+        'native-express-enabled-card-block-inactive' => array( array( 'wcpay_active' => false ), true ),
+        'native-express-enabled-card-registry-key-absent' => array( array( 'wcpay_registered' => false ), true ),
         'already-enqueued' => array( array( 'scripts' => array( 'ppcp-googlepay-block:enqueued' ) ), false ),
         'already-printed' => array( array( 'scripts' => array( 'ppcp-googlepay-block:done' ) ), false ),
         'frontend-assets-registered-only' => array( array( 'scripts' => array( 'wc-cart-block-frontend:registered' ) ), true ),
@@ -94,13 +102,14 @@ namespace {
     }
     foreach ( $cases as $label => $spec ) {
         $case = array_replace( $defaults, $spec[0] );
+        $split_lookups = 0;
         $_SERVER['REQUEST_METHOD'] = $case['method'];
         $registry = new \Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry();
         $paypal = new FixtureMethod( 'ppcp-gateway', 'ppcp-checkout-block' );
         $wcpay = new FixtureMethod( 'woocommerce_payments', 'WCPAY_BLOCKS_CHECKOUT', $case['wcpay_active'] );
         $other = new FixtureMethod( 'unrelated', 'unrelated-native' );
         $registry->register( $paypal );
-        $registry->register( $wcpay );
+        if ( $case['wcpay_registered'] ) $registry->register( $wcpay );
         $registry->register( $other );
         if ( $case['paypal_registered'] ) $registry->register( new FixtureMethod( 'ppcp-googlepay', 'ppcp-googlepay-block' ) );
         \Automattic\WooCommerce\Blocks\Package::$fixture_container = new class( $registry ) {
@@ -112,9 +121,10 @@ namespace {
             }
         };
         Petish_Cart_Payment_Layout::select_google_pay_provider();
+        check( $split_lookups === 0, $label . ': native express selection ignores split regular-checkout availability.' );
         $expected = $case['paypal_registered'] && ! $spec[1];
         check( $registry->is_registered( 'ppcp-googlepay' ) === $expected, $label . ': request-local provider selection.' );
-        check( $registry->get_registered( 'ppcp-gateway' ) === $paypal && $registry->get_registered( 'woocommerce_payments' ) === $wcpay && $registry->get_registered( 'unrelated' ) === $other, $label . ': other native integration identity unchanged.' );
+        check( $registry->get_registered( 'ppcp-gateway' ) === $paypal && $registry->get_registered( 'woocommerce_payments' ) === ( $case['wcpay_registered'] ? $wcpay : null ) && $registry->get_registered( 'unrelated' ) === $other, $label . ': other native integration identity unchanged.' );
         $deps = $registry->get_all_active_payment_method_script_dependencies();
         $data = $registry->get_all_registered_script_data()['paymentMethodData'];
         check( in_array( 'ppcp-googlepay-block', $deps, true ) === $expected && isset( $data['ppcp-googlepay'] ) === $expected, $label . ': native dependency and data collected together.' );

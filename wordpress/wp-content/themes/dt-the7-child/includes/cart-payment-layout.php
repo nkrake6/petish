@@ -26,8 +26,8 @@ final class Petish_Cart_Payment_Layout {
     }
 
     /**
-     * Use WooPayments for Cart Google Pay when that merchant integration is
-     * configured and available. The native provider still checks the browser.
+     * Use WooPayments for Cart Google Pay when its native Cart wallet setting
+     * is enabled. The native provider retains its own eligibility checks.
      * This removes one Blocks display integration from this HTML request only;
      * no saved option, Woo gateway or payment-processing endpoint is changed.
      */
@@ -39,25 +39,27 @@ final class Petish_Cart_Payment_Layout {
             || ! in_array( $_SERVER['REQUEST_METHOD'] ?? 'GET', array( 'GET', 'HEAD' ), true )
             || ! class_exists( 'WC_Payments' )
             || ! is_callable( array( 'WC_Payments', 'get_express_checkout_helper' ) )
-            || ! is_callable( array( 'WC_Payments', 'get_payment_gateway_by_id' ) )
+            || ! is_callable( array( 'WC_Payments', 'get_gateway' ) )
             || ! class_exists( '\Automattic\WooCommerce\Blocks\Package' ) ) {
             return;
         }
         try {
             $helper = WC_Payments::get_express_checkout_helper();
-            $google_pay = WC_Payments::get_payment_gateway_by_id( 'google_pay' );
+            $gateway = WC_Payments::get_gateway();
             if ( ! is_object( $helper ) || ! is_callable( array( $helper, 'get_enabled_express_checkout_methods_for_context' ) )
                 || ! in_array( 'payment_request', $helper->get_enabled_express_checkout_methods_for_context(), true )
-                || ! is_object( $google_pay ) || ! is_callable( array( $google_pay, 'is_available_for_express_checkout' ) )
-                || ! $google_pay->is_available_for_express_checkout() ) {
+                || ! is_object( $gateway ) || ! is_callable( array( $gateway, 'is_payment_request_enabled' ) )
+                // WooPayments' native Express Checkout uses the main gateway.
+                // Its split wallet availability check is for regular checkout.
+                || ! $gateway->is_payment_request_enabled() ) {
                 return;
             }
             $container = \Automattic\WooCommerce\Blocks\Package::container();
             $registry = $container->get( \Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class );
             $assets = $container->get( \Automattic\WooCommerce\Blocks\Assets\AssetDataRegistry::class );
-            $wcpay = $registry->get_registered( 'woocommerce_payments' );
-            if ( ! $wcpay || ! $wcpay->is_active()
-                || $assets->exists( 'paymentMethodData' )
+            // Express enablement comes from WooPayments' native main/helper
+            // APIs, independent of the regular card integration's registry key.
+            if ( $assets->exists( 'paymentMethodData' )
                 || wp_script_is( 'ppcp-googlepay-block', 'enqueued' )
                 || wp_script_is( 'ppcp-googlepay-block', 'done' )
                 || wp_script_is( 'wc-cart-block-frontend', 'enqueued' )
