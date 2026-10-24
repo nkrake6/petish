@@ -34,7 +34,8 @@ const PETISH_CANCELLATION_RELEASE_FILES = [
  'plugins/petish-fulfilment/petish-fulfilment.php'=>'dd8f361c5f0bd6d671d0c4d8b516e5faf544baa08904051d8c98ff9295138bf2',
 ];
 const PETISH_CANCELLATION_RELEASE_BASELINES = [
- 'plugins/petish-fulfilment/README.md'=>'56659169f68542424d4a8769b97c9c680930d70f857e9d3e635b5409766bf0f9',
+ // Live documentation remained at 0f292591 after the earlier three-file cost-sheet release.
+ 'plugins/petish-fulfilment/README.md'=>'6dfc2699d4ba2f8a002c25e2e28dd150ca6cd604f90d016c536297fd34cf6f9a',
  'plugins/petish-fulfilment/assets/shipping-quotes.css'=>'1d085c2efa41433b694da9444b8b824483085914661fdcb046bb0056694e4de3',
  'plugins/petish-fulfilment/assets/shipping-quotes.js'=>'c310810a94dc29bf9ee71a23671b5df06cd9ab3f62ff396c8238d0f0c020a732',
  'plugins/petish-fulfilment/includes/class-petish-automatic-shipping.php'=>'2b4682deecb4793f5499a1b7a5cc6b680d5673eebabd5b6e4960913de781a18b',
