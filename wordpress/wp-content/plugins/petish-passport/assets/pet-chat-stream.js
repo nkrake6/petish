@@ -288,6 +288,7 @@
     }
     function updateMetadata(next) {
         state = next;
+        qs('.pcs-main').setAttribute('aria-label', state.channel.name);
         qs('[data-chat-channel-name]').textContent = state.channel.name;
         qs('[data-chat-channel-description]').textContent = asString(state.channel.description);
         if (draft) draft.placeholder = `Message #${state.channel.name}`;
@@ -329,7 +330,7 @@
     }
     async function refresh(force = false, options = {}) {
         if (readPending) { if (force) refreshRequested = true; return; }
-        if (stopped || (!force && !active())) return;
+        if (stopped || (!force && (!active() || busy))) return;
         readPending = true;
         readController = new AbortController();
         const serial = navigationSerial;
@@ -341,7 +342,7 @@
             applyState(next, {prepend: Boolean(options.before), bottom: Boolean(options.bottom), replace: Boolean(options.replace)});
             failureCount = 0;
             if (!newButton.hidden && !nearBottom()) return;
-            if (!manuallyPaused) announce('');
+            if (!manuallyPaused && !busy) announce('');
             if (signedIn() && Date.now() - lastPresence > 60000 && active()) { lastPresence = Date.now(); request('presence').catch(() => {}); }
         } catch (error) {
             if (error.name !== 'AbortError' && !stopped) { failureCount = Math.min(5, failureCount + 1); announce(navigator.onLine === false ? 'You are offline. Your draft is still here.' : 'Updates are temporarily unavailable. Reconnecting shortly…'); }
@@ -349,7 +350,7 @@
     }
     function schedule() {
         clearTimeout(timer);
-        if (!active()) return;
+        if (!active() || busy) return;
         timer = setTimeout(() => refresh(), Math.min(120000, (Number(config.interval) || 10000) * Math.pow(2, failureCount)));
     }
     function scheduleMarkRead() {
@@ -469,7 +470,7 @@
         const upload = config.upload || {}; const uploadButton = qs('[data-chat-upload-button]');
         uploadButton.hidden = !upload.enabled || !upload.upload_ready;
         const help = qs('[data-chat-upload-help]'); help.hidden = uploadButton.hidden;
-        if (!uploadButton.hidden) help.textContent = `One photo or video, up to ${Math.floor(Number(upload.max_bytes) / 1048576)} MiB. ${asString(upload.video_requires)}. No video duration limit. ${asString(upload.metadata)}`;
+        if (!uploadButton.hidden) help.textContent = `Photos or MP4 video · up to ${Math.floor(Number(upload.max_bytes) / 1048576)} MiB. Videos may retain location metadata.`;
         uploadButton.addEventListener('click', () => { if (!busy) fileInput.click(); });
         fileInput.addEventListener('change', () => { const file = fileInput.files && fileInput.files[0]; if (!file) return; if (file.size > Number(upload.max_bytes)) { showError('This file is larger than the 250 MiB limit.'); fileInput.value = ''; return; } selectedFile = file; sendRequestId = ''; updateUpload(); showError(''); });
         updateCounter();

@@ -9,3 +9,6 @@
 @media(max-width:760px){.pcs-presence{display:none}.pcs-staff-form{grid-template-columns:1fr}.pcs-message-actions .pcs-message-tools{flex-wrap:wrap}}
 
 @media(max-width:760px){.pcs-mobile-topics button[aria-selected="true"]{background:var(--pcs-soft);color:var(--color-secondary-text,#6532a1);box-shadow:inset 0 -3px 0 var(--pcs-accent)}}
+
+.petish-chat-stream .pcs-identity input[type="text"]{margin-bottom:0}
+@media(max-width:760px){.pcs-composer-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px}.pcs-composer-toolbar .pcs-help{max-width:none;margin:0;text-align:left}.pcs-composer-toolbar .pcs-counter{white-space:nowrap}}

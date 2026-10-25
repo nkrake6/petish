@@ -2,7 +2,7 @@
 
 Updated 25 October 2026 (Australia/Melbourne).
 
-## In progress: Pet Chat channel upgrade on private staging
+## Ready for review: Pet Chat channels on private staging
 
 Build a publicly readable community with flat channel conversations. Posting
 uses the existing signed-in customer account and chosen public names. The owner
@@ -14,10 +14,10 @@ out of public discussion. Live thread updates must preserve a member's draft.
 Start with the existing WordPress hosting and accounts; no new paid service has
 been requested.
 
-The historical discussion pilot is implemented and verified on
-[private staging](https://staging.petish.biz/?petish_chat=1), source `14386ae`.
-See [Pet Chat](PET-CHAT.md) for the channel upgrade, native checks and historical
-staging receipts. The live Chat feature remains off during private verification.
+The channel upgrade is implemented on
+[private staging](https://staging.petish.biz/?petish_chat=1).
+See [Pet Chat](PET-CHAT.md) for native checks, hosted upload verification and
+staging receipts. The live Chat feature remains off during private review.
 
 ## Queued next: desktop product layout
 

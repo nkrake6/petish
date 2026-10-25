@@ -1,6 +1,6 @@
 # Pet Chat
 
-Channel upgrade in verification, 25 October 2026 (Australia/Melbourne).
+Channel upgrade on private staging, 25 October 2026 (Australia/Melbourne).
 
 ## Current scope: channel conversations
 
@@ -54,6 +54,21 @@ workflow shares the existing staging deployment lock.
 Schema creation precedes the activation transaction. A failed activation can
 leave empty private tables prepared for an idempotent retry; the flag/history
 changes roll back together before commit.
+
+The first channel deployment [40175968467](https://github.com/nkrake6/petish/actions/runs/40175968467)
+and its automatic email preview passed. The explicit staging enablement
+[40176009885](https://github.com/nkrake6/petish/actions/runs/40176009885) passed
+36 environment/source/transaction/preservation checks. The historical pending
+contribution remains pending, with its legacy source unchanged.
+
+Actual hosted browser checks verified channel navigation, keyboard sidebar
+resizing, emoji controls and both theme palettes at desktop and mobile widths.
+A generated 250 MiB H.264/AAC upload succeeded through the staging web endpoint;
+the browser read its 65-second duration without a media error. It stayed pending
+for moderation. The synthetic message was then removed through Chat, leaving
+the tested channel empty. No genuine contribution was approved or removed.
+Mobile composer spacing and upload status preservation were refined following
+these checks. The live storefront has not been enabled or deployed by this work.
 
 ## Historical discussion pilot
 
