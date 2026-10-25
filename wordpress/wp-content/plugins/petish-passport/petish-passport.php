@@ -76,6 +76,28 @@ add_action( 'plugins_loaded', function () {
         Petish_Chat_UI::boot();
     }
 
+    // Channel chat is a separate opt-in upgrade. Loading code never provisions
+    // tables, imports discussion history or enables a site. Privacy handlers
+    // remain loaded while disabled; presentation requires a complete transfer.
+    $stream_core = PETISH_PASSPORT_DIR . 'includes/class-petish-chat-stream.php';
+    if ( is_readable( $stream_core ) ) {
+        require_once $stream_core;
+        Petish_Chat_Stream::boot();
+        $stream_media = PETISH_PASSPORT_DIR . 'includes/class-petish-chat-stream-media.php';
+        if ( is_readable( $stream_media ) ) {
+            require_once $stream_media;
+            Petish_Chat_Stream_Media::boot();
+        }
+        $stream_ready = class_exists( 'Petish_Chat_Stream_Media' );
+        foreach ( array( 'includes/class-petish-chat-stream-ui.php', 'templates/pet-chat-stream.php', 'assets/pet-chat-stream.css', 'assets/pet-chat-stream.js' ) as $stream_file ) {
+            if ( ! is_readable( PETISH_PASSPORT_DIR . $stream_file ) ) { $stream_ready = false; break; }
+        }
+        if ( $stream_ready ) {
+            require_once PETISH_PASSPORT_DIR . 'includes/class-petish-chat-stream-ui.php';
+            Petish_Chat_Stream_UI::boot();
+        }
+    }
+
     // Customer reviews are an opt-in module. Existing Passport features remain
     // available if a partial code transfer has not yet supplied the new files.
     $review_modules = array(
