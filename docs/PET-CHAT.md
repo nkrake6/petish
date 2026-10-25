@@ -1,6 +1,61 @@
 # Pet Chat
 
-Private staging pilot, 25 October 2026 (Australia/Melbourne).
+Channel upgrade in verification, 25 October 2026 (Australia/Melbourne).
+
+## Current scope: channel conversations
+
+The current owner-approved direction replaces the discussion/Q&A pilot below
+with flat channel conversations. There are no direct messages or live audio or
+video broadcasts. Members can upload photos and supported video files.
+
+The upgrade adds a resizable desktop channel sidebar, mobile category/channel
+rows, a fixed composer, limited safe formatting, quoted replies, emoji reactions,
+per-member unread markers and personal mutes. Staff can review contributions,
+pause posting, and create, move, reorder, archive and restore channels/categories.
+The existing Petish fonts, light/dark tokens and accounts are reused.
+
+Posting requires a chosen public name and explicit public-sharing consent. The
+first contribution waits for staff approval; subsequent contributions can appear
+immediately after approval. Edits return to review. Reports do not automatically
+ban members. Bodies allow 1,000 characters and one attachment per message.
+
+Chat alone permits attachments up to **250 MiB** without a video-duration policy.
+JPEG, PNG and WebP photographs are resized/re-encoded to strip embedded tags.
+Videos must be regular progressive H.264 MP4s with optional AAC audio; original
+video metadata can remain. This shared host does not provide FFmpeg, so MOV,
+WebM, HEVC and arbitrary formats are not silently accepted or converted.
+Existing Passport/review limits stay unchanged. A 5 GiB per-member capacity
+guard and request limits bound storage and processing.
+
+Files remain outside the public web root. The media endpoint rechecks message
+publication, ownership and personal mutes on every GET/HEAD/Range request.
+Unapproved messages/files are available only to their owner and staff. There
+are no public WordPress attachment URLs or external media embeds.
+
+`petish_chat_stream_enabled_v1` is a second opt-in flag, defaulting off.
+Loading source does not create tables, enable the flag or migrate discussions.
+The explicit staging installer provisions two dedicated tables and imports
+legacy topics/replies into flat messages without changing their source rows,
+authors, timestamps or pending/public state. The importer is snapshot-bound and
+idempotent. Private staging remains guarded; production activation is separate.
+
+The service native proof passed 132 checks, media proof 73 checks and UI transport
+proof 43 checks in a fresh local WordPress/MySQL sandbox with HTTP, mail and cron
+blocked. A separate loopback HTTP proof passed 27 checks, including an actual
+250 MiB multipart upload, rejection at 250 MiB plus one byte, 65-second H.264/AAC
+video, photo metadata removal and authorization/Range behavior. Browser/staging
+checks are tracked separately; local proof is not proof of a hosted upload.
+
+`setup-pet-chat-stream-staging.php` permits provisioning only on the fixed
+staging origin, verifies the exact installed Passport source and existing
+isolation guard, imports within a transaction, and proves accounts, products,
+orders, Passports/media and other settings unchanged. The dedicated verification
+workflow shares the existing staging deployment lock.
+Schema creation precedes the activation transaction. A failed activation can
+leave empty private tables prepared for an idempotent retry; the flag/history
+changes roll back together before commit.
+
+## Historical discussion pilot
 
 Open [Pet Chat on staging](https://staging.petish.biz/?petish_chat=1) using the
 existing staging login. The staging site's access guard is preserved; the
